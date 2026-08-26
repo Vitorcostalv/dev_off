@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "meu-jogo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "meu-jogo", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}
