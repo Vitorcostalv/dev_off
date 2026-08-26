@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { CONFIG, ROTULOS } from '../game/config';
 import { estado } from '../game/estado';
 import { buscarNpc } from '../game/npcs';
+import { CONFIG_TEMPO } from '../game/relogio';
+import { apagar, salvar } from '../game/save';
 import { falasDe } from '../game/tipos';
 import type { Direcao, Interagivel, PropObjeto, TipoInteragivel } from '../game/tipos';
 import type { UIScene } from './UIScene';
@@ -26,6 +28,8 @@ export class FarmScene extends Phaser.Scene {
   private interagiveis: Interagivel[] = [];
   private alvo: Interagivel | null = null;
   private npcs: Phaser.Physics.Arcade.Sprite[] = [];
+  /** trava o input durante fades (dormir, trocar de mapa) */
+  private transicionando = false;
 
   constructor() {
     super('FarmScene');
@@ -72,6 +76,16 @@ export class FarmScene extends Phaser.Scene {
     this.teclas = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.teclas &
       Record<string, Phaser.Input.Keyboard.Key>;
 
+    // F2/F3 jogam itens de teste no inventario (debug)
+    this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('item_teste', 1));
+    this.input.keyboard!.on('keydown-F3', () => estado.inventario.adicionar('item_teste_2', 1));
+
+    // F4 apaga o save (debug)
+    this.input.keyboard!.on('keydown-F4', () => {
+      apagar();
+      console.info('[save] apagado');
+    });
+
     // F1 liga/desliga o debug das colisoes
     this.input.keyboard!.on('keydown-F1', () => {
       this.physics.world.drawDebug = !this.physics.world.drawDebug;
@@ -83,7 +97,7 @@ export class FarmScene extends Phaser.Scene {
     this.atualizarAlvo();
 
     // com dialogo/menu aberto o player fica parado e o relogio congela
-    if (this.ui.bloqueado) {
+    if (this.ui.bloqueado || this.transicionando) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(`idle-${this.direcao}`, true);
       return;
@@ -126,9 +140,37 @@ export class FarmScene extends Phaser.Scene {
       case 'npc':
         this.falarCom(this.alvo);
         break;
+      case 'cama':
+        this.ui.confirmar('Dormir ate amanha?', () => this.dormir());
+        break;
       default:
         break;
     }
+  }
+
+  // -------------------------------------------------------------- dormir --
+
+  private dormir(): void {
+    this.transicionando = true;
+    const cam = this.cameras.main;
+    cam.fadeOut(300, 0, 0, 0);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      estado.dia += 1;
+      estado.relogio.definir(CONFIG_TEMPO.horaAoAcordar);
+      this.salvarJogo();
+      this.transicionando = false;
+      cam.fadeIn(400, 0, 0, 0);
+    });
+  }
+
+  private salvarJogo(): void {
+    salvar({
+      dia: estado.dia,
+      minutos: estado.relogio.minutos,
+      mapa: estado.mapa,
+      x: Math.round(this.player.x),
+      y: Math.round(this.player.y),
+    });
   }
 
   // ----------------------------------------------------------------- npcs --

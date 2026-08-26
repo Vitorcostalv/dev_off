@@ -274,8 +274,13 @@ function gerarFazenda(ts) {
   }
   for (const par of [[8, 20], [9, 20], [12, 24], [33, 12]]) obj[at(par[0], par[1])] = GID.PEDRA;
 
+  // cama provisoria ao ar livre (vai pra dentro da casa quando o interior existir)
+  obj[at(4, 17)] = GID.CAMA_TOPO;
+  obj[at(4, 18)] = GID.CAMA_BASE;
+
   const interativos = [
     objeto('placa_teste', 'placa', 18, 15),
+    objeto('cama_fazenda', 'cama', 4, 18),
     objeto('morador_1', 'npc', 16, 15, { npcId: 'morador_1' }),
   ];
 

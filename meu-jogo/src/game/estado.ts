@@ -1,3 +1,4 @@
+import { Inventario } from './inventario';
 import { Relogio } from './relogio';
 
 /**
@@ -5,7 +6,10 @@ import { Relogio } from './relogio';
  * Cenas leem e escrevem daqui; ninguem guarda copia.
  */
 export const estado = {
+  /** chave do mapa em que o player esta */
+  mapa: 'farm',
   /** dia absoluto desde o inicio do jogo; 0 = a primeira segunda-feira */
   dia: 0,
   relogio: new Relogio(),
+  inventario: new Inventario(),
 };
