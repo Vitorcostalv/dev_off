@@ -39,6 +39,8 @@ export const COR_ZONA: Record<TipoZona, number> = {
   mercado: 0xffd97d,
   academia: 0xff8f7f,
   parque: 0x9ee493,
+  bar: 0xffa95c,
+  farmacia: 0x7fe3d0,
 };
 
 /** Paleta/medidas da interface, pra HUD, dialogo e inventario ficarem coerentes. */

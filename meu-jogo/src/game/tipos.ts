@@ -4,7 +4,7 @@ export type Direcao = 'up' | 'down' | 'left' | 'right';
 export type TipoInteragivel = 'placa' | 'npc' | 'porta' | 'cama' | 'item';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
-export type TipoZona = 'casa' | 'mercado' | 'academia' | 'parque';
+export type TipoZona = 'casa' | 'mercado' | 'academia' | 'parque' | 'bar' | 'farmacia';
 
 export type PropObjeto = string | number | boolean;
 

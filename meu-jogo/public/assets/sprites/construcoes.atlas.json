@@ -159,6 +159,46 @@
     "w": 256,
     "h": 235
    }
+  },
+  "bar": {
+   "frame": {
+    "x": 1472,
+    "y": 0,
+    "w": 256,
+    "h": 307
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 307
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 307
+   }
+  },
+  "farmacia": {
+   "frame": {
+    "x": 1728,
+    "y": 0,
+    "w": 256,
+    "h": 289
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 289
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 289
+   }
   }
  },
  "meta": {
@@ -166,8 +206,8 @@
   "image": "construcoes.png",
   "format": "RGBA8888",
   "size": {
-   "w": 1472,
-   "h": 252
+   "w": 1984,
+   "h": 307
   },
   "scale": "1"
  }

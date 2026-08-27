@@ -48,6 +48,8 @@ export const MAPAS: Record<string, DefinicaoMapa> = {
   // entao a entrada e um tile acima dela (o salao e mais largo que uma casa)
   mercado: mapa('mercado', { x: 11, y: 13 }),
   academia: mapa('academia', { x: 9, y: 10 }),
+  bar: mapa('bar', { x: 9, y: 10 }),
+  farmacia: mapa('farmacia', { x: 9, y: 10 }),
 };
 
 export function buscarMapa(chave: unknown): DefinicaoMapa | null {

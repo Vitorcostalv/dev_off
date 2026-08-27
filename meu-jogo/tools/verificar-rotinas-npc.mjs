@@ -69,10 +69,28 @@ function livre(x, y) {
   return !solido[ty * mapa.width + tx];
 }
 
+/** Amostra o segmento a->b como o NPC anda: em reta, sem pathfinding. */
+function trechoBloqueado(a, b) {
+  const passos = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.25));
+  for (let i = 0; i <= passos; i++) {
+    const x = a.x + ((b.x - a.x) * i) / passos;
+    const y = a.y + ((b.y - a.y) * i) / passos;
+    if (!livre(x, y)) return `${Math.floor(x)},${Math.floor(y)}`;
+  }
+  return null;
+}
+
 /**
  * Retangulo de `vagar`: por ser convexo, basta que todo tile dele seja livre
  * pra qualquer reta interna tambem ser. Confere na definicao, nao por amostra —
  * o sorteio pode levar centenas de dias pra achar o canto ruim.
+ *
+ * Confere tambem a VOLTA PRA CASA a partir de cada area. O fallback das 18:00
+ * monta `[...saidaSegura, ...rotaCasa, frente]` e anda tudo em reta, entao:
+ * o primeiro ponto tem de ser alcancavel em reta dos quatro cantos da area (se
+ * estiver dentro dela, a convexidade ja garante), e cada perna da rota tem de
+ * estar livre. E isso que impede a definicao de depender de qual acao ficou por
+ * ultimo no dia.
  */
 function conferirAreasDeVagar() {
   let areas = 0;
@@ -80,13 +98,40 @@ function conferirAreasDeVagar() {
     for (const acao of def.rotina) {
       if (acao.tipo !== 'vagar') continue;
       areas += 1;
-      for (let ty = Math.floor(acao.area.min.y); ty <= Math.floor(acao.area.max.y); ty++) {
-        for (let tx = Math.floor(acao.area.min.x); tx <= Math.floor(acao.area.max.x); tx++) {
+      const { min, max } = acao.area;
+      for (let ty = Math.floor(min.y); ty <= Math.floor(max.y); ty++) {
+        for (let tx = Math.floor(min.x); tx <= Math.floor(max.x); tx++) {
           if (!livre(tx + 0.5, ty + 0.5)) {
             throw new Error(
               `area de vagar de ${def.id} (${acao.horario}) inclui tile bloqueado ${tx},${ty}`,
             );
           }
+        }
+      }
+
+      const frente = LOCAIS_CIDADE[def.casa]?.frente;
+      if (!frente) throw new Error(`${def.id}: casa "${def.casa}" sem frente`);
+      const volta = [...(acao.saidaSegura ?? []), ...def.rotaCasa, frente];
+      const cantos = [
+        { x: min.x, y: min.y }, { x: max.x, y: min.y },
+        { x: min.x, y: max.y }, { x: max.x, y: max.y },
+      ];
+      for (const canto of cantos) {
+        const ruim = trechoBloqueado(canto, volta[0]);
+        if (ruim) {
+          throw new Error(
+            `${def.id} (${acao.horario}): do canto ${canto.x},${canto.y} da area ate ` +
+              `${volta[0].x},${volta[0].y} passa pelo tile bloqueado ${ruim}`,
+          );
+        }
+      }
+      for (let i = 0; i < volta.length - 1; i++) {
+        const ruim = trechoBloqueado(volta[i], volta[i + 1]);
+        if (ruim) {
+          throw new Error(
+            `${def.id} (${acao.horario}): a volta pra casa passa pelo tile bloqueado ${ruim} ` +
+              `entre ${volta[i].x},${volta[i].y} e ${volta[i + 1].x},${volta[i + 1].y}`,
+          );
         }
       }
     }

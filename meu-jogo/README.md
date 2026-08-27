@@ -84,6 +84,7 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `Portas_v1.png` (4x5, coluna 0) | `arte/` | porta das fachadas | build |
 | `Janelas_v1.png` (7x4) | `arte/` | janela das fachadas | build |
 | `Mecado_academia.png` | `arte/` | fachadas prontas de mercado e academia | build |
+| `farmacia_bar.png` | `arte/` | fachadas prontas de bar e farmacia | build |
 | `Arvores.png` (3 especies x 6 estagios) | `public/` | atlas `arvores` | runtime |
 | `Flores_v1.png` e `Flores_v2.png` (4 especies x 6 cada) | `public/` | atlas `flores_v1` / `flores_v2` | runtime |
 | `pedras.png` | `public/` | calcamento (build) + atlas `pedras` (runtime) | ambos |
@@ -91,6 +92,7 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `Utensilios_academia.png` | `arte/` | folha+atlas `moveis_academia` | build |
 | `Mobilhas_v1.png` e `Mobilia_v2.png` | `arte/` | folha+atlas `moveis_mobilia_v1` / `_v2` | build |
 | `player_sprites.png`, `Player_andando.png`, `Player_correndo.png` | `public/` | poses do player | runtime |
+| `<Npc>_andando.png` e `<Npc>_parada.png` | `public/` | folhas `_runtime` de caminhada e de pose parada | build |
 
 `pedras.png` e o unico caso de folha usada nas duas pontas — por isso continua
 em `public/` mesmo tendo parte consumida em build.
@@ -353,6 +355,13 @@ inicial, spritesheet, dialogo e a lista ordenada de acoes. O motor aceita
 `voltar_para_casa`. NPC sem acao configurada depois das 18:00 recebe
 automaticamente o retorno para sua casa. `vagar_rota` permite pausas entre
 waypoints; saidas de interiores caminham ate a porta antes de trocar de mapa.
+
+**Duas folhas por personagem: caminhada e pose parada.** `npm run processar-sprites-npc`
+normaliza cada uma numa grade 4x4 (linhas: baixo, cima, esquerda, direita) —
+mas a ordem DENTRO da arte muda de personagem pra personagem, entao cada entrada
+do script remapeia, e folha sem perfil esquerdo (Leticia, Mari) o gera
+espelhando o direito. Sem a folha de parado o idle cai no 1o frame da
+caminhada, que e uma pose de passo: o NPC parado parece andar no lugar.
 
 Sao 5 moradores, um por casa (a validacao em `npcs.ts` explode na carga se dois
 dividirem lote): morador_1 (placeholder), Edu (`casa_2`, vaga pela cidade), Mari

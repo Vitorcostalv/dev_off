@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { MAPAS, buscarMapa } from '../game/mapas';
+import type { SpriteNpc } from '../game/npcs';
 import { NPCS } from '../game/npcs';
 import { carregar } from '../game/save';
 
@@ -81,6 +82,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
     for (const npc of Object.values(NPCS)) {
       if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
+      if (npc.spriteParado) this.load.image(`npc-${npc.id}-parado`, npc.spriteParado.arquivo);
     }
   }
 
@@ -157,22 +159,44 @@ export class BootScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Registra os recortes de uma folha de NPC e devolve os frames por direcao.
+   * Os nomes de recorte (`down-0`...) sao por TEXTURA, e caminhada e parado sao
+   * texturas diferentes, entao as duas folhas podem usar os mesmos nomes.
+   */
+  private recortarFolhaNpc(
+    chaveTextura: string,
+    folha: SpriteNpc,
+  ): Record<string, Phaser.Types.Animations.AnimationFrame[]> {
+    const textura = this.textures.get(chaveTextura);
+    const fonte = textura.source[0];
+    const porDirecao: Record<string, Phaser.Types.Animations.AnimationFrame[]> = {};
+    for (const [direcao, faixa] of Object.entries(folha.frames)) {
+      porDirecao[direcao] = faixa.colunas.map((coluna, indice) => {
+        const x0 = Math.floor((coluna * fonte.width) / folha.colunas);
+        const x1 = Math.floor(((coluna + 1) * fonte.width) / folha.colunas);
+        const y0 = Math.floor((faixa.linha * fonte.height) / folha.linhas);
+        const y1 = Math.floor(((faixa.linha + 1) * fonte.height) / folha.linhas);
+        const nome = `${direcao}-${indice}`;
+        textura.add(nome, 0, x0, y0, x1 - x0, y1 - y0);
+        return { key: chaveTextura, frame: nome };
+      });
+    }
+    return porDirecao;
+  }
+
   /** Recortes e animacoes sao inteiramente descritos pela entrada do NPC. */
   private criarSpritesNpcs(): void {
     for (const npc of Object.values(NPCS)) {
       if (!npc.sprite) continue;
-      const chaveTextura = `npc-${npc.id}-sprites`;
-      const textura = this.textures.get(chaveTextura);
-      const fonte = textura.source[0];
-      for (const [direcao, faixa] of Object.entries(npc.sprite.frames)) {
-        const frames = faixa.colunas.map((coluna, indice) => {
-          const x0 = Math.floor((coluna * fonte.width) / npc.sprite!.colunas);
-          const x1 = Math.floor(((coluna + 1) * fonte.width) / npc.sprite!.colunas);
-          const y0 = Math.floor((faixa.linha * fonte.height) / npc.sprite!.linhas);
-          const y1 = Math.floor(((faixa.linha + 1) * fonte.height) / npc.sprite!.linhas);
-          textura.add(`${direcao}-${indice}`, 0, x0, y0, x1 - x0, y1 - y0);
-          return { key: chaveTextura, frame: `${direcao}-${indice}` };
-        });
+      const andando = this.recortarFolhaNpc(`npc-${npc.id}-sprites`, npc.sprite);
+      // Sem folha de parado, o idle cai no 1o frame da caminhada — que e uma
+      // pose de passo, e le como se o NPC estivesse andando no lugar.
+      const parado = npc.spriteParado
+        ? this.recortarFolhaNpc(`npc-${npc.id}-parado`, npc.spriteParado)
+        : null;
+
+      for (const [direcao, frames] of Object.entries(andando)) {
         this.anims.create({
           key: `npc-${npc.id}-walk-${direcao}`,
           frames,
@@ -181,7 +205,7 @@ export class BootScene extends Phaser.Scene {
         });
         this.anims.create({
           key: `npc-${npc.id}-idle-${direcao}`,
-          frames: [frames[0]],
+          frames: [(parado?.[direcao] ?? frames)[0]],
           frameRate: 1,
         });
       }

@@ -8,8 +8,14 @@ const DIR = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'public', '
 const FRAME = { w: 256, h: 320 };
 const MARGEM = { x: 12, y: 12 };
 
-/** Remove somente o preto conectado as bordas, preservando cores escuras internas. */
-function removerFundoPreto(origem) {
+/**
+ * Remove somente o preto conectado as bordas, preservando cores escuras
+ * internas. `limiar` existe porque nem toda folha vem com preto puro: a da
+ * Leticia tem fundo (11,11,13), que passa batido por um limiar de 8. Subir o
+ * limiar so e seguro enquanto o contorno do personagem ficar acima dele —
+ * confira a folha `_runtime` gerada antes de subir mais.
+ */
+function removerFundoPreto(origem, limiar = 8) {
   const total = origem.w * origem.h;
   const fundo = new Uint8Array(total);
   const fila = new Int32Array(total);
@@ -17,7 +23,7 @@ function removerFundoPreto(origem) {
   let fim = 0;
   const escuro = (indice) => {
     const p = indice * 4;
-    return origem.px[p] < 8 && origem.px[p + 1] < 8 && origem.px[p + 2] < 8;
+    return origem.px[p] < limiar && origem.px[p + 1] < limiar && origem.px[p + 2] < limiar;
   };
   const adicionar = (indice) => {
     if (indice < 0 || indice >= total || fundo[indice] || !escuro(indice)) return;
@@ -109,9 +115,17 @@ function componentes(img, totalLinhas, colunas) {
 }
 
 /** Gera uma grade uniforme: cada frame contem exatamente uma pose. */
-function normalizar({ entrada, saida, linhasOriginais, colunasOriginais = 4, mapa, removerPreto = false }) {
+function normalizar({
+  entrada,
+  saida,
+  linhasOriginais,
+  colunasOriginais = 4,
+  mapa,
+  removerPreto = false,
+  limiarPreto = 8,
+}) {
   const lida = lerPng(join(DIR, entrada));
-  const origem = removerPreto ? removerFundoPreto(lida) : lida;
+  const origem = removerPreto ? removerFundoPreto(lida, limiarPreto) : lida;
   const grade = componentes(origem, linhasOriginais, colunasOriginais);
   const frames = mapa.flat().map(({ coluna, linha, flipX = false }) => ({
     img: grade[linha][coluna].img,
@@ -152,6 +166,13 @@ function normalizar({ entrada, saida, linhasOriginais, colunasOriginais = 4, map
 }
 
 const linha = (n) => [0, 1, 2, 3].map((coluna) => ({ coluna, linha: n }));
+
+/**
+ * Folha de POSE PARADA: uma pose por direcao. A grade de saida e sempre 4x4,
+ * entao a mesma pose vai nas 4 colunas — a animacao de idle usa so a primeira.
+ */
+const poseParada = (coluna, linha = 0, flipX = false) =>
+  [0, 1, 2, 3].map(() => ({ coluna, linha, flipX }));
 
 normalizar({
   entrada: 'Edu_correndo.png',
@@ -198,4 +219,73 @@ normalizar({
   linhasOriginais: 4,
   mapa: [linha(0), linha(1), linha(2), linha(3)],
   removerPreto: true,
+});
+
+// A ORDEM do `mapa` e sempre [baixo, cima, esquerda, direita] — e o que
+// npcs.ts espera nas linhas 0..3 da folha gerada. A ordem DENTRO da folha de
+// arte muda de personagem pra personagem, entao cada entrada remapeia.
+
+// Jaqueline: 3 colunas x 4 linhas, na ordem frente / esquerda / direita /
+// costas. Com 3 poses o ciclo fecha em vai-e-volta, como o do Edu.
+normalizar({
+  entrada: 'Jaqueline_andando.png',
+  saida: 'Jaqueline_andando_runtime.png',
+  linhasOriginais: 4,
+  colunasOriginais: 3,
+  mapa: [tresFrames(0), tresFrames(3), tresFrames(1), tresFrames(2)],
+  removerPreto: true,
+});
+
+// Leticia: 4 colunas x 4 linhas, rotuladas na propria arte como FRONT / RIGHT
+// / BACK / LEFT. Os rotulos sao componentes bem menores que os personagens,
+// entao o corte pelos 16 maiores os descarta sozinho.
+normalizar({
+  entrada: 'leticia_andando.png',
+  saida: 'leticia_andando_runtime.png',
+  linhasOriginais: 4,
+  mapa: [linha(0), linha(2), linha(3), linha(1)],
+  removerPreto: true,
+  limiarPreto: 20, // o fundo dela e (11,11,13), nao preto puro
+});
+
+// --- poses paradas ---------------------------------------------------------
+// Sem estas folhas o idle caia no 1o frame da caminhada, e o NPC parado ficava
+// com uma perna a frente da outra, como se andasse no lugar.
+
+// Jaqueline: 1 linha x 4 poses, na ordem frente / direita / esquerda / costas.
+normalizar({
+  entrada: 'Jaqueline_parada.png',
+  saida: 'Jaqueline_parada_runtime.png',
+  linhasOriginais: 1,
+  colunasOriginais: 4,
+  mapa: [poseParada(0), poseParada(3), poseParada(2), poseParada(1)],
+});
+
+// Leticia: 1 linha x 4 poses, mas as duas primeiras sao frontais — a folha nao
+// tem perfil esquerdo, entao ele sai espelhando o direito.
+normalizar({
+  entrada: 'Leticia_parada.png',
+  saida: 'Leticia_parada_runtime.png',
+  linhasOriginais: 1,
+  colunasOriginais: 4,
+  mapa: [poseParada(0), poseParada(3), poseParada(2, 0, true), poseParada(2)],
+});
+
+// Mari: 1 linha x 4 poses — frente, frente (variante), perfil direito, costas.
+normalizar({
+  entrada: 'Mari_parada.png',
+  saida: 'Mari_parada_runtime.png',
+  linhasOriginais: 1,
+  colunasOriginais: 4,
+  mapa: [poseParada(0), poseParada(3), poseParada(2, 0, true), poseParada(2)],
+});
+
+// Edu: 2 linhas x 4 poses. A linha 0 e frente, frente, costas, costas; a linha 1
+// tem quatro variacoes viradas pra ESQUERDA, entao a direita sai espelhada.
+normalizar({
+  entrada: 'Edu_parado.png',
+  saida: 'Edu_parado_runtime.png',
+  linhasOriginais: 2,
+  colunasOriginais: 4,
+  mapa: [poseParada(0), poseParada(2), poseParada(0, 1), poseParada(0, 1, true)],
 });

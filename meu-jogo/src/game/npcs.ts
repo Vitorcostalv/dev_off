@@ -33,6 +33,17 @@ export type AcaoRotinaNpc =
        */
       tipo: 'vagar';
       area: AreaVagar;
+      /**
+       * Caminho seguro de dentro da `area` ate o primeiro ponto de `rotaCasa`.
+       * O fallback das 18:00 sai em RETA da posicao atual pro primeiro ponto
+       * que receber, entao sem isto a volta pra casa depende de `rotaCasa[0]`
+       * ser alcancavel em reta de qualquer canto da area — o que amarra a
+       * definicao a qual acao ficou por ultimo no dia. Com o caminho aqui, o
+       * primeiro ponto fica DENTRO da area (a reta ate ele e livre pela
+       * convexidade) e o resto e uma rota explicita. Mesmo papel que
+       * `rotasRetorno` faz pra `vagar_rota`.
+       */
+      saidaSegura?: PontoTile[];
       pausaMinSegundos?: number;
       pausaMaxSegundos?: number;
     })
@@ -60,6 +71,11 @@ export interface DefinicaoNpc {
   dialogoAtual: string[];
   /** Recorte do spritesheet; null usa os sprites do player como placeholder. */
   sprite: SpriteNpc | null;
+  /**
+   * Folha de POSE PARADA. Sem ela o idle cai no 1o frame da caminhada, que e
+   * uma pose de passo — o NPC parado parece estar andando no lugar.
+   */
+  spriteParado?: SpriteNpc | null;
   tint?: number;
   rotina: AcaoRotinaNpc[];
   /** Rota publica ate a frente da casa, usada pelo fallback global das 18:00. */
@@ -81,6 +97,8 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
   casa_6: { frente: { x: 43.5, y: 79.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
   mercado: { frente: { x: 70.5, y: 55.5 }, interior: { x: 11.5, y: 9.5 }, portaInterior: { x: 11.5, y: 13.5 } },
   academia: { frente: { x: 53.5, y: 35.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
+  bar: { frente: { x: 81.5, y: 29.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
+  farmacia: { frente: { x: 85.5, y: 55.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
 };
 
 export const hora = (horas: number, minutos = 0): number => horas * 60 + minutos;
@@ -114,6 +132,15 @@ export const NPCS: Record<string, DefinicaoNpc> = {
         up: { linha: 1, colunas: [0, 1, 2, 3] },
         left: { linha: 2, colunas: [0, 1, 2, 3] },
         right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    },
+    spriteParado: {
+      arquivo: 'assets/sprites/Edu_parado_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
       },
     },
     dialogoAtual: [
@@ -163,6 +190,15 @@ export const NPCS: Record<string, DefinicaoNpc> = {
         right: { linha: 3, colunas: [0, 1, 2, 3] },
       },
     },
+    spriteParado: {
+      arquivo: 'assets/sprites/Mari_parada_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
+      },
+    },
     dialogoAtual: ['Hoje e dia de treino.', 'Quero voltar pra casa perto das 13:00.'],
     rotina: [
       { horario: hora(9), tipo: 'sair_construcao', construcao: 'casa_3' },
@@ -191,8 +227,24 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   jaqueline: {
     id: 'jaqueline', nome: 'Jaqueline', casa: 'casa_4',
     posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_4', horaAcordar: hora(8),
-    tint: 0xffc98f,
-    sprite: null,
+    sprite: {
+      arquivo: 'assets/sprites/Jaqueline_andando_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    },
+    spriteParado: {
+      arquivo: 'assets/sprites/Jaqueline_parada_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
+      },
+    },
     dialogoAtual: [
       'Oi! Ja soube? A Mari passou aqui hoje, direto da academia.',
       'Passo o dia atendendo, entao acabo sabendo de tudo — nada de mais, so o movimento.',
@@ -228,8 +280,24 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   leticia: {
     id: 'leticia', nome: 'Leticia', casa: 'casa_5',
     posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_5', horaAcordar: hora(9, 30),
-    tint: 0xb9f0c8,
-    sprite: null,
+    sprite: {
+      arquivo: 'assets/sprites/leticia_andando_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    },
+    spriteParado: {
+      arquivo: 'assets/sprites/Leticia_parada_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
+      },
+    },
     dialogoAtual: [
       'Sai sem pressa hoje. Sempre saio sem pressa.',
       'A praca fica boa de tarde, quando o calcamento esquenta.',
@@ -251,13 +319,15 @@ export const NPCS: Record<string, DefinicaoNpc> = {
         { x: 37.5, y: 45.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 52.5 },
       ] },
       { horario: hora(13), tipo: 'vagar', pausaMinSegundos: 6, pausaMaxSegundos: 18,
-        area: { min: { x: 33.2, y: 52.2 }, max: { x: 42.8, y: 57.8 } } },
+        area: { min: { x: 33.2, y: 52.2 }, max: { x: 42.8, y: 57.8 } },
+        // a praca nao tem saida em reta pra avenida: sobe pela calcada primeiro
+        saidaSegura: [
+          { x: 37.5, y: 52.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 45.5 },
+        ] },
+      // o turno da avenida nao precisa de saida: a area toda esta na faixa da
+      // via, e o primeiro ponto de `rotaCasa` tambem
     ],
-    // O fallback das 18:00 sai em LINHA RETA da posicao atual pro primeiro
-    // ponto daqui, entao ele fica dentro da praca — que e onde ela sempre esta
-    // as 18:00, porque o turno da praca comeca as 13:00 e nao termina.
     rotaCasa: [
-      { x: 37.5, y: 52.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 45.5 },
       { x: 22.5, y: 45.5 }, { x: 22.5, y: 71.5 },
       { x: 34.5, y: 71.5 }, { x: 34.5, y: 79.5 },
     ],

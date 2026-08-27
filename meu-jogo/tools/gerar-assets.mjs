@@ -191,28 +191,42 @@ function celulaJusta(chave, c, r) {
 }
 
 /**
- * `Mecado_academia.png` traz as fachadas do mercado e da academia ja montadas,
- * em elevacao frontal — nao ha o que compor, so recortar. Cada uma e o maior
- * blob da sua metade da folha (mercado em cima, academia embaixo).
+ * Folhas de fachada PRONTA: a arte ja vem montada em elevacao frontal, entao
+ * nao ha o que compor — so recortar o maior blob de cada metade da folha.
+ *
+ * `eixo` diz como a folha esta dividida: 'y' pra duas fachadas empilhadas,
+ * 'x' pra duas lado a lado. `nomes` vem na ordem da divisao.
  */
-function carregarFachadasProntas() {
-  const img = lerPng(caminhoFolha('Mecado_academia.png', false));
+const FOLHAS_FACHADA = {
+  comercio: { arquivo: 'Mecado_academia.png', eixo: 'y', nomes: ['mercado', 'academia'] },
+  servicos: { arquivo: 'farmacia_bar.png', eixo: 'x', nomes: ['bar', 'farmacia'] },
+};
+
+function carregarFachadasProntas(def) {
+  const img = lerPng(caminhoFolha(def.arquivo, false));
   const todos = blobs(img, 5000);
-  const meio = img.h / 2;
-  const maiorEm = (filtro, rotulo) => {
-    const c = todos.filter(filtro)[0];
-    if (!c) throw new Error(`Mecado_academia.png: nao achei a fachada do ${rotulo}`);
-    return c;
-  };
-  return {
-    arquivo: 'Mecado_academia.png',
-    img,
-    mercado: maiorEm((b) => b.y + b.h / 2 < meio, 'mercado'),
-    academia: maiorEm((b) => b.y + b.h / 2 >= meio, 'academia'),
-  };
+  const meio = (def.eixo === 'y' ? img.h : img.w) / 2;
+  const centro = (b) => (def.eixo === 'y' ? b.y + b.h / 2 : b.x + b.w / 2);
+  const caixas = {};
+  def.nomes.forEach((nome, i) => {
+    const c = todos.filter((b) => (i === 0 ? centro(b) < meio : centro(b) >= meio))[0];
+    if (!c) throw new Error(`${def.arquivo}: nao achei a fachada de "${nome}"`);
+    caixas[nome] = c;
+  });
+  return { arquivo: def.arquivo, img, caixas };
 }
 
-const fachadasProntas = carregarFachadasProntas();
+const folhasFachada = Object.fromEntries(
+  Object.entries(FOLHAS_FACHADA).map(([k, def]) => [k, carregarFachadasProntas(def)]),
+);
+
+/** Acha a fachada pronta de um lote em qualquer uma das folhas. */
+function fachadaPronta(nome) {
+  for (const folha of Object.values(folhasFachada)) {
+    if (folha.caixas[nome]) return { img: folha.img, caixa: folha.caixas[nome] };
+  }
+  throw new Error(`nenhuma folha de fachada tem "${nome}"`);
+}
 
 /**
  * Folhas de MOVEL: utensilio de comercio e mobilia de casa. Nenhuma delas tem
@@ -752,6 +766,9 @@ const ZONAS = [
   { nome: 'mercado', classe: 'mercado', x: 64, y: 50, w: 12, h: 8 },
   { nome: 'academia', classe: 'academia', x: 48, y: 30, w: 10, h: 8 },
   { nome: 'parque', classe: 'parque', x: 28, y: 48, w: 20, h: 14 },
+  // servicos: os dois quadrantes livres a leste da avenida vertical
+  { nome: 'bar', classe: 'bar', x: 76, y: 24, w: 10, h: 8 },
+  { nome: 'farmacia', classe: 'farmacia', x: 80, y: 50, w: 10, h: 8 },
 ];
 
 /** Lago: retangulo, que e o que um 9-slice sem cantos internos aceita. */
@@ -803,6 +820,8 @@ const CONSTRUCOES = {
   casa_6: { pegada: { w: 5, h: 4 }, interior: 'casa_6', estilo: 5 },
   mercado: { pegada: { w: 8, h: 5 }, interior: 'mercado', fachada: 'mercado' },
   academia: { pegada: { w: 8, h: 5 }, interior: 'academia', fachada: 'academia' },
+  bar: { pegada: { w: 8, h: 5 }, interior: 'bar', fachada: 'bar' },
+  farmacia: { pegada: { w: 8, h: 5 }, interior: 'farmacia', fachada: 'farmacia' },
 };
 
 /** Lotes que sao area externa: praca, sem predio e sem interior. */
@@ -973,9 +992,9 @@ function gerarConstrucoes() {
     const alturaPx = Math.round((c.h + SOBRA_TELHADO) * T);
     if (c.fachada) {
       // fachada pronta: so escala pra largura da pegada, mantendo a proporcao
-      const caixa = fachadasProntas[c.fachada];
+      const { img, caixa } = fachadaPronta(c.fachada);
       const altura = Math.max(1, Math.round(caixa.h * (larguraPx / caixa.w)));
-      const px = reduzirPara(fachadasProntas.img, caixa, larguraPx, altura);
+      const px = reduzirPara(img, caixa, larguraPx, altura);
       const im = new Img(larguraPx, altura);
       colarRet(im, px, larguraPx, altura, 0, 0);
       return { nome: c.nome, im };
@@ -2023,6 +2042,34 @@ function conferirInterior(rotulo, tamanho, pecas, folhaPadrao, extras) {
   return { livres, alcancaveis: visto.size, solidos, decorativos: pecas.length - solidos };
 }
 
+/**
+ * Salao de comercio: mesma conferencia das casas, sem cama. O que mais importa
+ * aqui e a COLUNA DA PORTA — o salao e largo e e facil um balcao de 3 tiles
+ * cair em cima dela, o que trancaria o jogador do lado de fora.
+ */
+const SALOES = () => [
+  { nome: 'mercado', tamanho: MERCADO_INTERIOR, pecas: MERCADO_PECAS, folha: 'mercado' },
+  { nome: 'academia', tamanho: ACADEMIA_INTERIOR, pecas: ACADEMIA_PECAS, folha: 'academia' },
+  { nome: 'bar', tamanho: BAR_INTERIOR, pecas: BAR_PECAS, folha: 'mobilia_v2' },
+  { nome: 'farmacia', tamanho: FARMACIA_INTERIOR, pecas: FARMACIA_PECAS, folha: 'mobilia_v2' },
+];
+
+function conferirSaloes() {
+  const linhas = [];
+  for (const salao of SALOES()) {
+    const portaX = Math.floor(salao.tamanho.largura / 2);
+    const r = conferirInterior(salao.nome, salao.tamanho, salao.pecas, salao.folha, {
+      portaX,
+      exigirLivres: [[portaX, salao.tamanho.altura - 2, 'a frente da porta']],
+    });
+    linhas.push(
+      `  ${salao.nome}: ${salao.pecas.length} moveis (${r.solidos} solidos,` +
+        ` ${r.decorativos} decorativos) | ${r.alcancaveis}/${r.livres} tiles livres alcancaveis`,
+    );
+  }
+  console.log(['saloes de comercio:', ...linhas].join('\n'));
+}
+
 /** Roda a conferencia nos 6 interiores de casa. */
 function conferirInterioresDeCasa() {
   const { largura: W, altura: H } = INTERIOR_CASA;
@@ -2050,6 +2097,58 @@ function conferirInterioresDeCasa() {
   }
   console.log(`interiores de casa (${W}x${H}):\n${linhas.join('\n')}`);
 }
+
+/**
+ * Salao do bar: balcao com banquetas de frente pra porta, mesas redondas no
+ * meio, lareira e sofa no fundo. Reaproveita a mobilia de casa — a folha de
+ * utensilio de mercado/academia nao tem nada de bar, e a v2 tem balcao,
+ * banqueta, mesa redonda e lareira.
+ */
+const BAR_INTERIOR = { largura: 18, altura: 12 };
+const BAR_PECAS = [
+  // fundo: lareira e estantes de garrafa
+  { peca: [9, 0], tx: 2, ty: 3 },
+  { peca: [1, 12], tx: 5, ty: 3 },
+  { peca: [1, 13], tx: 7, ty: 3 },
+  { peca: [5, 7], tx: 13, ty: 3 },
+  // balcao com banquetas, dos dois lados do corredor da porta
+  { peca: [5, 2], tx: 3, ty: 6 },
+  { peca: [5, 3], tx: 10, ty: 6 },
+  { peca: [2, 11], tx: 13, ty: 6, colide: false },
+  // mesas e assentos
+  { peca: [4, 4], tx: 2, ty: 9 },
+  { peca: [4, 2], tx: 12, ty: 9 },
+  { peca: [4, 10], tx: 16, ty: 10, colide: false },
+  { folha: 'mobilia_v1', peca: [4, 9], tx: 12, ty: 1, colide: false },
+];
+
+/**
+ * Salao da farmacia: prateleira de potes nas laterais, geladeira ao fundo,
+ * balcao de atendimento e caixa na saida.
+ *
+ * Nao ha arte de farmacia. As gondolas do `Utensilios_mercado` sao
+ * inconfundivelmente de MERCADO — fruta, pao, balcao de carne — entao aqui a
+ * estanteria vem da mobilia (potes e frascos, que leem como manipulacao) e da
+ * folha do mercado sai so o que e neutro: a geladeira de porta de vidro e a
+ * caixa registradora.
+ */
+const FARMACIA_INTERIOR = { largura: 18, altura: 12 };
+const FARMACIA_PECAS = [
+  // fundo: geladeira de medicamento refrigerado e balcao de atendimento
+  { folha: 'mercado', peca: [2, 5], tx: 2, ty: 3 },
+  { peca: [1, 0], tx: 5, ty: 3 },
+  { peca: [1, 5], tx: 12, ty: 3 },
+  // duas fileiras de prateleira, deixando o corredor da porta livre
+  { peca: [1, 12], tx: 2, ty: 6 },
+  { peca: [1, 13], tx: 4, ty: 6 },
+  { peca: [1, 11], tx: 6, ty: 6 },
+  { peca: [1, 12], tx: 11, ty: 6 },
+  { peca: [1, 13], tx: 13, ty: 6 },
+  { peca: [1, 11], tx: 15, ty: 6 },
+  // frente: armario de organizacao e caixa
+  { folha: 'mercado', peca: [0, 0], tx: 2, ty: 10, colide: false },
+  { folha: 'mercado', peca: [1, 0], tx: 11, ty: 10 },
+];
 
 // ---------------------------------------------------------------- sanidade --
 /** Erra alto na geracao em vez de deixar o mapa quebrado silencioso no jogo. */
@@ -2169,6 +2268,7 @@ function conferirFazenda() {
 console.log('gerando assets...');
 conferirFazenda();
 conferirInterioresDeCasa();
+conferirSaloes();
 const ts = gerarTileset();
 const molduras = {
   arvores: gerarAtlas('arvores', (c, r) => `arvore_${r}_${c}`),
@@ -2209,6 +2309,16 @@ const academia = gerarInteriorComercio(
   ts,
 );
 escrever(join(ASSETS, 'tilemaps', 'academia.json'), JSON.stringify(academia.mapa, null, 1));
+const bar = gerarInteriorComercio('bar', 'mobilia_v2', BAR_INTERIOR, BAR_PECAS, ts);
+escrever(join(ASSETS, 'tilemaps', 'bar.json'), JSON.stringify(bar.mapa, null, 1));
+const farmacia = gerarInteriorComercio(
+  'farmacia',
+  'mobilia_v2',
+  FARMACIA_INTERIOR,
+  FARMACIA_PECAS,
+  ts,
+);
+escrever(join(ASSETS, 'tilemaps', 'farmacia.json'), JSON.stringify(farmacia.mapa, null, 1));
 console.log(
   `pronto. tileset ${TILES.length} tiles de ${T}px | ` +
     `fazenda ${FAZENDA.largura}x${FAZENDA.altura} (${FAZENDA.largura * T}x${FAZENDA.altura * T} px) | ` +

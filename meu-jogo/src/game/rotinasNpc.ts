@@ -121,9 +121,13 @@ export class SistemaRotinasNpc {
       runtime.acao && proxima &&
       proxima.horario > runtime.acao.horario && proxima.horario <= minutos
     ) {
+      // O trecho interrompido e o que a acao em curso oferece como saida segura
+      // dela mesma; `voltar_para_casa` costura isso na frente da `rotaCasa`.
       runtime.rotaInterrompida = runtime.acao.tipo === 'vagar_rota'
         ? (runtime.acao.rotasRetorno?.[runtime.pontoRota]
           ?? runtime.rota.slice(runtime.pontoRota))
+        : runtime.acao.tipo === 'vagar'
+        ? (runtime.acao.saidaSegura ?? [])
         : [];
       runtime.acao = null;
       runtime.estado.movendo = false;

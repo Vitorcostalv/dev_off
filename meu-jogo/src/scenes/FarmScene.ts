@@ -70,7 +70,9 @@ const VETOR: Record<Direcao, { x: number; y: number }> = {
 };
 
 const TIPOS_VALIDOS: TipoInteragivel[] = ['placa', 'npc', 'porta', 'cama', 'item'];
-const TIPOS_ZONA_VALIDOS: TipoZona[] = ['casa', 'mercado', 'academia', 'parque'];
+const TIPOS_ZONA_VALIDOS: TipoZona[] = [
+  'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
+];
 
 export class FarmScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;

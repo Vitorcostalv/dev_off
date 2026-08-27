@@ -10,6 +10,8 @@ const SPAWNS = {
   ...Object.fromEntries(CASAS.map((casa) => [casa, [8, 10]])),
   mercado: [11, 13],
   academia: [9, 10],
+  bar: [9, 10],
+  farmacia: [9, 10],
 };
 
 function lerMapa(nome) {
@@ -92,12 +94,19 @@ function verificarZonasDaFazenda() {
   const flood = floodFill(mapa, SPAWNS.farm);
   const interativos = camada(mapa, 'interativos').objects ?? [];
   const zonas = camada(mapa, 'zonas').objects ?? [];
-  const esperadas = [...CASAS, 'mercado', 'academia', 'parque'];
+  const esperadas = zonas.map((obj) => obj.name);
+  for (const casa of CASAS) {
+    if (!esperadas.includes(casa)) throw new Error(`farm: zona "${casa}" ausente`);
+  }
+  if (esperadas.length < CASAS.length + 3) {
+    throw new Error(`farm: esperava ao menos 9 lotes, achei ${esperadas.length}`);
+  }
 
   for (const nome of esperadas) {
     const zona = zonas.find((obj) => obj.name === nome);
     if (!zona) throw new Error(`farm: zona "${nome}" ausente`);
-    if (nome === 'parque') {
+    if (!props(zona).mapaInterior) {
+      // lote sem interior (a praca): basta ter algum tile alcancavel dentro
       const x0 = Math.floor(zona.x / mapa.tilewidth);
       const y0 = Math.floor(zona.y / mapa.tileheight);
       const x1 = x0 + Math.floor(zona.width / mapa.tilewidth);
@@ -106,7 +115,7 @@ function verificarZonasDaFazenda() {
       for (let y = y0; y < y1 && !alcancavel; y++) {
         for (let x = x0; x < x1; x++) alcancavel ||= flood.visitados.has(`${x},${y}`);
       }
-      if (!alcancavel) throw new Error('farm: parque nao esta alcancavel');
+      if (!alcancavel) throw new Error(`farm: lote "${nome}" nao esta alcancavel`);
       continue;
     }
     const destino = props(zona).mapaInterior;
@@ -121,12 +130,19 @@ function verificarZonasDaFazenda() {
   if (!pickups.every((obj) => props(obj).itemId === 'cabo_usb' && adjacenteAlcancavel(mapa, obj, flood))) {
     throw new Error('farm: pickups de empilhamento invalidos ou inalcançaveis');
   }
-  return esperadas.length;
+  return {
+    total: esperadas.length,
+    interiores: esperadas.filter((nome) => {
+      const zona = zonas.find((obj) => obj.name === nome);
+      return Boolean(props(zona).mapaInterior);
+    }),
+  };
 }
 
-const zonas = verificarZonasDaFazenda();
-for (const nome of [...CASAS, 'mercado', 'academia']) verificarInterior(nome);
+const { total, interiores } = verificarZonasDaFazenda();
+for (const nome of interiores) verificarInterior(nome);
 console.log(
-  `[verificacao] ${zonas}/9 zonas alcancaveis; ` +
-  '6/6 casas com cama interativa alcancavel; 2/2 pickups alcancaveis',
+  `[verificacao] ${total}/${total} lotes alcancaveis; ` +
+    `${interiores.length} interiores conferidos (${interiores.join(', ')}); ` +
+    `${CASAS.length}/${CASAS.length} casas com cama interativa alcancavel; 2/2 pickups`,
 );
