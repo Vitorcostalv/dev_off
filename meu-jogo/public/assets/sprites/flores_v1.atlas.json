@@ -1,0 +1,494 @@
+{
+ "frames": {
+  "flor_0_0": {
+   "frame": {
+    "x": 50,
+    "y": 32,
+    "w": 167,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 167,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 167,
+    "h": 256
+   }
+  },
+  "flor_0_1": {
+   "frame": {
+    "x": 290,
+    "y": 46,
+    "w": 165,
+    "h": 242
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 165,
+    "h": 242
+   },
+   "sourceSize": {
+    "w": 165,
+    "h": 242
+   }
+  },
+  "flor_0_2": {
+   "frame": {
+    "x": 558,
+    "y": 81,
+    "w": 103,
+    "h": 204
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 103,
+    "h": 204
+   },
+   "sourceSize": {
+    "w": 103,
+    "h": 204
+   }
+  },
+  "flor_0_3": {
+   "frame": {
+    "x": 824,
+    "y": 145,
+    "w": 38,
+    "h": 140
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 38,
+    "h": 140
+   },
+   "sourceSize": {
+    "w": 38,
+    "h": 140
+   }
+  },
+  "flor_0_4": {
+   "frame": {
+    "x": 1049,
+    "y": 204,
+    "w": 21,
+    "h": 81
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 21,
+    "h": 81
+   },
+   "sourceSize": {
+    "w": 21,
+    "h": 81
+   }
+  },
+  "flor_0_5": {
+   "frame": {
+    "x": 1211,
+    "y": 197,
+    "w": 191,
+    "h": 88
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 191,
+    "h": 88
+   },
+   "sourceSize": {
+    "w": 191,
+    "h": 88
+   }
+  },
+  "flor_1_0": {
+   "frame": {
+    "x": 36,
+    "y": 295,
+    "w": 181,
+    "h": 234
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 181,
+    "h": 234
+   },
+   "sourceSize": {
+    "w": 181,
+    "h": 234
+   }
+  },
+  "flor_1_1": {
+   "frame": {
+    "x": 288,
+    "y": 322,
+    "w": 151,
+    "h": 207
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 151,
+    "h": 207
+   },
+   "sourceSize": {
+    "w": 151,
+    "h": 207
+   }
+  },
+  "flor_1_2": {
+   "frame": {
+    "x": 555,
+    "y": 348,
+    "w": 106,
+    "h": 181
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 106,
+    "h": 181
+   },
+   "sourceSize": {
+    "w": 106,
+    "h": 181
+   }
+  },
+  "flor_1_3": {
+   "frame": {
+    "x": 800,
+    "y": 410,
+    "w": 92,
+    "h": 119
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 92,
+    "h": 119
+   },
+   "sourceSize": {
+    "w": 92,
+    "h": 119
+   }
+  },
+  "flor_1_4": {
+   "frame": {
+    "x": 1047,
+    "y": 458,
+    "w": 38,
+    "h": 71
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 38,
+    "h": 71
+   },
+   "sourceSize": {
+    "w": 38,
+    "h": 71
+   }
+  },
+  "flor_1_5": {
+   "frame": {
+    "x": 1209,
+    "y": 410,
+    "w": 188,
+    "h": 119
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 188,
+    "h": 119
+   },
+   "sourceSize": {
+    "w": 188,
+    "h": 119
+   }
+  },
+  "flor_2_0": {
+   "frame": {
+    "x": 62,
+    "y": 537,
+    "w": 139,
+    "h": 241
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 139,
+    "h": 241
+   },
+   "sourceSize": {
+    "w": 139,
+    "h": 241
+   }
+  },
+  "flor_2_1": {
+   "frame": {
+    "x": 315,
+    "y": 561,
+    "w": 128,
+    "h": 217
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 217
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 217
+   }
+  },
+  "flor_2_2": {
+   "frame": {
+    "x": 556,
+    "y": 606,
+    "w": 122,
+    "h": 172
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 122,
+    "h": 172
+   },
+   "sourceSize": {
+    "w": 122,
+    "h": 172
+   }
+  },
+  "flor_2_3": {
+   "frame": {
+    "x": 787,
+    "y": 660,
+    "w": 108,
+    "h": 118
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 108,
+    "h": 118
+   },
+   "sourceSize": {
+    "w": 108,
+    "h": 118
+   }
+  },
+  "flor_2_4": {
+   "frame": {
+    "x": 1050,
+    "y": 703,
+    "w": 22,
+    "h": 75
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 22,
+    "h": 75
+   },
+   "sourceSize": {
+    "w": 22,
+    "h": 75
+   }
+  },
+  "flor_2_5": {
+   "frame": {
+    "x": 1255,
+    "y": 635,
+    "w": 109,
+    "h": 143
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 109,
+    "h": 143
+   },
+   "sourceSize": {
+    "w": 109,
+    "h": 143
+   }
+  },
+  "flor_3_0": {
+   "frame": {
+    "x": 39,
+    "y": 794,
+    "w": 185,
+    "h": 235
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 185,
+    "h": 235
+   },
+   "sourceSize": {
+    "w": 185,
+    "h": 235
+   }
+  },
+  "flor_3_1": {
+   "frame": {
+    "x": 294,
+    "y": 818,
+    "w": 155,
+    "h": 212
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 155,
+    "h": 212
+   },
+   "sourceSize": {
+    "w": 155,
+    "h": 212
+   }
+  },
+  "flor_3_2": {
+   "frame": {
+    "x": 554,
+    "y": 875,
+    "w": 110,
+    "h": 155
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 110,
+    "h": 155
+   },
+   "sourceSize": {
+    "w": 110,
+    "h": 155
+   }
+  },
+  "flor_3_3": {
+   "frame": {
+    "x": 804,
+    "y": 905,
+    "w": 75,
+    "h": 125
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 75,
+    "h": 125
+   },
+   "sourceSize": {
+    "w": 75,
+    "h": 125
+   }
+  },
+  "flor_3_4": {
+   "frame": {
+    "x": 1042,
+    "y": 953,
+    "w": 38,
+    "h": 77
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 38,
+    "h": 77
+   },
+   "sourceSize": {
+    "w": 38,
+    "h": 77
+   }
+  },
+  "flor_3_5": {
+   "frame": {
+    "x": 1205,
+    "y": 920,
+    "w": 188,
+    "h": 110
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 188,
+    "h": 110
+   },
+   "sourceSize": {
+    "w": 188,
+    "h": 110
+   }
+  }
+ },
+ "meta": {
+  "app": "gerar-assets.mjs",
+  "image": "Flores_v1.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1448,
+   "h": 1086
+  },
+  "scale": "1"
+ }
+}

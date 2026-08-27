@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
-import { buscarMapa } from '../game/mapas';
+import { MAPAS, buscarMapa } from '../game/mapas';
 import { carregar } from '../game/save';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
@@ -34,8 +34,45 @@ export class BootScene extends Phaser.Scene {
     // tileset: a key ('tiles-terrain') e o que o Phaser usa;
     // o nome do tileset dentro do JSON do Tiled e 'terrain' (ver FarmScene).
     this.load.image('tiles-terrain', 'assets/tilesets/terrain.png');
-    this.load.tilemapTiledJSON('farm-map', 'assets/tilemaps/farm.json');
-    this.load.tilemapTiledJSON('casa-map', 'assets/tilemaps/casa.json');
+    // um tilemap por entrada de MAPAS: nao ha lista pra manter em dois lugares
+    for (const def of Object.values(MAPAS)) {
+      this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo);
+    }
+
+    // fachadas das construcoes: um frame por lote, com o nome do lote
+    this.load.atlas(
+      'construcoes',
+      'assets/sprites/construcoes.png',
+      'assets/sprites/construcoes.atlas.json',
+    );
+
+    // flora: os atlas sao gerados por tools/gerar-assets.mjs a partir da grade
+    // de cada spritesheet. Frames: arvore_<especie>_<estagio> / flor_<especie>_<estagio>.
+    this.load.atlas('arvores', 'assets/sprites/Arvores.png', 'assets/sprites/arvores.atlas.json');
+    this.load.atlas(
+      'flores_v1',
+      'assets/sprites/Flores_v1.png',
+      'assets/sprites/flores_v1.atlas.json',
+    );
+    this.load.atlas(
+      'flores_v2',
+      'assets/sprites/Flores_v2.png',
+      'assets/sprites/flores_v2.atlas.json',
+    );
+    // pedras soltas: frames `pedra_<i>`, do pedrisco ao matacao
+    this.load.atlas('pedras', 'assets/sprites/pedras.png', 'assets/sprites/pedras.atlas.json');
+
+    // moveis de interior: frames `movel_<linha>_<indice>`
+    this.load.atlas(
+      'moveis_mercado',
+      'assets/sprites/Utensilios_mercado.png',
+      'assets/sprites/moveis_mercado.atlas.json',
+    );
+    this.load.atlas(
+      'moveis_academia',
+      'assets/sprites/Utensilios_academia.png',
+      'assets/sprites/moveis_academia.atlas.json',
+    );
 
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
@@ -73,6 +110,11 @@ export class BootScene extends Phaser.Scene {
     estado.relogio.definir(Number.isFinite(save.minutos) ? save.minutos : 0);
     estado.mapa = mapa.chave;
     estado.inventario.restaurar(save.inventario);
+    estado.itensColetados = new Set(
+      Array.isArray(save.itensColetados)
+        ? save.itensColetados.filter((id): id is string => typeof id === 'string')
+        : [],
+    );
 
     console.info(`[save] carregado: dia ${estado.dia}, ${estado.relogio.texto}, ${mapa.chave}`);
     return { mapa: mapa.chave, x: save.x, y: save.y };

@@ -12,4 +12,6 @@ export const estado = {
   dia: 0,
   relogio: new Relogio(),
   inventario: new Inventario(),
+  /** IDs unicos dos objetos de mundo que ja foram recolhidos. */
+  itensColetados: new Set<string>(),
 };

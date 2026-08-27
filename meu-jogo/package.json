@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "gerar-assets": "node tools/gerar-assets.mjs"
+    "gerar-assets": "node tools/gerar-assets.mjs",
+    "verificar-mapas": "node tools/verificar-mapas.mjs",
+    "verificar-inventario": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-inventario.mjs"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
