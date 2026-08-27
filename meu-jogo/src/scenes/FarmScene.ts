@@ -501,7 +501,7 @@ export class FarmScene extends Phaser.Scene {
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
     if (estado.mapa === 'farm') return npc.visivel ? { x: npc.x, y: npc.y } : null;
     if (npc.dentro !== estado.mapa) return null;
-    return LOCAIS_CIDADE[npc.dentro]?.interior ?? null;
+    return LOCAIS_CIDADE[npc.dentro] ? { x: npc.x, y: npc.y } : null;
   }
 
   // ---------------------------------------------------------- construcoes --

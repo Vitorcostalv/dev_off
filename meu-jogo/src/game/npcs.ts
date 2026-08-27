@@ -21,7 +21,20 @@ interface AcaoBase {
 }
 
 export type AcaoRotinaNpc =
-  | (AcaoBase & { tipo: 'vagar'; area: AreaVagar })
+  | (AcaoBase & {
+      tipo: 'vagar';
+      area: AreaVagar;
+      pausaMinSegundos?: number;
+      pausaMaxSegundos?: number;
+    })
+  | (AcaoBase & {
+      tipo: 'vagar_rota';
+      waypoints: PontoTile[];
+      /** Caminho seguro do waypoint atual ate a saida da rota. */
+      rotasRetorno?: PontoTile[][];
+      pausaMinSegundos?: number;
+      pausaMaxSegundos?: number;
+    })
   | (AcaoBase & { tipo: 'andar_rota'; waypoints: PontoTile[] })
   | (AcaoBase & { tipo: 'entrar_construcao'; construcao: string })
   | (AcaoBase & { tipo: 'sair_construcao'; construcao: string })
@@ -44,15 +57,21 @@ export interface DefinicaoNpc {
   rotaCasa: PontoTile[];
 }
 
-export const LOCAIS_CIDADE: Record<string, { frente: PontoTile; interior: PontoTile }> = {
-  casa_1: { frente: { x: 31.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 } },
-  casa_2: { frente: { x: 43.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 } },
-  casa_3: { frente: { x: 75.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 } },
-  casa_4: { frente: { x: 87.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 } },
-  casa_5: { frente: { x: 31.5, y: 79.5 }, interior: { x: 8.5, y: 8.5 } },
-  casa_6: { frente: { x: 43.5, y: 79.5 }, interior: { x: 8.5, y: 8.5 } },
-  mercado: { frente: { x: 70.5, y: 55.5 }, interior: { x: 11.5, y: 10.5 } },
-  academia: { frente: { x: 53.5, y: 35.5 }, interior: { x: 9.5, y: 8.5 } },
+interface LocalCidade {
+  frente: PontoTile;
+  interior: PontoTile;
+  portaInterior: PontoTile;
+}
+
+export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
+  casa_1: { frente: { x: 31.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
+  casa_2: { frente: { x: 43.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
+  casa_3: { frente: { x: 75.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
+  casa_4: { frente: { x: 87.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
+  casa_5: { frente: { x: 31.5, y: 79.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
+  casa_6: { frente: { x: 43.5, y: 79.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
+  mercado: { frente: { x: 70.5, y: 55.5 }, interior: { x: 11.5, y: 9.5 }, portaInterior: { x: 11.5, y: 13.5 } },
+  academia: { frente: { x: 53.5, y: 35.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
 };
 
 export const hora = (horas: number, minutos = 0): number => horas * 60 + minutos;
@@ -78,9 +97,9 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   },
   edu: {
     id: 'edu', nome: 'Edu', casa: 'casa_2',
-    posicaoInicial: { x: 43.5, y: 16.5 }, dentroInicial: 'casa_2', horaAcordar: hora(7),
+    posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_2', horaAcordar: hora(7),
     sprite: {
-      arquivo: 'assets/sprites/Edu_correndo_runtime.png', colunas: 4, linhas: 4,
+      arquivo: 'assets/sprites/Edu_andando_runtime.png', colunas: 4, linhas: 4,
       frames: {
         down: { linha: 0, colunas: [0, 1, 2, 3] },
         up: { linha: 1, colunas: [0, 1, 2, 3] },
@@ -97,9 +116,26 @@ export const NPCS: Record<string, DefinicaoNpc> = {
       { horario: hora(8), tipo: 'andar_rota', waypoints: [
         { x: 43.5, y: 20.5 }, { x: 60.5, y: 20.5 }, { x: 60.5, y: 45.5 },
       ] },
-      { horario: hora(8), tipo: 'vagar', area: {
-        min: { x: 50.5, y: 44.3 }, max: { x: 70.5, y: 46.7 },
-      } },
+      { horario: hora(8), tipo: 'vagar_rota', pausaMinSegundos: 1, pausaMaxSegundos: 4,
+        waypoints: [
+          { x: 99.5, y: 45.5 }, { x: 99.5, y: 71.5 },
+          { x: 60.5, y: 71.5 }, { x: 22.5, y: 71.5 },
+          { x: 22.5, y: 45.5 }, { x: 22.5, y: 20.5 },
+          { x: 60.5, y: 20.5 }, { x: 99.5, y: 20.5 },
+          { x: 99.5, y: 45.5 }, { x: 60.5, y: 45.5 },
+        ],
+        rotasRetorno: [
+          [{ x: 99.5, y: 45.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 99.5, y: 71.5 }, { x: 99.5, y: 45.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 60.5, y: 71.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 22.5, y: 71.5 }, { x: 22.5, y: 45.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 22.5, y: 45.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 22.5, y: 20.5 }, { x: 60.5, y: 20.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 60.5, y: 20.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 99.5, y: 20.5 }, { x: 99.5, y: 45.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 99.5, y: 45.5 }, { x: 60.5, y: 45.5 }],
+          [{ x: 60.5, y: 45.5 }],
+        ] },
     ],
     rotaCasa: [
       { x: 60.5, y: 45.5 }, { x: 60.5, y: 20.5 },
@@ -108,9 +144,9 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   },
   mari: {
     id: 'mari', nome: 'Mari', casa: 'casa_3',
-    posicaoInicial: { x: 75.5, y: 16.5 }, dentroInicial: 'casa_3', horaAcordar: hora(8),
+    posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_3', horaAcordar: hora(8),
     sprite: {
-      arquivo: 'assets/sprites/Mari_correndo_runtime.png', colunas: 4, linhas: 4,
+      arquivo: 'assets/sprites/Mari_andando_runtime.png', colunas: 4, linhas: 4,
       frames: {
         down: { linha: 0, colunas: [0, 1, 2, 3] },
         up: { linha: 1, colunas: [0, 1, 2, 3] },
@@ -126,6 +162,11 @@ export const NPCS: Record<string, DefinicaoNpc> = {
         { x: 60.5, y: 35.5 }, { x: 53.5, y: 35.5 },
       ] },
       { horario: hora(9), tipo: 'entrar_construcao', construcao: 'academia' },
+      { horario: hora(9), tipo: 'vagar_rota', pausaMinSegundos: 2, pausaMaxSegundos: 5,
+        waypoints: [
+          { x: 9.5, y: 9.5 }, { x: 11.5, y: 9.5 },
+          { x: 11.5, y: 8.5 }, { x: 9.5, y: 8.5 },
+        ] },
       { horario: hora(12, 40), tipo: 'sair_construcao', construcao: 'academia' },
       { horario: hora(12, 40), tipo: 'andar_rota', waypoints: [
         { x: 60.5, y: 35.5 }, { x: 60.5, y: 20.5 },

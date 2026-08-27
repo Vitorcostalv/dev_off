@@ -27,6 +27,8 @@ interface RuntimeNpc {
   rota: PontoTile[];
   pontoRota: number;
   alvoVagar: PontoTile | null;
+  pausaRestante: number;
+  rotaInterrompida: PontoTile[];
   semente: number;
 }
 
@@ -78,6 +80,8 @@ export class SistemaRotinasNpc {
       rota: [],
       pontoRota: 0,
       alvoVagar: null,
+      pausaRestante: 0,
+      rotaInterrompida: [],
       semente: [...def.id].reduce((n, letra) => (n * 31 + letra.charCodeAt(0)) >>> 0, 1),
     };
   }
@@ -105,6 +109,8 @@ export class SistemaRotinasNpc {
     runtime.rota = [];
     runtime.pontoRota = 0;
     runtime.alvoVagar = null;
+    runtime.pausaRestante = 0;
+    runtime.rotaInterrompida = [];
   }
 
   private atualizarNpc(runtime: RuntimeNpc, minutos: number, deltaSegundos: number): void {
@@ -115,8 +121,13 @@ export class SistemaRotinasNpc {
       runtime.acao && proxima &&
       proxima.horario > runtime.acao.horario && proxima.horario <= minutos
     ) {
+      runtime.rotaInterrompida = runtime.acao.tipo === 'vagar_rota'
+        ? (runtime.acao.rotasRetorno?.[runtime.pontoRota]
+          ?? runtime.rota.slice(runtime.pontoRota))
+        : [];
       runtime.acao = null;
       runtime.estado.movendo = false;
+      runtime.pausaRestante = 0;
     }
 
     for (let seguranca = 0; seguranca < 12; seguranca++) {
@@ -143,13 +154,24 @@ export class SistemaRotinasNpc {
     runtime.rota = [];
     runtime.pontoRota = 0;
     runtime.alvoVagar = null;
+    runtime.pausaRestante = 0;
     if (acao.tipo === 'andar_rota') runtime.rota = acao.waypoints;
+    if (acao.tipo === 'vagar_rota') runtime.rota = acao.waypoints;
+    if (acao.tipo === 'sair_construcao') {
+      const porta = LOCAIS_CIDADE[acao.construcao]?.portaInterior;
+      if (!porta) throw new Error(`construcao desconhecida: ${acao.construcao}`);
+      runtime.rota = [porta];
+    }
     if (acao.tipo === 'voltar_para_casa') {
       const frente = LOCAIS_CIDADE[runtime.def.casa]?.frente;
-      runtime.rota = frente && this.distancia(runtime.estado, frente) <= DISTANCIA_CHEGADA
+      const trechoInterrompido = runtime.estado.dentro === null ? runtime.rotaInterrompida : [];
+      runtime.rota = runtime.estado.dentro === runtime.def.casa
+        ? []
+        : frente && this.distancia(runtime.estado, frente) <= DISTANCIA_CHEGADA
         ? [frente]
-        : [...runtime.def.rotaCasa, ...(frente ? [frente] : [])];
+        : [...trechoInterrompido, ...runtime.def.rotaCasa, ...(frente ? [frente] : [])];
     }
+    runtime.rotaInterrompida = [];
   }
 
   private executarAcao(runtime: RuntimeNpc, deltaSegundos: number): boolean {
@@ -157,12 +179,15 @@ export class SistemaRotinasNpc {
     if (!acao) return true;
     switch (acao.tipo) {
       case 'entrar_construcao':
+        runtime.estado.x = LOCAIS_CIDADE[acao.construcao].portaInterior.x;
+        runtime.estado.y = LOCAIS_CIDADE[acao.construcao].portaInterior.y;
         runtime.estado.dentro = acao.construcao;
         runtime.estado.visivel = false;
         return true;
       case 'sair_construcao': {
         const frente = LOCAIS_CIDADE[acao.construcao]?.frente;
         if (!frente) throw new Error(`construcao desconhecida: ${acao.construcao}`);
+        if (!this.seguirRota(runtime, deltaSegundos, false)) return false;
         runtime.estado.x = frente.x;
         runtime.estado.y = frente.y;
         runtime.estado.dentro = null;
@@ -173,6 +198,9 @@ export class SistemaRotinasNpc {
         return this.seguirRota(runtime, deltaSegundos, false);
       case 'voltar_para_casa':
         return this.seguirRota(runtime, deltaSegundos, true);
+      case 'vagar_rota':
+        this.vagarRota(runtime, acao, deltaSegundos);
+        return false;
       case 'vagar':
         this.vagar(runtime, acao, deltaSegundos);
         return false;
@@ -190,21 +218,58 @@ export class SistemaRotinasNpc {
       runtime.pontoRota += 1;
       if (distancia <= 0) return false;
     }
-    if (entrarEmCasa) {
+    if (entrarEmCasa && runtime.estado.dentro !== runtime.def.casa) {
       runtime.estado.dentro = runtime.def.casa;
       runtime.estado.visivel = false;
+      const porta = LOCAIS_CIDADE[runtime.def.casa]?.portaInterior;
+      if (porta) {
+        runtime.estado.x = porta.x;
+        runtime.estado.y = porta.y;
+      }
     }
     return true;
   }
 
   private vagar(runtime: RuntimeNpc, acao: Extract<AcaoRotinaNpc, { tipo: 'vagar' }>, delta: number): void {
+    if (this.pausar(runtime, delta)) return;
     if (!runtime.alvoVagar || this.distancia(runtime.estado, runtime.alvoVagar) <= DISTANCIA_CHEGADA) {
+      if (runtime.alvoVagar) this.iniciarPausa(runtime, acao);
       runtime.alvoVagar = {
         x: this.aleatorio(runtime, acao.area.min.x, acao.area.max.x),
         y: this.aleatorio(runtime, acao.area.min.y, acao.area.max.y),
       };
     }
     this.moverAte(runtime.estado, runtime.alvoVagar, VELOCIDADE_TILES_POR_SEGUNDO * delta);
+  }
+
+  private vagarRota(
+    runtime: RuntimeNpc,
+    acao: Extract<AcaoRotinaNpc, { tipo: 'vagar_rota' }>,
+    delta: number,
+  ): void {
+    if (this.pausar(runtime, delta) || runtime.rota.length === 0) return;
+    const alvo = runtime.rota[runtime.pontoRota];
+    this.moverAte(runtime.estado, alvo, VELOCIDADE_TILES_POR_SEGUNDO * delta);
+    if (this.distancia(runtime.estado, alvo) > DISTANCIA_CHEGADA) return;
+    runtime.estado.x = alvo.x;
+    runtime.estado.y = alvo.y;
+    runtime.pontoRota = (runtime.pontoRota + 1) % runtime.rota.length;
+    this.iniciarPausa(runtime, acao);
+  }
+
+  private pausar(runtime: RuntimeNpc, delta: number): boolean {
+    if (runtime.pausaRestante <= 0) return false;
+    runtime.pausaRestante = Math.max(0, runtime.pausaRestante - delta);
+    return true;
+  }
+
+  private iniciarPausa(
+    runtime: RuntimeNpc,
+    acao: { pausaMinSegundos?: number; pausaMaxSegundos?: number },
+  ): void {
+    const min = Math.max(0, acao.pausaMinSegundos ?? 0);
+    const max = Math.max(min, acao.pausaMaxSegundos ?? min);
+    runtime.pausaRestante = this.aleatorio(runtime, min, max);
   }
 
   private moverAte(estado: EstadoNpc, alvo: PontoTile, distanciaMaxima: number): number {

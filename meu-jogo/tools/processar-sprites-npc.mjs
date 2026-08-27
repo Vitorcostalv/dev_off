@@ -47,7 +47,8 @@ function removerFundoPreto(origem) {
   return limpa;
 }
 
-function componentes(img, quantidade) {
+function componentes(img, totalLinhas, colunas) {
+  const quantidade = totalLinhas * colunas;
   const visto = new Uint8Array(img.w * img.h);
   const pilha = new Int32Array(img.w * img.h);
   const encontrados = [];
@@ -100,33 +101,45 @@ function componentes(img, quantidade) {
   const principais = encontrados.sort((a, b) => b.area - a.area).slice(0, quantidade);
   if (principais.length !== quantidade) throw new Error(`esperados ${quantidade} sprites, encontrados ${principais.length}`);
   principais.sort((a, b) => a.centroY - b.centroY);
-  const linhas = [];
-  for (let i = 0; i < quantidade; i += 4) {
-    linhas.push(principais.slice(i, i + 4).sort((a, b) => a.centroX - b.centroX));
+  const grade = [];
+  for (let i = 0; i < quantidade; i += colunas) {
+    grade.push(principais.slice(i, i + colunas).sort((a, b) => a.centroX - b.centroX));
   }
-  return linhas;
+  return grade;
 }
 
 /** Gera uma grade uniforme: cada frame contem exatamente uma pose. */
-function normalizar({ entrada, saida, linhasOriginais, mapa, removerPreto = false }) {
+function normalizar({ entrada, saida, linhasOriginais, colunasOriginais = 4, mapa, removerPreto = false }) {
   const lida = lerPng(join(DIR, entrada));
   const origem = removerPreto ? removerFundoPreto(lida) : lida;
-  const grade = componentes(origem, linhasOriginais * 4);
-  const frames = mapa.flat().map(({ coluna, linha }) => grade[linha][coluna].img);
-  const maiorW = Math.max(...frames.map((frame) => frame.w));
-  const maiorH = Math.max(...frames.map((frame) => frame.h));
+  const grade = componentes(origem, linhasOriginais, colunasOriginais);
+  const frames = mapa.flat().map(({ coluna, linha, flipX = false }) => ({
+    img: grade[linha][coluna].img,
+    flipX,
+  }));
+  const maiorW = Math.max(...frames.map((frame) => frame.img.w));
+  const maiorH = Math.max(...frames.map((frame) => frame.img.h));
   const escala = Math.min(
     (FRAME.w - MARGEM.x * 2) / maiorW,
     (FRAME.h - MARGEM.y * 2) / maiorH,
   );
   const destino = new Img(FRAME.w * 4, FRAME.h * 4);
 
-  frames.forEach((frame, indice) => {
+  frames.forEach(({ img: frame, flipX }, indice) => {
     const w = Math.max(1, Math.round(frame.w * escala));
     const h = Math.max(1, Math.round(frame.h * escala));
     const caixa = caixaOpaca(frame);
     if (!caixa) throw new Error(`componente vazio no frame ${indice}`);
     const pixels = reduzirPara(frame, caixa, w, h);
+    if (flipX) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < Math.floor(w / 2); x++) {
+          const esquerda = y * w + x;
+          const direita = y * w + (w - x - 1);
+          [pixels[esquerda], pixels[direita]] = [pixels[direita], pixels[esquerda]];
+        }
+      }
+    }
     const coluna = indice % 4;
     const linha = Math.floor(indice / 4);
     const x = coluna * FRAME.w + Math.round((FRAME.w - w) / 2);
@@ -148,13 +161,40 @@ normalizar({
     linha(0),
     linha(1),
     [0, 1, 0, 1].map((coluna) => ({ coluna, linha: 2 })),
-    [2, 3, 2, 3].map((coluna) => ({ coluna, linha: 2 })),
+    [0, 1, 0, 1].map((coluna) => ({ coluna, linha: 2, flipX: true })),
+  ],
+});
+
+const tresFrames = (linha, inicio = 0, flipX = false) => [0, 1, 2, 1].map((offset) => ({
+  coluna: inicio + offset,
+  linha,
+  flipX,
+}));
+
+normalizar({
+  entrada: 'Edu_andando.png',
+  saida: 'Edu_andando_runtime.png',
+  linhasOriginais: 3,
+  colunasOriginais: 6,
+  mapa: [
+    tresFrames(0),
+    tresFrames(0, 3),
+    tresFrames(1),
+    tresFrames(1, 3),
   ],
 });
 
 normalizar({
   entrada: 'Mari_correndo.png',
   saida: 'Mari_correndo_runtime.png',
+  linhasOriginais: 4,
+  mapa: [linha(0), linha(1), linha(2), linha(3)],
+  removerPreto: true,
+});
+
+normalizar({
+  entrada: 'Mari_andando.png',
+  saida: 'Mari_andando_runtime.png',
   linhasOriginais: 4,
   mapa: [linha(0), linha(1), linha(2), linha(3)],
   removerPreto: true,

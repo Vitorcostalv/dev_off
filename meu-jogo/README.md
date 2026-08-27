@@ -303,14 +303,15 @@ tile lado a lado vira uma grade visivel.
 
 Cada entrada de `NPCS`, em `game/npcs.ts`, concentra nome, casa, posicao
 inicial, spritesheet, dialogo e a lista ordenada de acoes. O motor aceita
-`vagar`, `andar_rota`, `entrar_construcao`, `sair_construcao` e
+`vagar`, `vagar_rota`, `andar_rota`, `entrar_construcao`, `sair_construcao` e
 `voltar_para_casa`. NPC sem acao configurada depois das 18:00 recebe
-automaticamente o retorno para sua casa.
+automaticamente o retorno para sua casa. `vagar_rota` permite pausas entre
+waypoints; saidas de interiores caminham ate a porta antes de trocar de mapa.
 
 As rotas usam coordenadas de tile e nao fazem pathfinding. Rode
 `npm run verificar-rotinas` para simular o dia, conferir os tiles percorridos e
 validar entrada/saida das construcoes. `npm run processar-sprites-npc` regenera
-a folha transparente de runtime da Mari a partir da arte original.
+as folhas transparentes e uniformes de caminhada/corrida de Edu e Mari.
 
 ## Notas
 
