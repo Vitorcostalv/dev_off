@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CONFIG, ROTULOS } from '../game/config';
 import { estado } from '../game/estado';
+import { buscarMapa } from '../game/mapas';
 import { buscarNpc } from '../game/npcs';
 import { CONFIG_TEMPO } from '../game/relogio';
 import { apagar, salvar } from '../game/save';
@@ -9,6 +10,7 @@ import type { Direcao, Interagivel, PropObjeto, TipoInteragivel } from '../game/
 import type { UIScene } from './UIScene';
 
 const VELOCIDADE = 70;
+const TILE = 16;
 
 const VETOR: Record<Direcao, { x: number; y: number }> = {
   up: { x: 0, y: -1 },
@@ -30,6 +32,8 @@ export class FarmScene extends Phaser.Scene {
   private npcs: Phaser.Physics.Arcade.Sprite[] = [];
   /** trava o input durante fades (dormir, trocar de mapa) */
   private transicionando = false;
+  /** de onde o player entrou neste mapa; null = usa o spawn padrao */
+  private spawn: { x: number; y: number } | null = null;
 
   constructor() {
     super('FarmScene');
@@ -39,23 +43,45 @@ export class FarmScene extends Phaser.Scene {
     return this.scene.get('UIScene') as UIScene;
   }
 
+  /**
+   * Roda a cada `scene.restart` — e onde o estado mutavel volta ao zero.
+   * Campos de classe com inicializador NAO sao reexecutados no restart.
+   */
+  init(dados?: { mapa?: string; x?: number; y?: number }): void {
+    if (dados?.mapa) estado.mapa = dados.mapa;
+    this.spawn =
+      dados?.x !== undefined && dados?.y !== undefined ? { x: dados.x, y: dados.y } : null;
+    this.transicionando = false;
+    this.interagiveis = [];
+    this.npcs = [];
+    this.alvo = null;
+  }
+
   create(): void {
-    const map = this.make.tilemap({ key: 'farm-map' });
+    const def = buscarMapa(estado.mapa);
+    if (!def) throw new Error(`Mapa "${estado.mapa}" nao existe em MAPAS`);
+
+    const map = this.make.tilemap({ key: def.tilemapKey });
 
     // 1o arg = nome do tileset DENTRO do JSON do Tiled, 2o = key carregada no BootScene.
-    const tileset = map.addTilesetImage('terrain', 'tiles-terrain');
-    if (!tileset) throw new Error("Tileset 'terrain' nao encontrado no farm.json");
+    const tileset = map.addTilesetImage(def.tilesetNoJson, def.tilesetKey);
+    if (!tileset) {
+      throw new Error(`Tileset '${def.tilesetNoJson}' nao encontrado em ${def.tilemapKey}`);
+    }
 
     const chao = map.createLayer('chao', tileset, 0, 0);
     const objetos = map.createLayer('objetos', tileset, 0, 0);
-    if (!chao || !objetos) throw new Error('Camadas chao/objetos nao encontradas no tilemap');
+    if (!chao || !objetos) {
+      throw new Error(`Camadas chao/objetos nao encontradas em ${def.tilemapKey}`);
+    }
 
     // colisao vem da propriedade 'collides' marcada nos tiles no Tiled
     objetos.setCollisionByProperty({ collides: true });
 
     this.interagiveis = this.lerInterativos(map);
 
-    this.player = this.physics.add.sprite(map.widthInPixels / 2, map.heightInPixels / 2, 'player');
+    const nasce = this.spawn ?? def.spawn;
+    this.player = this.physics.add.sprite(nasce.x, nasce.y, 'player');
     this.player.setDepth(10);
     // hitbox menor que o sprite, so os pes -> parece melhor em top-down
     this.player.body?.setSize(8, 6);
@@ -71,6 +97,9 @@ export class FarmScene extends Phaser.Scene {
     cam.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.setZoom(2);
+    cam.fadeIn(220, 0, 0, 0);
+
+    this.ui.mostrarPrompt(null);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.teclas = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.teclas &
@@ -79,6 +108,11 @@ export class FarmScene extends Phaser.Scene {
     // F2/F3 jogam itens de teste no inventario (debug)
     this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('item_teste', 1));
     this.input.keyboard!.on('keydown-F3', () => estado.inventario.adicionar('item_teste_2', 1));
+
+    // F9 salva na hora (debug); no jogo, quem salva e o dormir
+    this.input.keyboard!.on('keydown-F9', () => {
+      console.info('[save] gravado:', this.salvarJogo());
+    });
 
     // F4 apaga o save (debug)
     this.input.keyboard!.on('keydown-F4', () => {
@@ -143,9 +177,36 @@ export class FarmScene extends Phaser.Scene {
       case 'cama':
         this.ui.confirmar('Dormir ate amanha?', () => this.dormir());
         break;
+      case 'porta':
+        this.atravessarPorta(this.alvo);
+        break;
       default:
         break;
     }
+  }
+
+  // -------------------------------------------------------------- portas --
+
+  /** Fade, troca o tilemap e recoloca o player no ponto indicado pela porta. */
+  private atravessarPorta(porta: Interagivel): void {
+    const destino = buscarMapa(porta.props.destino);
+    if (!destino) {
+      console.warn(`[porta] "${porta.id}" aponta pra mapa inexistente:`, porta.props.destino);
+      return;
+    }
+    const tx = Number(porta.props.destinoTx);
+    const ty = Number(porta.props.destinoTy);
+    const posicao =
+      Number.isFinite(tx) && Number.isFinite(ty)
+        ? { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 }
+        : destino.spawn;
+
+    this.transicionando = true;
+    const cam = this.cameras.main;
+    cam.fadeOut(220, 0, 0, 0);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.restart({ mapa: destino.chave, x: posicao.x, y: posicao.y });
+    });
   }
 
   // -------------------------------------------------------------- dormir --
@@ -163,13 +224,14 @@ export class FarmScene extends Phaser.Scene {
     });
   }
 
-  private salvarJogo(): void {
-    salvar({
+  private salvarJogo(): boolean {
+    return salvar({
       dia: estado.dia,
       minutos: estado.relogio.minutos,
       mapa: estado.mapa,
       x: Math.round(this.player.x),
       y: Math.round(this.player.y),
+      inventario: estado.inventario.serializar(),
     });
   }
 
@@ -245,13 +307,15 @@ export class FarmScene extends Phaser.Scene {
         console.warn(`[interativos] classe desconhecida "${classe}" em "${obj.name}" — ignorado`);
         continue;
       }
+      const props = lerProps(obj);
       lista.push({
         id: obj.name || `${classe}_${lista.length}`,
         tipo: classe,
-        rotulo: ROTULOS[classe],
+        // o Tiled pode sobrescrever o verbo do prompt (ex: porta de saida -> "Sair")
+        rotulo: typeof props.rotulo === 'string' ? props.rotulo : ROTULOS[classe],
         x: (obj.x ?? 0) + (obj.width ?? 0) / 2,
         y: (obj.y ?? 0) + (obj.height ?? 0) / 2,
-        props: lerProps(obj),
+        props,
       });
     }
     return lista;

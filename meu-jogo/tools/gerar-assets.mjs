@@ -274,14 +274,50 @@ function gerarFazenda(ts) {
   }
   for (const par of [[8, 20], [9, 20], [12, 24], [33, 12]]) obj[at(par[0], par[1])] = GID.PEDRA;
 
-  // cama provisoria ao ar livre (vai pra dentro da casa quando o interior existir)
-  obj[at(4, 17)] = GID.CAMA_TOPO;
-  obj[at(4, 18)] = GID.CAMA_BASE;
+  // casinha: bloco de parede com uma porta no meio da parede de baixo
+  for (let y = 6; y <= 9; y++) for (let x = 22; x <= 26; x++) obj[at(x, y)] = GID.PAREDE;
+  obj[at(24, 9)] = GID.PORTA;
 
   const interativos = [
     objeto('placa_teste', 'placa', 18, 15),
-    objeto('cama_fazenda', 'cama', 4, 18),
     objeto('morador_1', 'npc', 16, 15, { npcId: 'morador_1' }),
+    // destinoTx/destinoTy sao em TILES do mapa de destino
+    objeto('porta_casa', 'porta', 24, 9, { destino: 'casa', destinoTx: 8, destinoTy: 10 }),
+  ];
+
+  return montarMapa(W, H, chao, obj, interativos, ts);
+}
+
+function gerarCasa(ts) {
+  const W = 16;
+  const H = 12;
+  const chao = new Array(W * H).fill(GID.MADEIRA);
+  const obj = new Array(W * H).fill(0);
+  const at = (x, y) => y * W + x;
+
+  for (let x = 0; x < W; x++) {
+    obj[at(x, 0)] = GID.PAREDE;
+    obj[at(x, H - 1)] = GID.PAREDE;
+  }
+  for (let y = 0; y < H; y++) {
+    obj[at(0, y)] = GID.PAREDE;
+    obj[at(W - 1, y)] = GID.PAREDE;
+  }
+  obj[at(8, H - 1)] = GID.PORTA; // saida (nao colide)
+
+  for (let y = 5; y <= 6; y++) for (let x = 6; x <= 9; x++) chao[at(x, y)] = GID.TAPETE;
+
+  obj[at(2, 2)] = GID.CAMA_TOPO;
+  obj[at(2, 3)] = GID.CAMA_BASE;
+
+  const interativos = [
+    objeto('porta_saida', 'porta', 8, H - 1, {
+      destino: 'farm',
+      destinoTx: 24,
+      destinoTy: 10,
+      rotulo: 'Sair',
+    }),
+    objeto('cama_casa', 'cama', 2, 3),
   ];
 
   return montarMapa(W, H, chao, obj, interativos, ts);
@@ -291,4 +327,5 @@ console.log('gerando assets placeholder...');
 const ts = gerarTileset();
 gerarPlayer();
 escrever(join(ASSETS, 'tilemaps', 'farm.json'), JSON.stringify(gerarFazenda(ts), null, 1));
+escrever(join(ASSETS, 'tilemaps', 'casa.json'), JSON.stringify(gerarCasa(ts), null, 1));
 console.log('pronto.');

@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { estado } from '../game/estado';
+import { buscarMapa } from '../game/mapas';
+import { carregar } from '../game/save';
 
 /** Carrega todos os assets e mostra uma barra de progresso. */
 export class BootScene extends Phaser.Scene {
@@ -13,6 +16,7 @@ export class BootScene extends Phaser.Scene {
     // o nome do tileset dentro do JSON do Tiled e 'terrain' (ver FarmScene).
     this.load.image('tiles-terrain', 'assets/tilesets/terrain.png');
     this.load.tilemapTiledJSON('farm-map', 'assets/tilemaps/farm.json');
+    this.load.tilemapTiledJSON('casa-map', 'assets/tilemaps/casa.json');
 
     this.load.spritesheet('player', 'assets/sprites/player.png', {
       frameWidth: 16,
@@ -22,9 +26,35 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     this.criarAnimacoes();
-    this.scene.start('FarmScene');
-    // a UI roda em paralelo, por cima do mundo, na resolucao base (sem zoom)
+    const inicio = this.aplicarSave();
+
+    // a UI roda em paralelo, por cima do mundo, na resolucao base (sem zoom).
+    // Ela sobe primeiro: a cena de mundo fala com ela ja no create().
     this.scene.launch('UIScene');
+    this.scene.start('FarmScene', inicio);
+  }
+
+  /**
+   * Le o localStorage e joga tudo dentro do `estado`.
+   * Devolve o ponto de entrada da cena de mundo (ou undefined = jogo novo).
+   */
+  private aplicarSave(): { mapa: string; x: number; y: number } | undefined {
+    const save = carregar();
+    if (!save) return undefined;
+
+    const mapa = buscarMapa(save.mapa);
+    if (!mapa) {
+      console.warn(`[save] mapa "${save.mapa}" nao existe mais — comecando na fazenda`);
+      return undefined;
+    }
+
+    estado.dia = Number.isFinite(save.dia) ? save.dia : 0;
+    estado.relogio.definir(Number.isFinite(save.minutos) ? save.minutos : 0);
+    estado.mapa = mapa.chave;
+    estado.inventario.restaurar(save.inventario);
+
+    console.info(`[save] carregado: dia ${estado.dia}, ${estado.relogio.texto}, ${mapa.chave}`);
+    return { mapa: mapa.chave, x: save.x, y: save.y };
   }
 
   private criarAnimacoes(): void {

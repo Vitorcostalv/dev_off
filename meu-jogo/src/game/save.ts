@@ -1,3 +1,5 @@
+import type { Slot } from './inventario';
+
 const CHAVE = 'meu-jogo:save';
 const VERSAO = 1;
 
@@ -8,6 +10,7 @@ export interface DadosSave {
   mapa: string;
   x: number;
   y: number;
+  inventario: (Slot | null)[];
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

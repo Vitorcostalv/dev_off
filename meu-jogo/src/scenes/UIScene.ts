@@ -2,10 +2,12 @@ import Phaser from 'phaser';
 import { nomeDoDia } from '../game/calendario';
 import { CONFIG, UI } from '../game/config';
 import { estado } from '../game/estado';
+import { ITENS } from '../game/inventario';
 import type { Fala, MundoJogavel } from '../game/tipos';
 
 const CAIXA = { x: 8, y: 188, w: CONFIG.largura - 16, h: 74 };
 const CONFIRMA = { w: 180, h: 56 };
+const INV = { colunas: 5, linhas: 4, slot: 22, gap: 3, topo: 20, margem: 10 };
 
 /**
  * Cena de interface, rodando em paralelo com a cena de mundo.
@@ -33,13 +35,17 @@ export class UIScene extends Phaser.Scene {
   private aoSim: (() => void) | null = null;
   private aoNao: (() => void) | null = null;
 
+  private inventario!: Phaser.GameObjects.Container;
+  private icones: Phaser.GameObjects.Rectangle[] = [];
+  private contadores: Phaser.GameObjects.Text[] = [];
+
   constructor() {
     super({ key: 'UIScene', active: false });
   }
 
   /** true quando alguma janela da UI esta capturando o jogo (pausa movimento). */
   get bloqueado(): boolean {
-    return this.dialogoAberto || this.confirmacaoAberta;
+    return this.dialogoAberto || this.confirmacaoAberta || this.inventarioAberto;
   }
 
   get dialogoAberto(): boolean {
@@ -48,6 +54,10 @@ export class UIScene extends Phaser.Scene {
 
   get confirmacaoAberta(): boolean {
     return this.confirmacao?.visible ?? false;
+  }
+
+  get inventarioAberto(): boolean {
+    return this.inventario?.visible ?? false;
   }
 
   create(): void {
@@ -74,8 +84,12 @@ export class UIScene extends Phaser.Scene {
 
     this.dialogo = this.criarCaixaDeDialogo();
     this.confirmacao = this.criarCaixaDeConfirmacao();
+    this.inventario = this.criarPainelDeInventario();
 
     const teclado = this.input.keyboard;
+    // sem isso o Tab move o foco do navegador em vez de chegar aqui
+    teclado?.addCapture('TAB');
+    teclado?.on('keydown-TAB', () => this.alternarInventario());
     teclado?.on('keydown-E', () => this.acionar());
     teclado?.on('keydown-ESC', () => this.cancelar());
     teclado?.on('keydown-LEFT', () => this.moverOpcao(-1));
@@ -87,6 +101,7 @@ export class UIScene extends Phaser.Scene {
 
   update(): void {
     this.atualizarHud();
+    if (this.inventarioAberto) this.desenharInventario();
   }
 
   // ----------------------------------------------------------------- hud --
@@ -101,7 +116,7 @@ export class UIScene extends Phaser.Scene {
   /** Mostra "[E] <rotulo>" ou some, se `rotulo` for null. */
   mostrarPrompt(rotulo: string | null): void {
     this.rotuloAtual = rotulo;
-    this.desenharPrompt();
+    if (this.prompt) this.desenharPrompt();
   }
 
   private desenharPrompt(): void {
@@ -280,10 +295,96 @@ export class UIScene extends Phaser.Scene {
       .setVisible(false);
   }
 
+  // ---------------------------------------------------------- inventario --
+
+  private alternarInventario(): void {
+    // nao abre por cima de dialogo/confirmacao
+    if (!this.inventarioAberto && (this.dialogoAberto || this.confirmacaoAberta)) return;
+    this.inventario.setVisible(!this.inventarioAberto);
+    if (this.inventarioAberto) this.desenharInventario();
+    this.desenharPrompt();
+  }
+
+  private desenharInventario(): void {
+    const slots = estado.inventario.slots;
+    for (let i = 0; i < this.icones.length; i++) {
+      const slot = slots[i];
+      const def = slot ? ITENS[slot.id] : undefined;
+      this.icones[i].setVisible(Boolean(def));
+      if (def) this.icones[i].setFillStyle(def.cor, 1);
+
+      const qtd = slot && slot.qtd > 1 ? String(slot.qtd) : '';
+      if (this.contadores[i].text !== qtd) this.contadores[i].setText(qtd);
+    }
+  }
+
+  private criarPainelDeInventario(): Phaser.GameObjects.Container {
+    const passo = INV.slot + INV.gap;
+    const grade = {
+      w: INV.colunas * passo - INV.gap,
+      h: INV.linhas * passo - INV.gap,
+    };
+    const largura = grade.w + INV.margem * 2;
+    const altura = grade.h + INV.margem * 2 + INV.topo;
+    const x = Math.round((CONFIG.largura - largura) / 2);
+    const y = Math.round((CONFIG.altura - altura) / 2);
+
+    const fundo = this.add.graphics();
+    fundo.fillStyle(UI.fundo, 0.95);
+    fundo.fillRect(x, y, largura, altura);
+    fundo.lineStyle(1, UI.borda, 1);
+    fundo.strokeRect(x + 0.5, y + 0.5, largura - 1, altura - 1);
+
+    const titulo = this.add.text(x + INV.margem, y + 6, 'Inventario', {
+      fontFamily: UI.fonte,
+      fontSize: UI.tamanhoTitulo,
+      color: UI.destaque,
+    });
+    const dica = this.add
+      .text(x + largura - INV.margem, y + 7, '[Tab] fechar', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanho,
+        color: UI.textoFraco,
+      })
+      .setOrigin(1, 0);
+
+    const filhos: Phaser.GameObjects.GameObject[] = [fundo, titulo, dica];
+    this.icones = [];
+    this.contadores = [];
+
+    for (let i = 0; i < INV.colunas * INV.linhas; i++) {
+      const sx = x + INV.margem + (i % INV.colunas) * passo;
+      const sy = y + INV.margem + INV.topo + Math.floor(i / INV.colunas) * passo;
+
+      fundo.fillStyle(0x000000, 0.35);
+      fundo.fillRect(sx, sy, INV.slot, INV.slot);
+      fundo.lineStyle(1, UI.borda, 0.7);
+      fundo.strokeRect(sx + 0.5, sy + 0.5, INV.slot - 1, INV.slot - 1);
+
+      const icone = this.add
+        .rectangle(sx + INV.slot / 2, sy + INV.slot / 2, INV.slot - 8, INV.slot - 8, 0xffffff)
+        .setVisible(false);
+      const contador = this.add
+        .text(sx + INV.slot - 2, sy + INV.slot - 2, '', {
+          fontFamily: UI.fonte,
+          fontSize: '9px',
+          color: UI.texto,
+        })
+        .setOrigin(1, 1);
+
+      this.icones.push(icone);
+      this.contadores.push(contador);
+      filhos.push(icone, contador);
+    }
+
+    return this.add.container(0, 0, filhos).setDepth(105).setVisible(false);
+  }
+
   // --------------------------------------------------------------- input --
 
   /** Ponto unico de entrada do "acionar" (E / clique). */
   private acionar(): void {
+    if (this.inventarioAberto) return;
     if (this.confirmacaoAberta) {
       this.responderConfirmacao();
       return;
