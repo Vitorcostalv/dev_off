@@ -40,6 +40,9 @@ export class FarmScene extends Phaser.Scene {
   private npcs: Phaser.Physics.Arcade.Sprite[] = [];
   /** trava o input durante fades (dormir, trocar de mapa) */
   private transicionando = false;
+  /** enquadra o mapa inteiro para inspecao e screenshots. */
+  private visaoCompleta = false;
+  private tamanhoMapa = { largura: 0, altura: 0 };
   /** de onde o player entrou neste mapa; null = usa o spawn padrao */
   private spawn: { x: number; y: number } | null = null;
 
@@ -60,6 +63,7 @@ export class FarmScene extends Phaser.Scene {
     this.spawn =
       dados?.x !== undefined && dados?.y !== undefined ? { x: dados.x, y: dados.y } : null;
     this.transicionando = false;
+    this.visaoCompleta = false;
     this.interagiveis = [];
     this.npcs = [];
     this.alvo = null;
@@ -70,6 +74,7 @@ export class FarmScene extends Phaser.Scene {
     if (!def) throw new Error(`Mapa "${estado.mapa}" nao existe em MAPAS`);
 
     const map = this.make.tilemap({ key: def.tilemapKey });
+    this.tamanhoMapa = { largura: map.widthInPixels, altura: map.heightInPixels };
 
     // 1o arg = nome do tileset DENTRO do JSON do Tiled, 2o = key carregada no BootScene.
     const tileset = map.addTilesetImage(def.tilesetNoJson, def.tilesetKey);
@@ -105,12 +110,16 @@ export class FarmScene extends Phaser.Scene {
     cam.setZoom(2);
     cam.fadeIn(220, 0, 0, 0);
 
+    this.scene.setVisible(true, 'UIScene');
     this.ui.mostrarPrompt(null);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.teclas = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.teclas &
       Record<string, Phaser.Input.Keyboard.Key>;
     this.correr = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+
+    // V alterna entre a camera normal e o mapa inteiro, pronto para screenshot.
+    this.input.keyboard!.on('keydown-V', () => this.alternarVisaoCompleta());
 
     // F2/F3 jogam itens de teste no inventario (debug)
     this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('item_teste', 1));
@@ -135,6 +144,12 @@ export class FarmScene extends Phaser.Scene {
   }
 
   update(_tempo: number, delta: number): void {
+    if (this.visaoCompleta) {
+      this.player.setVelocity(0, 0);
+      this.player.anims.play(`idle-${this.direcao}`, true);
+      return;
+    }
+
     this.atualizarAlvo();
 
     // com dialogo/menu aberto o player fica parado e o relogio congela
@@ -268,6 +283,30 @@ export class FarmScene extends Phaser.Scene {
       this.npcs.push(sprite);
     }
     if (this.npcs.length > 0) this.physics.add.collider(this.player, this.npcs);
+  }
+
+  // --------------------------------------------------------- camera/mapa --
+
+  /** Mostra o mapa inteiro sem HUD; V novamente restaura a camera de jogo. */
+  private alternarVisaoCompleta(): void {
+    this.visaoCompleta = !this.visaoCompleta;
+    const cam = this.cameras.main;
+    const { largura, altura } = this.tamanhoMapa;
+
+    if (this.visaoCompleta) {
+      this.player.setVelocity(0, 0);
+      cam.stopFollow();
+      cam.removeBounds();
+      cam.setZoom(Math.min(this.scale.width / largura, this.scale.height / altura));
+      cam.centerOn(largura / 2, altura / 2);
+      this.scene.setVisible(false, 'UIScene');
+      return;
+    }
+
+    cam.setBounds(0, 0, largura, altura);
+    cam.setZoom(2);
+    cam.startFollow(this.player, true, 0.12, 0.12);
+    this.scene.setVisible(true, 'UIScene');
   }
 
   /** Reduz a arte original para a escala do mapa e deixa a colisao so nos pes. */

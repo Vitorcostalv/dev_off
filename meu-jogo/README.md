@@ -17,6 +17,7 @@ Abre em http://localhost:5173. `npm run build` gera o `dist/`.
 | --- | --- |
 | Setas / WASD | mover |
 | Shift + movimento | correr |
+| V | mostrar o mapa inteiro / voltar ao zoom normal |
 | E ou clique | interagir, avancar dialogo, confirmar |
 | Setas ou A/D | escolher Sim/Nao na confirmacao |
 | Esc | cancelar confirmacao |
