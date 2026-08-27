@@ -63,17 +63,18 @@ export class BootScene extends Phaser.Scene {
     // pedras soltas: frames `pedra_<i>`, do pedrisco ao matacao
     this.load.atlas('pedras', 'assets/sprites/pedras.png', 'assets/sprites/pedras.atlas.json');
 
-    // moveis de interior: frames `movel_<linha>_<indice>`
-    this.load.atlas(
-      'moveis_mercado',
-      'assets/sprites/Utensilios_mercado.png',
-      'assets/sprites/moveis_mercado.atlas.json',
-    );
-    this.load.atlas(
-      'moveis_academia',
-      'assets/sprites/Utensilios_academia.png',
-      'assets/sprites/moveis_academia.atlas.json',
-    );
+    // Moveis de interior: frames `movel_<linha>_<indice>`. O PNG e a folha
+    // LIMPA gerada por tools/gerar-assets.mjs, nao a arte crua: nela cada peca
+    // tem so os proprios pixels, senao o frame de uma peca diagonal (tapete)
+    // leva lasca da vizinha. As duas folhas de mobilia se misturam peca por
+    // peca em MOBILIA_CASA, entao o atlas de cada uma e carregado a parte.
+    for (const folha of ['mercado', 'academia', 'mobilia_v1', 'mobilia_v2']) {
+      this.load.atlas(
+        `moveis_${folha}`,
+        `assets/sprites/moveis_${folha}.png`,
+        `assets/sprites/moveis_${folha}.atlas.json`,
+      );
+    }
 
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');

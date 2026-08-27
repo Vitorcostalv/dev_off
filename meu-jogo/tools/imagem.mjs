@@ -243,8 +243,12 @@ export function detectarGrade(img, limiar = 0) {
  * Componentes conexos de pixels opacos (vizinhanca 8), pra folhas que nao tem
  * grade — arte espalhada em posicoes livres. Devolve a caixa e a area de cada
  * blob, do maior pro menor, ignorando os menores que `areaMinima`.
+ *
+ * Com `comPixels`, cada blob leva tambem `pixels`: os indices lineares dos seus
+ * proprios pixels. Serve pra recortar a peca sem levar o vizinho — a caixa e
+ * retangular, entao arte diagonal (tapete) pega o canto de quem esta ao lado.
  */
-export function blobs(img, areaMinima = 24, limiteAlfa = 16) {
+export function blobs(img, areaMinima = 24, limiteAlfa = 16, comPixels = false) {
   const visto = new Uint8Array(img.w * img.h);
   const achados = [];
   const pilha = new Int32Array(img.w * img.h);
@@ -260,6 +264,7 @@ export function blobs(img, areaMinima = 24, limiteAlfa = 16) {
       let topo = 0;
       pilha[topo++] = raiz;
       visto[raiz] = 1;
+      const meus = comPixels ? [] : null;
       let minX = x0;
       let maxX = x0;
       let minY = y0;
@@ -271,6 +276,7 @@ export function blobs(img, areaMinima = 24, limiteAlfa = 16) {
         const x = i % img.w;
         const y = (i - x) / img.w;
         area++;
+        if (meus) meus.push(i);
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -290,7 +296,9 @@ export function blobs(img, areaMinima = 24, limiteAlfa = 16) {
       }
 
       if (area >= areaMinima) {
-        achados.push({ x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, area });
+        const b = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, area };
+        if (meus) b.pixels = meus;
+        achados.push(b);
       }
     }
   }

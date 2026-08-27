@@ -54177,15 +54177,15 @@
  ],
  "tilesets": [
   {
-   "columns": 72,
+   "columns": 71,
    "firstgid": 1,
    "image": "../tilesets/terrain.png",
-   "imagewidth": 2304,
+   "imagewidth": 2272,
    "imageheight": 32,
    "margin": 0,
    "spacing": 0,
    "name": "terrain",
-   "tilecount": 72,
+   "tilecount": 71,
    "tilewidth": 32,
    "tileheight": 32,
    "tiles": [
@@ -54370,7 +54370,7 @@
      ]
     },
     {
-     "id": 70,
+     "id": 69,
      "properties": [
       {
        "name": "collides",
@@ -54380,7 +54380,7 @@
      ]
     },
     {
-     "id": 71,
+     "id": 70,
      "properties": [
       {
        "name": "collides",
