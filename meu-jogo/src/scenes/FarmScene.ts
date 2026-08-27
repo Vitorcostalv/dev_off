@@ -9,8 +9,15 @@ import { falasDe } from '../game/tipos';
 import type { Direcao, Interagivel, PropObjeto, TipoInteragivel } from '../game/tipos';
 import type { UIScene } from './UIScene';
 
-const VELOCIDADE = 70;
+const VELOCIDADE_ANDAR = 70;
+const VELOCIDADE_CORRER = 110;
 const TILE = 16;
+// Cada recorte tem 320 px de altura; no mundo ocupa 1,5 tile.
+const ESCALA_PERSONAGEM = 24 / 320;
+const CORPO_LARGURA = 70;
+const CORPO_ALTURA = 50;
+const CORPO_OFFSET_X = 65;
+const CORPO_OFFSET_Y = 265;
 
 const VETOR: Record<Direcao, { x: number; y: number }> = {
   up: { x: 0, y: -1 },
@@ -25,6 +32,7 @@ export class FarmScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private teclas!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
+  private correr!: Phaser.Input.Keyboard.Key;
   private direcao: Direcao = 'down';
 
   private interagiveis: Interagivel[] = [];
@@ -81,11 +89,9 @@ export class FarmScene extends Phaser.Scene {
     this.interagiveis = this.lerInterativos(map);
 
     const nasce = this.spawn ?? def.spawn;
-    this.player = this.physics.add.sprite(nasce.x, nasce.y, 'player');
-    this.player.setDepth(10);
+    this.player = this.physics.add.sprite(nasce.x, nasce.y, 'player-idle-sprites', 'down-0');
+    this.configurarPersonagem(this.player);
     // hitbox menor que o sprite, so os pes -> parece melhor em top-down
-    this.player.body?.setSize(8, 6);
-    (this.player.body as Phaser.Physics.Arcade.Body).setOffset(4, 10);
     this.player.setCollideWorldBounds(true);
 
     this.criarNpcs();
@@ -104,6 +110,7 @@ export class FarmScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.teclas = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.teclas &
       Record<string, Phaser.Input.Keyboard.Key>;
+    this.correr = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
     // F2/F3 jogam itens de teste no inventario (debug)
     this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('item_teste', 1));
@@ -149,14 +156,16 @@ export class FarmScene extends Phaser.Scene {
     const vx = (direita ? 1 : 0) - (esquerda ? 1 : 0);
     const vy = (baixo ? 1 : 0) - (cima ? 1 : 0);
 
-    const v = new Phaser.Math.Vector2(vx, vy).normalize().scale(VELOCIDADE);
+    const correndo = this.correr.isDown;
+    const velocidade = correndo ? VELOCIDADE_CORRER : VELOCIDADE_ANDAR;
+    const v = new Phaser.Math.Vector2(vx, vy).normalize().scale(velocidade);
     this.player.setVelocity(v.x, v.y);
 
     if (vx !== 0 || vy !== 0) {
       // horizontal tem prioridade na escolha da animacao
       if (vx !== 0) this.direcao = vx > 0 ? 'right' : 'left';
       else this.direcao = vy > 0 ? 'down' : 'up';
-      this.player.anims.play(`walk-${this.direcao}`, true);
+      this.player.anims.play(`${correndo ? 'run' : 'walk'}-${this.direcao}`, true);
     } else {
       this.player.anims.play(`idle-${this.direcao}`, true);
     }
@@ -246,14 +255,27 @@ export class FarmScene extends Phaser.Scene {
         console.warn(`[npc] "${alvo.id}" sem npcId valido (${String(alvo.props.npcId)})`);
         continue;
       }
-      const sprite = this.physics.add.staticSprite(alvo.x, alvo.y, 'player');
-      sprite.setTint(def.tint).setDepth(10);
+      const sprite = this.physics.add.staticSprite(
+        alvo.x,
+        alvo.y,
+        'player-idle-sprites',
+        'down-0',
+      );
+      this.configurarPersonagem(sprite);
+      sprite.setTint(def.tint);
       sprite.anims.play('idle-down');
-      sprite.body.setSize(10, 8).setOffset(3, 8);
       sprite.body.updateFromGameObject();
       this.npcs.push(sprite);
     }
     if (this.npcs.length > 0) this.physics.add.collider(this.player, this.npcs);
+  }
+
+  /** Reduz a arte original para a escala do mapa e deixa a colisao so nos pes. */
+  private configurarPersonagem(sprite: Phaser.Physics.Arcade.Sprite): void {
+    sprite.setOrigin(0.5, 1).setScale(ESCALA_PERSONAGEM).setDepth(10);
+    sprite.body
+      ?.setSize(CORPO_LARGURA, CORPO_ALTURA)
+      .setOffset(CORPO_OFFSET_X, CORPO_OFFSET_Y);
   }
 
   private falarCom(alvo: Interagivel): void {

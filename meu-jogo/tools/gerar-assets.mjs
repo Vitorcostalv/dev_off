@@ -1,5 +1,5 @@
-// Gera a arte placeholder e os tilemaps. Rode com: npm run gerar-assets
-// Substitua os PNGs pelos seus do Aseprite mantendo as dimensoes e nada quebra.
+// Gera o tileset placeholder e os tilemaps. Rode com: npm run gerar-assets
+// Os sprites do player sao arte externa e nao sao sobrescritos por este script.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -325,7 +325,6 @@ function gerarCasa(ts) {
 
 console.log('gerando assets placeholder...');
 const ts = gerarTileset();
-gerarPlayer();
 escrever(join(ASSETS, 'tilemaps', 'farm.json'), JSON.stringify(gerarFazenda(ts), null, 1));
 escrever(join(ASSETS, 'tilemaps', 'casa.json'), JSON.stringify(gerarCasa(ts), null, 1));
 console.log('pronto.');

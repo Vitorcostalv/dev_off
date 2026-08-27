@@ -3,6 +3,25 @@ import { estado } from '../game/estado';
 import { buscarMapa } from '../game/mapas';
 import { carregar } from '../game/save';
 
+const PLAYER_FRAME = { largura: 200, altura: 320 };
+const PLAYER_RECORTE = {
+  idle: {
+    textura: 'player-idle-sprites',
+    colunas: [184, 412, 638, 864],
+    linhas: { down: 0, left: 300, right: 590, up: 874 },
+  },
+  walk: {
+    textura: 'player-walk-sprites',
+    colunas: [184, 412, 638, 864],
+    linhas: { down: 0, left: 300, right: 610, up: 920 },
+  },
+  run: {
+    textura: 'player-run-sprites',
+    colunas: [144, 404, 682, 948],
+    linhas: { down: 0, left: 294, right: 582, up: 870 },
+  },
+} as const;
+
 /** Carrega todos os assets e mostra uma barra de progresso. */
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -18,13 +37,15 @@ export class BootScene extends Phaser.Scene {
     this.load.tilemapTiledJSON('farm-map', 'assets/tilemaps/farm.json');
     this.load.tilemapTiledJSON('casa-map', 'assets/tilemaps/casa.json');
 
-    this.load.spritesheet('player', 'assets/sprites/player.png', {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
+    this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
+    this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
+    this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
   }
 
   create(): void {
+    this.criarFramesPlayer('idle');
+    this.criarFramesPlayer('walk');
+    this.criarFramesPlayer('run');
     this.criarAnimacoes();
     const inicio = this.aplicarSave();
 
@@ -58,25 +79,53 @@ export class BootScene extends Phaser.Scene {
   }
 
   private criarAnimacoes(): void {
-    const dirs = [
-      { key: 'down', row: 0 },
-      { key: 'left', row: 1 },
-      { key: 'right', row: 2 },
-      { key: 'up', row: 3 },
-    ];
+    const dirs = ['down', 'left', 'right', 'up'];
 
-    for (const { key, row } of dirs) {
-      const start = row * 4;
+    for (const key of dirs) {
+      const frames = PLAYER_RECORTE.walk.colunas.map((_, indice) => ({
+        key: PLAYER_RECORTE.walk.textura,
+        frame: `${key}-${indice}`,
+      }));
       this.anims.create({
         key: `walk-${key}`,
-        frames: this.anims.generateFrameNumbers('player', { start, end: start + 3 }),
+        frames,
         frameRate: 8,
         repeat: -1,
       });
       this.anims.create({
+        key: `run-${key}`,
+        frames: PLAYER_RECORTE.run.colunas.map((_, indice) => ({
+          key: PLAYER_RECORTE.run.textura,
+          frame: `${key}-${indice}`,
+        })),
+        frameRate: 11,
+        repeat: -1,
+      });
+      this.anims.create({
         key: `idle-${key}`,
-        frames: [{ key: 'player', frame: start }],
+        frames: [{ key: PLAYER_RECORTE.idle.textura, frame: `${key}-0` }],
         frameRate: 1,
+      });
+    }
+  }
+
+  /**
+   * A imagem recebida tem espacamento irregular entre as poses, entao nao da
+   * para usar frameWidth/frameHeight. Registramos cada recorte manualmente.
+   */
+  private criarFramesPlayer(tipo: keyof typeof PLAYER_RECORTE): void {
+    const recorte = PLAYER_RECORTE[tipo];
+    const textura = this.textures.get(recorte.textura);
+    for (const [direcao, y] of Object.entries(recorte.linhas)) {
+      recorte.colunas.forEach((x, indice) => {
+        textura.add(
+          `${direcao}-${indice}`,
+          0,
+          x,
+          y,
+          PLAYER_FRAME.largura,
+          PLAYER_FRAME.altura,
+        );
       });
     }
   }

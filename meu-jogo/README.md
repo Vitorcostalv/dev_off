@@ -9,13 +9,14 @@ npm run dev
 ```
 
 Abre em http://localhost:5173. `npm run build` gera o `dist/`.
-`npm run gerar-assets` regera a arte placeholder e os tilemaps.
+`npm run gerar-assets` regera o tileset placeholder e os tilemaps.
 
 ## Controles
 
 | Tecla | Acao |
 | --- | --- |
 | Setas / WASD | mover |
+| Shift + movimento | correr |
 | E ou clique | interagir, avancar dialogo, confirmar |
 | Setas ou A/D | escolher Sim/Nao na confirmacao |
 | Esc | cancelar confirmacao |
@@ -45,15 +46,18 @@ src/
     FarmScene.ts       cena de mundo: tilemap, player, colisao, camera, interacao
     UIScene.ts         HUD, prompt, dialogo, confirmacao, inventario
 tools/
-  gerar-assets.mjs     gera tileset, spritesheet e os dois tilemaps
+  gerar-assets.mjs     gera o tileset e os dois tilemaps
 public/assets/
   tilemaps/            farm.json (externo) e casa.json (interior)
   tilesets/terrain.png tileset 16x16, 10 tiles
-  sprites/player.png   spritesheet 16x16, 4 colunas x 4 linhas
+  sprites/             spritesheets de pose/caminhada/corrida + referencias
 ```
 
-A arte e **placeholder gerada por script**. Substitua os PNGs pelos seus do
-Aseprite mantendo as dimensoes e nada quebra.
+O tileset ainda e **placeholder gerado por script**. O player parado usa
+`player_sprites.png`, a caminhada usa `Player_andando.png` e a corrida usa
+`Player_correndo.png`, sempre com quatro poses por direcao. As imagens
+individuais ficam como referencia e nenhum desses arquivos e sobrescrito por
+`npm run gerar-assets`.
 
 ## Como as pecas conversam
 
