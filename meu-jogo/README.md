@@ -18,13 +18,14 @@ partir da arte em `public/assets/sprites/`.
 | --- | --- |
 | Setas / WASD | mover |
 | Shift + movimento | correr |
-| V | mostrar o mapa inteiro / voltar ao zoom normal |
 | E ou clique | interagir, avancar dialogo, confirmar |
 | Setas ou A/D | escolher Sim/Nao na confirmacao |
 | Esc | cancelar confirmacao |
 | Tab | abrir/fechar inventario |
+| M | abrir/fechar mapa da cidade |
 | F1 | debug das colisoes |
 | F6 | mostrar/esconder as zonas reservadas (debug) |
+| F7 | avancar uma hora para testar rotinas (debug) |
 | F2 / F3 | adicionar Cabo USB / Bateria no inventario (debug) |
 | F4 | apagar o save (debug) |
 | F9 | salvar na hora (debug) |
@@ -41,7 +42,8 @@ src/
     calendario.ts      dias da semana
     inventario.ts      slots, empilhamento, catalogo de itens
     mapas.ts           registro dos mapas (keys do Phaser + spawn)
-    npcs.ts            catalogo de NPCs
+    npcs.ts            catalogo, moradias, sprites, dialogos e rotinas dos NPCs
+    rotinasNpc.ts      motor generico de agenda e movimento dos NPCs
     save.ts            localStorage
     tipos.ts           tipos compartilhados
   scenes/
@@ -157,7 +159,7 @@ Camada de **objetos** chamada `interativos`. A *class* do objeto define o tipo:
 | class | o que faz | propriedades |
 | --- | --- | --- |
 | `placa` | dialogo fixo de teste | — |
-| `npc` | conversa | `npcId` -> chave em `game/npcs.ts` |
+| `npc` | conversa (legado; NPCs novos nascem de `game/npcs.ts`) | `npcId` |
 | `porta` | troca de mapa com fade | `destino` (chave em `game/mapas.ts`), `destinoTx`, `destinoTy` (em **tiles** do mapa de destino) |
 | `cama` | pergunta e dorme | — |
 
@@ -288,7 +290,7 @@ tile lado a lado vira uma grade visivel.
 
 ## Tempo, dias e save
 
-- `CONFIG_TEMPO` em `game/relogio.ts`: hoje **10 minutos de jogo a cada 5
+- `CONFIG_TEMPO` em `game/relogio.ts`: hoje **10 minutos de jogo a cada 10
   segundos reais**, dia comeca 06:00 ao acordar, jogo novo comeca 07:20.
 - Passar da meia-noite acordado tambem vira o dia.
 - Dia 0 e uma segunda-feira (`game/calendario.ts`).
@@ -296,6 +298,19 @@ tile lado a lado vira uma grade visivel.
   chave `meu-jogo:save`) guarda dia, hora, mapa, posicao, inventario e pickups coletados, e e
   carregado no boot. Save de versao diferente ou corrompido e ignorado com
   aviso no console, e o jogo comeca do zero.
+
+## Rotinas de NPC
+
+Cada entrada de `NPCS`, em `game/npcs.ts`, concentra nome, casa, posicao
+inicial, spritesheet, dialogo e a lista ordenada de acoes. O motor aceita
+`vagar`, `andar_rota`, `entrar_construcao`, `sair_construcao` e
+`voltar_para_casa`. NPC sem acao configurada depois das 18:00 recebe
+automaticamente o retorno para sua casa.
+
+As rotas usam coordenadas de tile e nao fazem pathfinding. Rode
+`npm run verificar-rotinas` para simular o dia, conferir os tiles percorridos e
+validar entrada/saida das construcoes. `npm run processar-sprites-npc` regenera
+a folha transparente de runtime da Mari a partir da arte original.
 
 ## Notas
 

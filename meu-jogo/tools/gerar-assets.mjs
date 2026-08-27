@@ -1307,7 +1307,6 @@ function gerarFazenda(ts) {
 
   const interativos = [
     objeto('placa_teste', 'placa', CENTRO.x - 3, CENTRO.y + 3),
-    objeto('morador_1', 'npc', CENTRO.x + 3, CENTRO.y + 3, { npcId: 'morador_1' }),
     objeto('pickup_cabo_usb_1', 'item', CENTRO.x - 2, CENTRO.y, { itemId: 'cabo_usb' }),
     objeto('pickup_cabo_usb_2', 'item', CENTRO.x + 2, CENTRO.y, { itemId: 'cabo_usb' }),
     ...CONSTRUIDAS.map((c) =>

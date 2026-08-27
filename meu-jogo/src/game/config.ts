@@ -6,6 +6,12 @@ export const CONFIG = {
   largura: 480,
   altura: 270,
 
+  /** Velocidades do player em pixels por segundo. */
+  movimento: {
+    andar: 91,
+    correr: 143,
+  },
+
   // Distancias em TILES, nao em pixels: o mundo escala com o tamanho do tile
   // (a FarmScene multiplica pelo valor lido do tilemap).
   interacao: {

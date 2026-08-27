@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "gerar-assets": "node tools/gerar-assets.mjs",
     "verificar-mapas": "node tools/verificar-mapas.mjs",
-    "verificar-inventario": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-inventario.mjs"
+    "verificar-inventario": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-inventario.mjs",
+    "processar-sprites-npc": "node tools/processar-sprites-npc.mjs",
+    "verificar-rotinas": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-rotinas-npc.mjs"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { MAPAS, buscarMapa } from '../game/mapas';
+import { NPCS } from '../game/npcs';
 import { carregar } from '../game/save';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
@@ -77,6 +78,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
+    for (const npc of Object.values(NPCS)) {
+      if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
+    }
   }
 
   create(): void {
@@ -84,6 +88,7 @@ export class BootScene extends Phaser.Scene {
     this.criarFramesPlayer('walk');
     this.criarFramesPlayer('run');
     this.criarAnimacoes();
+    this.criarSpritesNpcs();
     const inicio = this.aplicarSave();
 
     // a UI roda em paralelo, por cima do mundo, na resolucao base (sem zoom).
@@ -148,6 +153,37 @@ export class BootScene extends Phaser.Scene {
         frames: [{ key: PLAYER_RECORTE.idle.textura, frame: `${key}-0` }],
         frameRate: 1,
       });
+    }
+  }
+
+  /** Recortes e animacoes sao inteiramente descritos pela entrada do NPC. */
+  private criarSpritesNpcs(): void {
+    for (const npc of Object.values(NPCS)) {
+      if (!npc.sprite) continue;
+      const chaveTextura = `npc-${npc.id}-sprites`;
+      const textura = this.textures.get(chaveTextura);
+      const fonte = textura.source[0];
+      for (const [direcao, faixa] of Object.entries(npc.sprite.frames)) {
+        const frames = faixa.colunas.map((coluna, indice) => {
+          const x0 = Math.floor((coluna * fonte.width) / npc.sprite!.colunas);
+          const x1 = Math.floor(((coluna + 1) * fonte.width) / npc.sprite!.colunas);
+          const y0 = Math.floor((faixa.linha * fonte.height) / npc.sprite!.linhas);
+          const y1 = Math.floor(((faixa.linha + 1) * fonte.height) / npc.sprite!.linhas);
+          textura.add(`${direcao}-${indice}`, 0, x0, y0, x1 - x0, y1 - y0);
+          return { key: chaveTextura, frame: `${direcao}-${indice}` };
+        });
+        this.anims.create({
+          key: `npc-${npc.id}-walk-${direcao}`,
+          frames,
+          frameRate: 8,
+          repeat: -1,
+        });
+        this.anims.create({
+          key: `npc-${npc.id}-idle-${direcao}`,
+          frames: [frames[0]],
+          frameRate: 1,
+        });
+      }
     }
   }
 

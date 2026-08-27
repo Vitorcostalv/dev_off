@@ -3,8 +3,9 @@ import { CONFIG, COR_ZONA, ROTULOS, UI } from '../game/config';
 import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
 import { buscarMapa } from '../game/mapas';
-import { buscarNpc } from '../game/npcs';
+import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
 import { CONFIG_TEMPO } from '../game/relogio';
+import type { EstadoNpc } from '../game/rotinasNpc';
 import { apagar, salvar } from '../game/save';
 import { falasDe } from '../game/tipos';
 import type {
@@ -17,8 +18,6 @@ import type {
 } from '../game/tipos';
 import type { UIScene } from './UIScene';
 
-const VELOCIDADE_ANDAR = 70;
-const VELOCIDADE_CORRER = 110;
 /**
  * Quantos tiles cabem na largura da tela. E daqui que sai o zoom da camera:
  * o campo de visao fica fixo em tiles, entao mudar o tamanho do tile no
@@ -82,7 +81,7 @@ export class FarmScene extends Phaser.Scene {
 
   private interagiveis: Interagivel[] = [];
   private alvo: Interagivel | null = null;
-  private npcs: Phaser.Physics.Arcade.Sprite[] = [];
+  private npcs: NpcVisual[] = [];
   private visuaisDeItens = new Map<string, Phaser.GameObjects.Rectangle>();
   /** areas reservadas pros predios da proxima etapa; sem colisao */
   private zonas: ZonaReservada[] = [];
@@ -92,9 +91,12 @@ export class FarmScene extends Phaser.Scene {
   private obstaculos: Phaser.GameObjects.Zone[] = [];
   /** trava o input durante fades (dormir, trocar de mapa) */
   private transicionando = false;
-  /** enquadra o mapa inteiro para inspecao e screenshots. */
-  private visaoCompleta = false;
-  private tamanhoMapa = { largura: 0, altura: 0 };
+  /** mapa da cidade aberto pelo jogador com M. */
+  private mapaAberto = false;
+  private overlayMapa: Phaser.GameObjects.Container | null = null;
+  private marcadorPlayer: Phaser.GameObjects.Arc | null = null;
+  private marcadoresNpc: Phaser.GameObjects.Arc[] = [];
+  private transformMapa = { x: 0, y: 0, escala: 1 };
   /**
    * Tamanho do tile lido do proprio tilemap. Escala do player, da flora, zoom
    * da camera e alcance de interacao saem daqui — assim trocar o tile no
@@ -121,7 +123,10 @@ export class FarmScene extends Phaser.Scene {
     this.spawn =
       dados?.x !== undefined && dados?.y !== undefined ? { x: dados.x, y: dados.y } : null;
     this.transicionando = false;
-    this.visaoCompleta = false;
+    this.mapaAberto = false;
+    this.overlayMapa = null;
+    this.marcadorPlayer = null;
+    this.marcadoresNpc = [];
     this.interagiveis = [];
     this.npcs = [];
     this.visuaisDeItens.clear();
@@ -175,7 +180,6 @@ export class FarmScene extends Phaser.Scene {
     if (!def) throw new Error(`Mapa "${estado.mapa}" nao existe em MAPAS`);
 
     const map = this.make.tilemap({ key: def.tilemapKey });
-    this.tamanhoMapa = { largura: map.widthInPixels, altura: map.heightInPixels };
     this.tamanhoTile = map.tileWidth;
 
     // 1o arg = nome do tileset DENTRO do JSON do Tiled, 2o = key carregada no BootScene.
@@ -198,9 +202,10 @@ export class FarmScene extends Phaser.Scene {
     // colisao vem da propriedade 'collides' marcada nos tiles no Tiled
     objetos.setCollisionByProperty({ collides: true });
 
-    this.interagiveis = this.lerInterativos(map).filter(
-      (item) => item.tipo !== 'item' || !estado.itensColetados.has(item.id),
-    );
+    this.interagiveis = this.lerInterativos(map).filter((item) => {
+      if (item.tipo === 'npc') return false;
+      return item.tipo !== 'item' || !estado.itensColetados.has(item.id);
+    });
     this.zonas = this.lerZonas(map);
 
     const nasce =
@@ -221,6 +226,9 @@ export class FarmScene extends Phaser.Scene {
     this.criarFlora(map);
 
     this.physics.add.collider(this.player, objetos);
+    if (this.npcs.length > 0) {
+      this.physics.add.collider(this.player, this.npcs.map((npc) => npc.sprite));
+    }
     if (this.obstaculos.length > 0) this.physics.add.collider(this.player, this.obstaculos);
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
@@ -238,11 +246,19 @@ export class FarmScene extends Phaser.Scene {
       Record<string, Phaser.Input.Keyboard.Key>;
     this.correr = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
-    // V alterna entre a camera normal e o mapa inteiro, pronto para screenshot.
-    this.input.keyboard!.on('keydown-V', () => this.alternarVisaoCompleta());
+    // M abre/fecha o mapa da cidade.
+    this.input.keyboard!.on('keydown-M', () => this.alternarMapa());
 
     // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
     this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
+
+    // F7 avanca uma hora para inspecionar rotinas sem esperar (debug).
+    this.input.keyboard!.on('keydown-F7', () => {
+      estado.dia += estado.relogio.avancarMinutos(60);
+      estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, 0);
+      this.sincronizarNpcs();
+      console.info(`[tempo] avancado para ${estado.relogio.texto}`);
+    });
 
     // F2/F3 continuam uteis para testar capacidade sem depender do mapa.
     this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('cabo_usb', 1));
@@ -270,9 +286,16 @@ export class FarmScene extends Phaser.Scene {
     // reordena o player entre as arvores conforme ele anda
     this.player.setDepth(this.player.y);
 
-    if (this.visaoCompleta) {
+    if (!this.ui.bloqueado && !this.transicionando) {
+      estado.dia += estado.relogio.avancar(delta);
+      estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, delta);
+      this.sincronizarNpcs();
+    }
+
+    if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(`idle-${this.direcao}`, true);
+      this.atualizarMarcadoresMapa();
       return;
     }
 
@@ -285,9 +308,6 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
 
-    // passar da meia-noite acordado tambem vira o dia
-    estado.dia += estado.relogio.avancar(delta);
-
     const k = this.teclas as unknown as Record<string, Phaser.Input.Keyboard.Key>;
     const esquerda = this.cursors.left.isDown || k.A.isDown;
     const direita = this.cursors.right.isDown || k.D.isDown;
@@ -298,7 +318,7 @@ export class FarmScene extends Phaser.Scene {
     const vy = (baixo ? 1 : 0) - (cima ? 1 : 0);
 
     const correndo = this.correr.isDown;
-    const velocidade = correndo ? VELOCIDADE_CORRER : VELOCIDADE_ANDAR;
+    const velocidade = correndo ? CONFIG.movimento.correr : CONFIG.movimento.andar;
     const v = new Phaser.Math.Vector2(vx, vy).normalize().scale(velocidade);
     this.player.setVelocity(v.x, v.y);
 
@@ -437,26 +457,51 @@ export class FarmScene extends Phaser.Scene {
 
   /** Um sprite estatico por objeto `npc` do mapa. Nao anda ainda — so existe. */
   private criarNpcs(): void {
-    for (const alvo of this.interagiveis) {
-      if (alvo.tipo !== 'npc') continue;
-      const def = buscarNpc(alvo.props.npcId);
-      if (!def) {
-        console.warn(`[npc] "${alvo.id}" sem npcId valido (${String(alvo.props.npcId)})`);
-        continue;
-      }
-      const sprite = this.physics.add.staticSprite(
-        alvo.x,
-        alvo.y,
-        'player-idle-sprites',
-        'down-0',
-      );
-      this.configurarPersonagem(sprite);
-      sprite.setTint(def.tint);
-      sprite.anims.play('idle-down');
-      sprite.body.updateFromGameObject();
-      this.npcs.push(sprite);
+    estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, 0);
+    for (const estadoNpc of estado.rotinasNpc.todos) {
+      const def = buscarNpc(estadoNpc.id);
+      if (!def) continue;
+      const alvo: Interagivel = {
+        id: `npc_${def.id}`,
+        tipo: 'npc',
+        rotulo: ROTULOS.npc,
+        x: estadoNpc.x * this.tamanhoTile,
+        y: estadoNpc.y * this.tamanhoTile,
+        props: { npcId: def.id },
+      };
+      const textura = def.sprite ? `npc-${def.id}-sprites` : 'player-idle-sprites';
+      const sprite = this.physics.add.sprite(alvo.x, alvo.y, textura, 'down-0');
+      this.configurarNpc(sprite);
+      sprite.setImmovable(true);
+      if (def.tint !== undefined) sprite.setTint(def.tint);
+      sprite.anims.play(`${def.sprite ? `npc-${def.id}-` : ''}idle-down`);
+      this.interagiveis.push(alvo);
+      this.npcs.push({ estado: estadoNpc, sprite, interagivel: alvo, animacao: def.sprite ? `npc-${def.id}-` : '' });
     }
-    if (this.npcs.length > 0) this.physics.add.collider(this.player, this.npcs);
+    this.sincronizarNpcs();
+  }
+
+  private sincronizarNpcs(): void {
+    for (const npc of this.npcs) {
+      const { estado: atual, sprite, interagivel } = npc;
+      const posicao = this.posicaoNpcNoMapa(atual);
+      const visivel = posicao !== null;
+      sprite.setVisible(visivel).setActive(visivel);
+      if (sprite.body) sprite.body.enable = visivel;
+      if (!visivel) continue;
+      const x = posicao.x * this.tamanhoTile;
+      const y = posicao.y * this.tamanhoTile;
+      sprite.setPosition(x, y).setDepth(y);
+      interagivel.x = x;
+      interagivel.y = y;
+      sprite.anims.play(`${npc.animacao}${atual.movendo ? 'walk' : 'idle'}-${atual.direcao}`, true);
+    }
+  }
+
+  private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
+    if (estado.mapa === 'farm') return npc.visivel ? { x: npc.x, y: npc.y } : null;
+    if (npc.dentro !== estado.mapa) return null;
+    return LOCAIS_CIDADE[npc.dentro]?.interior ?? null;
   }
 
   // ---------------------------------------------------------- construcoes --
@@ -589,26 +634,163 @@ export class FarmScene extends Phaser.Scene {
     return CONFIG.largura / (TILES_VISIVEIS_X * this.tamanhoTile);
   }
 
-  /** Mostra o mapa inteiro sem HUD; V novamente restaura a camera de jogo. */
-  private alternarVisaoCompleta(): void {
-    this.visaoCompleta = !this.visaoCompleta;
-    const cam = this.cameras.main;
-    const { largura, altura } = this.tamanhoMapa;
+  private alternarMapa(): void {
+    this.mapaAberto = !this.mapaAberto;
+    if (this.mapaAberto && !this.overlayMapa) this.criarOverlayMapa();
+    this.overlayMapa?.setVisible(this.mapaAberto);
+    this.scene.setVisible(!this.mapaAberto, 'UIScene');
+    if (this.mapaAberto) this.atualizarMarcadoresMapa();
+  }
 
-    if (this.visaoCompleta) {
-      this.player.setVelocity(0, 0);
-      cam.stopFollow();
-      cam.removeBounds();
-      cam.setZoom(Math.min(this.scale.width / largura, this.scale.height / altura));
-      cam.centerOn(largura / 2, altura / 2);
-      this.scene.setVisible(false, 'UIScene');
+  /** Monta uma representacao leve a partir do farm.json ja carregado. */
+  private criarOverlayMapa(): void {
+    const cache = this.cache.tilemap.get('farm-map') as { data?: MapaTiledCru } | undefined;
+    const mapa = cache?.data;
+    if (!mapa) {
+      console.warn('[mapa] farm-map nao esta no cache');
+      this.mapaAberto = false;
       return;
     }
 
-    cam.setBounds(0, 0, largura, altura);
-    cam.setZoom(this.zoomDeJogo());
-    cam.startFollow(this.player, true, 0.12, 0.12);
-    this.scene.setVisible(true, 'UIScene');
+    const margem = 16;
+    const topo = 28;
+    const larguraDisponivel = CONFIG.largura - margem * 2;
+    const alturaDisponivel = CONFIG.altura - topo - margem;
+    const larguraMundo = mapa.width * mapa.tilewidth;
+    const alturaMundo = mapa.height * mapa.tileheight;
+    const escala = Math.min(larguraDisponivel / larguraMundo, alturaDisponivel / alturaMundo);
+    const largura = larguraMundo * escala;
+    const altura = alturaMundo * escala;
+    const x = (CONFIG.largura - largura) / 2;
+    const y = topo + (alturaDisponivel - altura) / 2;
+    this.transformMapa = { x, y, escala };
+
+    const fundo = this.add.graphics().setScrollFactor(0);
+    fundo.fillStyle(UI.fundo, 0.97);
+    fundo.fillRect(0, 0, CONFIG.largura, CONFIG.altura);
+    fundo.fillStyle(0x31533a, 1);
+    fundo.fillRect(x, y, largura, altura);
+
+    const caminhos = mapa.layers.find((l) => l.name === 'caminhos');
+    if (caminhos?.data) {
+      fundo.fillStyle(0xb88b57, 0.9);
+      for (let ty = 0; ty < mapa.height; ty++) {
+        let inicio = -1;
+        for (let tx = 0; tx <= mapa.width; tx++) {
+          const ocupado = tx < mapa.width && caminhos.data[ty * mapa.width + tx] !== 0;
+          if (ocupado && inicio < 0) inicio = tx;
+          if (!ocupado && inicio >= 0) {
+            fundo.fillRect(
+              x + inicio * mapa.tilewidth * escala,
+              y + ty * mapa.tileheight * escala,
+              (tx - inicio) * mapa.tilewidth * escala,
+              mapa.tileheight * escala,
+            );
+            inicio = -1;
+          }
+        }
+      }
+    }
+
+    const filhos: Phaser.GameObjects.GameObject[] = [fundo];
+    const zonas = mapa.layers.find((l) => l.name === 'zonas')?.objects ?? [];
+    for (const zona of zonas) {
+      const cor = COR_ZONA[(zona.class || zona.type) as TipoZona] ?? 0xffffff;
+      fundo.fillStyle(cor, 0.28);
+      fundo.fillRect(
+        x + zona.x * escala,
+        y + zona.y * escala,
+        zona.width * escala,
+        zona.height * escala,
+      );
+      fundo.lineStyle(1, cor, 0.95);
+      fundo.strokeRect(
+        x + zona.x * escala,
+        y + zona.y * escala,
+        zona.width * escala,
+        zona.height * escala,
+      );
+      filhos.push(
+        this.add
+          .text(
+            x + (zona.x + zona.width / 2) * escala,
+            y + (zona.y + zona.height / 2) * escala,
+            zona.name.startsWith('casa_') ? zona.name.slice(5) : zona.name,
+            { fontFamily: UI.fonte, fontSize: '8px', color: UI.texto, align: 'center' },
+          )
+          .setOrigin(0.5)
+          .setScrollFactor(0),
+      );
+    }
+
+    filhos.push(
+      this.add.text(margem, 8, 'Mapa da cidade', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanhoTitulo,
+        color: UI.destaque,
+      }).setScrollFactor(0),
+      this.add.text(CONFIG.largura - margem, 8, '[M] fechar', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanho,
+        color: UI.textoFraco,
+      }).setOrigin(1, 0).setScrollFactor(0),
+      this.add.text(margem, CONFIG.altura - 13, 'vermelho: voce   amarelo: NPC', {
+        fontFamily: UI.fonte,
+        fontSize: '8px',
+        color: UI.textoFraco,
+      }).setScrollFactor(0),
+    );
+
+    this.marcadorPlayer = this.add.circle(0, 0, 4, 0xff5b57).setStrokeStyle(1, 0xffffff);
+    this.marcadorPlayer.setScrollFactor(0);
+    filhos.push(this.marcadorPlayer);
+    this.marcadoresNpc = estado.rotinasNpc.todos.map(() => {
+      const marcador = this.add.circle(0, 0, 3, 0xffd34e).setStrokeStyle(1, 0x3a2b08);
+      marcador.setScrollFactor(0);
+      filhos.push(marcador);
+      return marcador;
+    });
+
+    this.overlayMapa = this.add
+      .container(0, 0, filhos)
+      .setDepth(DEPTH_OVERLAY + 10)
+      .setScrollFactor(0);
+  }
+
+  private atualizarMarcadoresMapa(): void {
+    if (!this.marcadorPlayer) return;
+    const posicaoPlayer = estado.mapa === 'farm'
+      ? { x: this.player.x, y: this.player.y }
+      : this.centroDaZonaNoMapa(estado.mapa);
+    if (posicaoPlayer) {
+      this.marcadorPlayer.setPosition(...this.paraCoordenadaDoMapa(posicaoPlayer.x, posicaoPlayer.y));
+      this.marcadorPlayer.setVisible(true);
+    } else this.marcadorPlayer.setVisible(false);
+
+    this.marcadoresNpc.forEach((marcador, i) => {
+      const npc = estado.rotinasNpc.todos[i];
+      marcador.setVisible(Boolean(npc?.visivel));
+      if (npc?.visivel) {
+        marcador.setPosition(...this.paraCoordenadaDoMapa(
+          npc.x * this.tamanhoTile,
+          npc.y * this.tamanhoTile,
+        ));
+      }
+    });
+  }
+
+  private paraCoordenadaDoMapa(x: number, y: number): [number, number] {
+    return [
+      this.transformMapa.x + x * this.transformMapa.escala,
+      this.transformMapa.y + y * this.transformMapa.escala,
+    ];
+  }
+
+  private centroDaZonaNoMapa(id: string): { x: number; y: number } | null {
+    const cache = this.cache.tilemap.get('farm-map') as { data?: MapaTiledCru } | undefined;
+    const zona = cache?.data?.layers
+      .find((l) => l.name === 'zonas')?.objects?.find((obj) => obj.name === id);
+    return zona ? { x: zona.x + zona.width / 2, y: zona.y + zona.height / 2 } : null;
   }
 
   // ------------------------------------------------------ zonas reservadas --
@@ -664,6 +846,14 @@ export class FarmScene extends Phaser.Scene {
       .setOffset(CORPO_OFFSET_X, CORPO_OFFSET_Y);
   }
 
+  private configurarNpc(sprite: Phaser.Physics.Arcade.Sprite): void {
+    const escala = (ALTURA_PERSONAGEM_TILES * this.tamanhoTile) / sprite.height;
+    sprite.setOrigin(0.5, 1).setScale(escala).setDepth(sprite.y);
+    sprite.body
+      ?.setSize(sprite.width * 0.34, sprite.height * 0.16)
+      .setOffset(sprite.width * 0.33, sprite.height * 0.8);
+  }
+
   private falarCom(alvo: Interagivel): void {
     const def = buscarNpc(alvo.props.npcId);
     if (!def) return;
@@ -689,6 +879,10 @@ export class FarmScene extends Phaser.Scene {
     let melhorDist = Infinity;
 
     for (const alvo of this.interagiveis) {
+      if (alvo.tipo === 'npc') {
+        const npc = estado.rotinasNpc.porId(String(alvo.props.npcId));
+        if (!npc || !this.posicaoNpcNoMapa(npc)) continue;
+      }
       const dx = alvo.x - px;
       const dy = alvo.y - py;
       const dist = Math.hypot(dx, dy);
@@ -768,12 +962,43 @@ export class FarmScene extends Phaser.Scene {
 }
 
 /** O que a cena precisa saber pra montar um sprite da camada `flora`. */
+interface NpcVisual {
+  estado: EstadoNpc;
+  sprite: Phaser.Physics.Arcade.Sprite;
+  interagivel: Interagivel;
+  animacao: string;
+}
+
 interface ReceitaFlora {
   textura: string;
   quadro: string;
   /** altura no mundo, em tiles */
   alturaTiles: number;
   colide: boolean;
+}
+
+interface ObjetoTiledCru {
+  name: string;
+  class?: string;
+  type?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface CamadaTiledCru {
+  name: string;
+  data?: number[];
+  objects?: ObjetoTiledCru[];
+}
+
+interface MapaTiledCru {
+  width: number;
+  height: number;
+  tilewidth: number;
+  tileheight: number;
+  layers: CamadaTiledCru[];
 }
 
 /**
