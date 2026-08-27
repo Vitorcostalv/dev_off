@@ -52,13 +52,14 @@ src/
     UIScene.ts         HUD, prompt, dialogo, confirmacao, inventario
 tools/
   png.mjs              encoder PNG minimo + hash deterministico
-  imagem.mjs           decoder PNG, deteccao de grade e reducao de tile
-  gerar-assets.mjs     monta tileset + atlas de flora + os dois tilemaps
+  imagem.mjs           decoder PNG, deteccao de grade/blob e reducao de tile
+  gerar-assets.mjs     monta tileset + folhas/atlas de sprite + todos os tilemaps
 public/assets/
   tilemaps/            farm.json (externo) + um por interior (casa_1..casa_6,
                        mercado, academia) — todos gerados
   tilesets/terrain.png tileset 32x32 montado pelo script (nao edite a mao)
-  sprites/             folhas de runtime + spritesheets do player + atlas gerados
+  sprites/             folhas de runtime, folhas de movel geradas, spritesheets
+                       do player e os atlas
 arte/                  arte-fonte consumida so em build (fora de public/)
 ```
 
@@ -86,12 +87,23 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `Arvores.png` (3 especies x 6 estagios) | `public/` | atlas `arvores` | runtime |
 | `Flores_v1.png` e `Flores_v2.png` (4 especies x 6 cada) | `public/` | atlas `flores_v1` / `flores_v2` | runtime |
 | `pedras.png` | `public/` | calcamento (build) + atlas `pedras` (runtime) | ambos |
-| `Utensilios_mercado.png` | `public/` | atlas `moveis_mercado` | runtime |
-| `Utensilios_academia.png` | `public/` | atlas `moveis_academia` | runtime |
+| `Utensilios_mercado.png` | `arte/` | folha+atlas `moveis_mercado` | build |
+| `Utensilios_academia.png` | `arte/` | folha+atlas `moveis_academia` | build |
+| `Mobilhas_v1.png` e `Mobilia_v2.png` | `arte/` | folha+atlas `moveis_mobilia_v1` / `_v2` | build |
 | `player_sprites.png`, `Player_andando.png`, `Player_correndo.png` | `public/` | poses do player | runtime |
 
 `pedras.png` e o unico caso de folha usada nas duas pontas — por isso continua
 em `public/` mesmo tendo parte consumida em build.
+
+**Folha de movel e reempacotada, nao apontada.** As quatro folhas de movel
+(utensilio de mercado/academia, mobilia v1/v2) nao tem grade: saem por
+componente conexo agrupado em linhas, e uma peca e endereçada por
+`[linha, indice na linha]` — sobrevive melhor a arte ganhar um item no meio de
+uma linha do que um indice global. O atlas **nao** aponta pro PNG original: o
+gerador escreve `moveis_<folha>.png` com cada peca numa celula propria, levando
+so os proprios pixels. Sem isso o frame de uma peca diagonal (tapete) leva
+lasca da vizinha — a caixa do atlas e retangular e a arte nao, e as caixas de
+duas pecas vizinhas se sobrepoem de verdade na folha crua.
 
 O script descobre a grade de cada folha **projetando o alfa** nos eixos, em vez
 de guardar coordenadas fixas: reexportar a arte com outra margem continua
@@ -237,19 +249,53 @@ partir da folha, e chutar produziria telhado torto.
 
 ### Camada `moveis`
 
-Camada de **objetos** dos interiores de comercio. Diferente da flora, aqui o
-gerador ja resolve tudo — `atlas`, `frame`, `alturaTiles` e `colide` — e o jogo so
-posiciona e ordena por y. Mexer no layout de uma loja e mexer so em
-`MERCADO_PECAS` / `ACADEMIA_PECAS`, onde cada item e
-`{ peca: [linha, indice], tx, ty }` com `tx`/`ty` no rodape do movel.
+Camada de **objetos** de todo interior — as 6 casas, o mercado e a academia.
+Diferente da flora, aqui o gerador ja resolve tudo — `atlas`, `frame`,
+`alturaTiles` e `colide` — e o jogo so posiciona e ordena por y.
+
+Mexer no layout de uma loja e mexer so em `MERCADO_PECAS` / `ACADEMIA_PECAS`,
+onde cada item e `{ peca: [linha, indice], tx, ty }` com `tx`/`ty` no tile do
+canto esquerdo-INFERIOR do movel (ele cresce pra cima e pra direita).
 
 A peca e identificada por **[linha, indice na linha]**, nao por indice global: as
-folhas de utensilio nao tem grade, saem por componente conexo agrupado em
-linhas, e assim a arte ganhar ou perder um item no meio de uma linha nao
-embaralha o resto.
+folhas de movel nao tem grade, saem por componente conexo agrupado em linhas, e
+assim a arte ganhar ou perder um item no meio de uma linha nao embaralha o resto.
 
 A colisao fica na base (`MOVEL_CORPO`), mais funda que a da pedra — gondola e
 balcao sao moveis de encostar, nao de passar atras.
+
+**Mobilia de casa: catalogo + layout.** As casas passam por uma indirecao a mais,
+em duas tabelas:
+
+- `MOVEIS_CASA` — o catalogo. Cada peca ganha nome, folha de origem, se **colide**
+  e um `escala` opcional. O criterio da colisao e um so: colide o que tem volume
+  pra esbarrar (guarda-roupa, comoda, estante, sofa, poltrona, mesa, rack, cama);
+  nao colide o que esta deitado no chao (tapete, caminha de pet, puff), pendurado
+  na parede (quadro, poster, relogio, prateleira, espelho encostado) ou e leve o
+  bastante pra passar raspando (vaso, vela, difusor, cesto, violao). Cada peca
+  solida a mais e um tile a menos pra circular num quarto de 14x9 uteis.
+- `MOBILIA_CASA` — o layout, uma lista de `{ movel, tx, ty }` por casa. E o unico
+  lugar onde as 6 casas diferem: planta, cama e saida seguem iguais. `casa_2` e
+  `casa_3` tem dono (Edu e Mari, ver `npcs.ts`) e a mobilia acompanha.
+
+O `escala` do catalogo e multiplicador de peca, pra arte desenhada em perspectiva
+forte onde o retangulo do PNG e bem menor que a pegada real. Os tapetes usam
+1,7 — na escala compartilhada saem mais estreitos que a mesa de centro que
+deveria ficar em cima deles.
+
+**A parede de cima do interior tem 2 tiles** (`PAREDE_TOPO`). Com 1 nao ha
+superficie pra pendurar nada e o quadro sai flutuando no meio do chao; com 2 a
+peca de parede fica com a base na borda de baixo da faixa e le como pendurada, e
+o movel alto encostado passa a cobrir a parede, que e o certo.
+
+**`conferirInterioresDeCasa()` roda na geracao** e reprova antes de escrever o
+JSON: peca fora da sala, peca com a base na parede, duas pecas dividindo tile de
+base (tapete e excecao — e camada de chao, movel em cima dele e o desejado) e
+qualquer tile livre sem acesso a partir da frente da porta. Entre os tiles
+exigidos estao a frente da cama e `(8,8)`, onde o NPC dono da casa nasce.
+
+O que ela **nao** cobra e oclusao visual: peca de parede atras de movel alto passa
+a checagem de tile e fica escondida na tela. Isso ainda sai olhando a previa.
 
 ### Camada `flora`
 
@@ -308,10 +354,34 @@ inicial, spritesheet, dialogo e a lista ordenada de acoes. O motor aceita
 automaticamente o retorno para sua casa. `vagar_rota` permite pausas entre
 waypoints; saidas de interiores caminham ate a porta antes de trocar de mapa.
 
-As rotas usam coordenadas de tile e nao fazem pathfinding. Rode
-`npm run verificar-rotinas` para simular o dia, conferir os tiles percorridos e
-validar entrada/saida das construcoes. `npm run processar-sprites-npc` regenera
-as folhas transparentes e uniformes de caminhada/corrida de Edu e Mari.
+Sao 5 moradores, um por casa (a validacao em `npcs.ts` explode na carga se dois
+dividirem lote): morador_1 (placeholder), Edu (`casa_2`, vaga pela cidade), Mari
+(`casa_3`, academia 09:00-13:00), Jaqueline (`casa_4`, mercado 08:30-17:00) e
+Leticia (`casa_5`, sem destino fixo).
+
+**As rotas usam coordenadas de tile e nao fazem pathfinding** — cada trecho e uma
+reta. Duas consequencias que ja morderam:
+
+- A **area de `vagar` e um retangulo** e o NPC anda em reta ate um ponto sorteado
+  dentro dela. So funciona se o retangulo for INTEIRAMENTE livre; ai a
+  convexidade garante o resto. Um retangulo "por cima da cidade" passa dentro de
+  casa e de arvore. Pra cobrir regiao nao convexa, use varios turnos de `vagar`
+  ligados por `andar_rota` — e o que a Leticia faz, um turno na avenida principal
+  e outro na praca do parque.
+- O **fallback das 18:00 sai em reta** da posicao atual pro primeiro ponto de
+  `rotaCasa`. Entao esse primeiro ponto tem de ser alcancavel em reta de onde o
+  NPC costuma estar as 18:00 — no caso da Leticia, um ponto dentro da praca.
+
+Casa que fica ENTRE a porta e a via (o caso de `casa_5` e `casa_6`, ao sul do
+anel) precisa de rota contornando: subir reto da porta bate na parede da propria
+casa.
+
+Rode `npm run verificar-rotinas` pra simular 06:00-19:00 amostrado. Ele confere
+tile bloqueado (tiles solidos **e** as caixas de colisao de arvore e pedra),
+varre cada area de `vagar` na definicao, cobra que todo NPC termine o dia dentro
+da propria casa e valida as transicoes pelas portas.
+`npm run processar-sprites-npc` regenera as folhas transparentes e uniformes de
+caminhada/corrida de Edu e Mari.
 
 ## Notas
 

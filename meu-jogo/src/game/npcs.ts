@@ -22,6 +22,15 @@ interface AcaoBase {
 
 export type AcaoRotinaNpc =
   | (AcaoBase & {
+      /**
+       * Anda pra pontos sorteados dentro de `area`, em linha reta. Nao ha
+       * pathfinding: a `area` tem de ser um retangulo INTEIRAMENTE livre, e
+       * ai a convexidade garante que qualquer reta entre dois pontos dela
+       * tambem e livre. Um retangulo "por cima da cidade" nao serve — passa
+       * dentro de casa e de arvore (`npm run verificar-rotinas` reprova).
+       * Pra cobrir area nao convexa, use varios turnos de `vagar` ligados por
+       * `andar_rota`, ou `vagar_rota` com waypoints.
+       */
       tipo: 'vagar';
       area: AreaVagar;
       pausaMinSegundos?: number;
@@ -177,6 +186,80 @@ export const NPCS: Record<string, DefinicaoNpc> = {
     rotaCasa: [
       { x: 60.5, y: 35.5 }, { x: 60.5, y: 20.5 },
       { x: 75.5, y: 20.5 }, { x: 75.5, y: 16.5 },
+    ],
+  },
+  jaqueline: {
+    id: 'jaqueline', nome: 'Jaqueline', casa: 'casa_4',
+    posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_4', horaAcordar: hora(8),
+    tint: 0xffc98f,
+    sprite: null,
+    dialogoAtual: [
+      'Oi! Ja soube? A Mari passou aqui hoje, direto da academia.',
+      'Passo o dia atendendo, entao acabo sabendo de tudo — nada de mais, so o movimento.',
+      'Precisa de alguma coisa? Se nao tiver no mercado, eu sei quem tem.',
+    ],
+    rotina: [
+      { horario: hora(8, 30), tipo: 'sair_construcao', construcao: 'casa_4' },
+      // desce do lote pro anel norte, corta pro hub (60.5,20.5) — o mesmo que
+      // Edu e Mari usam — e desce a avenida vertical ate a frente do mercado
+      { horario: hora(8, 30), tipo: 'andar_rota', waypoints: [
+        { x: 87.5, y: 20.5 }, { x: 60.5, y: 20.5 },
+        { x: 60.5, y: 55.5 }, { x: 70.5, y: 55.5 },
+      ] },
+      { horario: hora(8, 30), tipo: 'entrar_construcao', construcao: 'mercado' },
+      // expediente: circuito curto atras do caixa, invisivel e sem interacao
+      { horario: hora(8, 30), tipo: 'vagar_rota', pausaMinSegundos: 3, pausaMaxSegundos: 7,
+        waypoints: [
+          { x: 14.5, y: 12.5 }, { x: 16.5, y: 12.5 },
+          { x: 16.5, y: 11.5 }, { x: 14.5, y: 11.5 },
+        ] },
+      { horario: hora(17), tipo: 'sair_construcao', construcao: 'mercado' },
+      { horario: hora(17), tipo: 'andar_rota', waypoints: [
+        { x: 60.5, y: 55.5 }, { x: 60.5, y: 20.5 },
+        { x: 87.5, y: 20.5 }, { x: 87.5, y: 16.5 },
+      ] },
+      { horario: hora(17), tipo: 'voltar_para_casa' },
+    ],
+    rotaCasa: [
+      { x: 60.5, y: 55.5 }, { x: 60.5, y: 20.5 },
+      { x: 87.5, y: 20.5 }, { x: 87.5, y: 16.5 },
+    ],
+  },
+  leticia: {
+    id: 'leticia', nome: 'Leticia', casa: 'casa_5',
+    posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_5', horaAcordar: hora(9, 30),
+    tint: 0xb9f0c8,
+    sprite: null,
+    dialogoAtual: [
+      'Sai sem pressa hoje. Sempre saio sem pressa.',
+      'A praca fica boa de tarde, quando o calcamento esquenta.',
+      'O vento mudou de lado perto do meio-dia. Voce percebeu?',
+    ],
+    // Sem destino: dois turnos de `vagar`, um na avenida principal e outro na
+    // praca do parque, ligados por uma rota. Ver a nota sobre area retangular
+    // abaixo de NPCS — o retangulo tem de ser todo livre.
+    rotina: [
+      { horario: hora(10), tipo: 'sair_construcao', construcao: 'casa_5' },
+      // a casa fica entre a porta e o anel sul, entao contorna pela coluna x=34
+      { horario: hora(10), tipo: 'andar_rota', waypoints: [
+        { x: 34.5, y: 79.5 }, { x: 34.5, y: 71.5 },
+        { x: 22.5, y: 71.5 }, { x: 22.5, y: 45.5 },
+      ] },
+      { horario: hora(10), tipo: 'vagar', pausaMinSegundos: 4, pausaMaxSegundos: 12,
+        area: { min: { x: 23.5, y: 44.4 }, max: { x: 97.5, y: 46.6 } } },
+      { horario: hora(13), tipo: 'andar_rota', waypoints: [
+        { x: 37.5, y: 45.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 52.5 },
+      ] },
+      { horario: hora(13), tipo: 'vagar', pausaMinSegundos: 6, pausaMaxSegundos: 18,
+        area: { min: { x: 33.2, y: 52.2 }, max: { x: 42.8, y: 57.8 } } },
+    ],
+    // O fallback das 18:00 sai em LINHA RETA da posicao atual pro primeiro
+    // ponto daqui, entao ele fica dentro da praca — que e onde ela sempre esta
+    // as 18:00, porque o turno da praca comeca as 13:00 e nao termina.
+    rotaCasa: [
+      { x: 37.5, y: 52.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 45.5 },
+      { x: 22.5, y: 45.5 }, { x: 22.5, y: 71.5 },
+      { x: 34.5, y: 71.5 }, { x: 34.5, y: 79.5 },
     ],
   },
 };
