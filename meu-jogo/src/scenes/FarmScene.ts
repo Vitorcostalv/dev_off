@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PROP_COLIDE } from '../game/colisao';
 import { CONFIG, COR_ZONA, ROTULOS, UI } from '../game/config';
 import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
@@ -109,6 +110,14 @@ export class FarmScene extends Phaser.Scene {
   private tamanhoTile = 32;
   /** de onde o player entrou neste mapa; null = usa o spawn padrao */
   private spawn: { x: number; y: number } | null = null;
+  /**
+   * Tiles dos comodos marcados `privado` na camada `comodos` do mapa atual,
+   * como "tx,ty". Sao os comodos atras de uma porta somente-NPC: o jogador nunca
+   * chega neles (o flood-fill da conferencia prova isso), entao ele tambem nao
+   * deve VER quem esta la dentro — senao o dono do bar apareceria andando por
+   * cima da parede da propria moradia.
+   */
+  private tilesPrivados = new Set<string>();
 
   constructor() {
     super('FarmScene');
@@ -137,6 +146,7 @@ export class FarmScene extends Phaser.Scene {
     this.zonas = [];
     this.overlayZonas = null;
     this.obstaculos = [];
+    this.tilesPrivados = new Set();
     this.alvo = null;
   }
 
@@ -212,14 +222,22 @@ export class FarmScene extends Phaser.Scene {
       throw new Error(`Camadas chao/objetos nao encontradas em ${def.tilemapKey}`);
     }
 
-    // colisao vem da propriedade 'collides' marcada nos tiles no Tiled
-    objetos.setCollisionByProperty({ collides: true });
+    // Colisao do JOGADOR: vem da propriedade marcada nos tiles pelo gerador.
+    // Ha uma segunda travessabilidade sobre a MESMA camada, a do NPC, em que a
+    // porta somente-NPC nao bloqueia — ver src/game/colisao.ts. Ela nao precisa
+    // de collider aqui porque o motor de rotinas nao usa fisica: ele anda em reta
+    // entre waypoints, e sao as conferencias offline (verificar-mapas e
+    // verificar-rotinas) que garantem que a rota so passa por onde o NPC pode.
+    // Do lado do jogador, entao, a porta privada e parede e ponto final: andando
+    // ou correndo, o collider abaixo barra do mesmo jeito.
+    objetos.setCollisionByProperty({ [PROP_COLIDE]: true });
 
     this.interagiveis = this.lerInterativos(map).filter((item) => {
       if (item.tipo === 'npc') return false;
       return item.tipo !== 'item' || !estado.itensColetados.has(item.id);
     });
     this.zonas = this.lerZonas(map);
+    this.tilesPrivados = this.lerComodosPrivados(map);
 
     const nasce =
       this.spawn ??
@@ -514,7 +532,34 @@ export class FarmScene extends Phaser.Scene {
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
     if (estado.mapa === 'farm') return npc.visivel ? { x: npc.x, y: npc.y } : null;
     if (npc.dentro !== estado.mapa) return null;
-    return LOCAIS_CIDADE[npc.dentro] ? { x: npc.x, y: npc.y } : null;
+    if (!LOCAIS_CIDADE[npc.dentro]) return null;
+    // Dentro de comodo privado ele some da cena: o jogador ve o dono andar ate a
+    // porta somente-NPC e sumir por ela, e reaparecer vindo dela — em vez de ve-lo
+    // atravessar a parede da moradia (o sprite fica acima da camada de tiles).
+    if (this.tilesPrivados.has(`${Math.floor(npc.x)},${Math.floor(npc.y)}`)) return null;
+    return { x: npc.x, y: npc.y };
+  }
+
+  /**
+   * Tiles dos comodos `privado` da camada de objetos `comodos`. A camada e
+   * opcional: os mapas externos e os interiores de um comodo so nao a tem, e ai
+   * o conjunto fica vazio e nada muda.
+   */
+  private lerComodosPrivados(map: Phaser.Tilemaps.Tilemap): Set<string> {
+    const tiles = new Set<string>();
+    const camada = map.getObjectLayer('comodos');
+    if (!camada) return tiles;
+    for (const obj of camada.objects) {
+      if (lerProps(obj).privado !== true) continue;
+      const x0 = Math.floor((obj.x ?? 0) / this.tamanhoTile);
+      const y0 = Math.floor((obj.y ?? 0) / this.tamanhoTile);
+      const largura = Math.round((obj.width ?? 0) / this.tamanhoTile);
+      const altura = Math.round((obj.height ?? 0) / this.tamanhoTile);
+      for (let y = y0; y < y0 + altura; y++) {
+        for (let x = x0; x < x0 + largura; x++) tiles.add(`${x},${y}`);
+      }
+    }
+    return tiles;
   }
 
   // ---------------------------------------------------------- construcoes --
@@ -566,7 +611,9 @@ export class FarmScene extends Phaser.Scene {
       const y = obj.y ?? 0;
       const sprite = this.add.image(x, y, textura, quadro).setOrigin(0.5, 1);
       sprite.setScale((alturaTiles * this.tamanhoTile) / sprite.height);
-      sprite.setDepth(y);
+      // peca de chao (tapete) desce uma camada: ela e o unico movel que espera
+      // ter outro movel EM CIMA, e os dois costumam ter a base na mesma linha
+      sprite.setDepth(props.chao === true ? y - 1 : y);
 
       if (props.colide === true) {
         this.corpoNaBase(

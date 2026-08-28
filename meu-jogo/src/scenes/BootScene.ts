@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { MAPAS, buscarMapa } from '../game/mapas';
+import { FOLHAS_DE_MOVEL } from '../game/moveis';
 import type { SpriteNpc } from '../game/npcs';
 import { NPCS } from '../game/npcs';
 import { carregar } from '../game/save';
@@ -68,8 +69,9 @@ export class BootScene extends Phaser.Scene {
     // LIMPA gerada por tools/gerar-assets.mjs, nao a arte crua: nela cada peca
     // tem so os proprios pixels, senao o frame de uma peca diagonal (tapete)
     // leva lasca da vizinha. As duas folhas de mobilia se misturam peca por
-    // peca em MOBILIA_CASA, entao o atlas de cada uma e carregado a parte.
-    for (const folha of ['mercado', 'academia', 'mobilia_v1', 'mobilia_v2', 'farmacia_bar']) {
+    // peca no catalogo de mobilia, entao o atlas de cada uma e carregado a
+    // parte. A lista mora em game/moveis.ts porque o gerador le a MESMA.
+    for (const folha of FOLHAS_DE_MOVEL) {
       this.load.atlas(
         `moveis_${folha}`,
         `assets/sprites/moveis_${folha}.png`,

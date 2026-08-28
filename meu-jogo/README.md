@@ -92,14 +92,21 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `Utensilios_academia.png` | `arte/` | folha+atlas `moveis_academia` | build |
 | `Mobilhas_v1.png` e `Mobilia_v2.png` | `arte/` | folha+atlas `moveis_mobilia_v1` / `_v2` | build |
 | `Moveis_farmacia_bar.png` | `arte/` | folha+atlas `moveis_farmacia_bar` (movel dos dois mistos) | build |
+| `Moveis_quarto.png`, `Moveis_cozinha.png`, `Moveis_banheiro.png` | `arte/` | folha+atlas `moveis_quarto` / `_cozinha` / `_banheiro` (mobilia DEDICADA por comodo) | build |
+| `Moveis_Eletronicos_v1.png` | `arte/` | folha+atlas `moveis_eletronicos` (TV, rack, setup de PC) | build |
+| `paredes_casa_Internas_v1.png` (7x4 paineis) | `arte/` | parede INTERNA de casa: campo + rodape, 4 variantes de relevo cada | build |
+| `paredes_academia.png`, `Paredes_mercado.png`, `Paredes_farmacia.png`, `Paredes_bar.png` | `arte/` | parede interna de cada ramo de comercio | build |
+| `Portas_v2.png` (faixa de casa) | `arte/` | tiles de porta nos vaos entre comodos | build |
+| `Pisos_banheiro.png` e `Pisos_cozinha.png` | `arte/` | tiles de piso de interior (madeira, azulejo, mosaico...) | build |
 | `player_sprites.png`, `Player_andando.png`, `Player_correndo.png` | `public/` | poses do player | runtime |
 | `<Npc>_andando.png` e `<Npc>_parada.png` | `public/` | folhas `_runtime` de caminhada e de pose parada | build |
 
 `pedras.png` e o unico caso de folha usada nas duas pontas — por isso continua
 em `public/` mesmo tendo parte consumida em build.
 
-**Folha de movel e reempacotada, nao apontada.** As quatro folhas de movel
-(utensilio de mercado/academia, mobilia v1/v2) nao tem grade: saem por
+**Folha de movel e reempacotada, nao apontada.** As folhas de movel
+(utensilio de mercado/academia, mobilia v1/v2 e as dedicadas de quarto,
+cozinha, banheiro e eletronicos) nao tem grade: saem por
 componente conexo agrupado em linhas, e uma peca e endereçada por
 `[linha, indice na linha]` — sobrevive melhor a arte ganhar um item no meio de
 uma linha do que um indice global. O atlas **nao** aponta pro PNG original: o
@@ -164,7 +171,9 @@ Regras que quebram o jogo se forem violadas:
   `caminhos` (entre as duas) e opcional — so os mapas externos tem.
 - Colisao vem da propriedade booleana `collides` marcada **nos tiles** do
   tileset (nao na camada). Hoje colidem: os tiles de agua (9-slice + rotacoes
-  do miolo), o mato da borda, parede e os dois tiles de cama.
+  do miolo), o mato da borda, toda parede (a pintada e as quatro variantes de
+  relevo de cada estilo de parede interna) e os tiles de cama. A porta de vao
+  **nao** colide: ela e so a arte da passagem.
 - As camadas de objetos `zonas` e `flora` tambem sao opcionais.
 
 ### Camada `interativos`

@@ -344,3 +344,53 @@ export function agruparEmLinhas(lista, tolerancia) {
   for (const l of linhas) l.itens.sort((a, b) => a.x - b.x);
   return linhas.map((l) => l.itens);
 }
+
+/**
+ * Apaga o fundo CHAPADO de uma folha, deixando-a com alfa como as demais.
+ *
+ * Parte da arte nova veio exportada sobre preto opaco em vez de transparente, e
+ * o resto do pipeline (blobs, empacotamento, atlas) so sabe separar peca de
+ * fundo pelo alfa. Apagar por cor pura nao serve: o contorno das pecas tambem e
+ * quase preto, e sairiam buracos no meio do movel. Entao a varredura sai das
+ * BORDAS e so anda por pixel escuro vizinho de pixel escuro — o preto que esta
+ * cercado por arte nunca e alcancado.
+ *
+ * O `limiar` e baixo de proposito: o fundo dessas folhas e preto quase puro
+ * (0-2 por canal) e o contorno das pecas fica bem acima disso. Afrouxar demais
+ * come o contorno, a peca se abre pro fundo e um movel inteiro sai fatiado em
+ * blobs soltos.
+ *
+ * Devolve uma imagem nova; a original nao e tocada.
+ */
+export function removerFundo(img, limiar = 8) {
+  const escuro = (i) =>
+    img.px[i * 4] <= limiar && img.px[i * 4 + 1] <= limiar && img.px[i * 4 + 2] <= limiar;
+  const fundo = new Uint8Array(img.w * img.h);
+  const pilha = [];
+  const empilhar = (x, y) => {
+    const i = y * img.w + x;
+    if (fundo[i] || !escuro(i)) return;
+    fundo[i] = 1;
+    pilha.push(i);
+  };
+  for (let x = 0; x < img.w; x++) {
+    empilhar(x, 0);
+    empilhar(x, img.h - 1);
+  }
+  for (let y = 0; y < img.h; y++) {
+    empilhar(0, y);
+    empilhar(img.w - 1, y);
+  }
+  while (pilha.length) {
+    const i = pilha.pop();
+    const x = i % img.w;
+    const y = (i - x) / img.w;
+    if (x > 0) empilhar(x - 1, y);
+    if (x < img.w - 1) empilhar(x + 1, y);
+    if (y > 0) empilhar(x, y - 1);
+    if (y < img.h - 1) empilhar(x, y + 1);
+  }
+  const px = new Uint8Array(img.px);
+  for (let i = 0; i < fundo.length; i++) if (fundo[i]) px[i * 4 + 3] = 0;
+  return { w: img.w, h: img.h, px };
+}

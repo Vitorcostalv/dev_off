@@ -9,6 +9,8 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Img, colar, colarRet, hash01, ruido } from './png.mjs';
+import { PROP_COLIDE, PROP_PORTA_NPC } from '../src/game/colisao.ts';
+import { FOLHAS_DE_MOVEL } from '../src/game/moveis.ts';
 import {
   agruparEmLinhas,
   blobs,
@@ -19,6 +21,7 @@ import {
   pixel as pixelDe,
   reduzir,
   reduzirPara,
+  removerFundo,
 } from './imagem.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -237,9 +240,10 @@ function fachadaPronta(nome) {
  *
  * `larguraReferencia` e a largura, em tiles, que a peca `referencia` deve ter.
  * Dela sai uma escala unica pra folha toda, entao as pecas mantem o tamanho
- * relativo entre si — mesma ideia usada nas pedras. As referencias das quatro
- * folhas foram escolhidas pra que uma estante de uma leia do mesmo tamanho que
- * a estante de outra: o conjunto tem de parecer um so.
+ * relativo entre si — mesma ideia usada nas pedras. As referencias de TODAS as
+ * folhas foram medidas contra a mesma regua (ver a nota nas folhas por comodo,
+ * embaixo), pra que a estante de uma leia do mesmo tamanho que a estante de
+ * outra: o conjunto tem de parecer um so.
  *
  * `alfa` e o limiar de opacidade da deteccao. Em `Mobilhas_v1.png` ele sobe pra
  * 128 porque a arte esta encostada na folha: com o limiar padrao (16) a sombra
@@ -293,11 +297,57 @@ const FOLHAS_MOVEIS = {
     referencia: [1, 0], // balcao do bar
     larguraReferencia: 3,
   },
+
+  // Folhas DEDICADAS por comodo. Sao elas que aposentaram o placeholder: ate
+  // aqui a cozinha usava mesa de jantar e estante de potes da folha de sala, e o
+  // banheiro usava comoda e espelho. Agora ha pia, fogao, geladeira, vaso,
+  // banheira e box de verdade.
+  //
+  // A largura de referencia de cada uma foi escolhida contra a MESMA regua: o
+  // sofa de 2 lugares de `mobilia_v2` tem 2,5 tiles, o que poe o tile do mundo
+  // em ~0,64 m. Dai saem a cama de casal (1,6 m), a banheira (1,7 m) e a mesa de
+  // jantar com as duas cadeiras (2,2 m) — assim a cama de um quarto e a mesa da
+  // cozinha lem do mesmo tamanho quando o jogador anda de um comodo pro outro.
+  quarto: {
+    arquivo: 'Moveis_quarto.png',
+    areaMinima: 1500,
+    tolerancia: 55,
+    linhas: 8,
+    referencia: [0, 1], // cama de casal
+    larguraReferencia: 2.5,
+  },
+  banheiro: {
+    arquivo: 'Moveis_banheiro.png',
+    areaMinima: 1500,
+    tolerancia: 55,
+    linhas: 5,
+    referencia: [0, 6], // banheira
+    larguraReferencia: 2.65,
+  },
+  // exportada sobre preto opaco: `fundoPreto` apaga o fundo antes da deteccao
+  cozinha: {
+    arquivo: 'Moveis_cozinha.png',
+    areaMinima: 2000,
+    tolerancia: 55,
+    fundoPreto: true,
+    linhas: 8,
+    referencia: [3, 1], // mesa de jantar com as duas cadeiras
+    larguraReferencia: 3.4,
+  },
+  eletronicos: {
+    arquivo: 'Moveis_Eletronicos_v1.png',
+    areaMinima: 1500,
+    tolerancia: 55,
+    linhas: 8,
+    referencia: [0, 0], // TV em cima do rack de madeira
+    larguraReferencia: 2.2,
+  },
 };
 
 function carregarFolhaMoveis(chave) {
   const def = FOLHAS_MOVEIS[chave];
-  const img = lerPng(caminhoFolha(def.arquivo, def.runtime));
+  const cru = lerPng(caminhoFolha(def.arquivo, def.runtime));
+  const img = def.fundoPreto ? removerFundo(cru) : cru;
   const linhas = agruparEmLinhas(
     blobs(img, def.areaMinima, def.alfa ?? 16, true),
     def.tolerancia,
@@ -318,6 +368,18 @@ function carregarFolhaMoveis(chave) {
 const folhasMoveis = Object.fromEntries(
   Object.keys(FOLHAS_MOVEIS).map((k) => [k, carregarFolhaMoveis(k)]),
 );
+
+// a lista que o jogo carrega e a que o gerador empacota tem de ser a mesma
+for (const f of FOLHAS_DE_MOVEL) {
+  if (!FOLHAS_MOVEIS[f]) {
+    throw new Error(`FOLHAS_DE_MOVEL pede a folha "${f}", que nao existe em FOLHAS_MOVEIS`);
+  }
+}
+for (const f of Object.keys(FOLHAS_MOVEIS)) {
+  if (!FOLHAS_DE_MOVEL.includes(f)) {
+    throw new Error(`a folha "${f}" nao esta em FOLHAS_DE_MOVEL — o jogo nao carregaria o atlas`);
+  }
+}
 
 /** Uma peca de movel pelo par [linha, indice]. */
 function peca(chave, linha, indice) {
@@ -411,6 +473,430 @@ function gerarAtlasMoveis(chave) {
 function tileDaArte(chave, c, r) {
   const f = folhas[chave];
   return reduzir(f.img, celulaQuadrada(f.cols, f.rows, c, r, f.inset ?? 0.05), T);
+}
+
+// ------------------------------------------------------- paredes internas --
+/**
+ * Folhas de PAINEL: arte de parede em elevacao frontal, um painel inteiro por
+ * peca (campo em cima, rodape/lambri embaixo).
+ *
+ * De cada painel o gerador tira DOIS tiles: um do CAMPO (a area lisa de cima,
+ * que e o que repete bem) e um do RODAPE (a faixa de baixo, onde a arte ja traz
+ * lambri e baseboard). Qual dos dois entra em cada tile do mapa quem decide e
+ * `acabarParedes`, pela vizinhanca — ver `relevoDeParede`.
+ *
+ * Sao dois `modo`s de recorte porque as folhas foram exportadas diferente:
+ *
+ * - `blobs` — os paineis se ENCOSTAM na projecao de alfa (a folha de casa e
+ *   assim), entao a grade nao sai por projecao e cada painel tem de vir por
+ *   componente conexo agrupado em linhas, como as folhas de movel;
+ * - `grade` — ha corredor transparente entre os paineis, e ai a projecao acha a
+ *   grade direto. Nas folhas de comercio o painel tem moldura e miolo separados
+ *   por alfa, o que quebraria a deteccao por blob (a moldura sai como peca).
+ *
+ * `fundoPreto` apaga o fundo chapado antes de qualquer deteccao: parte da arte
+ * nova veio sobre preto opaco em vez de transparente (ver `removerFundo`).
+ * `faixaMinima` descarta banda fina demais pra ser painel — sujeira de 2-3 px
+ * que a projecao acha entre as linhas.
+ */
+const FOLHAS_PAINEL = {
+  casa_interna: {
+    arquivo: 'paredes_casa_Internas_v1.png',
+    modo: 'blobs',
+    areaMinima: 1500,
+    tolerancia: 55,
+    // as 4 primeiras linhas sao os paineis (7 cada); da 5a pra baixo a folha
+    // traz rodape solto, coluna, cantoneira e grelha, que nao viram tile
+    linhas: 7,
+    paineis: 4,
+    porLinha: 7,
+  },
+  academia: { arquivo: 'paredes_academia.png', modo: 'grade', paineis: 4, porLinha: 6 },
+  // no mercado os paineis se encostam na horizontal, como na folha de casa
+  mercado: {
+    arquivo: 'Paredes_mercado.png',
+    modo: 'blobs',
+    areaMinima: 1500,
+    tolerancia: 55,
+    linhas: 6,
+    paineis: 3,
+    porLinha: 6,
+  },
+  farmacia: { arquivo: 'Paredes_farmacia.png', modo: 'grade', paineis: 3, porLinha: 6 },
+  bar: { arquivo: 'Paredes_bar.png', modo: 'grade', fundoPreto: true, paineis: 3, porLinha: 6 },
+};
+
+/** Faixa detectada por projecao mais estreita que isto e sujeira, nao painel. */
+const FAIXA_MINIMA_PAINEL = 60;
+
+function carregarFolhaPainel(chave) {
+  const def = FOLHAS_PAINEL[chave];
+  const cru = lerPng(caminhoFolha(def.arquivo, def.runtime));
+  const img = def.fundoPreto ? removerFundo(cru) : cru;
+
+  let linhas;
+  if (def.modo === 'grade') {
+    const g = detectarGrade(img, def.limiar ?? 2);
+    const util = (faixas) => faixas.filter(([a, b]) => b - a + 1 >= FAIXA_MINIMA_PAINEL);
+    const cols = util(g.cols);
+    const rows = util(g.rows);
+    linhas = rows.map(([y0, y1]) =>
+      cols.map(([x0, x1]) => ({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 })),
+    );
+  } else {
+    linhas = agruparEmLinhas(blobs(img, def.areaMinima, def.alfa ?? 16, false), def.tolerancia);
+    if (linhas.length !== def.linhas) {
+      throw new Error(
+        `${def.arquivo}: esperava ${def.linhas} linhas de painel, achei ${linhas.length}` +
+          ` — a arte mudou de layout?`,
+      );
+    }
+  }
+
+  if (linhas.length < def.paineis) {
+    throw new Error(
+      `${def.arquivo}: esperava ao menos ${def.paineis} linhas de painel, achei ${linhas.length}`,
+    );
+  }
+  for (let i = 0; i < def.paineis; i++) {
+    if (linhas[i].length !== def.porLinha) {
+      throw new Error(
+        `${def.arquivo}: linha ${i} tem ${linhas[i].length} paineis, esperava ${def.porLinha}`,
+      );
+    }
+  }
+  return { ...def, img, linhas };
+}
+
+const folhasPainel = Object.fromEntries(
+  Object.keys(FOLHAS_PAINEL).map((k) => [k, carregarFolhaPainel(k)]),
+);
+
+/**
+ * As duas faixas de um painel, em fracao da altura dele.
+ *
+ * `campo` fica no alto, longe do lambri e da moldura de baixo; `rodape` encosta
+ * na base. A largura do recorte e sempre a ALTURA da faixa, pra sair quadrado —
+ * um tile de mundo e quadrado e esticar a arte na horizontal faria a listra do
+ * papel de parede engordar so nesse pedaco.
+ */
+const FAIXAS_DO_PAINEL = { campo: [0.1, 0.42], rodape: [0.58, 1.0] };
+
+/**
+ * Recorte quadrado de uma faixa do painel [linha, indice], reduzido pro tile.
+ *
+ * `faixas` sobrepoe as bandas padrao quando o painel nao segue o desenho tipico
+ * (campo liso em cima, lambri embaixo). O mercado e o caso: ele traz uma tarja
+ * vermelha bem no alto, e com a banda padrao o tile de campo sai listrado — o
+ * que numa parede lateral, repetido de cima a baixo, vira um poste de barbeiro.
+ */
+function tileDePainel(chave, [linha, indice], faixa, faixas = {}) {
+  const f = folhasPainel[chave];
+  const b = f.linhas[linha]?.[indice];
+  if (!b) throw new Error(`${f.arquivo}: nao existe painel [${linha},${indice}]`);
+  const [a0, a1] = faixas[faixa] ?? FAIXAS_DO_PAINEL[faixa];
+  const y = Math.round(b.y + b.h * a0);
+  const lado = Math.min(b.w, Math.round(b.h * (a1 - a0)));
+  return reduzir(f.img, { x: Math.round(b.x + (b.w - lado) / 2), y, w: lado, h: lado }, T);
+}
+
+/**
+ * Relevo 2D de parede: sombra na base e luz no topo, desenhadas no proprio
+ * tile.
+ *
+ * E a mesma tecnica do beiral do telhado em `comporCasa` — uma linha escura na
+ * junta em vez de motor de luz —, so que virada pra dentro de casa. Sem ela a
+ * parede interna le como "mais um pedaco de chao": nada separa o plano vertical
+ * do horizontal. Com ela, a faixa escura na base finca a parede no chao e o
+ * fio claro no topo devolve a quina iluminada.
+ *
+ * `base` vale pro tile cuja vizinha de BAIXO e piso (a parede encontra o chao
+ * ali) e `topo` pro tile cuja vizinha de CIMA e piso. Um tile de parede de 1
+ * tile de espessura recebe os dois. Generico de proposito: qualquer interior
+ * futuro so precisa de um par de tiles campo/rodape pra usar isto.
+ */
+const RELEVO_PAREDE = {
+  sombra: [26, 18, 14],
+  luz: [255, 248, 232],
+  faixaSombra: 0.22, // fracao do tile que a sombra cobre, de baixo pra cima
+  forcaSombra: 0.5,
+  faixaLuz: 0.1,
+  forcaLuz: 0.34,
+};
+
+function relevoDeParede(px, { base = false, topo = false } = {}) {
+  const saida = px.map((c) => [...c]);
+  const misturar = (j, cor, k) => {
+    for (let i = 0; i < T; i++) {
+      const c = saida[j * T + i];
+      if (!c || c[3] === 0) continue;
+      c[0] = Math.round(c[0] * (1 - k) + cor[0] * k);
+      c[1] = Math.round(c[1] * (1 - k) + cor[1] * k);
+      c[2] = Math.round(c[2] * (1 - k) + cor[2] * k);
+    }
+  };
+  if (base) {
+    const n = Math.max(2, Math.round(T * RELEVO_PAREDE.faixaSombra));
+    // rampa: quase nada no comeco da faixa, cheia na ultima linha do tile
+    for (let d = 0; d < n; d++) {
+      misturar(T - n + d, RELEVO_PAREDE.sombra, (RELEVO_PAREDE.forcaSombra * (d + 1)) / n);
+    }
+  }
+  if (topo) {
+    const n = Math.max(1, Math.round(T * RELEVO_PAREDE.faixaLuz));
+    for (let d = 0; d < n; d++) {
+      misturar(d, RELEVO_PAREDE.luz, (RELEVO_PAREDE.forcaLuz * (n - d)) / n);
+    }
+  }
+  return saida;
+}
+
+/**
+ * Os 4 tiles de um estilo de parede interna. O nome de cada um vira GID e a
+ * escolha entre eles e por vizinhanca, em `acabarParedes`:
+ *
+ * - CORPO — meio da parede: nem encosta no chao em cima nem embaixo
+ * - BASE  — piso embaixo: campo do painel nao, RODAPE, mais a sombra da junta
+ * - TOPO  — piso em cima: campo do painel com o fio de luz na quina
+ * - UNICA — parede de 1 tile de espessura, com piso dos dois lados
+ */
+const VARIANTES_PAREDE = ['CORPO', 'BASE', 'TOPO', 'UNICA'];
+
+function tilesDeEstiloDeParede(nome, folha, painel, faixas) {
+  const campo = tileDePainel(folha, painel, 'campo', faixas);
+  const rodape = tileDePainel(folha, painel, 'rodape', faixas);
+  return [
+    { nome: `PAREDE_${nome}_CORPO`, colide: true, px: campo },
+    { nome: `PAREDE_${nome}_BASE`, colide: true, px: relevoDeParede(rodape, { base: true }) },
+    { nome: `PAREDE_${nome}_TOPO`, colide: true, px: relevoDeParede(campo, { topo: true }) },
+    {
+      nome: `PAREDE_${nome}_UNICA`,
+      colide: true,
+      px: relevoDeParede(rodape, { base: true, topo: true }),
+    },
+  ];
+}
+
+/**
+ * Catalogo de estilo de parede interna: nome logico -> folha e painel.
+ *
+ * Os de casa saem de `paredes_casa_Internas_v1.png`; os de comercio, da folha
+ * dedicada de cada ramo. Trocar o papel de parede de uma casa e mexer no
+ * `parede` da planta dela, nao aqui.
+ */
+const ESTILOS_PAREDE = {
+  // --- residencial: campo liso/estampado com lambri de madeira ---
+  reboco_creme: ['casa_interna', [0, 0]],
+  papel_azul: ['casa_interna', [0, 1]],
+  papel_verde: ['casa_interna', [0, 2]],
+  reboco_bege: ['casa_interna', [0, 3]],
+  tijolo_claro: ['casa_interna', [0, 4]],
+  liso_branco: ['casa_interna', [2, 0]],
+  liso_azul: ['casa_interna', [2, 1]],
+  liso_sage: ['casa_interna', [2, 2]],
+  liso_bege: ['casa_interna', [2, 3]],
+  // --- molhados: a folha traz azulejo de verdade, entao banheiro e cozinha
+  //     deixam de usar papel de parede ---
+  azulejo_branco: ['casa_interna', [3, 0]],
+  azulejo_verde: ['casa_interna', [3, 1]],
+  azulejo_escuro: ['casa_interna', [3, 4]],
+  // --- comercio: cada ramo com a folha do proprio ramo ---
+  academia: ['academia', [0, 0]],
+  // a tarja vermelha do mercado fica no alto do painel; o campo desce pra pegar
+  // so o azulejo creme
+  mercado: ['mercado', [0, 0], { campo: [0.26, 0.54] }],
+  farmacia: ['farmacia', [1, 0]],
+  bar: ['bar', [0, 0]],
+};
+
+const TILES_DE_PAREDE = Object.entries(ESTILOS_PAREDE).flatMap(([nome, [folha, painel, faixas]]) =>
+  tilesDeEstiloDeParede(nome, folha, painel, faixas),
+);
+
+// ---------------------------------------------------------------- pisos --
+/**
+ * Folhas de PISO: textura de chao ja desenhada pra ladrilhar, uma peca por
+ * quadrado. As duas folhas trazem as tres primeiras linhas cheias de quadrados
+ * do mesmo tamanho e, da quarta pra baixo, rodape/soleira/ralo/tapete — que nao
+ * viram tile de chao.
+ *
+ * A arte e SEM COSTURA de proposito, entao aqui nao ha rotacao nem variante
+ * como na grama: o quadrado inteiro vira o tile e repete direto.
+ */
+const FOLHAS_PISO = {
+  banheiro: { arquivo: 'Pisos_banheiro.png', areaMinima: 8000, tolerancia: 60, linhasUteis: 2 },
+  cozinha: { arquivo: 'Pisos_cozinha.png', areaMinima: 8000, tolerancia: 60, linhasUteis: 3 },
+};
+
+/** Quanto encolher o quadrado antes de reduzir, pra fugir da franja da borda. */
+const INSET_PISO = 0.03;
+
+function carregarFolhaPiso(chave) {
+  const def = FOLHAS_PISO[chave];
+  const img = lerPng(caminhoFolha(def.arquivo, def.runtime));
+  const linhas = agruparEmLinhas(blobs(img, def.areaMinima, 16, false), def.tolerancia);
+  if (linhas.length < def.linhasUteis) {
+    throw new Error(
+      `${def.arquivo}: esperava ao menos ${def.linhasUteis} linhas de piso, achei ${linhas.length}`,
+    );
+  }
+  return { ...def, img, linhas };
+}
+
+const folhasPiso = Object.fromEntries(Object.keys(FOLHAS_PISO).map((k) => [k, carregarFolhaPiso(k)]));
+
+function tileDePiso(chave, [linha, indice]) {
+  const f = folhasPiso[chave];
+  const b = f.linhas[linha]?.[indice];
+  if (!b) throw new Error(`${f.arquivo}: nao existe piso [${linha},${indice}]`);
+  return reduzir(f.img, encolher(b, INSET_PISO), T);
+}
+
+/**
+ * Catalogo de piso: nome logico -> folha e quadrado.
+ *
+ * As folhas se chamam "banheiro" e "cozinha" pelo tema do pacote de arte, mas o
+ * conteudo nao respeita isso — a de cozinha traz as madeiras e o espinha de
+ * peixe, que sao o piso de sala e de quarto. Quem decide onde cada um entra e o
+ * `pisos` da planta.
+ */
+const PISOS = {
+  madeira_clara: ['cozinha', [0, 5]],
+  madeira_escura: ['cozinha', [0, 6]],
+  espinha_madeira: ['cozinha', [2, 4]],
+  espinha_clara: ['cozinha', [2, 6]],
+  ladrilho_bege: ['cozinha', [0, 4]],
+  concreto: ['cozinha', [0, 2]],
+  concreto_escuro: ['cozinha', [0, 3]],
+  xadrez_cozinha: ['cozinha', [1, 0]],
+  terracota: ['cozinha', [2, 0]],
+  ladrilho_verde: ['cozinha', [2, 1]],
+  azulejo_portugues: ['cozinha', [1, 6]],
+  marmore: ['banheiro', [0, 2]],
+  hexagonal: ['banheiro', [0, 5]],
+  xadrez_banheiro: ['banheiro', [0, 6]],
+  mosaico_azul: ['banheiro', [1, 2]],
+  mosaico_menta: ['banheiro', [1, 3]],
+  granilite: ['banheiro', [1, 4]],
+};
+
+const TILES_DE_PISO = Object.entries(PISOS).map(([nome, [folha, quadro]]) => ({
+  nome: `PISO_${nome.toUpperCase()}`,
+  px: tileDePiso(folha, quadro),
+}));
+
+/** GID do piso pelo nome logico, com erro alto se o nome nao existir. */
+function gidDePiso(nome) {
+  const gid = GID[`PISO_${nome.toUpperCase()}`];
+  if (!gid) throw new Error(`piso "${nome}" nao existe em PISOS`);
+  return gid;
+}
+
+// --------------------------------------------------------- portas de vao --
+/**
+ * A faixa de porta RESIDENCIAL de `Portas_v2.png`.
+ *
+ * A folha traz quatro faixas (farmacia, bar, academia e casa) e so a ultima
+ * serve aqui — as outras sao porta de fachada de comercio, que ja esta resolvida
+ * pelo sprite de construcao. A faixa sai da propria projecao de alfa (a ultima
+ * linha da grade), entao reexportar a arte com outra altura nao quebra nada.
+ *
+ * Dentro da faixa a arte esta em 3 cores x 3 estados (fechada, aberta pra
+ * esquerda, aberta pra direita), sempre nessa ordem da esquerda pra direita. O
+ * rotulo "HOUSE / INTERIOR" e o iconezinho de casa tambem sao blobs; `ALTURA_MINIMA`
+ * corta os dois, que sao bem mais baixos que uma porta.
+ */
+const FOLHA_PORTA_INTERNA = { arquivo: 'Portas_v2.png', areaMinima: 9000, portas: 9 };
+const ALTURA_MINIMA_PORTA = 0.85; // fracao da altura da faixa
+
+function carregarPortasInternas() {
+  const img = lerPng(caminhoFolha(FOLHA_PORTA_INTERNA.arquivo, false));
+  const grade = detectarGrade(img, 2);
+  const [y0, y1] = grade.rows[grade.rows.length - 1];
+  const h = y1 - y0 + 1;
+  const achados = blobs(img, FOLHA_PORTA_INTERNA.areaMinima)
+    .filter((b) => b.y >= y0 && b.y + b.h <= y1 + 1 && b.h >= h * ALTURA_MINIMA_PORTA)
+    .sort((a, b) => a.x - b.x);
+  if (achados.length !== FOLHA_PORTA_INTERNA.portas) {
+    throw new Error(
+      `${FOLHA_PORTA_INTERNA.arquivo}: esperava ${FOLHA_PORTA_INTERNA.portas} portas de casa na ` +
+        `faixa ${y0}..${y1}, achei ${achados.length} — a arte mudou de layout?`,
+    );
+  }
+  return { img, portas: achados };
+}
+
+const portasInternas = carregarPortasInternas();
+
+/**
+ * Cor da porta por tipo de comodo. A propria arte traz o pictograma (vaso,
+ * cama, talher), entao a escolha nao e so de cor: e de qual placa fica na
+ * folha da porta.
+ */
+const CORES_DE_PORTA = { claro: 0, madeira: 3, verde: 6 };
+/** Estado dentro de cada cor. Aberta pra esquerda e a que le como VAO. */
+const ESTADO_DE_PORTA = { fechada: 0, aberta: 1, aberta_direita: 2 };
+const ESTADO_PADRAO = 'aberta';
+
+/**
+ * Os tiles de uma cor de porta interna.
+ *
+ * Sao dois formatos porque os vaos das plantas tem dois tamanhos: parede
+ * horizontal de 2 tiles de espessura pede a porta partida em TOPO+BASE (a arte
+ * inteira ocupando os dois tiles), e parede de 1 tile pede a porta inteira num
+ * tile so. Nenhum dos tres colide: a porta e so a arte do vao, a passagem
+ * continua exatamente tao andavel quanto era.
+ *
+ * `paredeInterna` marca o tile pro relevo de parede tratar o vao como alvenaria
+ * (ver `acabarParedes`): a arte da porta ja traz o proprio batente, e sombrear
+ * a parede no meio dele deixaria um degrau escuro no vao.
+ */
+function tilesDePortaInterna(nome, indice) {
+  const b = portasInternas.portas[indice];
+  const alto = reduzirPara(portasInternas.img, b, T, T * 2);
+  const fatia = (linha) => alto.slice(linha * T * T, (linha + 1) * T * T);
+  return [
+    {
+      nome: `PORTA_INT_${nome}_TOPO`,
+      paredeInterna: true,
+      px: fatia(0),
+    },
+    {
+      nome: `PORTA_INT_${nome}_BASE`,
+      paredeInterna: true,
+      px: fatia(1),
+    },
+    {
+      nome: `PORTA_INT_${nome}`,
+      paredeInterna: true,
+      px: reduzirPara(portasInternas.img, b, T, T),
+    },
+  ];
+}
+
+const TILES_DE_PORTA_INTERNA = Object.entries(CORES_DE_PORTA).flatMap(([nome, base]) =>
+  tilesDePortaInterna(nome, base + ESTADO_DE_PORTA[ESTADO_PADRAO]),
+);
+
+/**
+ * A cama dos interiores multi-comodo, em dois tiles empilhados.
+ *
+ * A cama e o unico movel de casa que NAO e sprite: ela e tile porque o objeto
+ * interativo de dormir/salvar (`cama` na camada `interativos`) e a conferencia
+ * de acesso dependem de ela ocupar exatamente (x,y) e (x,y+1). O que muda aqui
+ * e so a arte — sai a cama pintada a mao, entra a cama de solteiro da folha
+ * dedicada de quarto, esticada nos 32x64 dos dois tiles.
+ *
+ * A cama PINTADA continua no tileset (`CAMA_TOPO`/`CAMA_BASE`): quem usa e o
+ * salao unico da casa_1, que segue com o sistema original do protagonista.
+ */
+function tilesDeCamaDeQuarto() {
+  const b = peca('quarto', 0, 0); // cama de solteiro
+  const alto = reduzirPara(folhasMoveis.quarto.img, b, T, T * 2);
+  return [
+    { nome: 'CAMA_QUARTO_TOPO', colide: true, px: alto.slice(0, T * T) },
+    { nome: 'CAMA_QUARTO_BASE', colide: true, px: alto.slice(T * T) },
+  ];
 }
 
 // -------------------------------------------------------- transformar tile --
@@ -589,6 +1075,16 @@ const TILES = [
       im.rect(ox + 5, 12, 1, 3, [128, 92, 58]);
     }),
   },
+  // paredes internas com arte dedicada, 4 variantes de relevo cada (ver
+  // `tilesDeEstiloDeParede`). A PAREDE pintada logo abaixo continua no tileset:
+  // e a do salao unico da casa_1, que segue com o sistema original.
+  ...TILES_DE_PAREDE,
+  // portas de vao: arte por cima da passagem, sem colisao nenhuma
+  ...TILES_DE_PORTA_INTERNA,
+  // piso de interior, um por textura da arte dedicada
+  ...TILES_DE_PISO,
+  // cama dos interiores multi-comodo, com a arte da folha de quarto
+  ...tilesDeCamaDeQuarto(),
   {
     nome: 'PAREDE',
     colide: true,
@@ -610,6 +1106,30 @@ const TILES = [
       im.rect(ox + 2, 1, 12, 1, [148, 106, 68]);
       im.rect(ox + 7, 1, 1, 15, [96, 64, 40]);
       im.rect(ox + 11, 8, 2, 2, [226, 196, 108]); // macaneta
+    }),
+  },
+  /**
+   * PORTA SOMENTE-NPC. Colide (o jogador trata como parede, andando ou
+   * correndo) e ao mesmo tempo carrega `npcAtravessa`, entao a validacao de
+   * rota de NPC passa por ela como se nao houvesse nada — ver
+   * src/game/colisao.ts.
+   *
+   * A arte a distingue da porta publica de proposito: batente escuro, folha
+   * mais fria e uma plaquinha clara no lugar da macaneta. O jogador tem de ler
+   * "area de servico, nao entra" sem precisar esbarrar pra descobrir.
+   */
+  {
+    nome: 'PORTA_NPC',
+    colide: true,
+    npcAtravessa: true,
+    px: pintado((im, ox) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [56, 48, 44]);
+      im.rect(ox + 2, 1, 12, 15, [92, 96, 104]);
+      im.rect(ox + 2, 1, 12, 1, [126, 130, 138]);
+      im.rect(ox + 3, 3, 10, 5, [74, 78, 86]); // almofada de cima
+      im.rect(ox + 3, 10, 10, 4, [74, 78, 86]); // almofada de baixo
+      im.rect(ox + 5, 8, 6, 2, [214, 210, 198]); // placa de "privado"
+      im.rect(ox + 12, 8, 1, 2, [188, 178, 140]); // macaneta discreta
     }),
   },
   {
@@ -636,8 +1156,20 @@ const TILES = [
 
 /** NOME -> gid (1-based, como o Tiled grava nas camadas de tile). */
 const GID = Object.fromEntries(TILES.map((t, i) => [t.nome, i + 1]));
-/** ids 0-based dos tiles que travam o player (formato de `tileset.tiles`). */
-const COLIDEM = TILES.flatMap((t, i) => (t.colide ? [i] : []));
+/**
+ * Entradas de `tileset.tiles` com as propriedades de colisao de cada tile, no
+ * formato do Tiled. Sao duas marcas independentes (ver src/game/colisao.ts):
+ * `collides` barra o JOGADOR e `npcAtravessa` libera o NPC no MESMO tile.
+ */
+const PROPRIEDADES_TILE = TILES.flatMap((t, i) => {
+  if (t.npcAtravessa && !t.colide) {
+    throw new Error(`"${t.nome}": ${PROP_PORTA_NPC} so faz sentido em tile que colide`);
+  }
+  const properties = [];
+  if (t.colide) properties.push({ name: PROP_COLIDE, type: 'bool', value: true });
+  if (t.npcAtravessa) properties.push({ name: PROP_PORTA_NPC, type: 'bool', value: true });
+  return properties.length ? [{ id: i, properties }] : [];
+});
 
 /** gid da estrada para uma mascara de conectividade. */
 const gidEstrada = (mascara) => GID[`ESTRADA_${mascara}`];
@@ -1252,10 +1784,7 @@ function montarMapa(largura, altura, camadas, ts) {
         tilecount: ts.total,
         tilewidth: T,
         tileheight: T,
-        tiles: COLIDEM.map((id) => ({
-          id,
-          properties: [{ name: 'collides', type: 'bool', value: true }],
-        })),
+        tiles: PROPRIEDADES_TILE,
       },
     ],
   };
@@ -1553,6 +2082,10 @@ function objetosDeMovel(prefixo, pecas, folhaPadrao) {
       frame: nomePeca(...p.peca),
       alturaTiles: +h.toFixed(3),
       colide: p.colide !== false,
+      // tapete: fica uma camada abaixo do resto, senao ele cobre o sofa que
+      // deveria estar EM CIMA dele — os dois tem a base na mesma linha, e sem
+      // isto o desempate e a ordem da lista
+      chao: p.chao === true,
     });
   });
 }
@@ -1578,116 +2111,248 @@ const PORTA_INTERIOR = { x: 8, y: INTERIOR_CASA.altura - 1 };
  */
 const PAREDE_TOPO = 2;
 
-/** Cama pintada de todo interior de casa: nao muda de lugar. */
+/**
+ * Cama do salao unico da casa_1: nao muda de lugar. Os interiores multi-comodo
+ * usam a mesma geometria de 2 tiles, mas com a arte da folha de quarto — ver
+ * `tilesDeCamaDeQuarto`.
+ */
 const CAMA_INTERIOR = { x: 2, y: 2 }; // topo; a base fica um tile abaixo
 
 /**
- * Catalogo de mobilia: cada peca ganha nome, folha de origem e se COLIDE.
+ * Catalogo de mobilia, agrupado POR TIPO DE COMODO.
  *
- * O criterio da classificacao e um so: colide o que tem volume pra esbarrar —
- * cama, guarda-roupa, comoda, estante, armario, sofa, poltrona, mesa, rack,
- * piano. Nao colide o que esta deitado no chao (tapete, caminha de pet, puff),
- * pendurado na parede (quadro, poster, relogio, prateleira, espelho encostado)
- * ou e leve o bastante pra passar raspando (vaso de planta, vela, difusor,
- * cesto, almofada, violao no suporte). O objetivo aqui e decoracao: cada peca
- * solida a mais e um tile a menos pra circular num quarto de 14x10 uteis.
+ * O agrupamento nao e so arrumacao: e o contrato. `pecasDeCatalogo` cobra que
+ * uma peca de `quarto` so apareca em comodo de quarto, uma de `cozinha` so na
+ * cozinha, e assim por diante — entao nao ha como voltar ao que havia antes,
+ * que era a mesma mobilia generica de sala espalhada nos quatro comodos, com a
+ * cozinha "resolvida" por uma mesa de jantar e o banheiro por uma comoda.
  *
- * As folhas trazem muito mais peca do que isto — cozinha, banheiro, area
- * externa, aquario, cerca. Ficou de fora o que nao serve pra sala/quarto.
+ * `comum` e a categoria que passa em qualquer comodo: tapete, quadro, planta,
+ * relogio, caminha de pet. Sao pecas sem funcao de comodo — decoram tanto um
+ * quarto quanto um corredor.
+ *
+ * O criterio de COLIDIR e o mesmo de sempre: colide o que tem volume pra
+ * esbarrar (cama, guarda-roupa, geladeira, fogao, sofa, banheira, box). Nao
+ * colide o que esta deitado no chao (tapete, caminha de pet), pendurado na
+ * parede (quadro, espelho, prateleira, chuveiro, toalheiro) ou e leve o
+ * bastante pra passar raspando (vaso, cesto, banquinho, frascos). Cada peca
+ * solida a mais e um tile a menos pra circular.
+ *
+ * `chao: true` poe a peca na camada de baixo — e o tapete, que pode ter movel
+ * em cima sem que a conferencia trate isso como sobreposicao.
+ *
+ * As folhas trazem muito mais peca do que isto; ficou de fora o que nao cabe em
+ * casa (utensilio solto de bancada, aquario, cerca, area externa).
  */
-const MOVEIS_CASA = {
-  // --- guarda-roupa, comoda, penteadeira ---
-  guarda_roupa_correr: { folha: 'mobilia_v1', peca: [0, 2], solido: true },
-  guarda_roupa_branco: { folha: 'mobilia_v2', peca: [0, 7], solido: true },
-  guarda_roupa_madeira: { folha: 'mobilia_v2', peca: [0, 8], solido: true },
-  guarda_roupa_espelho: { folha: 'mobilia_v2', peca: [0, 9], solido: true },
-  armario_aberto: { folha: 'mobilia_v2', peca: [0, 10], solido: true },
-  comoda_espelho: { folha: 'mobilia_v1', peca: [0, 3], solido: true },
-  comoda: { folha: 'mobilia_v2', peca: [1, 0], solido: true },
-  cabeceira_abajur: { folha: 'mobilia_v2', peca: [1, 1], solido: true },
-  penteadeira_oval: { folha: 'mobilia_v2', peca: [1, 2], solido: true },
-  penteadeira_luzes: { folha: 'mobilia_v2', peca: [1, 3], solido: true },
+const CATALOGO_POR_COMODO = {
+  quarto: {
+    // --- dormir e guardar ---
+    cama_solteiro: { folha: 'quarto', peca: [0, 0], solido: true },
+    cama_casal: { folha: 'quarto', peca: [0, 1], solido: true },
+    criado_mudo: { folha: 'quarto', peca: [0, 2], solido: true },
+    comoda_quarto: { folha: 'quarto', peca: [0, 3], solido: true },
+    guarda_roupa: { folha: 'quarto', peca: [0, 4], solido: true },
+    guarda_roupa_madeira: { folha: 'mobilia_v2', peca: [0, 8], solido: true },
+    cabeceira_abajur: { folha: 'mobilia_v2', peca: [1, 1], solido: true },
+    bau: { folha: 'quarto', peca: [5, 0], solido: true },
+    // --- estudar e arrumar-se ---
+    estante_quarto: { folha: 'quarto', peca: [2, 0], solido: true },
+    escrivaninha: { folha: 'quarto', peca: [2, 1], solido: true },
+    penteadeira: { folha: 'quarto', peca: [2, 2], solido: true },
+    recamier: { folha: 'quarto', peca: [5, 1], solido: true },
+    setup_gamer: { folha: 'eletronicos', peca: [2, 0], solido: true },
+    mesa_notebook: { folha: 'eletronicos', peca: [2, 3], solido: true },
+    // --- leves e de parede ---
+    prateleira_livros: { folha: 'quarto', peca: [1, 0], solido: false },
+    abajur_pe: { folha: 'quarto', peca: [2, 3], solido: false },
+    abajur_mesa: { folha: 'quarto', peca: [2, 4], solido: false },
+    quadro_montanha: { folha: 'quarto', peca: [2, 5], solido: false },
+    despertador: { folha: 'quarto', peca: [3, 0], solido: false },
+    toalhas_quarto: { folha: 'quarto', peca: [4, 0], solido: false },
+    tapete_quarto: { folha: 'quarto', peca: [5, 2], solido: false, chao: true },
+    planta_quarto: { folha: 'quarto', peca: [5, 3], solido: false },
+    cesto_roupa: { folha: 'quarto', peca: [5, 4], solido: false },
+    almofadas_pilha: { folha: 'quarto', peca: [6, 0], solido: false },
+    girassois: { folha: 'quarto', peca: [7, 0], solido: false },
+    livros_soltos: { folha: 'quarto', peca: [7, 1], solido: false },
+    vela_quarto: { folha: 'quarto', peca: [7, 2], solido: false },
+    quadrinho: { folha: 'quarto', peca: [7, 3], solido: false },
+    difusor_quarto: { folha: 'quarto', peca: [7, 4], solido: false },
+    manta_dobrada: { folha: 'quarto', peca: [7, 6], solido: false },
+    ar_condicionado: { folha: 'eletronicos', peca: [5, 4], solido: false },
+  },
 
-  // --- estante e aparador ---
-  estante_plantas: { folha: 'mobilia_v1', peca: [0, 7], solido: true },
-  estante_industrial: { folha: 'mobilia_v1', peca: [3, 0], solido: true },
-  estante_livros: { folha: 'mobilia_v1', peca: [4, 4], solido: true },
-  aparador_quadro: { folha: 'mobilia_v1', peca: [4, 0], solido: true },
-  estante_potes: { folha: 'mobilia_v2', peca: [1, 12], solido: true },
-  estante_livros_v2: { folha: 'mobilia_v2', peca: [1, 14], solido: true },
+  cozinha: {
+    // --- os quatro moveis que fazem uma cozinha ser cozinha ---
+    geladeira: { folha: 'cozinha', peca: [1, 0], solido: true },
+    fogao: { folha: 'cozinha', peca: [1, 1], solido: true },
+    pia: { folha: 'cozinha', peca: [1, 2], solido: true },
+    bancada: { folha: 'cozinha', peca: [1, 3], solido: true },
+    // --- guardar ---
+    armario_aereo: { folha: 'cozinha', peca: [0, 0], solido: true },
+    despenseiro: { folha: 'cozinha', peca: [2, 0], solido: true },
+    cristaleira: { folha: 'cozinha', peca: [2, 1], solido: true },
+    // --- comer ---
+    ilha: { folha: 'cozinha', peca: [3, 0], solido: true },
+    mesa_de_jantar: { folha: 'cozinha', peca: [3, 1], solido: true },
+    // --- leves e de parede ---
+    microondas: { folha: 'cozinha', peca: [4, 0], solido: false },
+    caixa_de_pao: { folha: 'cozinha', peca: [4, 4], solido: false },
+    escorredor: { folha: 'cozinha', peca: [4, 5], solido: false },
+    lixeira: { folha: 'cozinha', peca: [4, 6], solido: false },
+    fruteira: { folha: 'cozinha', peca: [5, 10], solido: false },
+    porta_temperos: { folha: 'cozinha', peca: [6, 5], solido: false },
+    utensilios: { folha: 'cozinha', peca: [6, 6], solido: false },
+    prateleira_cozinha: { folha: 'cozinha', peca: [7, 0], solido: false },
+    quadro_cozinha: { folha: 'cozinha', peca: [7, 1], solido: false },
+    lampiao_cozinha: { folha: 'cozinha', peca: [7, 2], solido: false },
+    planta_cozinha: { folha: 'cozinha', peca: [7, 3], solido: false },
+    tapete_cozinha: { folha: 'cozinha', peca: [7, 4], solido: false, chao: true },
+    quadro_negro: { folha: 'cozinha', peca: [7, 5], solido: false },
+    relogio_cozinha: { folha: 'cozinha', peca: [7, 6], solido: false },
+    flores_cozinha: { folha: 'cozinha', peca: [7, 7], solido: false },
+  },
 
-  // --- mesa e escrivaninha ---
-  mesa_gamer: { folha: 'mobilia_v1', peca: [0, 6], solido: true },
-  mesa_jantar: { folha: 'mobilia_v1', peca: [2, 0], solido: true },
-  mesa_centro_madeira: { folha: 'mobilia_v2', peca: [3, 1], solido: true },
-  mesa_centro_escura: { folha: 'mobilia_v2', peca: [3, 0], solido: true },
-  mesa_redonda_branca: { folha: 'mobilia_v2', peca: [4, 2], solido: true },
-  mesa_redonda_preta: { folha: 'mobilia_v2', peca: [4, 4], solido: true },
+  banheiro: {
+    // --- louca ---
+    vaso_sanitario: { folha: 'banheiro', peca: [0, 0], solido: true },
+    gabinete_pia: { folha: 'banheiro', peca: [0, 4], solido: true },
+    banheira: { folha: 'banheiro', peca: [0, 6], solido: true },
+    box_chuveiro: { folha: 'banheiro', peca: [2, 0], solido: true },
+    // --- guardar ---
+    armario_banheiro: { folha: 'banheiro', peca: [2, 1], solido: true },
+    gabinete_frascos: { folha: 'banheiro', peca: [2, 2], solido: true },
+    // --- leves e de parede ---
+    escova_sanitaria: { folha: 'banheiro', peca: [0, 2], solido: false },
+    papel_higienico: { folha: 'banheiro', peca: [0, 3], solido: false },
+    espelho_banheiro: { folha: 'banheiro', peca: [0, 5], solido: false },
+    chuveiro: { folha: 'banheiro', peca: [1, 0], solido: false },
+    prateleira_frascos: { folha: 'banheiro', peca: [1, 1], solido: false },
+    toalheiro: { folha: 'banheiro', peca: [2, 3], solido: false },
+    toalha_branca: { folha: 'banheiro', peca: [2, 4], solido: false },
+    toalhas_dobradas: { folha: 'banheiro', peca: [2, 5], solido: false },
+    tapete_banheiro: { folha: 'banheiro', peca: [3, 0], solido: false, chao: true },
+    banquinho: { folha: 'banheiro', peca: [3, 1], solido: false },
+    planta_banheiro: { folha: 'banheiro', peca: [3, 2], solido: false },
+    saboneteira: { folha: 'banheiro', peca: [3, 3], solido: false },
+    armario_remedios: { folha: 'banheiro', peca: [3, 4], solido: false },
+    lampiao_banheiro: { folha: 'banheiro', peca: [3, 5], solido: false },
+    cesto_banheiro: { folha: 'banheiro', peca: [4, 0], solido: false },
+    cesto_pequeno: { folha: 'banheiro', peca: [4, 1], solido: false },
+    tapete_creme_banheiro: { folha: 'banheiro', peca: [4, 2], solido: false, chao: true },
+    frascos: { folha: 'banheiro', peca: [4, 3], solido: false },
+    copo_escovas: { folha: 'banheiro', peca: [4, 4], solido: false },
+  },
 
-  // --- sofa, poltrona, rack ---
-  poltrona_creme: { folha: 'mobilia_v1', peca: [1, 1], solido: true },
-  rack_tv: { folha: 'mobilia_v1', peca: [1, 2], solido: true },
-  sofa_cinza: { folha: 'mobilia_v2', peca: [2, 0], solido: true },
-  sofa_lilas: { folha: 'mobilia_v2', peca: [2, 1], solido: true },
-  sofa_creme: { folha: 'mobilia_v2', peca: [2, 2], solido: true },
-  sofa_azul_l: { folha: 'mobilia_v2', peca: [2, 4], solido: true },
-  sofa_verde: { folha: 'mobilia_v2', peca: [2, 5], solido: true },
-  poltrona_marinho: { folha: 'mobilia_v2', peca: [2, 6], solido: true },
-  poltrona_branca: { folha: 'mobilia_v2', peca: [4, 0], solido: true },
-  poltrona_mostarda: { folha: 'mobilia_v2', peca: [4, 1], solido: true },
-  rack_tv_planta: { folha: 'mobilia_v2', peca: [4, 7], solido: true },
-  rack_tv_v2: { folha: 'mobilia_v2', peca: [4, 8], solido: true },
+  sala: {
+    // --- sentar ---
+    sofa_cinza: { folha: 'mobilia_v2', peca: [2, 0], solido: true },
+    sofa_lilas: { folha: 'mobilia_v2', peca: [2, 1], solido: true },
+    sofa_creme: { folha: 'mobilia_v2', peca: [2, 2], solido: true },
+    sofa_azul_l: { folha: 'mobilia_v2', peca: [2, 4], solido: true },
+    sofa_verde: { folha: 'mobilia_v2', peca: [2, 5], solido: true },
+    poltrona_creme: { folha: 'mobilia_v1', peca: [1, 1], solido: true },
+    poltrona_marinho: { folha: 'mobilia_v2', peca: [2, 6], solido: true },
+    poltrona_branca: { folha: 'mobilia_v2', peca: [4, 0], solido: true },
+    poltrona_mostarda: { folha: 'mobilia_v2', peca: [4, 1], solido: true },
+    // --- apoiar ---
+    mesa_centro_madeira: { folha: 'mobilia_v2', peca: [3, 1], solido: true },
+    mesa_centro_escura: { folha: 'mobilia_v2', peca: [3, 0], solido: true },
+    mesa_redonda_branca: { folha: 'mobilia_v2', peca: [4, 2], solido: true },
+    aparador_quadro: { folha: 'mobilia_v1', peca: [4, 0], solido: true },
+    // --- estante ---
+    estante_livros: { folha: 'mobilia_v1', peca: [4, 4], solido: true },
+    estante_livros_v2: { folha: 'mobilia_v2', peca: [1, 14], solido: true },
+    estante_industrial: { folha: 'mobilia_v1', peca: [3, 0], solido: true },
+    estante_plantas: { folha: 'mobilia_v1', peca: [0, 7], solido: true },
+    // --- eletronica: a folha dedicada aposentou o rack pintado da mobilia ---
+    tv_rack_madeira: { folha: 'eletronicos', peca: [0, 0], solido: true },
+    tv_rack_branco: { folha: 'eletronicos', peca: [0, 1], solido: true },
+    tv_painel: { folha: 'eletronicos', peca: [0, 2], solido: true },
+    tv_rack_largo: { folha: 'eletronicos', peca: [0, 5], solido: true },
+    // rack pintado da mobilia generica: so a casa_1 ainda usa
+    rack_tv_v2: { folha: 'mobilia_v2', peca: [4, 8], solido: true },
+    vitrola: { folha: 'eletronicos', peca: [0, 10], solido: false },
+    caixa_som: { folha: 'eletronicos', peca: [0, 3], solido: false },
+    ventilador: { folha: 'eletronicos', peca: [5, 7], solido: false },
+    puff_verde: { folha: 'mobilia_v2', peca: [2, 8], solido: false },
+    otomana: { folha: 'mobilia_v2', peca: [2, 11], solido: false },
+  },
 
-  // --- decorativas: chao ---
-  tapete_marrom: { folha: 'mobilia_v2', peca: [3, 5], solido: false, chao: true, escala: 1.7 },
-  tapete_creme: { folha: 'mobilia_v2', peca: [3, 7], solido: false, chao: true, escala: 1.7 },
-  tapete_rosa: { folha: 'mobilia_v2', peca: [3, 8], solido: false, chao: true, escala: 1.7 },
-  tapete_cinza: { folha: 'mobilia_v2', peca: [3, 10], solido: false, chao: true, escala: 1.7 },
-  puff_verde: { folha: 'mobilia_v2', peca: [2, 8], solido: false },
-  otomana: { folha: 'mobilia_v2', peca: [2, 11], solido: false },
-  caminha_pet: { folha: 'mobilia_v1', peca: [5, 11], solido: false },
-  caminha_pet_v2: { folha: 'mobilia_v2', peca: [8, 11], solido: false },
-  cesto_vime: { folha: 'mobilia_v1', peca: [4, 5], solido: false },
-  almofadas: { folha: 'mobilia_v1', peca: [5, 12], solido: false },
-
-  // --- decorativas: parede ---
-  // `quadros` sao dois porta-retratos empilhados: 2,07 tiles de altura, mais que
-  // a faixa de parede, entao so serve encostado no chao
-  quadros: { folha: 'mobilia_v1', peca: [4, 11], solido: false },
-  relogio_parede: { folha: 'mobilia_v1', peca: [4, 9], solido: false },
-  prateleira_planta: { folha: 'mobilia_v1', peca: [4, 10], solido: false },
-  espelho_alto: { folha: 'mobilia_v1', peca: [0, 4], solido: false },
-  quadro_paisagem: { folha: 'mobilia_v2', peca: [5, 8], solido: false },
-  poster_galaxia: { folha: 'mobilia_v2', peca: [5, 9], solido: false },
-  quadro_folha: { folha: 'mobilia_v2', peca: [5, 10], solido: false },
-  relogio_v2: { folha: 'mobilia_v2', peca: [4, 12], solido: false },
-
-  // --- decorativas: planta, luz, miudeza ---
-  planta_grande: { folha: 'mobilia_v1', peca: [1, 6], solido: false },
-  plantas_duplas: { folha: 'mobilia_v1', peca: [5, 5], solido: false },
-  lampada_tripe: { folha: 'mobilia_v1', peca: [1, 4], solido: false },
-  velas: { folha: 'mobilia_v1', peca: [5, 7], solido: false },
-  difusor: { folha: 'mobilia_v1', peca: [5, 8], solido: false },
-  vaso_planta: { folha: 'mobilia_v2', peca: [5, 6], solido: false },
-  vaso_rosa: { folha: 'mobilia_v2', peca: [6, 0], solido: false },
-  planta_alta: { folha: 'mobilia_v2', peca: [6, 15], solido: false },
-  vaso_flores: { folha: 'mobilia_v2', peca: [6, 17], solido: false },
-  lampada_tripe_v2: { folha: 'mobilia_v2', peca: [4, 10], solido: false },
-  violao: { folha: 'mobilia_v2', peca: [1, 9], solido: false },
+  comum: {
+    // chao
+    tapete_marrom: { folha: 'mobilia_v2', peca: [3, 5], solido: false, chao: true, escala: 1.7 },
+    tapete_creme: { folha: 'mobilia_v2', peca: [3, 7], solido: false, chao: true, escala: 1.7 },
+    tapete_rosa: { folha: 'mobilia_v2', peca: [3, 8], solido: false, chao: true, escala: 1.7 },
+    tapete_cinza: { folha: 'mobilia_v2', peca: [3, 10], solido: false, chao: true, escala: 1.7 },
+    caminha_pet: { folha: 'mobilia_v1', peca: [5, 11], solido: false },
+    caminha_pet_v2: { folha: 'mobilia_v2', peca: [8, 11], solido: false },
+    cesto_vime: { folha: 'mobilia_v1', peca: [4, 5], solido: false },
+    // parede
+    quadros: { folha: 'mobilia_v1', peca: [4, 11], solido: false },
+    relogio_parede: { folha: 'mobilia_v1', peca: [4, 9], solido: false },
+    prateleira_planta: { folha: 'mobilia_v1', peca: [4, 10], solido: false },
+    espelho_alto: { folha: 'mobilia_v1', peca: [0, 4], solido: false },
+    quadro_paisagem: { folha: 'mobilia_v2', peca: [5, 8], solido: false },
+    poster_galaxia: { folha: 'mobilia_v2', peca: [5, 9], solido: false },
+    quadro_folha: { folha: 'mobilia_v2', peca: [5, 10], solido: false },
+    relogio_v2: { folha: 'mobilia_v2', peca: [4, 12], solido: false },
+    // planta, luz e miudeza
+    planta_grande: { folha: 'mobilia_v1', peca: [1, 6], solido: false },
+    lampada_tripe: { folha: 'mobilia_v1', peca: [1, 4], solido: false },
+    velas: { folha: 'mobilia_v1', peca: [5, 7], solido: false },
+    vaso_planta: { folha: 'mobilia_v2', peca: [5, 6], solido: false },
+    vaso_rosa: { folha: 'mobilia_v2', peca: [6, 0], solido: false },
+    planta_alta: { folha: 'mobilia_v2', peca: [6, 15], solido: false },
+    vaso_flores: { folha: 'mobilia_v2', peca: [6, 17], solido: false },
+    violao: { folha: 'mobilia_v2', peca: [1, 9], solido: false },
+  },
 };
 
 /**
- * Mobilia de cada casa. `tx`/`ty` sao o tile do canto esquerdo-INFERIOR da
- * peca, como no comercio. O que muda entre as casas e so isto — a planta, a
- * cama e a saida seguem iguais.
+ * O catalogo achatado: nome da peca -> definicao, com o `comodo` de origem
+ * junto. Erra alto se o mesmo nome aparecer em duas categorias — seria
+ * ambiguo em qual comodo a peca pode entrar.
+ */
+const MOVEIS_CASA = (() => {
+  const plano = {};
+  for (const [comodo, pecas] of Object.entries(CATALOGO_POR_COMODO)) {
+    for (const [nome, def] of Object.entries(pecas)) {
+      if (plano[nome]) {
+        throw new Error(`o movel "${nome}" esta em "${plano[nome].comodo}" e em "${comodo}"`);
+      }
+      plano[nome] = { ...def, comodo };
+    }
+  }
+  return plano;
+})();
+
+/**
+ * De que TIPO e um comodo, pelo nome que a planta deu a ele. Corredor, hall e
+ * salao nao tem mobilia propria: so aceitam peca `comum`.
+ */
+const TIPO_DE_COMODO = {
+  quarto: 'quarto',
+  cozinha: 'cozinha',
+  banheiro: 'banheiro',
+  sala: 'sala',
+  corredor: 'comum',
+  hall: 'comum',
+  salao: 'comum',
+};
+
+/**
+ * Mobilia do interior de SALAO UNICO — hoje so `casa_1`, a casinha do
+ * protagonista, que segue com a planta original (16x12, um comodo so) e sistema
+ * proprio. As outras cinco casas passaram a ter varios comodos e levam a
+ * mobilia dentro da propria planta, em `PLANTAS_CASA`.
+ *
+ * `tx`/`ty` sao o tile do canto esquerdo-INFERIOR da peca, como no comercio.
  *
  * Restricoes que a conferencia embaixo cobra: nao encostar na cama (2,2)-(2,3),
  * deixar a coluna da porta (x=8) livre de cima a baixo, nao ocupar (8,8) — e
  * onde o NPC dono da casa nasce (ver `posicaoInicial` em npcs.ts) — e nenhuma
  * peca sobrepor outra.
- *
- * casa_2 e casa_3 tem dono: Edu (contratado remoto) fica com a mesa gamer, Mari
- * com a penteadeira e as plantas. As outras quatro variam so por estilo.
  */
 const MOBILIA_CASA = {
   // sala neutra: sofa, mesa de centro e TV
@@ -1709,109 +2374,435 @@ const MOBILIA_CASA = {
     { movel: 'planta_alta', tx: 13, ty: 9 },
     { movel: 'velas', tx: 14, ty: 10 },
   ],
-
-  // Edu: home office, poster de galaxia, violao no canto
-  casa_2: [
-    { movel: 'quadro_folha', tx: 2, ty: 1 },
-    { movel: 'relogio_parede', tx: 8, ty: 1 },
-    { movel: 'poster_galaxia', tx: 10, ty: 1 },
-    { movel: 'guarda_roupa_espelho', tx: 3, ty: 2 },
-    { movel: 'estante_potes', tx: 12, ty: 2 },
-    { movel: 'mesa_gamer', tx: 5, ty: 3 },
-    { movel: 'violao', tx: 1, ty: 5 },
-    { movel: 'sofa_azul_l', tx: 10, ty: 6 },
-    { movel: 'planta_grande', tx: 1, ty: 7 },
-    { movel: 'tapete_cinza', tx: 4, ty: 7 },
-    { movel: 'mesa_centro_escura', tx: 5, ty: 7 },
-    { movel: 'poltrona_marinho', tx: 3, ty: 9 },
-    { movel: 'caminha_pet', tx: 6, ty: 9 },
-    { movel: 'lampada_tripe_v2', tx: 11, ty: 9 },
-    { movel: 'cesto_vime', tx: 13, ty: 10 },
-  ],
-
-  // Mari: quarto claro, penteadeira iluminada e muita planta
-  casa_3: [
-    { movel: 'relogio_v2', tx: 2, ty: 1 },
-    { movel: 'quadro_folha', tx: 8, ty: 1 },
-    { movel: 'quadro_paisagem', tx: 10, ty: 1 },
-    { movel: 'penteadeira_luzes', tx: 4, ty: 2 },
-    { movel: 'comoda', tx: 6, ty: 2 },
-    { movel: 'guarda_roupa_branco', tx: 12, ty: 2 },
-    { movel: 'cabeceira_abajur', tx: 3, ty: 4 },
-    { movel: 'vaso_flores', tx: 10, ty: 4 },
-    { movel: 'sofa_creme', tx: 4, ty: 5 },
-    { movel: 'poltrona_branca', tx: 12, ty: 6 },
-    { movel: 'tapete_rosa', tx: 4, ty: 7 },
-    { movel: 'mesa_centro_madeira', tx: 5, ty: 7 },
-    { movel: 'puff_verde', tx: 10, ty: 8 },
-    { movel: 'vaso_rosa', tx: 1, ty: 9 },
-    { movel: 'planta_alta', tx: 13, ty: 9 },
-  ],
-
-  // sala de jantar de madeira
-  casa_4: [
-    { movel: 'quadro_folha', tx: 2, ty: 1 },
-    { movel: 'prateleira_planta', tx: 6, ty: 1 },
-    { movel: 'relogio_parede', tx: 9, ty: 1 },
-    { movel: 'estante_industrial', tx: 4, ty: 2 },
-    { movel: 'aparador_quadro', tx: 11, ty: 2 },
-    { movel: 'estante_livros', tx: 13, ty: 7 },
-    { movel: 'cesto_vime', tx: 13, ty: 4 },
-    { movel: 'mesa_jantar', tx: 4, ty: 5 },
-    { movel: 'planta_grande', tx: 1, ty: 6 },
-    { movel: 'poltrona_creme', tx: 11, ty: 7 },
-    { movel: 'tapete_marrom', tx: 4, ty: 8 },
-    { movel: 'velas', tx: 2, ty: 9 },
-    { movel: 'otomana', tx: 6, ty: 9 },
-    { movel: 'plantas_duplas', tx: 11, ty: 10 },
-    { movel: 'difusor', tx: 14, ty: 10 },
-  ],
-
-  // quarto minimalista escuro
-  casa_5: [
-    { movel: 'relogio_v2', tx: 1, ty: 1 },
-    { movel: 'poster_galaxia', tx: 7, ty: 1 },
-    { movel: 'quadro_folha', tx: 13, ty: 1 },
-    { movel: 'estante_livros', tx: 9, ty: 2 },
-    { movel: 'guarda_roupa_correr', tx: 4, ty: 3 },
-    { movel: 'comoda_espelho', tx: 11, ty: 3 },
-    { movel: 'vaso_planta', tx: 13, ty: 4 },
-    { movel: 'espelho_alto', tx: 1, ty: 6 },
-    { movel: 'rack_tv', tx: 4, ty: 7 },
-    { movel: 'caminha_pet_v2', tx: 3, ty: 9 },
-    { movel: 'sofa_verde', tx: 10, ty: 9 },
-    { movel: 'lampada_tripe', tx: 1, ty: 10 },
-    { movel: 'mesa_centro_escura', tx: 4, ty: 10 },
-    { movel: 'puff_verde', tx: 6, ty: 10 },
-  ],
-
-  // sala de estar com mesa redonda e duas poltronas
-  casa_6: [
-    { movel: 'prateleira_planta', tx: 6, ty: 1 },
-    { movel: 'quadro_paisagem', tx: 9, ty: 1 },
-    { movel: 'armario_aberto', tx: 3, ty: 2 },
-    { movel: 'estante_plantas', tx: 12, ty: 3 },
-    { movel: 'vaso_flores', tx: 1, ty: 4 },
-    { movel: 'estante_livros_v2', tx: 13, ty: 6 },
-    { movel: 'poltrona_mostarda', tx: 3, ty: 5 },
-    { movel: 'mesa_redonda_preta', tx: 5, ty: 5 },
-    { movel: 'poltrona_marinho', tx: 9, ty: 5 },
-    { movel: 'tapete_cinza', tx: 4, ty: 6 },
-    { movel: 'rack_tv_planta', tx: 11, ty: 8 },
-    { movel: 'puff_verde', tx: 2, ty: 8 },
-    { movel: 'caminha_pet', tx: 6, ty: 9 },
-    { movel: 'cesto_vime', tx: 12, ty: 10 },
-    { movel: 'difusor', tx: 14, ty: 10 },
-  ],
 };
 
-/** Traduz a mobilia de uma casa pro formato de `objetosDeMovel`. */
-function pecasDeMobilia(nome) {
-  const lista = MOBILIA_CASA[nome];
-  if (!lista) throw new Error(`a casa "${nome}" nao tem mobilia em MOBILIA_CASA`);
+// -------------------------------------------------- plantas multi-comodo --
+/**
+ * PLANTA de um interior com varios comodos na MESMA cena. Nao ha transicao de
+ * tela entre comodos: e um mapa so, maior que o salao antigo, com paredes
+ * internas e vaos de passagem.
+ *
+ * Campos, todos em TILES:
+ *
+ * - `largura`/`altura` — o mapa inteiro, incluindo a moldura de parede.
+ * - `porta`            — coluna da porta de SAIDA, na parede de baixo. O
+ *                        jogador nasce um tile acima dela (ver
+ *                        `entradaDoInterior`, espelhado em src/game/mapas.ts).
+ * - `paredes`          — retangulos [x, y, w, h] de parede interna. As
+ *                        horizontais tem 2 tiles de espessura de proposito: com
+ *                        1 tile um guarda-roupa de 2,5 tiles de altura cobre a
+ *                        parede E o comodo de tras, e a peca deixa de ler como
+ *                        "encostada na parede".
+ * - `vaos`             — tiles apagados das paredes internas: sao as passagens.
+ *                        Numa parede de 2 tiles o vao precisa dos DOIS tiles.
+ * - `portasNpc`        — tiles de porta somente-NPC (ver o tile `PORTA_NPC` e
+ *                        src/game/colisao.ts). Nas casas nao ha nenhuma: todos
+ *                        os comodos sao do jogador. Quem usa sao os mistos.
+ * - `comodos`          — nome: [x, y, w, h], so a area util (sem parede). Sai
+ *                        numa camada de objetos `comodos` no tilemap, entao
+ *                        `verificar-mapas` cobra a acessibilidade de cada um sem
+ *                        ter de repetir o layout aqui.
+ * - `privados`         — nomes de comodo que o JOGADOR nao pode alcancar. Vazio
+ *                        nas casas; nos mistos e a moradia do dono.
+ * - `cama`             — tile do TOPO da cama; a base fica um tile abaixo.
+ * - `spawnNpc`         — onde o morador comeca o dia dentro de casa. Espelha
+ *                        `posicaoInicial` em src/game/npcs.ts.
+ * - `mobilia`          — comodo: [{ movel, tx, ty }], so pra agrupar a leitura;
+ *                        o gerador achata tudo numa lista so.
+ *
+ * - `parede`          — estilo de parede interna da casa (ver `ESTILOS_PAREDE`).
+ * - `paredePorComodo`  — comodo que pede parede propria; e o que poe azulejo no
+ *                        banheiro e na cozinha sem mexer no resto.
+ * - `chao`             — tile de piso padrao do interior (nome cru do tileset).
+ * - `pisos`            — comodo: piso proprio (nome logico de `PISOS`). Pintado
+ *                        por cima do `chao`, so na area util do comodo, entao o
+ *                        tile do vao fica com o piso de fundo e le como soleira.
+ *
+ * A mobilia sai TODA de arte dedicada por comodo: cada lista de `mobilia` so
+ * aceita peca da categoria do comodo (ver `CATALOGO_POR_COMODO`), entao a
+ * cozinha tem pia, fogao e geladeira de verdade, e o banheiro tem vaso, box e
+ * gabinete — nao mais mesa de jantar e comoda fazendo as vezes.
+ */
+const PLANTAS_CASA = {
+  // Edu — corredor central de cima a baixo, dois comodos de cada lado. E a
+  // planta mais "apartamento": tudo se alcanca pelo corredor, nenhum comodo
+  // depende de atravessar outro.
+  casa_2: {
+    parede: 'papel_azul',
+    paredePorComodo: { banheiro: 'azulejo_branco', cozinha: 'azulejo_escuro' },
+    chao: 'PISO_MADEIRA_CLARA',
+    pisos: { cozinha: 'xadrez_cozinha', banheiro: 'hexagonal' },
+    largura: 22,
+    altura: 18,
+    porta: 11,
+    cama: { x: 2, y: 2 },
+    spawnNpc: { x: 14, y: 6 },
+    paredes: [
+      [9, 2, 1, 15], // divisa oeste do corredor
+      [12, 2, 1, 15], // divisa leste do corredor
+      [1, 10, 8, 2], // quarto / cozinha
+      [13, 12, 8, 2], // sala / banheiro
+    ],
+    vaos: [[9, 4], [9, 14], [12, 6], [12, 15]],
+    comodos: {
+      quarto: [1, 2, 8, 8],
+      cozinha: [1, 12, 8, 5],
+      corredor: [10, 2, 2, 15],
+      sala: [13, 2, 8, 10],
+      banheiro: [13, 14, 8, 3],
+    },
+    mobilia: {
+      quarto: [
+        { movel: 'criado_mudo', tx: 3, ty: 3 },
+        { movel: 'guarda_roupa', tx: 6, ty: 4 },
+        { movel: 'setup_gamer', tx: 5, ty: 8 },
+        { movel: 'estante_quarto', tx: 1, ty: 8 },
+        { movel: 'poster_galaxia', tx: 7, ty: 6 },
+        { movel: 'abajur_pe', tx: 8, ty: 3 },
+        { movel: 'tapete_quarto', tx: 3, ty: 6 },
+        { movel: 'caminha_pet', tx: 1, ty: 5 },
+        { movel: 'violao', tx: 1, ty: 3 },
+      ],
+      cozinha: [
+        { movel: 'geladeira', tx: 1, ty: 14 },
+        { movel: 'fogao', tx: 3, ty: 14 },
+        { movel: 'pia', tx: 5, ty: 14 },
+        { movel: 'despenseiro', tx: 7, ty: 14 },
+        { movel: 'mesa_de_jantar', tx: 2, ty: 16 },
+        { movel: 'tapete_cozinha', tx: 2, ty: 16 },
+        { movel: 'relogio_cozinha', tx: 1, ty: 12 },
+        { movel: 'quadro_negro', tx: 3, ty: 12 },
+        { movel: 'planta_cozinha', tx: 8, ty: 16 },
+        { movel: 'lixeira', tx: 8, ty: 15 },
+      ],
+      sala: [
+        { movel: 'tv_rack_madeira', tx: 17, ty: 4 },
+        { movel: 'sofa_azul_l', tx: 16, ty: 9 },
+        { movel: 'mesa_centro_escura', tx: 17, ty: 11 },
+        { movel: 'tapete_cinza', tx: 16, ty: 11 },
+        { movel: 'estante_livros_v2', tx: 13, ty: 4 },
+        { movel: 'poltrona_marinho', tx: 13, ty: 8 },
+        { movel: 'quadro_paisagem', tx: 15, ty: 3 },
+        { movel: 'planta_alta', tx: 13, ty: 11 },
+      ],
+      banheiro: [
+        { movel: 'vaso_sanitario', tx: 13, ty: 16 },
+        { movel: 'gabinete_pia', tx: 16, ty: 16 },
+        { movel: 'box_chuveiro', tx: 18, ty: 16 },
+        { movel: 'espelho_banheiro', tx: 13, ty: 14 },
+        { movel: 'toalheiro', tx: 15, ty: 14 },
+        { movel: 'tapete_banheiro', tx: 14, ty: 15 },
+        { movel: 'planta_banheiro', tx: 20, ty: 14 },
+      ],
+    },
+  },
+
+  // Mari — sala larga na frente, ocupando a fachada inteira, e tres comodos
+  // enfileirados no fundo, cada um com vao proprio pra sala. Sem corredor: a
+  // sala E a circulacao.
+  casa_3: {
+    parede: 'reboco_creme',
+    paredePorComodo: { banheiro: 'azulejo_verde', cozinha: 'azulejo_branco' },
+    chao: 'PISO_ESPINHA_MADEIRA',
+    pisos: { cozinha: 'ladrilho_bege', banheiro: 'mosaico_menta' },
+    largura: 22,
+    altura: 18,
+    porta: 11,
+    cama: { x: 2, y: 2 },
+    spawnNpc: { x: 11, y: 14 },
+    paredes: [
+      [1, 10, 20, 2], // fundo / sala
+      [8, 2, 1, 8], // quarto / cozinha
+      [15, 2, 1, 8], // cozinha / banheiro
+    ],
+    vaos: [[4, 10], [4, 11], [11, 10], [11, 11], [18, 10], [18, 11]],
+    comodos: {
+      quarto: [1, 2, 7, 8],
+      cozinha: [9, 2, 6, 8],
+      banheiro: [16, 2, 5, 8],
+      sala: [1, 12, 20, 5],
+    },
+    mobilia: {
+      quarto: [
+        { movel: 'criado_mudo', tx: 3, ty: 3 },
+        { movel: 'penteadeira', tx: 5, ty: 4 },
+        { movel: 'guarda_roupa', tx: 5, ty: 8 },
+        { movel: 'cesto_roupa', tx: 1, ty: 9 },
+        { movel: 'quadro_montanha', tx: 1, ty: 6 },
+        { movel: 'tapete_quarto', tx: 2, ty: 6 },
+        { movel: 'vaso_rosa', tx: 7, ty: 3 },
+      ],
+      cozinha: [
+        { movel: 'geladeira', tx: 9, ty: 3 },
+        { movel: 'fogao', tx: 11, ty: 3 },
+        { movel: 'pia', tx: 13, ty: 2 },
+        { movel: 'mesa_de_jantar', tx: 9, ty: 8 },
+        { movel: 'planta_cozinha', tx: 14, ty: 8 },
+        { movel: 'utensilios', tx: 9, ty: 5 },
+        { movel: 'relogio_cozinha', tx: 13, ty: 5 },
+      ],
+      banheiro: [
+        { movel: 'banheira', tx: 16, ty: 3 },
+        { movel: 'vaso_sanitario', tx: 20, ty: 3 },
+        { movel: 'gabinete_pia', tx: 16, ty: 7 },
+        { movel: 'armario_banheiro', tx: 19, ty: 7 },
+        { movel: 'espelho_banheiro', tx: 16, ty: 5 },
+        { movel: 'tapete_banheiro', tx: 18, ty: 9 },
+        { movel: 'planta_banheiro', tx: 20, ty: 9 },
+      ],
+      sala: [
+        { movel: 'sofa_creme', tx: 2, ty: 13 },
+        { movel: 'mesa_centro_madeira', tx: 5, ty: 14 },
+        { movel: 'tapete_creme', tx: 2, ty: 15 },
+        { movel: 'poltrona_mostarda', tx: 8, ty: 13 },
+        { movel: 'tv_rack_branco', tx: 13, ty: 13 },
+        { movel: 'estante_livros', tx: 19, ty: 16 },
+        { movel: 'planta_grande', tx: 13, ty: 16 },
+        { movel: 'relogio_v2', tx: 1, ty: 12 },
+      ],
+    },
+  },
+
+  // Jaqueline — casa funda, com corredor HORIZONTAL no meio: quarto e cozinha
+  // ao fundo, sala e banheiro na frente. A porta abre direto na sala.
+  casa_4: {
+    parede: 'reboco_bege',
+    paredePorComodo: { banheiro: 'azulejo_branco', cozinha: 'tijolo_claro' },
+    chao: 'PISO_MADEIRA_ESCURA',
+    pisos: { cozinha: 'terracota', banheiro: 'marmore' },
+    largura: 22,
+    altura: 20,
+    porta: 5,
+    cama: { x: 2, y: 2 },
+    spawnNpc: { x: 5, y: 15 },
+    paredes: [
+      [1, 7, 20, 2], // fundo / corredor
+      [1, 11, 20, 2], // corredor / frente
+      [11, 2, 1, 5], // quarto / cozinha
+      [13, 13, 1, 6], // sala / banheiro
+    ],
+    vaos: [[5, 7], [5, 8], [16, 7], [16, 8], [5, 11], [5, 12], [17, 11], [17, 12]],
+    comodos: {
+      quarto: [1, 2, 10, 5],
+      cozinha: [12, 2, 9, 5],
+      corredor: [1, 9, 20, 2],
+      sala: [1, 13, 12, 6],
+      banheiro: [14, 13, 7, 6],
+    },
+    mobilia: {
+      quarto: [
+        { movel: 'criado_mudo', tx: 3, ty: 3 },
+        { movel: 'guarda_roupa', tx: 6, ty: 6 },
+        { movel: 'comoda_quarto', tx: 8, ty: 6 },
+        { movel: 'quadro_montanha', tx: 1, ty: 5 },
+        { movel: 'tapete_quarto', tx: 1, ty: 6 },
+        { movel: 'caminha_pet', tx: 10, ty: 3 },
+        { movel: 'abajur_mesa', tx: 10, ty: 6 },
+      ],
+      cozinha: [
+        { movel: 'geladeira', tx: 12, ty: 3 },
+        { movel: 'fogao', tx: 14, ty: 3 },
+        { movel: 'pia', tx: 16, ty: 3 },
+        { movel: 'cristaleira', tx: 19, ty: 3 },
+        { movel: 'mesa_de_jantar', tx: 12, ty: 6 },
+        { movel: 'tapete_cozinha', tx: 12, ty: 6 },
+        { movel: 'planta_cozinha', tx: 18, ty: 6 },
+        { movel: 'relogio_cozinha', tx: 20, ty: 6 },
+      ],
+      corredor: [{ movel: 'quadros', tx: 10, ty: 10 }],
+      sala: [
+        { movel: 'sofa_azul_l', tx: 1, ty: 14 },
+        { movel: 'mesa_centro_escura', tx: 2, ty: 16 },
+        { movel: 'tapete_marrom', tx: 1, ty: 17 },
+        { movel: 'tv_rack_madeira', tx: 9, ty: 15 },
+        { movel: 'poltrona_branca', tx: 7, ty: 18 },
+        { movel: 'planta_alta', tx: 12, ty: 18 },
+        { movel: 'quadro_paisagem', tx: 6, ty: 14 },
+      ],
+      banheiro: [
+        { movel: 'gabinete_pia', tx: 18, ty: 14 },
+        { movel: 'vaso_sanitario', tx: 20, ty: 16 },
+        { movel: 'box_chuveiro', tx: 14, ty: 17 },
+        { movel: 'toalheiro', tx: 14, ty: 13 },
+        { movel: 'tapete_banheiro', tx: 18, ty: 18 },
+        { movel: 'planta_banheiro', tx: 20, ty: 18 },
+      ],
+    },
+  },
+
+  // Leticia — casa mais estreita, dividida ao meio no sentido vertical: quarto
+  // grande e sala a oeste, cozinha e banheiro a leste. O banheiro so se alcanca
+  // pela sala, e a cozinha so pelo banheiro — planta de casa antiga.
+  casa_5: {
+    parede: 'liso_azul',
+    paredePorComodo: { banheiro: 'azulejo_verde', cozinha: 'azulejo_branco' },
+    chao: 'PISO_MADEIRA_CLARA',
+    pisos: { cozinha: 'azulejo_portugues', banheiro: 'mosaico_azul' },
+    largura: 20,
+    altura: 18,
+    porta: 5,
+    cama: { x: 2, y: 2 },
+    spawnNpc: { x: 5, y: 14 },
+    paredes: [
+      [11, 2, 1, 15], // oeste / leste
+      [1, 10, 10, 2], // quarto / sala
+      [12, 8, 7, 2], // cozinha / banheiro
+    ],
+    vaos: [[7, 10], [7, 11], [11, 13], [15, 8], [15, 9]],
+    comodos: {
+      quarto: [1, 2, 10, 8],
+      sala: [1, 12, 10, 5],
+      cozinha: [12, 2, 7, 6],
+      banheiro: [12, 10, 7, 7],
+    },
+    mobilia: {
+      quarto: [
+        { movel: 'criado_mudo', tx: 3, ty: 3 },
+        { movel: 'guarda_roupa', tx: 5, ty: 4 },
+        { movel: 'comoda_quarto', tx: 9, ty: 4 },
+        { movel: 'escrivaninha', tx: 4, ty: 8 },
+        { movel: 'quadro_montanha', tx: 8, ty: 3 },
+        { movel: 'tapete_quarto', tx: 2, ty: 7 },
+        { movel: 'planta_quarto', tx: 1, ty: 9 },
+        { movel: 'espelho_alto', tx: 10, ty: 8 },
+      ],
+      sala: [
+        { movel: 'sofa_verde', tx: 1, ty: 13 },
+        { movel: 'mesa_centro_madeira', tx: 1, ty: 15 },
+        { movel: 'tapete_cinza', tx: 1, ty: 15 },
+        { movel: 'tv_rack_madeira', tx: 6, ty: 14 },
+        { movel: 'poltrona_creme', tx: 8, ty: 16 },
+        { movel: 'planta_grande', tx: 6, ty: 16 },
+      ],
+      cozinha: [
+        { movel: 'geladeira', tx: 12, ty: 3 },
+        { movel: 'fogao', tx: 14, ty: 3 },
+        { movel: 'pia', tx: 16, ty: 2 },
+        { movel: 'despenseiro', tx: 18, ty: 3 },
+        { movel: 'mesa_de_jantar', tx: 12, ty: 6 },
+        { movel: 'tapete_cozinha', tx: 12, ty: 6 },
+        { movel: 'relogio_cozinha', tx: 18, ty: 7 },
+      ],
+      banheiro: [
+        { movel: 'banheira', tx: 12, ty: 11 },
+        { movel: 'vaso_sanitario', tx: 17, ty: 11 },
+        { movel: 'box_chuveiro', tx: 12, ty: 16 },
+        { movel: 'gabinete_pia', tx: 16, ty: 16 },
+        { movel: 'espelho_banheiro', tx: 16, ty: 14 },
+        { movel: 'tapete_banheiro', tx: 15, ty: 13 },
+        { movel: 'cesto_banheiro', tx: 18, ty: 13 },
+      ],
+    },
+  },
+
+  // Casa vaga — tres faixas verticais com hall de entrada no meio: quarto e
+  // banheiro a oeste, cozinha em cima do hall, e uma sala comprida ocupando a
+  // faixa leste inteira. O quarto so se alcanca pela cozinha.
+  casa_6: {
+    parede: 'liso_sage',
+    paredePorComodo: { banheiro: 'azulejo_branco', cozinha: 'azulejo_verde' },
+    chao: 'PISO_ESPINHA_CLARA',
+    pisos: { cozinha: 'ladrilho_verde', banheiro: 'xadrez_banheiro' },
+    largura: 22,
+    altura: 16,
+    porta: 10,
+    cama: { x: 2, y: 2 },
+    spawnNpc: { x: 16, y: 12 },
+    paredes: [
+      [7, 2, 1, 13], // oeste / centro
+      [13, 2, 1, 13], // centro / sala
+      [1, 8, 6, 2], // quarto / banheiro
+      [8, 9, 5, 2], // cozinha / hall
+    ],
+    vaos: [[7, 4], [7, 12], [10, 9], [10, 10], [13, 12]],
+    comodos: {
+      quarto: [1, 2, 6, 6],
+      banheiro: [1, 10, 6, 5],
+      cozinha: [8, 2, 5, 7],
+      hall: [8, 11, 5, 4],
+      sala: [14, 2, 7, 13],
+    },
+    mobilia: {
+      quarto: [
+        { movel: 'criado_mudo', tx: 3, ty: 3 },
+        { movel: 'guarda_roupa', tx: 5, ty: 7 },
+        { movel: 'quadrinho', tx: 1, ty: 6 },
+        { movel: 'bau', tx: 1, ty: 7 },
+        { movel: 'tapete_quarto', tx: 3, ty: 6 },
+        { movel: 'planta_quarto', tx: 6, ty: 3 },
+      ],
+      banheiro: [
+        { movel: 'vaso_sanitario', tx: 1, ty: 12 },
+        { movel: 'gabinete_pia', tx: 3, ty: 10 },
+        { movel: 'box_chuveiro', tx: 1, ty: 14 },
+        { movel: 'espelho_banheiro', tx: 3, ty: 12 },
+        { movel: 'toalheiro', tx: 5, ty: 10 },
+        { movel: 'tapete_banheiro', tx: 5, ty: 14 },
+      ],
+      cozinha: [
+        { movel: 'geladeira', tx: 8, ty: 3 },
+        { movel: 'fogao', tx: 10, ty: 3 },
+        { movel: 'pia', tx: 11, ty: 5 },
+        { movel: 'ilha', tx: 8, ty: 7 },
+        { movel: 'despenseiro', tx: 12, ty: 8 },
+        { movel: 'tapete_cozinha', tx: 8, ty: 8 },
+        { movel: 'relogio_cozinha', tx: 12, ty: 6 },
+      ],
+      hall: [
+        { movel: 'prateleira_planta', tx: 8, ty: 11 },
+        { movel: 'vaso_planta', tx: 12, ty: 14 },
+      ],
+      sala: [
+        { movel: 'sofa_lilas', tx: 15, ty: 4 },
+        { movel: 'mesa_centro_escura', tx: 15, ty: 6 },
+        { movel: 'tapete_creme', tx: 15, ty: 7 },
+        { movel: 'tv_rack_largo', tx: 15, ty: 9 },
+        { movel: 'estante_livros', tx: 19, ty: 4 },
+        { movel: 'poltrona_mostarda', tx: 19, ty: 8 },
+        { movel: 'planta_alta', tx: 14, ty: 14 },
+        { movel: 'relogio_v2', tx: 17, ty: 2 },
+        { movel: 'quadro_paisagem', tx: 19, ty: 13 },
+      ],
+    },
+  },
+};
+
+/** A planta de um interior multi-comodo; erra alto se a casa nao tiver uma. */
+function planta(nome) {
+  const p = PLANTAS_CASA[nome] ?? PLANTAS_MISTO[nome];
+  if (!p) throw new Error(`"${nome}" nao tem planta em PLANTAS_CASA nem em PLANTAS_MISTO`);
+  return p;
+}
+
+/** Toda a mobilia de uma planta, achatada e com o comodo de origem no rotulo. */
+function mobiliaDaPlanta(p) {
+  return Object.entries(p.mobilia ?? {}).flatMap(([comodo, lista]) =>
+    lista.map((m) => ({ ...m, comodo })),
+  );
+}
+
+/**
+ * Traduz uma lista de `{ movel, tx, ty }` do catalogo `MOVEIS_CASA` pro formato
+ * de `objetosDeMovel`. `comodo` sobrevive a traducao so pra mensagem de erro
+ * da conferencia dizer em que comodo a peca esta.
+ */
+function pecasDeCatalogo(rotulo, lista) {
   return lista.map((m) => {
     const def = MOVEIS_CASA[m.movel];
-    if (!def) throw new Error(`"${nome}": movel "${m.movel}" nao existe em MOVEIS_CASA`);
+    if (!def) throw new Error(`"${rotulo}": movel "${m.movel}" nao existe em MOVEIS_CASA`);
+    // O comodo so recebe peca da propria categoria (mais as `comum`). E o que
+    // impede a mobilia generica de voltar a se espalhar por todo comodo: sem
+    // isto, pousar uma comoda no banheiro passaria batido.
+    if (m.comodo) {
+      const tipo = TIPO_DE_COMODO[m.comodo.replace(/_\d+$/, '')];
+      if (!tipo) throw new Error(`"${rotulo}": comodo "${m.comodo}" nao tem tipo em TIPO_DE_COMODO`);
+      if (def.comodo !== 'comum' && def.comodo !== tipo) {
+        throw new Error(
+          `"${rotulo}": "${m.movel}" e peca de ${def.comodo} e esta no comodo "${m.comodo}"` +
+            ` (tipo ${tipo})`,
+        );
+      }
+    }
     return {
       folha: def.folha,
       peca: def.peca,
@@ -1820,8 +2811,32 @@ function pecasDeMobilia(nome) {
       colide: def.solido,
       chao: def.chao === true,
       escala: def.escala ?? 1,
+      comodo: m.comodo,
+      movel: m.movel,
     };
   });
+}
+
+/** Traduz a mobilia de um interior de salao unico (hoje so casa_1). */
+function pecasDeMobilia(nome) {
+  const lista = MOBILIA_CASA[nome];
+  if (!lista) throw new Error(`a casa "${nome}" nao tem mobilia em MOBILIA_CASA`);
+  return pecasDeCatalogo(nome, lista);
+}
+
+/**
+ * Traduz a mobilia de uma planta multi-comodo. Sao duas fontes: `mobilia` vem
+ * do catalogo `MOVEIS_CASA` (as folhas genericas de sala e quarto) e
+ * `mobiliaFolha` vem direto de uma folha dedicada, pelo par [linha, indice] —
+ * e o que os mistos usam na area publica (`Moveis_farmacia_bar.png`).
+ */
+function pecasDaPlanta(nome) {
+  const p = planta(nome);
+  const doCatalogo = pecasDeCatalogo(nome, mobiliaDaPlanta(p));
+  const daFolha = Object.entries(p.mobiliaFolha ?? {}).flatMap(([comodo, lista]) =>
+    lista.map((m) => ({ folha: p.folha, comodo, ...m })),
+  );
+  return [...doCatalogo, ...daFolha];
 }
 
 /**
@@ -1871,6 +2886,281 @@ function gerarInteriorCasa(nome, ts) {
   };
 }
 
+// --------------------------------------------------- portas entre comodos --
+/**
+ * Que cor de porta cada comodo pede. A arte traz o pictograma junto, entao isto
+ * decide tambem qual placa aparece na folha. A ORDEM importa: um vao faz divisa
+ * com dois comodos, e ganha o mais especifico dos dois — banheiro na frente de
+ * cozinha, cozinha na frente de quarto, e sala/corredor/hall/salao no fim, que
+ * levam a porta de madeira neutra.
+ */
+const PORTA_DO_COMODO = [
+  ['banheiro', 'claro'],
+  ['cozinha', 'verde'],
+  ['quarto', 'madeira'],
+];
+const PORTA_DE_VAO_PADRAO = 'madeira';
+
+/**
+ * Agrupa `vaos` em PASSAGENS: tiles de vao colados formam um vao so.
+ *
+ * Uma passagem de 1 tile e um vao em parede fina; uma de 2 tiles empilhados e o
+ * vao numa parede horizontal, que tem 2 tiles de espessura de proposito (ver
+ * `PLANTAS_CASA`). Qualquer outro formato erra alto em vez de sair sem porta:
+ * seria uma passagem que a arte de porta ainda nao sabe cobrir.
+ */
+function passagensDaPlanta(p) {
+  const pendentes = new Set((p.vaos ?? []).map(([x, y]) => `${x},${y}`));
+  const passagens = [];
+  for (const [x, y] of p.vaos ?? []) {
+    if (!pendentes.has(`${x},${y}`)) continue;
+    const grupo = [];
+    const fila = [[x, y]];
+    pendentes.delete(`${x},${y}`);
+    while (fila.length) {
+      const [a, b] = fila.pop();
+      grupo.push([a, b]);
+      for (const [dx, dy] of [
+        [0, -1],
+        [0, 1],
+        [-1, 0],
+        [1, 0],
+      ]) {
+        const k = `${a + dx},${b + dy}`;
+        if (!pendentes.has(k)) continue;
+        pendentes.delete(k);
+        fila.push([a + dx, b + dy]);
+      }
+    }
+    grupo.sort((u, v) => u[1] - v[1] || u[0] - v[0]);
+    const empilhados =
+      grupo.length === 2 && grupo[0][0] === grupo[1][0] && grupo[1][1] === grupo[0][1] + 1;
+    if (grupo.length !== 1 && !empilhados) {
+      throw new Error(
+        `vao de formato inesperado (${grupo.map((g) => g.join(',')).join(' ')}): a porta interna ` +
+          `so sabe cobrir vao de 1 tile ou de 2 empilhados`,
+      );
+    }
+    passagens.push(grupo);
+  }
+  return passagens;
+}
+
+/**
+ * Os tiles de porta de cada passagem da planta: `[x, y, gid]`.
+ *
+ * A porta e SO arte. Ela nao entra na geometria que `conferirInterior` usa (que
+ * sai de `paredes`/`vaos`), o tile nao colide e nao ha interacao de abrir nem
+ * fechar — o jogador atravessa o vao exatamente como atravessava antes de haver
+ * porta nenhuma. Derivar a lista dos proprios `vaos`, em vez de repetir as
+ * coordenadas a mao, e o que garante isso: a porta nao tem como cair fora da
+ * passagem nem sobrar uma passagem sem porta.
+ */
+function portasDeVao(p) {
+  const comodoEm = new Map();
+  for (const [nome, [x, y, w, h]] of Object.entries(p.comodos ?? {})) {
+    for (let j = y; j < y + h; j++) {
+      for (let i = x; i < x + w; i++) comodoEm.set(`${i},${j}`, nome);
+    }
+  }
+  /** Comodos que a passagem liga, na vizinhanca de todos os tiles dela. */
+  const vizinhos = (grupo) => {
+    const nomes = new Set();
+    for (const [x, y] of grupo) {
+      for (const [dx, dy] of [
+        [0, -1],
+        [0, 1],
+        [-1, 0],
+        [1, 0],
+      ]) {
+        const c = comodoEm.get(`${x + dx},${y + dy}`);
+        if (c) nomes.add(c);
+      }
+    }
+    return nomes;
+  };
+
+  const saida = [];
+  for (const grupo of passagensDaPlanta(p)) {
+    const ligados = vizinhos(grupo);
+    const cor =
+      PORTA_DO_COMODO.find(([comodo]) =>
+        [...ligados].some((n) => n === comodo || n.startsWith(`${comodo}_`)),
+      )?.[1] ?? PORTA_DE_VAO_PADRAO;
+    if (grupo.length === 1) {
+      saida.push([grupo[0][0], grupo[0][1], GID[`PORTA_INT_${cor}`]]);
+    } else {
+      saida.push([grupo[0][0], grupo[0][1], GID[`PORTA_INT_${cor}_TOPO`]]);
+      saida.push([grupo[1][0], grupo[1][1], GID[`PORTA_INT_${cor}_BASE`]]);
+    }
+  }
+  return saida;
+}
+
+// ------------------------------------------------- acabamento de parede --
+/**
+ * Gids que ocupam a linha da parede sem SER parede opaca: a saida, a porta
+ * somente-NPC e as portas internas. Pra decidir o relevo eles contam como
+ * parede — o fio de luz e a sombra sao da alvenaria, e a arte da porta ja traz
+ * o proprio batente.
+ */
+function gidsDaLinhaDeParede() {
+  return new Set(
+    TILES.filter((t) => t.nome === 'PORTA' || t.nome === 'PORTA_NPC' || t.paredeInterna).map(
+      (t) => GID[t.nome],
+    ),
+  );
+}
+
+/**
+ * De que estilo e a parede em cada tile.
+ *
+ * O padrao e o estilo da planta (`parede`); um comodo pode pedir o proprio em
+ * `paredePorComodo`, que e o que poe azulejo no banheiro e na cozinha sem
+ * mexer no resto da casa. A regra de desempate, pra um tile que faz divisa com
+ * dois comodos, e: vizinho COM estilo proprio ganha de vizinho sem, e vizinho
+ * colado ganha de vizinho a dois tiles (parede horizontal tem 2 de espessura,
+ * entao o tile de tras so alcanca o comodo pulando um).
+ */
+function estiloDeParedeDoTile(p) {
+  const padrao = p.parede ?? 'reboco_creme';
+  const proprio = p.paredePorComodo ?? {};
+  const comodoEm = new Map();
+  for (const [nome, [x, y, w, h]] of Object.entries(p.comodos ?? {})) {
+    for (let j = y; j < y + h; j++) {
+      for (let i = x; i < x + w; i++) comodoEm.set(`${i},${j}`, nome);
+    }
+  }
+  const colados = [
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
+  ];
+  const doisTiles = colados.map(([dx, dy]) => [dx * 2, dy * 2]);
+  return (x, y) => {
+    for (const grupo of [colados, doisTiles]) {
+      for (const [dx, dy] of grupo) {
+        const c = comodoEm.get(`${x + dx},${y + dy}`);
+        if (c && proprio[c]) return proprio[c];
+      }
+      for (const [dx, dy] of grupo) {
+        if (comodoEm.has(`${x + dx},${y + dy}`)) return padrao;
+      }
+    }
+    return padrao;
+  };
+}
+
+/**
+ * Segunda passada na camada `objetos`: troca cada tile de parede generico pela
+ * variante de arte + relevo que a vizinhanca pede (ver `relevoDeParede`).
+ *
+ * A parede e pintada antes com um gid marcador (`GID.PAREDE`), o que deixa a
+ * planta falando so de geometria; a arte entra aqui, depois de os vaos e as
+ * portas ja estarem no lugar. Fora do mapa conta como parede, entao a moldura
+ * so ganha relevo na face que de fato da pro comodo.
+ */
+function acabarParedes(obj, W, H, estiloEm) {
+  const naLinha = gidsDaLinhaDeParede();
+  const ehParede = (x, y) => {
+    if (x < 0 || y < 0 || x >= W || y >= H) return true;
+    const g = obj.get(x, y);
+    return g === GID.PAREDE || naLinha.has(g);
+  };
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (obj.get(x, y) !== GID.PAREDE) continue;
+      const base = !ehParede(x, y + 1);
+      const topo = !ehParede(x, y - 1);
+      const variante = base && topo ? 'UNICA' : base ? 'BASE' : topo ? 'TOPO' : 'CORPO';
+      const estilo = estiloEm(x, y);
+      const gid = GID[`PAREDE_${estilo}_${variante}`];
+      if (!gid) throw new Error(`nao existe tile PAREDE_${estilo}_${variante}`);
+      obj.set(x, y, gid);
+    }
+  }
+}
+
+// -------------------------------------------- interior de varios comodos --
+/**
+ * Interior MULTI-COMODO: um mapa so, com paredes internas e vaos, a partir de
+ * uma planta (ver `PLANTAS_CASA` / `PLANTAS_MISTO`). Nao ha transicao de tela
+ * entre comodos — o jogador anda de um pro outro como anda pela sala.
+ *
+ * O que sai no tilemap, alem das camadas de sempre, e uma camada de objetos
+ * `comodos`: um retangulo por comodo, com a propriedade `privado`. E dela que
+ * `verificar-mapas` tira o que o jogador tem de alcancar e o que ele nao pode
+ * alcancar, sem precisar repetir o layout do lado de la.
+ */
+function gerarInteriorPlanta(nome, ts) {
+  const p = planta(nome);
+  const { largura: W, altura: H } = p;
+  const c = construcao(nome);
+
+  const chao = new Grade(W, H, GID[p.chao ?? 'MADEIRA']);
+  for (const [x, y, w, h, material] of p.faixasDeChao ?? []) chao.rect(x, y, w, h, GID[material]);
+  // piso POR COMODO: o retangulo de cada comodo pega a textura que a planta
+  // pediu. Vale pra area util; o tile do vao fica com o piso de fundo, que e o
+  // que faz ele ler como soleira entre um comodo e o outro.
+  for (const [comodo, piso] of Object.entries(p.pisos ?? {})) {
+    const ret = p.comodos?.[comodo];
+    if (!ret) throw new Error(`"${nome}": piso pedido pro comodo "${comodo}", que nao existe`);
+    chao.rect(ret[0], ret[1], ret[2], ret[3], gidDePiso(piso));
+  }
+
+  const obj = new Grade(W, H);
+  obj.moldura(GID.PAREDE);
+  obj.rect(0, 0, W, PAREDE_TOPO, GID.PAREDE);
+  for (const [x, y, w, h] of p.paredes) obj.rect(x, y, w, h, GID.PAREDE);
+  for (const [x, y] of p.vaos) obj.set(x, y, 0);
+  // depois dos vaos: a porta somente-NPC e parede pro jogador, entao ela nao
+  // pode ser apagada por engano se cair num vao
+  for (const [x, y] of p.portasNpc ?? []) obj.set(x, y, GID.PORTA_NPC);
+  obj.set(p.porta, H - 1, GID.PORTA); // saida (nao colide)
+  // arte por cima da geometria: primeiro a porta de cada vao, depois o relevo
+  // da alvenaria — que precisa das portas ja postas pra nao tratar o vao como
+  // chao e sombrear a parede no meio do batente
+  for (const [x, y, gid] of portasDeVao(p)) obj.set(x, y, gid);
+  acabarParedes(obj, W, H, estiloDeParedeDoTile(p));
+
+  obj.set(p.cama.x, p.cama.y, GID.CAMA_QUARTO_TOPO);
+  obj.set(p.cama.x, p.cama.y + 1, GID.CAMA_QUARTO_BASE);
+
+  const interativos = [
+    objeto('porta_saida', 'porta', p.porta, H - 1, {
+      destino: 'farm',
+      destinoTx: c.frente.x,
+      destinoTy: c.frente.y,
+      rotulo: 'Sair',
+    }),
+    objeto(`cama_${nome}`, 'cama', p.cama.x, p.cama.y + 1),
+  ];
+
+  const privados = new Set(p.privados ?? []);
+  const comodos = Object.entries(p.comodos).map(([comodo, [x, y, w, h]]) =>
+    objeto(comodo, 'comodo', x, y, { privado: privados.has(comodo) }, w, h),
+  );
+
+  const moveis = objetosDeMovel(nome, pecasDaPlanta(nome), p.folha);
+
+  return {
+    mapa: montarMapa(
+      W,
+      H,
+      [
+        camadaTiles('chao', 1, chao),
+        camadaTiles('objetos', 2, obj),
+        camadaObjetos('interativos', 3, interativos),
+        camadaObjetos('moveis', 4, moveis),
+        camadaObjetos('comodos', 5, comodos),
+      ],
+      ts,
+    ),
+    moveis: moveis.length,
+  };
+}
+
 // ------------------------------------------------- interiores comerciais --
 /**
  * Interior de comercio: sala aberta, chao de ladrilho, moveis encostados nas
@@ -1881,17 +3171,20 @@ function gerarInteriorCasa(nome, ts) {
  * `pecas` e uma lista de { peca: [linha, indice], tx, ty, colide }. `tx`/`ty`
  * sao o tile do RODAPE do movel (como a flora), entao ele cresce pra cima.
  */
-function gerarInteriorComercio(nome, chaveUtensilio, tamanho, pecas, ts) {
+function gerarInteriorComercio(salao, ts) {
+  const { nome, tamanho, pecas, folha } = salao;
   const c = construcao(nome);
   const { largura: W, altura: H } = tamanho;
-  const chao = new Grade(W, H, GID.PISO);
+  const chao = new Grade(W, H, gidDePiso(salao.piso));
   const obj = new Grade(W, H);
 
   obj.moldura(GID.PAREDE);
   const portaX = Math.floor(W / 2);
   obj.set(portaX, H - 1, GID.PORTA);
+  // salao e um comodo so: o estilo de parede do ramo vale pro perimetro inteiro
+  acabarParedes(obj, W, H, () => salao.parede);
 
-  const moveis = objetosDeMovel(nome, pecas, chaveUtensilio);
+  const moveis = objetosDeMovel(nome, pecas, folha);
 
   const interativos = [
     objeto('porta_saida', 'porta', portaX, H - 1, {
@@ -1971,14 +3264,21 @@ const ACADEMIA_PECAS = [
 
 // ------------------------------------------------------ sanidade: interior --
 /**
- * Confere um interior antes de escrever o JSON. Cobra tres coisas:
+ * Confere um interior antes de escrever o JSON. Cobra quatro coisas:
  *
  * 1. toda peca cabe na sala (base fora da parede de baixo, nada saindo do mapa);
  * 2. duas pecas nao dividem tile de base — com uma excecao de proposito: peca
  *    marcada `chao` (tapete) e uma camada abaixo, entao movel em cima de tapete
  *    e o resultado desejado, nao colisao de layout;
- * 3. todo tile livre continua alcancavel a partir da frente da porta, e os
- *    tiles exigidos (a cama, o spawn do NPC) entre eles.
+ * 3. acesso do NPC: todo tile livre e alcancavel a partir da frente da porta,
+ *    atravessando as portas somente-NPC;
+ * 4. acesso do JOGADOR: idem, mas com as portas somente-NPC fechadas — e ai todo
+ *    tile livre FORA de comodo privado tem de continuar alcancavel, e nenhum
+ *    tile de `proibirJogador` pode estar.
+ *
+ * Sao literalmente dois flood-fills sobre a mesma grade, com a unica diferenca
+ * de como cada um trata a porta somente-NPC — que e o contrato descrito em
+ * src/game/colisao.ts.
  *
  * A rasterizacao do corpo e conservadora: qualquer sobreposicao com o tile ja
  * conta como bloqueio. Se o flood-fill reprovar por causa de uma lasquinha, o
@@ -1986,7 +3286,18 @@ const ACADEMIA_PECAS = [
  */
 function conferirInterior(rotulo, tamanho, pecas, folhaPadrao, extras) {
   const { largura: W, altura: H } = tamanho;
-  const { bloqueados = [], exigirLivres = [], portaX, paredeTopo = 1 } = extras;
+  const {
+    bloqueados = [],
+    exigirLivres = [],
+    exigirComodos = [],
+    proibirJogador = [],
+    paredes = [],
+    vaos = [],
+    portasNpc = [],
+    privados = [],
+    portaX,
+    paredeTopo = 1,
+  } = extras;
 
   const tilesDoRet = (r) => {
     const lista = [];
@@ -1998,71 +3309,103 @@ function conferirInterior(rotulo, tamanho, pecas, folhaPadrao, extras) {
 
   // --- 1 e 2: geometria das pecas
   const baseOcupada = new Map(); // tile da base -> indice da peca que o tomou
+  const ondeFica = (i) => {
+    const p = pecas[i];
+    return p.comodo ? `${p.movel ?? p.peca} no ${p.comodo}` : `[${p.peca}]`;
+  };
   pecas.forEach((p, i) => {
     const chave = p.folha ?? folhaPadrao;
     const { w, h } = tamanhoDeMovel(chave, p.peca, p.escala);
     const visual = { x0: p.tx, x1: p.tx + w, y0: p.ty + 1 - h, y1: p.ty + 1 };
     if (visual.x0 < 0 || visual.x1 > W || visual.y0 < 0) {
-      throw new Error(`${rotulo}: movel ${i} [${p.peca}] sai do mapa (${JSON.stringify(visual)})`);
+      throw new Error(
+        `${rotulo}: movel ${i} (${ondeFica(i)}) sai do mapa (${JSON.stringify(visual)})`,
+      );
     }
     if (visual.y1 > H - 1) {
-      throw new Error(`${rotulo}: movel ${i} [${p.peca}] tem a base na parede de baixo`);
+      throw new Error(`${rotulo}: movel ${i} (${ondeFica(i)}) tem a base na parede de baixo`);
     }
     if (visual.y1 < paredeTopo) {
-      throw new Error(`${rotulo}: movel ${i} [${p.peca}] tem a base dentro da parede de cima`);
+      throw new Error(`${rotulo}: movel ${i} (${ondeFica(i)}) tem a base dentro da parede de cima`);
     }
     if (p.chao) return; // tapete e camada de chao: pode ter movel em cima
     for (const [x, y] of tilesDoRet(corpoDeMovel(p, folhaPadrao))) {
       const antes = baseOcupada.get(`${x},${y}`);
       if (antes !== undefined) {
         throw new Error(
-          `${rotulo}: movel ${i} [${p.peca}] divide o tile ${x},${y} com o movel ${antes}`,
+          `${rotulo}: movel ${i} (${ondeFica(i)}) divide o tile ${x},${y} com o movel ` +
+            `${antes} (${ondeFica(antes)})`,
         );
       }
       baseOcupada.set(`${x},${y}`, i);
     }
   });
 
-  // --- 3: acesso
+  // --- 3 e 4: acesso. `bloq` e a grade do JOGADOR e `bloqNpc` a do NPC; a
+  // unica diferenca entre as duas e a porta somente-NPC.
   const bloq = new Grade(W, H, 0);
   bloq.moldura(1);
   bloq.rect(0, 0, W, paredeTopo, 1);
+  for (const [x, y, w, h] of paredes) bloq.rect(x, y, w, h, 1);
+  for (const [x, y] of vaos) bloq.set(x, y, 0);
+  for (const [x, y] of portasNpc) bloq.set(x, y, 1);
   for (const [x, y] of bloqueados) bloq.set(x, y, 1);
   for (const p of pecas) {
     if (p.colide === false) continue;
     for (const [x, y] of tilesDoRet(corpoDeMovel(p, folhaPadrao))) bloq.set(x, y, 1);
+  }
+  const bloqNpc = new Grade(W, H, 0);
+  bloqNpc.px = [...bloq.px];
+  for (const [x, y] of portasNpc) {
+    if (!bloq.get(x, y)) throw new Error(`${rotulo}: a porta somente-NPC (${x},${y}) nao bloqueia`);
+    bloqNpc.set(x, y, 0);
   }
 
   const inicio = [portaX, H - 2];
   if (bloq.get(...inicio)) {
     throw new Error(`${rotulo}: a frente da porta (${inicio}) esta bloqueada por movel`);
   }
-  const visto = new Set([`${inicio[0]},${inicio[1]}`]);
-  const fila = [inicio];
-  while (fila.length) {
-    const [x, y] = fila.pop();
-    for (const [dx, dy] of [
-      [0, -1],
-      [1, 0],
-      [0, 1],
-      [-1, 0],
-    ]) {
-      const a = x + dx;
-      const b = y + dy;
-      const k = `${a},${b}`;
-      if (!bloq.dentro(a, b) || visto.has(k) || bloq.get(a, b)) continue;
-      visto.add(k);
-      fila.push([a, b]);
+  const alcance = (grade) => {
+    const visto = new Set([`${inicio[0]},${inicio[1]}`]);
+    const fila = [inicio];
+    while (fila.length) {
+      const [x, y] = fila.pop();
+      for (const [dx, dy] of [
+        [0, -1],
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+      ]) {
+        const a = x + dx;
+        const b = y + dy;
+        const k = `${a},${b}`;
+        if (!grade.dentro(a, b) || visto.has(k) || grade.get(a, b)) continue;
+        visto.add(k);
+        fila.push([a, b]);
+      }
     }
+    return visto;
+  };
+  const vistoNpc = alcance(bloqNpc);
+  const vistoJogador = alcance(bloq);
+
+  // area privada: os tiles que o jogador NAO precisa alcancar (e, mais abaixo,
+  // nao pode). Vem dos comodos marcados `privado` na planta.
+  const privado = new Set();
+  for (const [x0, y0, w, h] of privados) {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) privado.add(`${x},${y}`);
   }
 
   let livres = 0;
   const ilhados = [];
+  const semJogador = [];
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (bloq.get(x, y)) continue;
+      if (bloqNpc.get(x, y)) continue;
       livres++;
-      if (!visto.has(`${x},${y}`)) ilhados.push(`${x},${y}`);
+      const k = `${x},${y}`;
+      if (!vistoNpc.has(k)) ilhados.push(k);
+      else if (!privado.has(k) && !bloq.get(x, y) && !vistoJogador.has(k)) semJogador.push(k);
     }
   }
   if (ilhados.length) {
@@ -2071,13 +3414,57 @@ function conferirInterior(rotulo, tamanho, pecas, folhaPadrao, extras) {
         ilhados.slice(0, 8).join(' '),
     );
   }
-  for (const [x, y, oque] of exigirLivres) {
-    if (bloq.get(x, y)) throw new Error(`${rotulo}: ${oque} (${x},${y}) ficou bloqueado por movel`);
-    if (!visto.has(`${x},${y}`)) throw new Error(`${rotulo}: ${oque} (${x},${y}) ficou sem acesso`);
+  if (semJogador.length) {
+    throw new Error(
+      `${rotulo}: ${semJogador.length} tile(s) fora de comodo privado que o jogador nao ` +
+        `alcanca: ${semJogador.slice(0, 8).join(' ')}`,
+    );
+  }
+  // um comodo esta OK quando pelo menos um tile dele e livre e alcancavel: e o
+  // que prova que da pra entrar nele. Que TODO tile livre seja alcancavel ja e
+  // cobrado acima, entao nao ha ganho em escolher um tile especifico aqui —
+  // so o risco de escolher justo o que o guarda-roupa ocupa.
+  for (const [x0, y0, w, h, comodo, quem = 'jogador'] of exigirComodos) {
+    const grade = quem === 'npc' ? bloqNpc : bloq;
+    const visto = quem === 'npc' ? vistoNpc : vistoJogador;
+    let ok = false;
+    for (let y = y0; y < y0 + h && !ok; y++) {
+      for (let x = x0; x < x0 + w; x++) {
+        if (!grade.get(x, y) && visto.has(`${x},${y}`)) {
+          ok = true;
+          break;
+        }
+      }
+    }
+    if (!ok) {
+      throw new Error(
+        `${rotulo}: o comodo "${comodo}" (${x0},${y0} ${w}x${h}) nao tem nenhum tile ` +
+          `livre alcancavel pelo ${quem}`,
+      );
+    }
+  }
+  for (const [x, y, oque, quem = 'jogador'] of exigirLivres) {
+    const grade = quem === 'npc' ? bloqNpc : bloq;
+    const visto = quem === 'npc' ? vistoNpc : vistoJogador;
+    if (grade.get(x, y)) throw new Error(`${rotulo}: ${oque} (${x},${y}) ficou bloqueado`);
+    if (!visto.has(`${x},${y}`)) {
+      throw new Error(`${rotulo}: ${oque} (${x},${y}) ficou sem acesso para o ${quem}`);
+    }
+  }
+  for (const [x, y, oque] of proibirJogador) {
+    if (vistoJogador.has(`${x},${y}`)) {
+      throw new Error(`${rotulo}: o jogador alcanca ${oque} (${x},${y}), que deveria ser privado`);
+    }
   }
 
   const solidos = pecas.filter((p) => p.colide !== false).length;
-  return { livres, alcancaveis: visto.size, solidos, decorativos: pecas.length - solidos };
+  return {
+    livres,
+    alcancaveis: vistoJogador.size,
+    alcancaveisNpc: vistoNpc.size,
+    solidos,
+    decorativos: pecas.length - solidos,
+  };
 }
 
 /**
@@ -2088,8 +3475,22 @@ function conferirInterior(rotulo, tamanho, pecas, folhaPadrao, extras) {
  * cima dela, o que trancaria o jogador do lado de fora.
  */
 const SALOES = () => [
-  { nome: 'mercado', tamanho: MERCADO_INTERIOR, pecas: MERCADO_PECAS, folha: 'mercado' },
-  { nome: 'academia', tamanho: ACADEMIA_INTERIOR, pecas: ACADEMIA_PECAS, folha: 'academia' },
+  {
+    nome: 'mercado',
+    tamanho: MERCADO_INTERIOR,
+    pecas: MERCADO_PECAS,
+    folha: 'mercado',
+    parede: 'mercado',
+    piso: 'granilite',
+  },
+  {
+    nome: 'academia',
+    tamanho: ACADEMIA_INTERIOR,
+    pecas: ACADEMIA_PECAS,
+    folha: 'academia',
+    parede: 'academia',
+    piso: 'concreto_escuro',
+  },
 ];
 
 function conferirSaloes() {
@@ -2108,7 +3509,7 @@ function conferirSaloes() {
   console.log(['saloes de comercio:', ...linhas].join('\n'));
 }
 
-/** Roda a conferencia nos 6 interiores de casa. */
+/** Roda a conferencia no interior de salao unico (hoje so casa_1). */
 function conferirInterioresDeCasa() {
   const { largura: W, altura: H } = INTERIOR_CASA;
   const cama = [
@@ -2133,260 +3534,320 @@ function conferirInterioresDeCasa() {
         ` | ${r.alcancaveis}/${r.livres} tiles livres alcancaveis`,
     );
   }
-  console.log(`interiores de casa (${W}x${H}):\n${linhas.join('\n')}`);
+  console.log(`interior de salao unico (${W}x${H}):\n${linhas.join('\n')}`);
+}
+
+/**
+ * Roda a conferencia numa planta multi-comodo. Alem do que `conferirInterior` ja
+ * cobra sozinho, exige explicitamente:
+ *
+ * - a frente da porta de saida e a frente da cama livres;
+ * - o spawn do morador livre e alcancavel PELO NPC (num misto ele fica do lado
+ *   privado, onde o jogador nao chega);
+ * - um tile de cada COMODO alcancavel — pelo jogador nos comodos publicos, so
+ *   pelo NPC nos privados — e, nos privados, a garantia de que o jogador NAO
+ *   chega la por caminho nenhum, tile por tile.
+ */
+function conferirPlanta(nome, extras = {}) {
+  const p = planta(nome);
+  const pecas = pecasDaPlanta(nome);
+  const privados = new Set(p.privados ?? []);
+  // Nas casas a cama e do jogador (ele dorme e salva nela); nos mistos ela fica
+  // no quarto privado do dono, e ai so o NPC precisa chegar nela.
+  const quemUsaACama = privados.size ? 'npc' : 'jogador';
+  const exigir = [
+    [p.porta, p.altura - 2, 'a frente da porta'],
+    [p.cama.x, p.cama.y + 2, 'a frente da cama', quemUsaACama],
+    [p.spawnNpc.x, p.spawnNpc.y, 'o spawn do morador', 'npc'],
+    ...(extras.exigirLivres ?? []),
+  ];
+  const proibir = [...(extras.proibirJogador ?? [])];
+  const exigirComodos = [];
+  for (const [comodo, [x, y, w, h]] of Object.entries(p.comodos)) {
+    exigirComodos.push([x, y, w, h, comodo, privados.has(comodo) ? 'npc' : 'jogador']);
+    if (privados.has(comodo)) {
+      for (let j = y; j < y + h; j++) {
+        for (let i = x; i < x + w; i++) proibir.push([i, j, `o comodo privado "${comodo}"`]);
+      }
+    }
+  }
+
+  // Os retangulos de comodo cobrem so a area util: o tile do VAO fica na linha
+  // da parede e nao pertence a comodo nenhum. Um vao que da pra comodo privado e
+  // privado tambem — senao ele apareceria como "tile publico que o jogador nao
+  // alcanca", que e exatamente o contrario do que ele e.
+  const retsPrivados = Object.entries(p.comodos)
+    .filter(([comodo]) => privados.has(comodo))
+    .map(([, ret]) => ret);
+  const ehPrivado = (x, y) =>
+    retsPrivados.some(([rx, ry, rw, rh]) => x >= rx && y >= ry && x < rx + rw && y < ry + rh);
+  for (const [x, y] of p.vaos) {
+    const vizinhoPrivado = [[x, y - 1], [x + 1, y], [x, y + 1], [x - 1, y]].some(([a, b]) =>
+      ehPrivado(a, b),
+    );
+    if (!vizinhoPrivado) continue;
+    retsPrivados.push([x, y, 1, 1]);
+    proibir.push([x, y, `o vao privado ${x},${y}`]);
+  }
+
+  const r = conferirInterior(nome, p, pecas, p.folha, {
+    bloqueados: [
+      [p.cama.x, p.cama.y],
+      [p.cama.x, p.cama.y + 1],
+    ],
+    paredes: p.paredes,
+    vaos: p.vaos,
+    portasNpc: p.portasNpc ?? [],
+    privados: retsPrivados,
+    portaX: p.porta,
+    paredeTopo: PAREDE_TOPO,
+    exigirLivres: exigir,
+    exigirComodos,
+    proibirJogador: proibir,
+  });
+  return { p, pecas, ...r };
+}
+
+/** Conferencia das 5 casas de NPC, todas multi-comodo e todas do jogador. */
+function conferirPlantasDeCasa() {
+  const linhas = [];
+  for (const nome of Object.keys(PLANTAS_CASA)) {
+    const r = conferirPlanta(nome);
+    const comodos = Object.keys(r.p.comodos);
+    linhas.push(
+      `  ${nome} (${r.p.largura}x${r.p.altura}): ${comodos.length} comodos ` +
+        `[${comodos.join(', ')}] | ${r.pecas.length} moveis (${r.solidos} solidos, ` +
+        `${r.decorativos} decorativos) | ${r.alcancaveis}/${r.livres} tiles livres ` +
+        `alcancaveis pelo jogador`,
+    );
+  }
+  console.log(`interiores multi-comodo das casas de NPC:\n${linhas.join('\n')}`);
 }
 
 // ------------------------------------------- interiores mistos (casa+comercio) --
 /**
- * Predio misto: moradia e comercio no MESMO comodo, sem parede nem porta
- * interna separando. O jogador entra pela porta unica e ve os dois ambientes de
- * uma vez — a metade esquerda e a casa do dono (chao de madeira, cama que dorme
- * e salva, mobilia de sala/quarto), a metade direita e o espaco de trabalho
- * (chao de ladrilho, balcao e estanteria). A coluna entre as duas metades fica
- * livre de cima a baixo: e por ela que se atravessa de um ambiente pro outro, e
- * o que faz o comodo ler como UM espaco e nao como dois.
+ * Predio misto: moradia e comercio no MESMO mapa de interior, agora com parede
+ * de verdade entre os dois.
  *
- * A troca de chao e o unico limite entre os ambientes. Nao ha tile de parede no
- * meio: quem quiser andar da cama ate o balcao anda em linha reta.
+ * - AREA PUBLICA (x >= 10, chao de ladrilho): o salao comercial, igualzinho ao
+ *   que ja existia — mesma porta, mesmas pecas da folha dedicada, mesmas
+ *   coordenadas. E o unico pedaco que o jogador ve.
+ * - AREA PRIVADA (x <= 8, chao de madeira): a moradia do dono, dividida em
+ *   quarto (com a cama), corredor e sala. O jogador NAO entra: a divisa e uma
+ *   coluna inteira de parede.
+ * - A ligacao entre as duas e um tile so, `PORTA_NPC` em (9,8): parede pro
+ *   jogador, passagem livre pro dono. Ver src/game/colisao.ts.
+ *
+ * A planta privada e a MESMA nos dois lotes de proposito — e ela que faz o
+ * mecanismo valer pra qualquer misto futuro: quem criar um lote novo herda a
+ * divisao, a porta e a rota interna so espalhando `PLANTA_MISTO_BASE`.
  */
-const MISTO_INTERIOR = { largura: 20, altura: 14 };
-/** Ultima coluna de chao de madeira; da dali pra direita e ladrilho. */
-const MISTO_LIMITE_CASA = 9;
-/** Porta unica, no meio da parede de baixo (o mesmo lugar de todo interior). */
-const MISTO_PORTA = { x: Math.floor(MISTO_INTERIOR.largura / 2), y: MISTO_INTERIOR.altura - 1 };
-/** Cama do dono, no canto da metade de moradia: topo aqui, base um tile abaixo. */
-const MISTO_CAMA = { x: 2, y: 2 };
-/**
- * Onde o futuro dono nasce dentro do proprio predio, na metade de moradia. Os
- * NPCs das casas nascem em (8,8) por `posicaoInicial`; aqui o equivalente e um
- * tile livre no meio da sala, longe da cama e do balcao. A conferencia cobra
- * que ele continue livre e alcancavel, entao encaixar o morador depois nao
- * depende de reconferir o layout na mao.
- */
-const MISTO_SPAWN_DONO = { x: 4, y: 8 };
+const PLANTA_MISTO_BASE = {
+  // moradia com papel de parede de casa; o salao pede a folha do proprio ramo,
+  // entao cada lote poe o seu em `paredePorComodo` (ver `PLANTAS_MISTO`). A
+  // coluna divisoria fica com o estilo do SALAO: e a unica das duas faces que o
+  // jogador chega a ver.
+  parede: 'liso_bege',
+  largura: 20,
+  altura: 14,
+  porta: 10,
+  chao: 'PISO',
+  // metade oeste em madeira: e a moradia. A coluna 9 e parede, entao o material
+  // dela nao aparece — vai junto so pra faixa nao ter buraco.
+  faixasDeChao: [[0, 0, 10, 14, 'PISO_MADEIRA_CLARA']],
+  cama: { x: 2, y: 2 },
+  spawnNpc: { x: 5, y: 11 },
+  paredes: [
+    [9, 2, 1, 11], // divisa publica/privada, de parede a parede
+    [1, 7, 8, 1], // quarto / corredor
+    [1, 9, 8, 1], // corredor / sala
+  ],
+  vaos: [[6, 7], [3, 9]],
+  portasNpc: [[9, 8]],
+  comodos: {
+    quarto: [1, 2, 8, 5],
+    corredor: [1, 8, 8, 1],
+    sala: [1, 10, 8, 3],
+    salao: [10, 2, 9, 11],
+  },
+  privados: ['quarto', 'corredor', 'sala'],
+  folha: 'farmacia_bar',
+};
+
 /**
  * Os dois POSTOS do dono, pra presenca interior fixa (ver `posto_interior` em
  * src/game/rotinasNpc.ts): ele passa o dia alternando entre estes dois pontos
- * dentro do proprio predio, sem trajeto.
+ * dentro do proprio predio — e desde agora ANDANDO de um pro outro, atravessando
+ * a porta somente-NPC no caminho.
  *
  * `trabalho` fica ATRAS do balcao — nos dois mistos o movel de balcao ocupa as
- * colunas 11..14 nas linhas 6 e 7, entao a linha 5 e o lado de dentro dele. O
- * sprite do dono sai com profundidade menor que a do balcao, entao ele aparece
- * atras da peca, que e a leitura certa. `moradia` reusa o spawn do dono, na
- * sala da metade residencial.
+ * linhas 6 e 7, entao a linha 5 e o lado de dentro dele. O sprite do dono sai
+ * com profundidade menor que a do balcao, entao ele aparece atras da peca, que e
+ * a leitura certa. `moradia` fica na sala da area privada, ao lado da cozinha
+ * improvisada — e o mesmo tile em que ele nasce.
  *
  * Estao duplicados em `LOCAIS_CIDADE[...].postos` (src/game/npcs.ts), porque o
- * jogo precisa deles sem ler o gerador. A conferencia abaixo cobra que os dois
- * continuem livres e alcancaveis a partir da porta, e `verificar-rotinas`
- * confere que o NPC de fato so para em tile livre do interior.
+ * jogo precisa deles sem ler o gerador. A conferencia abaixo cobra que o de
+ * trabalho seja alcancavel pelo JOGADOR e o de moradia so pelo NPC.
  */
 const MISTO_POSTOS = {
   trabalho: { x: 13, y: 5 },
-  moradia: MISTO_SPAWN_DONO,
+  moradia: PLANTA_MISTO_BASE.spawnNpc,
 };
-/** Um tile da area de trabalho que tem de ser alcancavel a partir da porta. */
+/** Um tile do fundo do salao que tem de ser alcancavel pelo jogador. */
 const MISTO_ALVO_TRABALHO = { x: 15, y: 8 };
+
+/**
+ * As duas pontas da porta somente-NPC. O lado publico e do jogador (ele chega
+ * ate a porta e para), o lado privado nao — se um dia ele alcancar (8,8) a
+ * conferencia reprova, porque o comodo inteiro esta em `proibirJogador`.
+ */
+const MISTO_LADOS_DA_PORTA = { publico: { x: 10, y: 8 }, privado: { x: 8, y: 8 } };
 
 /**
  * Mobilia de cada predio misto, em dois blocos.
  *
- * `casa` sai do catalogo `MOVEIS_CASA` (as mesmas folhas de mobilia das seis
- * residencias), entao a metade de moradia e literalmente o mesmo vocabulario
- * visual das casas puras. `trabalho` sai da folha DEDICADA `farmacia_bar`, que
- * traz balcao, estanteria, mesa, banqueta, barril e letreiro dos dois ramos.
+ * `mobilia` sai do catalogo `MOVEIS_CASA` e mobilia a AREA PRIVADA, com a mesma
+ * regra de categoria das residencias: o quarto do dono leva peca de quarto.
+ * `mobiliaFolha` sai da folha DEDICADA `farmacia_bar` e mobilia o SALAO, que nao
+ * mudou uma peca de lugar — o que mudou nele foi so a parede e o piso, que
+ * passaram a sair da arte do proprio ramo.
  *
- * `tx`/`ty` sao o tile do canto esquerdo-INFERIOR, como no resto do gerador: a
- * peca cresce pra cima e pra direita.
+ * `tx`/`ty` sao o tile do canto esquerdo-INFERIOR, como no resto do gerador.
  */
-const MISTOS = {
+const PLANTAS_MISTO = {
   // Bar: back bar de garrafas ao fundo, balcao com duas banquetas de frente pra
-  // porta, mesa e banco na parede da direita. A moradia e uma sala-quarto
-  // simples, com sofa e mesa de centro.
+  // porta, mesa e banco na parede da direita. Nos fundos, a moradia da Alice.
   bar: {
-    casa: [
-      { movel: 'quadro_folha', tx: 5, ty: 1 },
-      { movel: 'relogio_v2', tx: 7, ty: 1 },
-      { movel: 'cabeceira_abajur', tx: 3, ty: 3 },
-      { movel: 'guarda_roupa_madeira', tx: 6, ty: 3 },
-      { movel: 'sofa_creme', tx: 3, ty: 7 },
-      { movel: 'tapete_creme', tx: 3, ty: 9 },
-      { movel: 'mesa_centro_madeira', tx: 4, ty: 9 },
-      { movel: 'poltrona_branca', tx: 7, ty: 9 },
-      { movel: 'vaso_planta', tx: 1, ty: 11 },
-      { movel: 'caminha_pet_v2', tx: 2, ty: 12 },
-    ],
-    trabalho: [
-      // fundo: estante de garrafas, engradado e barril
-      { peca: [0, 0], tx: 12, ty: 4 },
-      { peca: [4, 2], tx: 10, ty: 4 },
-      { peca: [4, 0], tx: 17, ty: 4 },
-      // balcao de frente pra porta, com as banquetas do lado do salao
-      { peca: [1, 0], tx: 12, ty: 7 },
-      { peca: [3, 1], tx: 12, ty: 9 },
-      { peca: [3, 2], tx: 14, ty: 9 },
-      { peca: [4, 1], tx: 17, ty: 6 },
-      // salao: mesa redonda, mesa de toalha, banco e tapete
-      { peca: [2, 0], tx: 16, ty: 9 },
-      { peca: [2, 1], tx: 11, ty: 12 },
-      { peca: [3, 0], tx: 16, ty: 11 },
-      { peca: [5, 2], tx: 12, ty: 11, chao: true, colide: false },
-      // letreiro de chope e lampiao na parede, mais o cavalete perto da porta
-      { peca: [5, 1], tx: 15, ty: 1, colide: false },
-      { peca: [4, 3], tx: 11, ty: 1, colide: false },
-      { peca: [5, 0], tx: 17, ty: 12, colide: false },
-    ],
+    ...PLANTA_MISTO_BASE,
+    paredePorComodo: { salao: 'bar' },
+    pisos: { salao: 'terracota' },
+    mobilia: {
+      quarto: [
+        { movel: 'criado_mudo', tx: 3, ty: 3 },
+        { movel: 'guarda_roupa', tx: 4, ty: 6 },
+        { movel: 'quadro_folha', tx: 6, ty: 3 },
+        { movel: 'planta_quarto', tx: 7, ty: 6 },
+      ],
+      sala: [
+        { movel: 'sofa_creme', tx: 1, ty: 12 },
+        { movel: 'mesa_centro_madeira', tx: 4, ty: 12 },
+        { movel: 'estante_livros_v2', tx: 7, ty: 12 },
+        { movel: 'tapete_creme', tx: 1, ty: 12 },
+        { movel: 'relogio_v2', tx: 1, ty: 10 },
+      ],
+    },
+    mobiliaFolha: {
+      salao: [
+        // fundo: estante de garrafas, engradado e barril
+        { peca: [0, 0], tx: 12, ty: 4 },
+        { peca: [4, 2], tx: 10, ty: 4 },
+        { peca: [4, 0], tx: 17, ty: 4 },
+        // balcao de frente pra porta, com as banquetas do lado do salao
+        { peca: [1, 0], tx: 12, ty: 7 },
+        { peca: [3, 1], tx: 12, ty: 9 },
+        { peca: [3, 2], tx: 14, ty: 9 },
+        { peca: [4, 1], tx: 17, ty: 6 },
+        // salao: mesa redonda, mesa de toalha, banco e tapete
+        { peca: [2, 0], tx: 16, ty: 9 },
+        { peca: [2, 1], tx: 11, ty: 12 },
+        { peca: [3, 0], tx: 16, ty: 11 },
+        { peca: [5, 2], tx: 12, ty: 11, chao: true, colide: false },
+        // letreiro de chope e lampiao na parede, mais o cavalete perto da porta
+        { peca: [5, 1], tx: 15, ty: 1, colide: false },
+        { peca: [4, 3], tx: 11, ty: 1, colide: false },
+        { peca: [5, 0], tx: 17, ty: 12, colide: false },
+      ],
+    },
   },
 
   // Farmacia: balcao de atendimento virado pra porta, vitrine refrigerada e
   // armario de medicamento ao fundo, bancada de manipulacao com cadeira no
-  // canto. A moradia repete a planta do bar com outras pecas — a cama fica no
-  // mesmo canto, que e o que a conferencia cobra.
+  // canto. Nos fundos, a moradia do Wendel — mesma planta da Alice, outras pecas.
   farmacia: {
-    casa: [
-      { movel: 'quadro_paisagem', tx: 6, ty: 1 },
-      { movel: 'relogio_parede', tx: 4, ty: 1 },
-      { movel: 'cabeceira_abajur', tx: 3, ty: 3 },
-      { movel: 'guarda_roupa_branco', tx: 6, ty: 3 },
-      { movel: 'poltrona_marinho', tx: 3, ty: 7 },
-      { movel: 'tapete_rosa', tx: 4, ty: 9 },
-      { movel: 'mesa_centro_madeira', tx: 6, ty: 9 },
-      { movel: 'planta_alta', tx: 1, ty: 10 },
-      { movel: 'cesto_vime', tx: 2, ty: 12 },
-    ],
-    trabalho: [
-      // fundo: vitrine refrigerada, armario de medicamento e estante de frascos
-      { peca: [2, 2], tx: 10, ty: 4 },
-      { peca: [0, 1], tx: 13, ty: 4 },
-      { peca: [2, 3], tx: 16, ty: 4 },
-      // balcao de atendimento de frente pra porta
-      { peca: [1, 1], tx: 11, ty: 7 },
-      { peca: [2, 4], tx: 16, ty: 7 },
-      // bancada de manipulacao com cadeira, e o engradado de reposicao
-      { peca: [4, 4], tx: 11, ty: 11 },
-      { peca: [4, 5], tx: 13, ty: 12 },
-      { peca: [5, 3], tx: 16, ty: 11 },
-      { peca: [6, 0], tx: 14, ty: 10, chao: true, colide: false },
-      // letreiro de cruz, lampiao e vaso na parede
-      { peca: [5, 5], tx: 15, ty: 1, colide: false },
-      { peca: [5, 6], tx: 11, ty: 1, colide: false },
-      { peca: [5, 4], tx: 18, ty: 9, colide: false },
-    ],
+    ...PLANTA_MISTO_BASE,
+    paredePorComodo: { salao: 'farmacia' },
+    pisos: { salao: 'marmore' },
+    mobilia: {
+      quarto: [
+        { movel: 'criado_mudo', tx: 3, ty: 3 },
+        { movel: 'comoda_quarto', tx: 4, ty: 6 },
+        { movel: 'quadro_paisagem', tx: 6, ty: 3 },
+        { movel: 'cesto_roupa', tx: 7, ty: 6 },
+      ],
+      sala: [
+        { movel: 'sofa_cinza', tx: 1, ty: 12 },
+        { movel: 'mesa_centro_escura', tx: 4, ty: 12 },
+        { movel: 'estante_livros_v2', tx: 7, ty: 12 },
+        { movel: 'tapete_rosa', tx: 1, ty: 12 },
+        { movel: 'relogio_parede', tx: 1, ty: 10 },
+      ],
+    },
+    mobiliaFolha: {
+      salao: [
+        // fundo: vitrine refrigerada, armario de medicamento e estante de frascos
+        { peca: [2, 2], tx: 10, ty: 4 },
+        { peca: [0, 1], tx: 13, ty: 4 },
+        { peca: [2, 3], tx: 16, ty: 4 },
+        // balcao de atendimento de frente pra porta
+        { peca: [1, 1], tx: 11, ty: 7 },
+        { peca: [2, 4], tx: 16, ty: 7 },
+        // bancada de manipulacao com cadeira, e o engradado de reposicao
+        { peca: [4, 4], tx: 11, ty: 11 },
+        { peca: [4, 5], tx: 13, ty: 12 },
+        { peca: [5, 3], tx: 16, ty: 11 },
+        { peca: [6, 0], tx: 14, ty: 10, chao: true, colide: false },
+        // letreiro de cruz, lampiao e vaso na parede
+        { peca: [5, 5], tx: 15, ty: 1, colide: false },
+        { peca: [5, 6], tx: 11, ty: 1, colide: false },
+        { peca: [5, 4], tx: 18, ty: 9, colide: false },
+      ],
+    },
   },
 };
 
-/** Traduz os dois blocos de um predio misto pro formato de `objetosDeMovel`. */
-function pecasDeMisto(nome) {
-  const def = MISTOS[nome];
-  if (!def) throw new Error(`o predio misto "${nome}" nao existe em MISTOS`);
-  const daCasa = def.casa.map((m) => {
-    const movel = MOVEIS_CASA[m.movel];
-    if (!movel) throw new Error(`"${nome}": movel "${m.movel}" nao existe em MOVEIS_CASA`);
-    return {
-      folha: movel.folha,
-      peca: movel.peca,
-      tx: m.tx,
-      ty: m.ty,
-      colide: movel.solido,
-      chao: movel.chao === true,
-      escala: movel.escala ?? 1,
-    };
-  });
-  const doTrabalho = def.trabalho.map((p) => ({ folha: 'farmacia_bar', ...p }));
-  return [...daCasa, ...doTrabalho];
-}
-
 /**
- * Interior misto: um unico mapa com os dois ambientes. O chao troca de material
- * na coluna `MISTO_LIMITE_CASA` (madeira -> ladrilho) e e SO isso que separa a
- * moradia do trabalho: a camada de objetos tem parede apenas na borda.
+ * Conferencia dos mistos. E a mesma de qualquer planta multi-comodo, mais o que
+ * so o misto precisa provar:
  *
- * A cama e interativa igual a das casas — o mesmo objeto `cama`, entao dormir e
- * salvar funcionam sem nenhuma maquina nova.
- */
-function gerarInteriorMisto(nome, ts) {
-  const c = construcao(nome);
-  const { largura: W, altura: H } = MISTO_INTERIOR;
-  const chao = new Grade(W, H, GID.PISO);
-  chao.rect(0, 0, MISTO_LIMITE_CASA + 1, H, GID.MADEIRA);
-  const obj = new Grade(W, H);
-
-  obj.moldura(GID.PAREDE);
-  obj.rect(0, 0, W, PAREDE_TOPO, GID.PAREDE);
-  obj.set(MISTO_PORTA.x, MISTO_PORTA.y, GID.PORTA); // saida (nao colide)
-
-  obj.set(MISTO_CAMA.x, MISTO_CAMA.y, GID.CAMA_TOPO);
-  obj.set(MISTO_CAMA.x, MISTO_CAMA.y + 1, GID.CAMA_BASE);
-
-  const interativos = [
-    objeto('porta_saida', 'porta', MISTO_PORTA.x, MISTO_PORTA.y, {
-      destino: 'farm',
-      destinoTx: c.frente.x,
-      destinoTy: c.frente.y,
-      rotulo: 'Sair',
-    }),
-    objeto(`cama_${nome}`, 'cama', MISTO_CAMA.x, MISTO_CAMA.y + 1),
-  ];
-
-  const moveis = objetosDeMovel(nome, pecasDeMisto(nome));
-
-  return {
-    mapa: montarMapa(
-      W,
-      H,
-      [
-        camadaTiles('chao', 1, chao),
-        camadaTiles('objetos', 2, obj),
-        camadaObjetos('interativos', 3, interativos),
-        camadaObjetos('moveis', 4, moveis),
-      ],
-      ts,
-    ),
-    moveis: moveis.length,
-  };
-}
-
-/**
- * Conferencia dos mistos: a mesma do resto, com as exigencias que fazem o
- * comodo continuar sendo UM espaco. Alem de todo tile livre seguir alcancavel a
- * partir da porta, cobra explicitamente porta->cama, porta->area de trabalho e
- * porta->spawn do dono, que sao os tres caminhos que o pedido precisa.
+ * - o jogador alcanca o posto de TRABALHO, o fundo do salao e o lado publico da
+ *   porta somente-NPC — o comercio continua inteiro pra ele;
+ * - o jogador NAO alcanca nenhum tile da moradia (quarto, corredor e sala estao
+ *   marcados `privado`, e `conferirPlanta` proibe o flood-fill dele em todos);
+ * - o NPC alcanca os DOIS postos e o lado privado da porta, o que so e possivel
+ *   atravessando ela.
  */
 function conferirMistos() {
-  const { largura: W, altura: H } = MISTO_INTERIOR;
   const linhas = [];
-  for (const nome of Object.keys(MISTOS)) {
-    const pecas = pecasDeMisto(nome);
-    const r = conferirInterior(nome, MISTO_INTERIOR, pecas, 'farmacia_bar', {
-      bloqueados: [
-        [MISTO_CAMA.x, MISTO_CAMA.y],
-        [MISTO_CAMA.x, MISTO_CAMA.y + 1],
-      ],
-      portaX: MISTO_PORTA.x,
-      paredeTopo: PAREDE_TOPO,
+  for (const nome of Object.keys(PLANTAS_MISTO)) {
+    const r = conferirPlanta(nome, {
       exigirLivres: [
-        [MISTO_PORTA.x, H - 2, 'a frente da porta'],
-        [MISTO_CAMA.x, MISTO_CAMA.y + 2, 'a frente da cama'],
-        [MISTO_ALVO_TRABALHO.x, MISTO_ALVO_TRABALHO.y, 'o meio da area de trabalho'],
-        [MISTO_SPAWN_DONO.x, MISTO_SPAWN_DONO.y, 'o spawn do dono do predio'],
         [MISTO_POSTOS.trabalho.x, MISTO_POSTOS.trabalho.y, 'o posto de trabalho do dono'],
-        [MISTO_POSTOS.moradia.x, MISTO_POSTOS.moradia.y, 'o posto de moradia do dono'],
-        [MISTO_LIMITE_CASA, PAREDE_TOPO, 'o topo da passagem entre os ambientes'],
-        [MISTO_LIMITE_CASA, H - 2, 'a base da passagem entre os ambientes'],
+        [MISTO_ALVO_TRABALHO.x, MISTO_ALVO_TRABALHO.y, 'o fundo do salao'],
+        [MISTO_LADOS_DA_PORTA.publico.x, MISTO_LADOS_DA_PORTA.publico.y, 'o lado publico da porta'],
+        [
+          MISTO_LADOS_DA_PORTA.privado.x,
+          MISTO_LADOS_DA_PORTA.privado.y,
+          'o lado privado da porta',
+          'npc',
+        ],
+        [MISTO_POSTOS.moradia.x, MISTO_POSTOS.moradia.y, 'o posto de moradia do dono', 'npc'],
+        [MISTO_POSTOS.trabalho.x, MISTO_POSTOS.trabalho.y, 'o posto de trabalho do dono', 'npc'],
       ],
     });
-    const doTrabalho = MISTOS[nome].trabalho.length;
+    const doSalao = r.p.mobiliaFolha.salao.length;
     linhas.push(
-      `  ${nome}: ${pecas.length} moveis (${pecas.length - doTrabalho} de moradia,` +
-        ` ${doTrabalho} de trabalho | ${r.solidos} solidos, ${r.decorativos} decorativos)` +
-        ` | ${r.alcancaveis}/${r.livres} tiles livres alcancaveis`,
+      `  ${nome}: ${r.pecas.length} moveis (${r.pecas.length - doSalao} na moradia, ` +
+        `${doSalao} no salao | ${r.solidos} solidos, ${r.decorativos} decorativos) | ` +
+        `jogador alcanca ${r.alcancaveis} tiles, NPC alcanca ${r.alcancaveisNpc} de ${r.livres}`,
     );
   }
+  const { largura: W, altura: H } = PLANTA_MISTO_BASE;
+  console.log(`interiores mistos (${W}x${H}, moradia 1..8 + salao 10..18):\n${linhas.join('\n')}`);
   console.log(
-    `interiores mistos (${W}x${H}, casa 1..${MISTO_LIMITE_CASA} + trabalho):\n${linhas.join('\n')}`,
-  );
-  console.log(
-    `  postos do dono conferidos: trabalho (${MISTO_POSTOS.trabalho.x},${MISTO_POSTOS.trabalho.y})` +
-      ` e moradia (${MISTO_POSTOS.moradia.x},${MISTO_POSTOS.moradia.y})`,
+    `  porta somente-NPC em ${PLANTA_MISTO_BASE.portasNpc[0]} | postos do dono: ` +
+      `trabalho (${MISTO_POSTOS.trabalho.x},${MISTO_POSTOS.trabalho.y}) e ` +
+      `moradia (${MISTO_POSTOS.moradia.x},${MISTO_POSTOS.moradia.y})`,
   );
 }
 
@@ -2396,7 +3857,8 @@ function conferirMistos() {
  * dele — e a mesma conta que `spawnTile` em src/game/mapas.ts declara.
  */
 function entradaDoInterior(chave) {
-  if (MISTOS[chave]) return { x: MISTO_PORTA.x, y: MISTO_INTERIOR.altura - 2 };
+  const p = PLANTAS_CASA[chave] ?? PLANTAS_MISTO[chave];
+  if (p) return { x: p.porta, y: p.altura - 2 };
   const salao = SALOES().find((s) => s.nome === chave);
   if (salao) {
     return { x: Math.floor(salao.tamanho.largura / 2), y: salao.tamanho.altura - 2 };
@@ -2513,7 +3975,9 @@ function conferirFazenda() {
     if (!CONSTRUCOES[z.nome]?.misto) {
       throw new Error(`o lote misto "${z.nome}" nao esta marcado como misto em CONSTRUCOES`);
     }
-    if (!MISTOS[z.nome]) throw new Error(`o lote misto "${z.nome}" nao tem interior em MISTOS`);
+    if (!PLANTAS_MISTO[z.nome]) {
+      throw new Error(`o lote misto "${z.nome}" nao tem planta em PLANTAS_MISTO`);
+    }
   }
   // e o contrario: construcao marcada misto sem lote misto
   for (const [nome, c] of Object.entries(CONSTRUCOES)) {
@@ -2540,6 +4004,7 @@ function conferirFazenda() {
 console.log('gerando assets...');
 conferirFazenda();
 conferirInterioresDeCasa();
+conferirPlantasDeCasa();
 conferirSaloes();
 conferirMistos();
 const ts = gerarTileset();
@@ -2549,44 +4014,35 @@ const molduras = {
   flores_v2: gerarAtlas('flores_v2', (c, r) => `flor_${r}_${c}`),
   pedras: gerarAtlasPedras(),
   construcoes: gerarConstrucoes(),
-  moveis_mercado: gerarAtlasMoveis('mercado'),
-  moveis_academia: gerarAtlasMoveis('academia'),
-  moveis_mobilia_v1: gerarAtlasMoveis('mobilia_v1'),
-  moveis_mobilia_v2: gerarAtlasMoveis('mobilia_v2'),
-  moveis_farmacia_bar: gerarAtlasMoveis('farmacia_bar'),
+  // uma folha por entrada de FOLHAS_DE_MOVEL — a mesma lista que a BootScene
+  // carrega, pra nao existir atlas gerado que ninguem le nem frame apontando
+  // pra atlas que nao foi carregado
+  ...Object.fromEntries(FOLHAS_DE_MOVEL.map((f) => [`moveis_${f}`, gerarAtlasMoveis(f)])),
 };
 const fazenda = gerarFazenda(ts);
 escrever(join(ASSETS, 'tilemaps', 'farm.json'), JSON.stringify(fazenda.mapa, null, 1));
 let moveisDeCasa = 0;
 for (const c of CONSTRUIDAS) {
   if (c.fachada) continue; // comercio e misto tem interior proprio, mais abaixo
-  const interior = gerarInteriorCasa(c.nome, ts);
+  // casa_1 e salao unico (sistema proprio do protagonista); as outras cinco sao
+  // multi-comodo e saem da planta
+  const interior = PLANTAS_CASA[c.nome]
+    ? gerarInteriorPlanta(c.nome, ts)
+    : gerarInteriorCasa(c.nome, ts);
   moveisDeCasa += interior.moveis;
   escrever(
     join(ASSETS, 'tilemaps', `${c.interior}.json`),
     JSON.stringify(interior.mapa, null, 1),
   );
 }
-const mercado = gerarInteriorComercio(
-  'mercado',
-  'mercado',
-  MERCADO_INTERIOR,
-  MERCADO_PECAS,
-  ts,
-);
-escrever(join(ASSETS, 'tilemaps', 'mercado.json'), JSON.stringify(mercado.mapa, null, 1));
-const academia = gerarInteriorComercio(
-  'academia',
-  'academia',
-  ACADEMIA_INTERIOR,
-  ACADEMIA_PECAS,
-  ts,
-);
-escrever(join(ASSETS, 'tilemaps', 'academia.json'), JSON.stringify(academia.mapa, null, 1));
-// mistos: um unico interior por lote, com a metade de moradia e a de trabalho
+for (const salao of SALOES()) {
+  const interior = gerarInteriorComercio(salao, ts);
+  escrever(join(ASSETS, 'tilemaps', `${salao.nome}.json`), JSON.stringify(interior.mapa, null, 1));
+}
+// mistos: um unico interior por lote, com a moradia atras da porta somente-NPC
 let moveisMistos = 0;
-for (const nome of Object.keys(MISTOS)) {
-  const interior = gerarInteriorMisto(nome, ts);
+for (const nome of Object.keys(PLANTAS_MISTO)) {
+  const interior = gerarInteriorPlanta(nome, ts);
   moveisMistos += interior.moveis;
   escrever(join(ASSETS, 'tilemaps', `${nome}.json`), JSON.stringify(interior.mapa, null, 1));
 }
