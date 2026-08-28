@@ -2474,6 +2474,10 @@ const PLANTAS_CASA = {
         { movel: 'quadro_negro', tx: 3, ty: 12 },
         { movel: 'planta_cozinha', tx: 8, ty: 16 },
         { movel: 'lixeira', tx: 8, ty: 15 },
+        // utensilio solto de bancada: so decora, nao colide
+        { movel: 'microondas', tx: 5, ty: 12 },
+        { movel: 'escorredor', tx: 6, ty: 15 },
+        { movel: 'fruteira', tx: 1, ty: 15 },
       ],
       sala: [
         { movel: 'tv_rack_madeira', tx: 17, ty: 4 },
@@ -2540,6 +2544,9 @@ const PLANTAS_CASA = {
         { movel: 'planta_cozinha', tx: 14, ty: 8 },
         { movel: 'utensilios', tx: 9, ty: 5 },
         { movel: 'relogio_cozinha', tx: 13, ty: 5 },
+        { movel: 'porta_temperos', tx: 13, ty: 3 },
+        { movel: 'fruteira', tx: 12, ty: 5 },
+        { movel: 'flores_cozinha', tx: 14, ty: 4 },
       ],
       banheiro: [
         { movel: 'banheira', tx: 16, ty: 3 },
@@ -2608,6 +2615,9 @@ const PLANTAS_CASA = {
         { movel: 'tapete_cozinha', tx: 12, ty: 6 },
         { movel: 'planta_cozinha', tx: 18, ty: 6 },
         { movel: 'relogio_cozinha', tx: 20, ty: 6 },
+        { movel: 'microondas', tx: 17, ty: 4 },
+        { movel: 'escorredor', tx: 16, ty: 5 },
+        { movel: 'caixa_de_pao', tx: 19, ty: 4 },
       ],
       corredor: [{ movel: 'quadros', tx: 10, ty: 10 }],
       sala: [
@@ -2682,6 +2692,9 @@ const PLANTAS_CASA = {
         { movel: 'mesa_de_jantar', tx: 12, ty: 6 },
         { movel: 'tapete_cozinha', tx: 12, ty: 6 },
         { movel: 'relogio_cozinha', tx: 18, ty: 7 },
+        { movel: 'utensilios', tx: 12, ty: 5 },
+        { movel: 'fruteira', tx: 17, ty: 4 },
+        { movel: 'porta_temperos', tx: 16, ty: 5 },
       ],
       banheiro: [
         { movel: 'banheira', tx: 12, ty: 11 },
@@ -2747,6 +2760,8 @@ const PLANTAS_CASA = {
         { movel: 'despenseiro', tx: 12, ty: 8 },
         { movel: 'tapete_cozinha', tx: 8, ty: 8 },
         { movel: 'relogio_cozinha', tx: 12, ty: 6 },
+        { movel: 'escorredor', tx: 8, ty: 5 },
+        { movel: 'fruteira', tx: 10, ty: 6 },
       ],
       hall: [
         { movel: 'prateleira_planta', tx: 8, ty: 11 },

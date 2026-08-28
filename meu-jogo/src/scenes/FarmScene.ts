@@ -3,6 +3,7 @@ import { PROP_COLIDE } from '../game/colisao';
 import { CONFIG, COR_ZONA, ROTULOS, UI } from '../game/config';
 import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
+import { lojasDoMapa } from '../game/loja';
 import { buscarMapa } from '../game/mapas';
 import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
 import { CONFIG_TEMPO } from '../game/relogio';
@@ -71,6 +72,9 @@ const VETOR: Record<Direcao, { x: number; y: number }> = {
   right: { x: 1, y: 0 },
 };
 
+// 'loja' NAO entra: nenhum tilemap traz objeto dessa classe hoje. Os pontos de
+// loja sao acrescentados depois da leitura, a partir de PONTOS_DE_LOJA — ver o
+// cabecalho de src/game/loja.ts, que documenta a pendencia de ligacao.
 const TIPOS_VALIDOS: TipoInteragivel[] = ['placa', 'npc', 'porta', 'cama', 'item'];
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
   'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
@@ -236,6 +240,7 @@ export class FarmScene extends Phaser.Scene {
       if (item.tipo === 'npc') return false;
       return item.tipo !== 'item' || !estado.itensColetados.has(item.id);
     });
+    this.interagiveis.push(...this.lerPontosDeLoja());
     this.zonas = this.lerZonas(map);
     this.tilesPrivados = this.lerComodosPrivados(map);
 
@@ -381,6 +386,9 @@ export class FarmScene extends Phaser.Scene {
       case 'item':
         this.coletarItem(this.alvo);
         break;
+      case 'loja':
+        this.ui.abrirLoja(String(this.alvo.props.loja));
+        break;
       case 'porta':
         this.atravessarPorta(this.alvo);
         break;
@@ -435,6 +443,23 @@ export class FarmScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Interagiveis de loja do mapa atual. Vem de `PONTOS_DE_LOJA` e nao da camada
+   * `interativos` do tilemap: o gerador de interior de comercio ainda nao emite
+   * objeto dessa classe. A ligacao pendente esta documentada em game/loja.ts.
+   */
+  private lerPontosDeLoja(): Interagivel[] {
+    const t = this.tamanhoTile;
+    return lojasDoMapa(estado.mapa).map((ponto) => ({
+      id: ponto.id,
+      tipo: 'loja' as const,
+      rotulo: ponto.rotulo,
+      x: (ponto.tile.x + 0.5) * t,
+      y: (ponto.tile.y + 0.5) * t,
+      props: { loja: ponto.id },
+    }));
+  }
+
   private salvarJogo(): boolean {
     return salvar({
       dia: estado.dia,
@@ -444,6 +469,7 @@ export class FarmScene extends Phaser.Scene {
       y: Math.round(this.player.y),
       inventario: estado.inventario.serializar(),
       itensColetados: [...estado.itensColetados],
+      dinheiro: estado.carteira.serializar(),
     });
   }
 

@@ -1,0 +1,2714 @@
+{
+ "frames": {
+  "item_oleo": {
+   "frame": {
+    "x": 2,
+    "y": 2,
+    "w": 61,
+    "h": 162
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 61,
+    "h": 162
+   },
+   "sourceSize": {
+    "w": 61,
+    "h": 162
+   }
+  },
+  "item_agua": {
+   "frame": {
+    "x": 65,
+    "y": 2,
+    "w": 57,
+    "h": 161
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 57,
+    "h": 161
+   },
+   "sourceSize": {
+    "w": 57,
+    "h": 161
+   }
+  },
+  "item_cadeira_gamer": {
+   "frame": {
+    "x": 124,
+    "y": 2,
+    "w": 140,
+    "h": 148
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 140,
+    "h": 148
+   },
+   "sourceSize": {
+    "w": 140,
+    "h": 148
+   }
+  },
+  "item_arroz": {
+   "frame": {
+    "x": 266,
+    "y": 2,
+    "w": 88,
+    "h": 142
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 88,
+    "h": 142
+   },
+   "sourceSize": {
+    "w": 88,
+    "h": 142
+   }
+  },
+  "item_macarrao": {
+   "frame": {
+    "x": 356,
+    "y": 2,
+    "w": 70,
+    "h": 140
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 70,
+    "h": 140
+   },
+   "sourceSize": {
+    "w": 70,
+    "h": 140
+   }
+  },
+  "item_feijao": {
+   "frame": {
+    "x": 428,
+    "y": 2,
+    "w": 88,
+    "h": 138
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 88,
+    "h": 138
+   },
+   "sourceSize": {
+    "w": 88,
+    "h": 138
+   }
+  },
+  "item_cereal": {
+   "frame": {
+    "x": 518,
+    "y": 2,
+    "w": 91,
+    "h": 134
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 91,
+    "h": 134
+   },
+   "sourceSize": {
+    "w": 91,
+    "h": 134
+   }
+  },
+  "item_farinha": {
+   "frame": {
+    "x": 611,
+    "y": 2,
+    "w": 90,
+    "h": 133
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 90,
+    "h": 133
+   },
+   "sourceSize": {
+    "w": 90,
+    "h": 133
+   }
+  },
+  "item_creme_de_chocolate": {
+   "frame": {
+    "x": 703,
+    "y": 2,
+    "w": 84,
+    "h": 132
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 132
+   },
+   "sourceSize": {
+    "w": 84,
+    "h": 132
+   }
+  },
+  "item_cafe": {
+   "frame": {
+    "x": 789,
+    "y": 2,
+    "w": 82,
+    "h": 129
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 82,
+    "h": 129
+   },
+   "sourceSize": {
+    "w": 82,
+    "h": 129
+   }
+  },
+  "item_leite_desnatado": {
+   "frame": {
+    "x": 873,
+    "y": 2,
+    "w": 75,
+    "h": 129
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 75,
+    "h": 129
+   },
+   "sourceSize": {
+    "w": 75,
+    "h": 129
+   }
+  },
+  "item_acucar": {
+   "frame": {
+    "x": 950,
+    "y": 2,
+    "w": 88,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 88,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 88,
+    "h": 128
+   }
+  },
+  "item_tv": {
+   "frame": {
+    "x": 1040,
+    "y": 2,
+    "w": 164,
+    "h": 127
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 164,
+    "h": 127
+   },
+   "sourceSize": {
+    "w": 164,
+    "h": 127
+   }
+  },
+  "item_tablet": {
+   "frame": {
+    "x": 1206,
+    "y": 2,
+    "w": 79,
+    "h": 127
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 79,
+    "h": 127
+   },
+   "sourceSize": {
+    "w": 79,
+    "h": 127
+   }
+  },
+  "item_sal": {
+   "frame": {
+    "x": 1287,
+    "y": 2,
+    "w": 77,
+    "h": 126
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 77,
+    "h": 126
+   },
+   "sourceSize": {
+    "w": 77,
+    "h": 126
+   }
+  },
+  "item_refrigerante": {
+   "frame": {
+    "x": 1366,
+    "y": 2,
+    "w": 65,
+    "h": 125
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 65,
+    "h": 125
+   },
+   "sourceSize": {
+    "w": 65,
+    "h": 125
+   }
+  },
+  "item_chips": {
+   "frame": {
+    "x": 1433,
+    "y": 2,
+    "w": 99,
+    "h": 124
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 99,
+    "h": 124
+   },
+   "sourceSize": {
+    "w": 99,
+    "h": 124
+   }
+  },
+  "item_suco_laranja": {
+   "frame": {
+    "x": 1534,
+    "y": 2,
+    "w": 72,
+    "h": 124
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 72,
+    "h": 124
+   },
+   "sourceSize": {
+    "w": 72,
+    "h": 124
+   }
+  },
+  "item_monitor_curvo": {
+   "frame": {
+    "x": 1608,
+    "y": 2,
+    "w": 154,
+    "h": 123
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 154,
+    "h": 123
+   },
+   "sourceSize": {
+    "w": 154,
+    "h": 123
+   }
+  },
+  "item_suco_uva": {
+   "frame": {
+    "x": 1764,
+    "y": 2,
+    "w": 71,
+    "h": 123
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 71,
+    "h": 123
+   },
+   "sourceSize": {
+    "w": 71,
+    "h": 123
+   }
+  },
+  "item_achocolatado": {
+   "frame": {
+    "x": 1837,
+    "y": 2,
+    "w": 72,
+    "h": 122
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 72,
+    "h": 122
+   },
+   "sourceSize": {
+    "w": 72,
+    "h": 122
+   }
+  },
+  "item_volante_gamer": {
+   "frame": {
+    "x": 1911,
+    "y": 2,
+    "w": 117,
+    "h": 121
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 117,
+    "h": 121
+   },
+   "sourceSize": {
+    "w": 117,
+    "h": 121
+   }
+  },
+  "item_refrigerante_limao": {
+   "frame": {
+    "x": 2,
+    "y": 166,
+    "w": 63,
+    "h": 121
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 63,
+    "h": 121
+   },
+   "sourceSize": {
+    "w": 63,
+    "h": 121
+   }
+  },
+  "item_maionese": {
+   "frame": {
+    "x": 67,
+    "y": 166,
+    "w": 68,
+    "h": 119
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 68,
+    "h": 119
+   },
+   "sourceSize": {
+    "w": 68,
+    "h": 119
+   }
+  },
+  "item_leite": {
+   "frame": {
+    "x": 137,
+    "y": 166,
+    "w": 70,
+    "h": 118
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 70,
+    "h": 118
+   },
+   "sourceSize": {
+    "w": 70,
+    "h": 118
+   }
+  },
+  "item_mel": {
+   "frame": {
+    "x": 209,
+    "y": 166,
+    "w": 70,
+    "h": 118
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 70,
+    "h": 118
+   },
+   "sourceSize": {
+    "w": 70,
+    "h": 118
+   }
+  },
+  "item_molho_de_tomate": {
+   "frame": {
+    "x": 281,
+    "y": 166,
+    "w": 69,
+    "h": 116
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 69,
+    "h": 116
+   },
+   "sourceSize": {
+    "w": 69,
+    "h": 116
+   }
+  },
+  "item_ervilha_congelada": {
+   "frame": {
+    "x": 352,
+    "y": 166,
+    "w": 90,
+    "h": 114
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 90,
+    "h": 114
+   },
+   "sourceSize": {
+    "w": 90,
+    "h": 114
+   }
+  },
+  "item_adaptador_wifi": {
+   "frame": {
+    "x": 444,
+    "y": 166,
+    "w": 78,
+    "h": 114
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 78,
+    "h": 114
+   },
+   "sourceSize": {
+    "w": 78,
+    "h": 114
+   }
+  },
+  "item_console_portatil": {
+   "frame": {
+    "x": 524,
+    "y": 166,
+    "w": 87,
+    "h": 113
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 87,
+    "h": 113
+   },
+   "sourceSize": {
+    "w": 87,
+    "h": 113
+   }
+  },
+  "item_sorvete": {
+   "frame": {
+    "x": 613,
+    "y": 166,
+    "w": 95,
+    "h": 111
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 95,
+    "h": 111
+   },
+   "sourceSize": {
+    "w": 95,
+    "h": 111
+   }
+  },
+  "item_liquidificador": {
+   "frame": {
+    "x": 710,
+    "y": 166,
+    "w": 57,
+    "h": 111
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 57,
+    "h": 111
+   },
+   "sourceSize": {
+    "w": 57,
+    "h": 111
+   }
+  },
+  "item_tablet_caneta": {
+   "frame": {
+    "x": 769,
+    "y": 166,
+    "w": 85,
+    "h": 110
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 85,
+    "h": 110
+   },
+   "sourceSize": {
+    "w": 85,
+    "h": 110
+   }
+  },
+  "item_picole_chocolate": {
+   "frame": {
+    "x": 856,
+    "y": 166,
+    "w": 50,
+    "h": 110
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 50,
+    "h": 110
+   },
+   "sourceSize": {
+    "w": 50,
+    "h": 110
+   }
+  },
+  "item_biscoito": {
+   "frame": {
+    "x": 908,
+    "y": 166,
+    "w": 95,
+    "h": 108
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 95,
+    "h": 108
+   },
+   "sourceSize": {
+    "w": 95,
+    "h": 108
+   }
+  },
+  "item_smartwatch": {
+   "frame": {
+    "x": 1005,
+    "y": 166,
+    "w": 76,
+    "h": 108
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 76,
+    "h": 108
+   },
+   "sourceSize": {
+    "w": 76,
+    "h": 108
+   }
+  },
+  "item_gabinete_rgb": {
+   "frame": {
+    "x": 1083,
+    "y": 166,
+    "w": 101,
+    "h": 107
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 107
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 107
+   }
+  },
+  "item_filtro_de_linha": {
+   "frame": {
+    "x": 1186,
+    "y": 166,
+    "w": 91,
+    "h": 107
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 91,
+    "h": 107
+   },
+   "sourceSize": {
+    "w": 91,
+    "h": 107
+   }
+  },
+  "item_headset_gamer": {
+   "frame": {
+    "x": 1279,
+    "y": 166,
+    "w": 102,
+    "h": 106
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 102,
+    "h": 106
+   },
+   "sourceSize": {
+    "w": 102,
+    "h": 106
+   }
+  },
+  "item_milho": {
+   "frame": {
+    "x": 1383,
+    "y": 166,
+    "w": 69,
+    "h": 106
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 69,
+    "h": 106
+   },
+   "sourceSize": {
+    "w": 69,
+    "h": 106
+   }
+  },
+  "item_notebook_gamer": {
+   "frame": {
+    "x": 1454,
+    "y": 166,
+    "w": 137,
+    "h": 105
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 137,
+    "h": 105
+   },
+   "sourceSize": {
+    "w": 137,
+    "h": 105
+   }
+  },
+  "item_gabinete_pc": {
+   "frame": {
+    "x": 1593,
+    "y": 166,
+    "w": 67,
+    "h": 105
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 67,
+    "h": 105
+   },
+   "sourceSize": {
+    "w": 67,
+    "h": 105
+   }
+  },
+  "item_monitor_azul": {
+   "frame": {
+    "x": 1662,
+    "y": 166,
+    "w": 119,
+    "h": 104
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 119,
+    "h": 104
+   },
+   "sourceSize": {
+    "w": 119,
+    "h": 104
+   }
+  },
+  "item_console_retro": {
+   "frame": {
+    "x": 1783,
+    "y": 166,
+    "w": 117,
+    "h": 103
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 117,
+    "h": 103
+   },
+   "sourceSize": {
+    "w": 117,
+    "h": 103
+   }
+  },
+  "item_pao_de_forma": {
+   "frame": {
+    "x": 1902,
+    "y": 166,
+    "w": 83,
+    "h": 103
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 83,
+    "h": 103
+   },
+   "sourceSize": {
+    "w": 83,
+    "h": 103
+   }
+  },
+  "item_ring_light": {
+   "frame": {
+    "x": 1987,
+    "y": 166,
+    "w": 54,
+    "h": 103
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 54,
+    "h": 103
+   },
+   "sourceSize": {
+    "w": 54,
+    "h": 103
+   }
+  },
+  "item_tv_4k": {
+   "frame": {
+    "x": 2,
+    "y": 289,
+    "w": 127,
+    "h": 101
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 127,
+    "h": 101
+   },
+   "sourceSize": {
+    "w": 127,
+    "h": 101
+   }
+  },
+  "item_salsicha": {
+   "frame": {
+    "x": 131,
+    "y": 289,
+    "w": 141,
+    "h": 100
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 141,
+    "h": 100
+   },
+   "sourceSize": {
+    "w": 141,
+    "h": 100
+   }
+  },
+  "item_power_bank": {
+   "frame": {
+    "x": 274,
+    "y": 289,
+    "w": 59,
+    "h": 100
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 59,
+    "h": 100
+   },
+   "sourceSize": {
+    "w": 59,
+    "h": 100
+   }
+  },
+  "item_roteador": {
+   "frame": {
+    "x": 335,
+    "y": 289,
+    "w": 101,
+    "h": 99
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 99
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 99
+   }
+  },
+  "item_calculadora": {
+   "frame": {
+    "x": 438,
+    "y": 289,
+    "w": 76,
+    "h": 99
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 76,
+    "h": 99
+   },
+   "sourceSize": {
+    "w": 76,
+    "h": 99
+   }
+  },
+  "item_bacon": {
+   "frame": {
+    "x": 516,
+    "y": 289,
+    "w": 142,
+    "h": 98
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 142,
+    "h": 98
+   },
+   "sourceSize": {
+    "w": 142,
+    "h": 98
+   }
+  },
+  "item_notebook_fino": {
+   "frame": {
+    "x": 660,
+    "y": 289,
+    "w": 131,
+    "h": 98
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 131,
+    "h": 98
+   },
+   "sourceSize": {
+    "w": 131,
+    "h": 98
+   }
+  },
+  "item_camera": {
+   "frame": {
+    "x": 793,
+    "y": 289,
+    "w": 99,
+    "h": 98
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 99,
+    "h": 98
+   },
+   "sourceSize": {
+    "w": 99,
+    "h": 98
+   }
+  },
+  "item_headset_branco": {
+   "frame": {
+    "x": 894,
+    "y": 289,
+    "w": 81,
+    "h": 98
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 81,
+    "h": 98
+   },
+   "sourceSize": {
+    "w": 81,
+    "h": 98
+   }
+  },
+  "item_ovos": {
+   "frame": {
+    "x": 977,
+    "y": 289,
+    "w": 138,
+    "h": 97
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 138,
+    "h": 97
+   },
+   "sourceSize": {
+    "w": 138,
+    "h": 97
+   }
+  },
+  "item_iogurte": {
+   "frame": {
+    "x": 1117,
+    "y": 289,
+    "w": 82,
+    "h": 97
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 82,
+    "h": 97
+   },
+   "sourceSize": {
+    "w": 82,
+    "h": 97
+   }
+  },
+  "item_cafeteira": {
+   "frame": {
+    "x": 1201,
+    "y": 289,
+    "w": 82,
+    "h": 97
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 82,
+    "h": 97
+   },
+   "sourceSize": {
+    "w": 82,
+    "h": 97
+   }
+  },
+  "item_pilhas": {
+   "frame": {
+    "x": 1285,
+    "y": 289,
+    "w": 63,
+    "h": 97
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 63,
+    "h": 97
+   },
+   "sourceSize": {
+    "w": 63,
+    "h": 97
+   }
+  },
+  "item_alface": {
+   "frame": {
+    "x": 1350,
+    "y": 289,
+    "w": 92,
+    "h": 96
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 92,
+    "h": 96
+   },
+   "sourceSize": {
+    "w": 92,
+    "h": 96
+   }
+  },
+  "item_brocolis": {
+   "frame": {
+    "x": 1444,
+    "y": 289,
+    "w": 86,
+    "h": 96
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 86,
+    "h": 96
+   },
+   "sourceSize": {
+    "w": 86,
+    "h": 96
+   }
+  },
+  "item_headset": {
+   "frame": {
+    "x": 1532,
+    "y": 289,
+    "w": 81,
+    "h": 96
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 81,
+    "h": 96
+   },
+   "sourceSize": {
+    "w": 81,
+    "h": 96
+   }
+  },
+  "item_microfone": {
+   "frame": {
+    "x": 1615,
+    "y": 289,
+    "w": 58,
+    "h": 96
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 58,
+    "h": 96
+   },
+   "sourceSize": {
+    "w": 58,
+    "h": 96
+   }
+  },
+  "item_cenoura": {
+   "frame": {
+    "x": 1675,
+    "y": 289,
+    "w": 90,
+    "h": 95
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 90,
+    "h": 95
+   },
+   "sourceSize": {
+    "w": 90,
+    "h": 95
+   }
+  },
+  "item_barra_de_chocolate": {
+   "frame": {
+    "x": 1767,
+    "y": 289,
+    "w": 51,
+    "h": 95
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 51,
+    "h": 95
+   },
+   "sourceSize": {
+    "w": 51,
+    "h": 95
+   }
+  },
+  "item_hd_externo": {
+   "frame": {
+    "x": 1820,
+    "y": 289,
+    "w": 79,
+    "h": 94
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 79,
+    "h": 94
+   },
+   "sourceSize": {
+    "w": 79,
+    "h": 94
+   }
+  },
+  "item_smartphone_top": {
+   "frame": {
+    "x": 1901,
+    "y": 289,
+    "w": 57,
+    "h": 94
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 57,
+    "h": 94
+   },
+   "sourceSize": {
+    "w": 57,
+    "h": 94
+   }
+  },
+  "item_smartphone_menta": {
+   "frame": {
+    "x": 1960,
+    "y": 289,
+    "w": 51,
+    "h": 94
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 51,
+    "h": 94
+   },
+   "sourceSize": {
+    "w": 51,
+    "h": 94
+   }
+  },
+  "item_bolo_morango": {
+   "frame": {
+    "x": 2,
+    "y": 392,
+    "w": 102,
+    "h": 93
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 102,
+    "h": 93
+   },
+   "sourceSize": {
+    "w": 102,
+    "h": 93
+   }
+  },
+  "item_monitor_24": {
+   "frame": {
+    "x": 106,
+    "y": 392,
+    "w": 98,
+    "h": 93
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 98,
+    "h": 93
+   },
+   "sourceSize": {
+    "w": 98,
+    "h": 93
+   }
+  },
+  "item_air_fryer": {
+   "frame": {
+    "x": 206,
+    "y": 392,
+    "w": 78,
+    "h": 93
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 78,
+    "h": 93
+   },
+   "sourceSize": {
+    "w": 78,
+    "h": 93
+   }
+  },
+  "item_smartphone": {
+   "frame": {
+    "x": 286,
+    "y": 392,
+    "w": 49,
+    "h": 93
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 49,
+    "h": 93
+   },
+   "sourceSize": {
+    "w": 49,
+    "h": 93
+   }
+  },
+  "item_picole_frutas": {
+   "frame": {
+    "x": 337,
+    "y": 392,
+    "w": 46,
+    "h": 92
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 46,
+    "h": 92
+   },
+   "sourceSize": {
+    "w": 46,
+    "h": 92
+   }
+  },
+  "item_carne_moida": {
+   "frame": {
+    "x": 385,
+    "y": 392,
+    "w": 150,
+    "h": 91
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 150,
+    "h": 91
+   },
+   "sourceSize": {
+    "w": 150,
+    "h": 91
+   }
+  },
+  "item_queijo_prato": {
+   "frame": {
+    "x": 537,
+    "y": 392,
+    "w": 119,
+    "h": 91
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 119,
+    "h": 91
+   },
+   "sourceSize": {
+    "w": 119,
+    "h": 91
+   }
+  },
+  "item_notebook": {
+   "frame": {
+    "x": 658,
+    "y": 392,
+    "w": 110,
+    "h": 91
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 110,
+    "h": 91
+   },
+   "sourceSize": {
+    "w": 110,
+    "h": 91
+   }
+  },
+  "item_pao_frances": {
+   "frame": {
+    "x": 770,
+    "y": 392,
+    "w": 139,
+    "h": 90
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 139,
+    "h": 90
+   },
+   "sourceSize": {
+    "w": 139,
+    "h": 90
+   }
+  },
+  "item_creme_de_leite": {
+   "frame": {
+    "x": 911,
+    "y": 392,
+    "w": 78,
+    "h": 90
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 78,
+    "h": 90
+   },
+   "sourceSize": {
+    "w": 78,
+    "h": 90
+   }
+  },
+  "item_bife": {
+   "frame": {
+    "x": 991,
+    "y": 392,
+    "w": 155,
+    "h": 89
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 155,
+    "h": 89
+   },
+   "sourceSize": {
+    "w": 155,
+    "h": 89
+   }
+  },
+  "item_fatia_bolo": {
+   "frame": {
+    "x": 1148,
+    "y": 392,
+    "w": 88,
+    "h": 89
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 88,
+    "h": 89
+   },
+   "sourceSize": {
+    "w": 88,
+    "h": 89
+   }
+  },
+  "item_queijo_suico": {
+   "frame": {
+    "x": 1238,
+    "y": 392,
+    "w": 95,
+    "h": 88
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 95,
+    "h": 88
+   },
+   "sourceSize": {
+    "w": 95,
+    "h": 88
+   }
+  },
+  "item_monitor_de_audio": {
+   "frame": {
+    "x": 1335,
+    "y": 392,
+    "w": 61,
+    "h": 87
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 61,
+    "h": 87
+   },
+   "sourceSize": {
+    "w": 61,
+    "h": 87
+   }
+  },
+  "item_camera_de_seguranca": {
+   "frame": {
+    "x": 1398,
+    "y": 392,
+    "w": 57,
+    "h": 87
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 57,
+    "h": 87
+   },
+   "sourceSize": {
+    "w": 57,
+    "h": 87
+   }
+  },
+  "item_batata": {
+   "frame": {
+    "x": 1457,
+    "y": 392,
+    "w": 104,
+    "h": 86
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 104,
+    "h": 86
+   },
+   "sourceSize": {
+    "w": 104,
+    "h": 86
+   }
+  },
+  "item_baguete": {
+   "frame": {
+    "x": 1563,
+    "y": 392,
+    "w": 127,
+    "h": 85
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 127,
+    "h": 85
+   },
+   "sourceSize": {
+    "w": 127,
+    "h": 85
+   }
+  },
+  "item_muffin": {
+   "frame": {
+    "x": 1692,
+    "y": 392,
+    "w": 102,
+    "h": 85
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 102,
+    "h": 85
+   },
+   "sourceSize": {
+    "w": 102,
+    "h": 85
+   }
+  },
+  "item_cebola_roxa": {
+   "frame": {
+    "x": 1796,
+    "y": 392,
+    "w": 70,
+    "h": 85
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 70,
+    "h": 85
+   },
+   "sourceSize": {
+    "w": 70,
+    "h": 85
+   }
+  },
+  "item_fatia_cheesecake": {
+   "frame": {
+    "x": 1868,
+    "y": 392,
+    "w": 66,
+    "h": 85
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 66,
+    "h": 85
+   },
+   "sourceSize": {
+    "w": 66,
+    "h": 85
+   }
+  },
+  "item_frango": {
+   "frame": {
+    "x": 2,
+    "y": 487,
+    "w": 148,
+    "h": 84
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 148,
+    "h": 84
+   },
+   "sourceSize": {
+    "w": 148,
+    "h": 84
+   }
+  },
+  "item_manteiga": {
+   "frame": {
+    "x": 152,
+    "y": 487,
+    "w": 121,
+    "h": 84
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 121,
+    "h": 84
+   },
+   "sourceSize": {
+    "w": 121,
+    "h": 84
+   }
+  },
+  "item_salame": {
+   "frame": {
+    "x": 275,
+    "y": 487,
+    "w": 107,
+    "h": 84
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 107,
+    "h": 84
+   },
+   "sourceSize": {
+    "w": 107,
+    "h": 84
+   }
+  },
+  "item_ssd": {
+   "frame": {
+    "x": 384,
+    "y": 487,
+    "w": 75,
+    "h": 84
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 75,
+    "h": 84
+   },
+   "sourceSize": {
+    "w": 75,
+    "h": 84
+   }
+  },
+  "item_uva": {
+   "frame": {
+    "x": 461,
+    "y": 487,
+    "w": 72,
+    "h": 84
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 72,
+    "h": 84
+   },
+   "sourceSize": {
+    "w": 72,
+    "h": 84
+   }
+  },
+  "item_cebola": {
+   "frame": {
+    "x": 535,
+    "y": 487,
+    "w": 70,
+    "h": 84
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 70,
+    "h": 84
+   },
+   "sourceSize": {
+    "w": 70,
+    "h": 84
+   }
+  },
+  "item_roteador_branco": {
+   "frame": {
+    "x": 607,
+    "y": 487,
+    "w": 95,
+    "h": 82
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 95,
+    "h": 82
+   },
+   "sourceSize": {
+    "w": 95,
+    "h": 82
+   }
+  },
+  "item_fone_intra": {
+   "frame": {
+    "x": 704,
+    "y": 487,
+    "w": 70,
+    "h": 82
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 70,
+    "h": 82
+   },
+   "sourceSize": {
+    "w": 70,
+    "h": 82
+   }
+  },
+  "item_ssd_nvme": {
+   "frame": {
+    "x": 776,
+    "y": 487,
+    "w": 56,
+    "h": 82
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 56,
+    "h": 82
+   },
+   "sourceSize": {
+    "w": 56,
+    "h": 82
+   }
+  },
+  "item_radio_boombox": {
+   "frame": {
+    "x": 834,
+    "y": 487,
+    "w": 126,
+    "h": 81
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 126,
+    "h": 81
+   },
+   "sourceSize": {
+    "w": 126,
+    "h": 81
+   }
+  },
+  "item_lampada_led": {
+   "frame": {
+    "x": 962,
+    "y": 487,
+    "w": 45,
+    "h": 80
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 45,
+    "h": 80
+   },
+   "sourceSize": {
+    "w": 45,
+    "h": 80
+   }
+  },
+  "item_croissant": {
+   "frame": {
+    "x": 1009,
+    "y": 487,
+    "w": 117,
+    "h": 79
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 117,
+    "h": 79
+   },
+   "sourceSize": {
+    "w": 117,
+    "h": 79
+   }
+  },
+  "item_banana": {
+   "frame": {
+    "x": 1128,
+    "y": 487,
+    "w": 93,
+    "h": 79
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 93,
+    "h": 79
+   },
+   "sourceSize": {
+    "w": 93,
+    "h": 79
+   }
+  },
+  "item_microondas_portatil": {
+   "frame": {
+    "x": 1223,
+    "y": 487,
+    "w": 103,
+    "h": 78
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 103,
+    "h": 78
+   },
+   "sourceSize": {
+    "w": 103,
+    "h": 78
+   }
+  },
+  "item_mousepad": {
+   "frame": {
+    "x": 1328,
+    "y": 487,
+    "w": 112,
+    "h": 77
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 77
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 77
+   }
+  },
+  "item_morango": {
+   "frame": {
+    "x": 1442,
+    "y": 487,
+    "w": 95,
+    "h": 77
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 95,
+    "h": 77
+   },
+   "sourceSize": {
+    "w": 95,
+    "h": 77
+   }
+  },
+  "item_camera_de_acao": {
+   "frame": {
+    "x": 1539,
+    "y": 487,
+    "w": 79,
+    "h": 77
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 79,
+    "h": 77
+   },
+   "sourceSize": {
+    "w": 79,
+    "h": 77
+   }
+  },
+  "item_pendrive": {
+   "frame": {
+    "x": 1620,
+    "y": 487,
+    "w": 50,
+    "h": 77
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 50,
+    "h": 77
+   },
+   "sourceSize": {
+    "w": 50,
+    "h": 77
+   }
+  },
+  "item_lampada_rgb": {
+   "frame": {
+    "x": 1672,
+    "y": 487,
+    "w": 42,
+    "h": 77
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 42,
+    "h": 77
+   },
+   "sourceSize": {
+    "w": 42,
+    "h": 77
+   }
+  },
+  "item_relogio_digital": {
+   "frame": {
+    "x": 1716,
+    "y": 487,
+    "w": 96,
+    "h": 76
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 96,
+    "h": 76
+   },
+   "sourceSize": {
+    "w": 96,
+    "h": 76
+   }
+  },
+  "item_tomate": {
+   "frame": {
+    "x": 1814,
+    "y": 487,
+    "w": 75,
+    "h": 76
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 75,
+    "h": 76
+   },
+   "sourceSize": {
+    "w": 75,
+    "h": 76
+   }
+  },
+  "item_maca": {
+   "frame": {
+    "x": 1891,
+    "y": 487,
+    "w": 69,
+    "h": 76
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 69,
+    "h": 76
+   },
+   "sourceSize": {
+    "w": 69,
+    "h": 76
+   }
+  },
+  "item_maca_verde": {
+   "frame": {
+    "x": 1962,
+    "y": 487,
+    "w": 69,
+    "h": 76
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 69,
+    "h": 76
+   },
+   "sourceSize": {
+    "w": 69,
+    "h": 76
+   }
+  },
+  "item_pao_caseiro": {
+   "frame": {
+    "x": 2,
+    "y": 573,
+    "w": 118,
+    "h": 75
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 118,
+    "h": 75
+   },
+   "sourceSize": {
+    "w": 118,
+    "h": 75
+   }
+  },
+  "item_alho": {
+   "frame": {
+    "x": 122,
+    "y": 573,
+    "w": 63,
+    "h": 73
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 63,
+    "h": 73
+   },
+   "sourceSize": {
+    "w": 63,
+    "h": 73
+   }
+  },
+  "item_torta": {
+   "frame": {
+    "x": 187,
+    "y": 573,
+    "w": 114,
+    "h": 72
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 114,
+    "h": 72
+   },
+   "sourceSize": {
+    "w": 114,
+    "h": 72
+   }
+  },
+  "item_rosquinha": {
+   "frame": {
+    "x": 303,
+    "y": 573,
+    "w": 85,
+    "h": 72
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 85,
+    "h": 72
+   },
+   "sourceSize": {
+    "w": 85,
+    "h": 72
+   }
+  },
+  "item_rosquinha_chocolate": {
+   "frame": {
+    "x": 390,
+    "y": 573,
+    "w": 85,
+    "h": 71
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 85,
+    "h": 71
+   },
+   "sourceSize": {
+    "w": 85,
+    "h": 71
+   }
+  },
+  "item_laranja": {
+   "frame": {
+    "x": 477,
+    "y": 573,
+    "w": 73,
+    "h": 71
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 73,
+    "h": 71
+   },
+   "sourceSize": {
+    "w": 73,
+    "h": 71
+   }
+  },
+  "item_carregador": {
+   "frame": {
+    "x": 552,
+    "y": 573,
+    "w": 46,
+    "h": 70
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 46,
+    "h": 70
+   },
+   "sourceSize": {
+    "w": 46,
+    "h": 70
+   }
+  },
+  "item_drone": {
+   "frame": {
+    "x": 600,
+    "y": 573,
+    "w": 122,
+    "h": 69
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 122,
+    "h": 69
+   },
+   "sourceSize": {
+    "w": 122,
+    "h": 69
+   }
+  },
+  "item_cartao_sd": {
+   "frame": {
+    "x": 724,
+    "y": 573,
+    "w": 49,
+    "h": 69
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 49,
+    "h": 69
+   },
+   "sourceSize": {
+    "w": 49,
+    "h": 69
+   }
+  },
+  "item_mouse_gamer": {
+   "frame": {
+    "x": 775,
+    "y": 573,
+    "w": 47,
+    "h": 69
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 47,
+    "h": 69
+   },
+   "sourceSize": {
+    "w": 47,
+    "h": 69
+   }
+  },
+  "item_controle": {
+   "frame": {
+    "x": 824,
+    "y": 573,
+    "w": 89,
+    "h": 67
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 89,
+    "h": 67
+   },
+   "sourceSize": {
+    "w": 89,
+    "h": 67
+   }
+  },
+  "item_controle_branco": {
+   "frame": {
+    "x": 915,
+    "y": 573,
+    "w": 87,
+    "h": 67
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 87,
+    "h": 67
+   },
+   "sourceSize": {
+    "w": 87,
+    "h": 67
+   }
+  },
+  "item_cookies": {
+   "frame": {
+    "x": 1004,
+    "y": 573,
+    "w": 73,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 73,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 73,
+    "h": 64
+   }
+  },
+  "item_assistente_de_voz": {
+   "frame": {
+    "x": 1079,
+    "y": 573,
+    "w": 51,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 51,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 51,
+    "h": 62
+   }
+  },
+  "item_caixa_portatil": {
+   "frame": {
+    "x": 1132,
+    "y": 573,
+    "w": 65,
+    "h": 61
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 65,
+    "h": 61
+   },
+   "sourceSize": {
+    "w": 65,
+    "h": 61
+   }
+  },
+  "item_tomada_inteligente": {
+   "frame": {
+    "x": 1199,
+    "y": 573,
+    "w": 59,
+    "h": 61
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 59,
+    "h": 61
+   },
+   "sourceSize": {
+    "w": 59,
+    "h": 61
+   }
+  },
+  "item_switch_de_rede": {
+   "frame": {
+    "x": 1260,
+    "y": 573,
+    "w": 135,
+    "h": 59
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 135,
+    "h": 59
+   },
+   "sourceSize": {
+    "w": 135,
+    "h": 59
+   }
+  },
+  "item_fone_bluetooth": {
+   "frame": {
+    "x": 1397,
+    "y": 573,
+    "w": 68,
+    "h": 59
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 68,
+    "h": 59
+   },
+   "sourceSize": {
+    "w": 68,
+    "h": 59
+   }
+  },
+  "item_teclado": {
+   "frame": {
+    "x": 1467,
+    "y": 573,
+    "w": 133,
+    "h": 58
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 133,
+    "h": 58
+   },
+   "sourceSize": {
+    "w": 133,
+    "h": 58
+   }
+  },
+  "item_webcam": {
+   "frame": {
+    "x": 1602,
+    "y": 573,
+    "w": 55,
+    "h": 56
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 56
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 56
+   }
+  },
+  "item_cartao_micro_sd": {
+   "frame": {
+    "x": 1659,
+    "y": 573,
+    "w": 41,
+    "h": 52
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 41,
+    "h": 52
+   },
+   "sourceSize": {
+    "w": 41,
+    "h": 52
+   }
+  },
+  "item_soundbar": {
+   "frame": {
+    "x": 1702,
+    "y": 573,
+    "w": 133,
+    "h": 49
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 133,
+    "h": 49
+   },
+   "sourceSize": {
+    "w": 133,
+    "h": 49
+   }
+  },
+  "item_teclado_rgb": {
+   "frame": {
+    "x": 1837,
+    "y": 573,
+    "w": 118,
+    "h": 45
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 118,
+    "h": 45
+   },
+   "sourceSize": {
+    "w": 118,
+    "h": 45
+   }
+  },
+  "item_mouse": {
+   "frame": {
+    "x": 1957,
+    "y": 573,
+    "w": 48,
+    "h": 43
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 48,
+    "h": 43
+   },
+   "sourceSize": {
+    "w": 48,
+    "h": 43
+   }
+  }
+ },
+ "meta": {
+  "app": "gerar-itens.mjs",
+  "image": "itens.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 2043,
+   "h": 650
+  },
+  "scale": "1"
+ }
+}

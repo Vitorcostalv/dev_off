@@ -1,6 +1,7 @@
-import { Inventario } from './inventario';
-import { Relogio } from './relogio';
-import { SistemaRotinasNpc } from './rotinasNpc';
+import { Carteira } from './dinheiro.ts';
+import { Inventario } from './inventario.ts';
+import { Relogio } from './relogio.ts';
+import { SistemaRotinasNpc } from './rotinasNpc.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
@@ -13,6 +14,8 @@ export const estado = {
   dia: 0,
   relogio: new Relogio(),
   inventario: new Inventario(),
+  /** saldo em R$ do jogador; so ganhar()/gastar() escrevem nele */
+  carteira: new Carteira(),
   /** IDs unicos dos objetos de mundo que ja foram recolhidos. */
   itensColetados: new Set<string>(),
   rotinasNpc: new SistemaRotinasNpc(),
