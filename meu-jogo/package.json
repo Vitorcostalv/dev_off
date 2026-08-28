@@ -11,7 +11,9 @@
     "verificar-mapas": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-mapas.mjs",
     "verificar-inventario": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-inventario.mjs",
     "processar-sprites-npc": "node tools/processar-sprites-npc.mjs",
-    "verificar-rotinas": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-rotinas-npc.mjs"
+    "verificar-rotinas": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-rotinas-npc.mjs",
+    "gerar-itens": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-itens.mjs",
+    "verificar-economia": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-economia.mjs"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

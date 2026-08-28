@@ -1,4 +1,4 @@
-import type { TipoInteragivel, TipoZona } from './tipos';
+import type { TipoInteragivel, TipoZona } from './tipos.ts';
 
 /** Numeros que valem a pena mexer sem cacar no meio do codigo. */
 export const CONFIG = {
@@ -31,6 +31,7 @@ export const ROTULOS: Record<TipoInteragivel, string> = {
   porta: 'Entrar',
   cama: 'Dormir',
   item: 'Pegar',
+  loja: 'Comprar',
 };
 
 /** Cor da demarcacao de cada tipo de zona reservada (overlay de debug, F6). */
@@ -51,6 +52,10 @@ export const UI = {
   texto: '#f4efe2',
   textoFraco: '#b9b0a0',
   destaque: '#ffd97d',
+  /** recusa e aviso: dinheiro que falta, inventario cheio */
+  alerta: '#ff9c7a',
+  /** confirmacao: compra feita, item usado */
+  sucesso: '#a6d98b',
   fundo: 0x1a1712,
   fundoAlfa: 0.88,
   borda: 0x6b5f4c,

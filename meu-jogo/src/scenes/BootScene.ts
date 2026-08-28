@@ -79,6 +79,11 @@ export class BootScene extends Phaser.Scene {
       );
     }
 
+    // Icone de item: um frame `item_<id>` por entrada do CATALOGO_ITENS. O par
+    // PNG+atlas sai de tools/gerar-itens.mjs, que le o MESMO catalogo — entao
+    // nao ha frame sobrando nem item do catalogo sem icone.
+    this.load.atlas('itens', 'assets/sprites/itens.png', 'assets/sprites/itens.atlas.json');
+
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
@@ -120,13 +125,18 @@ export class BootScene extends Phaser.Scene {
     estado.relogio.definir(Number.isFinite(save.minutos) ? save.minutos : 0);
     estado.mapa = mapa.chave;
     estado.inventario.restaurar(save.inventario);
+    // valida sozinho: save com NaN/negativo/string volta pro saldo inicial
+    estado.carteira.restaurar(save.dinheiro);
     estado.itensColetados = new Set(
       Array.isArray(save.itensColetados)
         ? save.itensColetados.filter((id): id is string => typeof id === 'string')
         : [],
     );
 
-    console.info(`[save] carregado: dia ${estado.dia}, ${estado.relogio.texto}, ${mapa.chave}`);
+    console.info(
+      `[save] carregado: dia ${estado.dia}, ${estado.relogio.texto}, ${mapa.chave},` +
+        ` ${estado.carteira.texto}`,
+    );
     return { mapa: mapa.chave, x: save.x, y: save.y };
   }
 
