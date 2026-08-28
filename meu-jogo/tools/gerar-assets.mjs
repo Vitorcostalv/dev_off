@@ -2164,6 +2164,26 @@ const MISTO_CAMA = { x: 2, y: 2 };
  * depende de reconferir o layout na mao.
  */
 const MISTO_SPAWN_DONO = { x: 4, y: 8 };
+/**
+ * Os dois POSTOS do dono, pra presenca interior fixa (ver `posto_interior` em
+ * src/game/rotinasNpc.ts): ele passa o dia alternando entre estes dois pontos
+ * dentro do proprio predio, sem trajeto.
+ *
+ * `trabalho` fica ATRAS do balcao — nos dois mistos o movel de balcao ocupa as
+ * colunas 11..14 nas linhas 6 e 7, entao a linha 5 e o lado de dentro dele. O
+ * sprite do dono sai com profundidade menor que a do balcao, entao ele aparece
+ * atras da peca, que e a leitura certa. `moradia` reusa o spawn do dono, na
+ * sala da metade residencial.
+ *
+ * Estao duplicados em `LOCAIS_CIDADE[...].postos` (src/game/npcs.ts), porque o
+ * jogo precisa deles sem ler o gerador. A conferencia abaixo cobra que os dois
+ * continuem livres e alcancaveis a partir da porta, e `verificar-rotinas`
+ * confere que o NPC de fato so para em tile livre do interior.
+ */
+const MISTO_POSTOS = {
+  trabalho: { x: 13, y: 5 },
+  moradia: MISTO_SPAWN_DONO,
+};
 /** Um tile da area de trabalho que tem de ser alcancavel a partir da porta. */
 const MISTO_ALVO_TRABALHO = { x: 15, y: 8 };
 
@@ -2348,6 +2368,8 @@ function conferirMistos() {
         [MISTO_CAMA.x, MISTO_CAMA.y + 2, 'a frente da cama'],
         [MISTO_ALVO_TRABALHO.x, MISTO_ALVO_TRABALHO.y, 'o meio da area de trabalho'],
         [MISTO_SPAWN_DONO.x, MISTO_SPAWN_DONO.y, 'o spawn do dono do predio'],
+        [MISTO_POSTOS.trabalho.x, MISTO_POSTOS.trabalho.y, 'o posto de trabalho do dono'],
+        [MISTO_POSTOS.moradia.x, MISTO_POSTOS.moradia.y, 'o posto de moradia do dono'],
         [MISTO_LIMITE_CASA, PAREDE_TOPO, 'o topo da passagem entre os ambientes'],
         [MISTO_LIMITE_CASA, H - 2, 'a base da passagem entre os ambientes'],
       ],
@@ -2361,6 +2383,10 @@ function conferirMistos() {
   }
   console.log(
     `interiores mistos (${W}x${H}, casa 1..${MISTO_LIMITE_CASA} + trabalho):\n${linhas.join('\n')}`,
+  );
+  console.log(
+    `  postos do dono conferidos: trabalho (${MISTO_POSTOS.trabalho.x},${MISTO_POSTOS.trabalho.y})` +
+      ` e moradia (${MISTO_POSTOS.moradia.x},${MISTO_POSTOS.moradia.y})`,
   );
 }
 

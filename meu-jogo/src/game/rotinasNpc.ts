@@ -1,5 +1,6 @@
+import { diaDaSemana } from './calendario.ts';
 import { LOCAIS_CIDADE, NPCS, hora } from './npcs.ts';
-import type { AcaoRotinaNpc, DefinicaoNpc, PontoTile } from './npcs.ts';
+import type { AcaoRotinaNpc, DefinicaoNpc, PontoTile, PostoInterior } from './npcs.ts';
 import type { Direcao } from './tipos.ts';
 
 const HORA_FALLBACK_CASA = hora(18);
@@ -16,6 +17,12 @@ export interface EstadoNpc {
   movendo: boolean;
   direcao: Direcao;
   acaoAtual: AcaoRotinaNpc['tipo'] | 'inativo';
+  /**
+   * Posto de presenca interior fixa em que o NPC esta, ou null quando ele nao
+   * usa esse modo (ou saiu do predio pra viagem do dia). Sai daqui e nao da
+   * coordenada porque quem le nao deveria ter de comparar ponto flutuante.
+   */
+  posto: PostoInterior | null;
 }
 
 interface RuntimeNpc {
@@ -51,7 +58,7 @@ export class SistemaRotinasNpc {
   atualizar(dia: number, minutos: number, deltaMs: number): void {
     if (this.diaAtual !== dia) {
       this.diaAtual = dia;
-      for (const runtime of this.runtimes.values()) this.reiniciar(runtime);
+      for (const runtime of this.runtimes.values()) this.reiniciar(runtime, dia);
     }
     for (const runtime of this.runtimes.values()) {
       runtime.estado.acordado = minutos >= runtime.def.horaAcordar;
@@ -70,11 +77,12 @@ export class SistemaRotinasNpc {
       movendo: false,
       direcao: 'down',
       acaoAtual: 'inativo',
+      posto: null,
     };
     return {
       def,
       estado,
-      rotina: this.rotinaComFallback(def),
+      rotina: this.rotinaDoDia(def, 0),
       indice: 0,
       acao: null,
       rota: [],
@@ -86,16 +94,23 @@ export class SistemaRotinasNpc {
     };
   }
 
-  private rotinaComFallback(def: DefinicaoNpc): AcaoRotinaNpc[] {
-    const rotina = [...def.rotina];
+  /**
+   * Rotina de um dia: a do dia da semana, se o NPC tiver uma, senao a padrao.
+   * A escolha e feita UMA vez por dia (na virada, em `reiniciar`) — assim o dia
+   * inteiro roda com a mesma lista e nao ha risco de trocar de rotina no meio.
+   */
+  private rotinaDoDia(def: DefinicaoNpc, dia: number): AcaoRotinaNpc[] {
+    const base = def.rotinaSemanal?.[diaDaSemana(dia)] ?? def.rotina;
+    const rotina = [...base];
     if (!rotina.some((acao) => acao.horario >= HORA_FALLBACK_CASA)) {
       rotina.push({ horario: HORA_FALLBACK_CASA, tipo: 'voltar_para_casa' });
     }
     return rotina.sort((a, b) => a.horario - b.horario);
   }
 
-  private reiniciar(runtime: RuntimeNpc): void {
+  private reiniciar(runtime: RuntimeNpc, dia: number): void {
     const { def, estado } = runtime;
+    runtime.rotina = this.rotinaDoDia(def, dia);
     estado.x = def.posicaoInicial.x;
     estado.y = def.posicaoInicial.y;
     estado.dentro = def.dentroInicial;
@@ -104,6 +119,7 @@ export class SistemaRotinasNpc {
     estado.movendo = false;
     estado.direcao = 'down';
     estado.acaoAtual = 'inativo';
+    estado.posto = null;
     runtime.indice = 0;
     runtime.acao = null;
     runtime.rota = [];
@@ -152,6 +168,17 @@ export class SistemaRotinasNpc {
     }
   }
 
+  /** Posto de um NPC de presenca interior fixa; erra alto se o lote nao tiver. */
+  private postoDe(def: DefinicaoNpc, posto: PostoInterior): PontoTile {
+    const ponto = LOCAIS_CIDADE[def.casa]?.postos?.[posto];
+    if (!ponto) {
+      throw new Error(
+        `"${def.id}" pediu o posto "${posto}", mas "${def.casa}" nao tem postos em LOCAIS_CIDADE`,
+      );
+    }
+    return ponto;
+  }
+
   private iniciarAcao(runtime: RuntimeNpc, acao: AcaoRotinaNpc): void {
     runtime.acao = acao;
     runtime.estado.acaoAtual = acao.tipo;
@@ -162,9 +189,11 @@ export class SistemaRotinasNpc {
     if (acao.tipo === 'andar_rota') runtime.rota = acao.waypoints;
     if (acao.tipo === 'vagar_rota') runtime.rota = acao.waypoints;
     if (acao.tipo === 'sair_construcao') {
-      const porta = LOCAIS_CIDADE[acao.construcao]?.portaInterior;
-      if (!porta) throw new Error(`construcao desconhecida: ${acao.construcao}`);
-      runtime.rota = [porta];
+      const local = LOCAIS_CIDADE[acao.construcao];
+      if (!local) throw new Error(`construcao desconhecida: ${acao.construcao}`);
+      // o corredor interno, quando o predio tem um: a reta do posto ate a porta
+      // atravessaria mobilia, e aqui nao ha pathfinding
+      runtime.rota = [...(local.corredorInterior ?? []), local.portaInterior];
     }
     if (acao.tipo === 'voltar_para_casa') {
       const frente = LOCAIS_CIDADE[runtime.def.casa]?.frente;
@@ -182,11 +211,26 @@ export class SistemaRotinasNpc {
     const acao = runtime.acao;
     if (!acao) return true;
     switch (acao.tipo) {
+      case 'posto_interior': {
+        // Troca direta de posicao, sem trajeto: o dono some de um canto do
+        // proprio interior e aparece no outro. `visivel` fica false porque
+        // "dentro de construcao" e o que esconde o NPC do mapa externo — a cena
+        // desenha ele pelo par (dentro === mapa aberto), em posicaoNpcNoMapa.
+        const ponto = this.postoDe(runtime.def, acao.posto);
+        runtime.estado.x = ponto.x;
+        runtime.estado.y = ponto.y;
+        runtime.estado.dentro = runtime.def.casa;
+        runtime.estado.visivel = false;
+        runtime.estado.posto = acao.posto;
+        runtime.estado.direcao = 'down';
+        return true;
+      }
       case 'entrar_construcao':
         runtime.estado.x = LOCAIS_CIDADE[acao.construcao].portaInterior.x;
         runtime.estado.y = LOCAIS_CIDADE[acao.construcao].portaInterior.y;
         runtime.estado.dentro = acao.construcao;
         runtime.estado.visivel = false;
+        runtime.estado.posto = null;
         return true;
       case 'sair_construcao': {
         const frente = LOCAIS_CIDADE[acao.construcao]?.frente;
@@ -196,6 +240,7 @@ export class SistemaRotinasNpc {
         runtime.estado.y = frente.y;
         runtime.estado.dentro = null;
         runtime.estado.visivel = true;
+        runtime.estado.posto = null;
         return true;
       }
       case 'andar_rota':
@@ -225,6 +270,9 @@ export class SistemaRotinasNpc {
     if (entrarEmCasa && runtime.estado.dentro !== runtime.def.casa) {
       runtime.estado.dentro = runtime.def.casa;
       runtime.estado.visivel = false;
+      // chegou pela porta, ainda nao esta em posto nenhum: quem mora onde
+      // trabalha recebe um `posto_interior` logo depois pra assumir o balcao
+      runtime.estado.posto = null;
       const porta = LOCAIS_CIDADE[runtime.def.casa]?.portaInterior;
       if (porta) {
         runtime.estado.x = porta.x;

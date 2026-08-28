@@ -1,3 +1,6 @@
+import { DIA_DA_SEMANA } from './calendario.ts';
+import type { IndiceDiaDaSemana } from './calendario.ts';
+
 export interface PontoTile {
   x: number;
   y: number;
@@ -7,6 +10,16 @@ export interface AreaVagar {
   min: PontoTile;
   max: PontoTile;
 }
+
+/**
+ * Postos de uma PRESENCA INTERIOR FIXA. O NPC que mora onde trabalha nao faz
+ * trajeto: ele existe dentro do proprio interior, num de dois lugares, e a
+ * troca e so pelo relogio.
+ *
+ * - `trabalho` — atras do balcao, no horario de funcionamento
+ * - `moradia`  — na metade residencial do mesmo interior, fora do horario
+ */
+export type PostoInterior = 'trabalho' | 'moradia';
 
 export interface SpriteNpc {
   arquivo: string;
@@ -56,6 +69,23 @@ export type AcaoRotinaNpc =
       pausaMaxSegundos?: number;
     })
   | (AcaoBase & { tipo: 'andar_rota'; waypoints: PontoTile[] })
+  | (AcaoBase & {
+      /**
+       * PRESENCA INTERIOR FIXA: poe o NPC num posto DENTRO da propria
+       * construcao (`def.casa`), sem trajeto e sem animacao de caminhada — e
+       * troca direta de posicao, resolvida no tick em que o horario chega.
+       *
+       * Serve pro dono que mora onde trabalha: ele nao aparece no mapa externo
+       * (`visivel` fica false, como em qualquer NPC "dentro"), mas aparece e
+       * conversa quando o jogador entra no interior dele.
+       *
+       * Os postos sao do PREDIO, nao do NPC: saem de `LOCAIS_CIDADE[casa].postos`,
+       * entao qualquer futuro dono do mesmo lote herda as duas posicoes ja
+       * conferidas pelo flood-fill do gerador.
+       */
+      tipo: 'posto_interior';
+      posto: PostoInterior;
+    })
   | (AcaoBase & { tipo: 'entrar_construcao'; construcao: string })
   | (AcaoBase & { tipo: 'sair_construcao'; construcao: string })
   | (AcaoBase & { tipo: 'voltar_para_casa' });
@@ -77,7 +107,20 @@ export interface DefinicaoNpc {
    */
   spriteParado?: SpriteNpc | null;
   tint?: number;
+  /**
+   * Marca o NPC de PRESENCA INTERIOR FIXA (mora onde trabalha). E so um rotulo
+   * declarativo — quem move o NPC e a acao `posto_interior`. A validacao no fim
+   * do arquivo cobra que os dois andem juntos: com a marca, a rotina tem de usar
+   * `posto_interior` e o lote tem de ter `postos` em `LOCAIS_CIDADE`.
+   */
+  presencaInteriorFixa?: boolean;
   rotina: AcaoRotinaNpc[];
+  /**
+   * Rotina que SUBSTITUI `rotina` num dia da semana (0 = segunda). O motor
+   * escolhe uma vez por dia, na virada — ver `SistemaRotinasNpc.reiniciar`.
+   * E o que da a viagem semanal ao mercado sem espalhar `if` pelo motor.
+   */
+  rotinaSemanal?: Partial<Record<IndiceDiaDaSemana, AcaoRotinaNpc[]>>;
   /** Rota publica ate a frente da casa, usada pelo fallback global das 18:00. */
   rotaCasa: PontoTile[];
 }
@@ -86,6 +129,25 @@ interface LocalCidade {
   frente: PontoTile;
   interior: PontoTile;
   portaInterior: PontoTile;
+  /**
+   * Postos de presenca interior fixa, quando o predio tem moradia junto do
+   * comercio (os lotes MISTOS). Sao coordenadas do INTERIOR, e as mesmas que
+   * `conferirMistos()` em tools/gerar-assets.mjs exige livres e alcancaveis a
+   * partir da porta — mexer numa ponta sem a outra reprova na geracao.
+   */
+  postos?: Record<PostoInterior, PontoTile>;
+  /**
+   * Caminho interno a percorrer ANTES da porta, ao sair do predio. A reta do
+   * posto de moradia ate a porta atravessa mobilia nos dois mistos (o interior e
+   * largo e a porta fica do outro lado do comodo), e o motor nao faz
+   * pathfinding: sem isto o dono sairia por dentro do sofa.
+   *
+   * Vale pro posto de MORADIA, que e de onde as saidas acontecem (a viagem
+   * semanal sai antes de abrir). Sair de tras do balcao precisaria contornar o
+   * balcao — se algum dia uma rotina fizer isso, a conferencia dos 7 dias em
+   * `verificar-rotinas` reprova e o caminho extra entra aqui.
+   */
+  corredorInterior?: PontoTile[];
 }
 
 export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
@@ -99,8 +161,25 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
   academia: { frente: { x: 53.5, y: 35.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
   // Mistos (casa + comercio no mesmo interior 20x14): `interior` fica na metade
   // de MORADIA, que e onde o dono nasce — o mesmo papel que (8,8) tem nas casas.
-  bar: { frente: { x: 81.5, y: 29.5 }, interior: { x: 4.5, y: 8.5 }, portaInterior: { x: 10.5, y: 12.5 } },
-  farmacia: { frente: { x: 85.5, y: 55.5 }, interior: { x: 4.5, y: 8.5 }, portaInterior: { x: 10.5, y: 12.5 } },
+  // Os dois interiores saem da MESMA planta, entao os postos coincidem: (13,5)
+  // e atras do balcao (o movel de balcao ocupa 11..14 nas linhas 6 e 7 nos dois)
+  // e (4,8) e a sala da metade de moradia, ao lado da cama.
+  bar: {
+    frente: { x: 81.5, y: 29.5 },
+    interior: { x: 4.5, y: 8.5 },
+    portaInterior: { x: 10.5, y: 12.5 },
+    postos: { trabalho: { x: 13.5, y: 5.5 }, moradia: { x: 4.5, y: 8.5 } },
+    // linha 8 livre de ponta a ponta, depois a coluna 9 (a passagem entre os
+    // dois ambientes, que o gerador mantem livre de cima a baixo)
+    corredorInterior: [{ x: 9.5, y: 8.5 }, { x: 9.5, y: 11.5 }],
+  },
+  farmacia: {
+    frente: { x: 85.5, y: 55.5 },
+    interior: { x: 4.5, y: 8.5 },
+    portaInterior: { x: 10.5, y: 12.5 },
+    postos: { trabalho: { x: 13.5, y: 5.5 }, moradia: { x: 4.5, y: 8.5 } },
+    corredorInterior: [{ x: 9.5, y: 8.5 }, { x: 9.5, y: 11.5 }],
+  },
 };
 
 /**
@@ -357,6 +436,136 @@ export const NPCS: Record<string, DefinicaoNpc> = {
       { x: 34.5, y: 71.5 }, { x: 34.5, y: 79.5 },
     ],
   },
+  // ------------------------------------------------------------------------
+  // PRESENCA INTERIOR FIXA: os dois donos dos lotes MISTOS. Eles moram onde
+  // trabalham, entao nao tem trajeto — passam o dia dentro do proprio interior,
+  // trocando entre o posto de trabalho (atras do balcao) e o de moradia. O
+  // jogador so os encontra entrando no predio; no mapa externo eles nao existem.
+  //
+  // A excecao e a viagem semanal ao mercado, que e o unico dia em que aparecem
+  // la fora. Ela vem de `rotinaSemanal`, entao o motor nao precisa saber nada
+  // sobre dia da semana alem de escolher a lista na virada do dia.
+  wendel: {
+    id: 'wendel', nome: 'Wendel', casa: 'farmacia',
+    posicaoInicial: { x: 4.5, y: 8.5 }, dentroInicial: 'farmacia', horaAcordar: hora(7),
+    presencaInteriorFixa: true,
+    // a arte grafa "Wendeu"; o personagem e Wendel (ver processar-sprites-npc)
+    sprite: {
+      arquivo: 'assets/sprites/Wendeu_andando_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    },
+    spriteParado: {
+      arquivo: 'assets/sprites/Wendeu_parado_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
+      },
+    },
+    dialogoAtual: [
+      'Boa tarde. Antes de qualquer coisa: leia a bula. Sempre.',
+      'Isto que chamam de "remedio pra dor de cabeca" e um analgesico simples. ' +
+        'Faz efeito em uns quarenta minutos, uma hora se voce comeu bem antes.',
+      'Receita nao precisa. Agua precisa, e um copo cheio — e a parte que todo mundo esquece.',
+    ],
+    // farmacia abre as 09:00 e fecha as 18:00
+    rotina: [
+      { horario: hora(9), tipo: 'posto_interior', posto: 'trabalho' },
+      { horario: hora(18), tipo: 'posto_interior', posto: 'moradia' },
+    ],
+    rotinaSemanal: {
+      // Quarta: em vez de abrir as 09:00, ele desce pro mercado. A faixa y=55.5
+      // e a mesma lane de aproximacao que a Jaqueline usa pra chegar na porta do
+      // mercado — a farmacia fica no mesmo corredor, so mais a leste.
+      [DIA_DA_SEMANA.quarta]: [
+        { horario: hora(9), tipo: 'sair_construcao', construcao: 'farmacia' },
+        { horario: hora(9), tipo: 'andar_rota', waypoints: [{ x: 70.5, y: 55.5 }] },
+        { horario: hora(9), tipo: 'entrar_construcao', construcao: 'mercado' },
+        // expediente curto e do outro lado do salao: a Jaqueline trabalha em
+        // x=14..16, entao a visita fica em x=6..8 e os dois nao se sobrepoem
+        { horario: hora(9), tipo: 'vagar_rota', pausaMinSegundos: 3, pausaMaxSegundos: 8,
+          waypoints: [{ x: 6.5, y: 11.5 }, { x: 8.5, y: 11.5 }] },
+        { horario: hora(9, 45), tipo: 'sair_construcao', construcao: 'mercado' },
+        { horario: hora(9, 45), tipo: 'andar_rota', waypoints: [{ x: 85.5, y: 55.5 }] },
+        { horario: hora(9, 45), tipo: 'voltar_para_casa' },
+        // a farmacia abre atrasada neste dia, e ai segue igual
+        { horario: hora(10), tipo: 'posto_interior', posto: 'trabalho' },
+        { horario: hora(18), tipo: 'posto_interior', posto: 'moradia' },
+      ],
+    },
+    rotaCasa: [
+      { x: 70.5, y: 55.5 }, { x: 85.5, y: 55.5 },
+    ],
+  },
+  alice: {
+    id: 'alice', nome: 'Alice', casa: 'bar',
+    posicaoInicial: { x: 4.5, y: 8.5 }, dentroInicial: 'bar', horaAcordar: hora(9),
+    presencaInteriorFixa: true,
+    sprite: {
+      arquivo: 'assets/sprites/Alice_andando_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    },
+    spriteParado: {
+      arquivo: 'assets/sprites/Alice_parada_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
+      },
+    },
+    dialogoAtual: [
+      'Oi! Senta ai, vai. Ninguem fica de pe no meu balcao.',
+      'Voce e novo por aqui, ne? Uma semana e eu ja sei o nome de todo mundo — ' +
+        'e quem bebe o que, mas isso eu nao conto.',
+      'Conversa e de graca. O resto e que custa.',
+    ],
+    // bar abre as 12:00 e fecha as 20:00
+    rotina: [
+      { horario: hora(12), tipo: 'posto_interior', posto: 'trabalho' },
+      { horario: hora(20), tipo: 'posto_interior', posto: 'moradia' },
+    ],
+    rotinaSemanal: {
+      // Sexta: antes de abrir, ela vai ao mercado. O bar fica ao norte, entao a
+      // rota desce pela coluna x=81.5 ate a avenida horizontal e pega o hub
+      // (60.5,45.5) -> (60.5,55.5), o mesmo caminho que Edu, Mari e Jaqueline
+      // usam pra cruzar a cidade. A ida e a volta sao 57 tiles cada, o que da
+      // meia hora de jogo por perna: o bar abre bem depois do normal.
+      [DIA_DA_SEMANA.sexta]: [
+        { horario: hora(12), tipo: 'sair_construcao', construcao: 'bar' },
+        { horario: hora(12), tipo: 'andar_rota', waypoints: [
+          { x: 81.5, y: 45.5 }, { x: 60.5, y: 45.5 },
+          { x: 60.5, y: 55.5 }, { x: 70.5, y: 55.5 },
+        ] },
+        { horario: hora(12), tipo: 'entrar_construcao', construcao: 'mercado' },
+        { horario: hora(12), tipo: 'vagar_rota', pausaMinSegundos: 3, pausaMaxSegundos: 8,
+          waypoints: [{ x: 6.5, y: 11.5 }, { x: 8.5, y: 11.5 }] },
+        { horario: hora(13, 5), tipo: 'sair_construcao', construcao: 'mercado' },
+        { horario: hora(13, 5), tipo: 'andar_rota', waypoints: [
+          { x: 60.5, y: 55.5 }, { x: 60.5, y: 45.5 },
+          { x: 81.5, y: 45.5 }, { x: 81.5, y: 29.5 },
+        ] },
+        { horario: hora(13, 5), tipo: 'voltar_para_casa' },
+        { horario: hora(13, 45), tipo: 'posto_interior', posto: 'trabalho' },
+        { horario: hora(20), tipo: 'posto_interior', posto: 'moradia' },
+      ],
+    },
+    rotaCasa: [
+      { x: 60.5, y: 55.5 }, { x: 60.5, y: 45.5 },
+      { x: 81.5, y: 45.5 }, { x: 81.5, y: 29.5 },
+    ],
+  },
 };
 
 export const MORADORES_POR_CASA = Object.fromEntries(
@@ -386,6 +595,44 @@ for (const npc of Object.values(NPCS)) {
 export const MORADIAS_VAGAS: readonly string[] = MORADIAS.filter(
   (casa) => !MORADORES_POR_CASA[casa],
 );
+
+/** Todas as acoes que um NPC pode executar, somando a rotina padrao e as semanais. */
+function acoesDe(def: DefinicaoNpc): AcaoRotinaNpc[] {
+  return [...def.rotina, ...Object.values(def.rotinaSemanal ?? {}).flat()];
+}
+
+/**
+ * Coerencia da PRESENCA INTERIOR FIXA. A marca em `presencaInteriorFixa` e a
+ * acao `posto_interior` sao duas metades da mesma coisa, e o lote precisa ter os
+ * postos: se uma das tres partes faltar, o NPC ou nunca sai do lugar inicial ou
+ * estoura no meio do dia. Melhor estourar aqui, na carga.
+ */
+for (const def of Object.values(NPCS)) {
+  const usaPosto = acoesDe(def).some((acao) => acao.tipo === 'posto_interior');
+  if (usaPosto !== Boolean(def.presencaInteriorFixa)) {
+    throw new Error(
+      `"${def.id}": presencaInteriorFixa=${Boolean(def.presencaInteriorFixa)} mas ` +
+        `${usaPosto ? 'usa' : 'nao usa'} a acao posto_interior`,
+    );
+  }
+  if (!usaPosto) continue;
+  const postos = LOCAIS_CIDADE[def.casa]?.postos;
+  if (!postos) {
+    throw new Error(`"${def.id}" e de presenca interior fixa, mas "${def.casa}" nao tem postos`);
+  }
+  // quem mora onde trabalha comeca o dia DENTRO do proprio predio
+  if (def.dentroInicial !== def.casa) {
+    throw new Error(
+      `"${def.id}" e de presenca interior fixa, entao dentroInicial deveria ser ` +
+        `"${def.casa}", nao ${JSON.stringify(def.dentroInicial)}`,
+    );
+  }
+}
+
+/** Os NPCs que moram onde trabalham — usado pelas conferencias e pelo relatorio. */
+export const NPCS_DE_PRESENCA_INTERIOR: readonly string[] = Object.values(NPCS)
+  .filter((def) => def.presencaInteriorFixa)
+  .map((def) => def.id);
 
 export function buscarNpc(id: unknown): DefinicaoNpc | null {
   return typeof id === 'string' ? (NPCS[id] ?? null) : null;

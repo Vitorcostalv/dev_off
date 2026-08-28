@@ -386,10 +386,45 @@ tile lado a lado vira uma grade visivel.
 
 Cada entrada de `NPCS`, em `game/npcs.ts`, concentra nome, casa, posicao
 inicial, spritesheet, dialogo e a lista ordenada de acoes. O motor aceita
-`vagar`, `vagar_rota`, `andar_rota`, `entrar_construcao`, `sair_construcao` e
-`voltar_para_casa`. NPC sem acao configurada depois das 18:00 recebe
-automaticamente o retorno para sua casa. `vagar_rota` permite pausas entre
+`vagar`, `vagar_rota`, `andar_rota`, `posto_interior`, `entrar_construcao`,
+`sair_construcao` e `voltar_para_casa`. NPC sem acao configurada depois das 18:00
+recebe automaticamente o retorno para sua casa. `vagar_rota` permite pausas entre
 waypoints; saidas de interiores caminham ate a porta antes de trocar de mapa.
+
+**Rotina por dia da semana.** Alem de `rotina`, um NPC pode ter `rotinaSemanal`:
+um mapa de indice do dia (0 = segunda, ver `DIA_DA_SEMANA` em `game/calendario.ts`)
+pra uma lista que SUBSTITUI a rotina daquele dia. O motor escolhe uma vez por dia,
+na virada, entao o dia inteiro roda com a mesma lista — nao ha `if` de dia da
+semana espalhado pelas acoes. E o que da a viagem semanal ao mercado.
+
+### Presenca interior fixa
+
+O dono que **mora onde trabalha** nao tem trajeto: ele existe dentro do proprio
+interior e alterna entre dois `postos`, so pelo relogio. E a acao
+`posto_interior`, com `posto: 'trabalho' | 'moradia'`:
+
+- `trabalho` — atras do balcao, no horario de funcionamento
+- `moradia` — na metade residencial do MESMO interior, fora do horario
+
+A troca e direta, sem caminhada: o NPC muda de posicao no tick em que o horario
+chega. Enquanto esta num posto ele fica com `dentro = casa` e `visivel = false`,
+que e o mesmo par que esconde qualquer NPC "dentro de construcao" — logo ele nao
+aparece no mapa externo nem no mapa da tecla M. Aparecer no interior e
+interagir com E ja vinham de graca: `posicaoNpcNoMapa` desenha todo NPC cujo
+`dentro` e o mapa aberto, e o alvo de interacao passa pelo mesmo teste.
+
+**Os postos sao do PREDIO, nao do NPC.** Ficam em `LOCAIS_CIDADE[lote].postos`,
+ao lado de `frente` e `portaInterior`, e `conferirMistos()` no gerador exige que
+os dois continuem livres e alcancaveis a partir da porta. Qualquer futuro dono do
+mesmo lote herda as duas posicoes ja conferidas — nada disso e por personagem.
+
+`corredorInterior` no mesmo registro e o caminho interno a percorrer antes da
+porta ao sair: a reta do posto de moradia ate a porta atravessa mobilia nos dois
+mistos, e o motor nao faz pathfinding.
+
+Marcar o NPC com `presencaInteriorFixa: true` nao muda comportamento — e rotulo.
+A validacao na carga de `npcs.ts` cobra que a marca, o uso de `posto_interior` e
+os `postos` do lote existam juntos, e que `dentroInicial` seja o proprio lote.
 
 **Duas folhas por personagem: caminhada e pose parada.** `npm run processar-sprites-npc`
 normaliza cada uma numa grade 4x4 (linhas: baixo, cima, esquerda, direita) —
@@ -398,19 +433,46 @@ do script remapeia, e folha sem perfil esquerdo (Leticia, Mari) o gera
 espelhando o direito. Sem a folha de parado o idle cai no 1o frame da
 caminhada, que e uma pose de passo: o NPC parado parece andar no lugar.
 
-Sao 5 moradores, um por moradia (a validacao em `npcs.ts` explode na carga se
+A folha de caminhada do Wendel tem 8 colunas, e a saida usa as colunas 0/2/4/6
+pro ciclo de 4 frames nao sair pela metade. Ela tambem precisa de
+`separarEmpilhados: true`: numa das colunas o pe da pose de frente toca a cabeca
+da pose de baixo, e sem o corte a deteccao por componente acha 31 sprites onde
+deveria achar 32 — o corte pelos N maiores entra um rotulo da arte no lugar do
+que faltou e todas as linhas saem embaralhadas.
+
+Sao 7 moradores, um por moradia (a validacao em `npcs.ts` explode na carga se
 dois dividirem lote, ou se alguem for posto a morar em lote que nao e moradia):
-morador_1 (placeholder), Edu (`casa_2`, vaga pela cidade), Mari (`casa_3`,
-academia 09:00-13:00), Jaqueline (`casa_4`, mercado 08:30-17:00) e Leticia
-(`casa_5`, sem destino fixo).
+
+| NPC | mora em | dia |
+| --- | --- | --- |
+| morador_1 | `casa_1` | placeholder, sem rotina |
+| Edu | `casa_2` | vaga pela cidade inteira |
+| Mari | `casa_3` | academia 09:00-13:00 |
+| Jaqueline | `casa_4` | mercado 08:30-17:00 |
+| Leticia | `casa_5` | sem destino fixo: avenida e praca |
+| Wendel | `farmacia` | presenca interior fixa; abre 09:00, fecha 18:00 |
+| Alice | `bar` | presenca interior fixa; abre 12:00, fecha 20:00 |
+
+Wendel e Alice sao os unicos de **presenca interior fixa**, e os unicos com
+`rotinaSemanal`: uma vez por semana eles fecham a loja e vao ao mercado — Wendel
+na quarta (em vez de abrir as 09:00) e Alice na sexta (antes de abrir as 12:00).
+Saem pela porta, andam pelo hub que os outros NPCs ja usam, entram no mercado,
+ficam pouco mais de meia hora e voltam; a loja abre atrasada nesse dia. Fora
+desse dia nenhum dos dois aparece no mapa externo.
 
 **Moradia disponivel** e o que `MORADIAS` lista: as 6 casas mais o bar e a
 farmacia, que sao lotes MISTOS (casa + comercio no mesmo interior) e por isso tem
-cama. `MORADIAS_VAGAS` deriva daquela lista menos quem ja tem morador — hoje
-`casa_6`, `bar` e `farmacia`. Os dois mistos ficam **prontos e vazios**: interior
-gerado, cama funcionando e `LOCAIS_CIDADE` com frente, porta e ponto de nascer do
-dono, esperando o NPC ser encaixado do mesmo jeito que os outros quatro.
+cama. `MORADIAS_VAGAS` deriva daquela lista menos quem ja tem morador — hoje so
+`casa_6`.
 `npm run verificar-rotinas` confere que a frente de cada moradia vaga esta livre.
+
+Ele tambem simula a **semana inteira** pros NPCs de presenca interior fixa e
+cobra o contrato: o dono aparece la fora APENAS no dia da viagem (e nesse dia
+chega ao mercado e volta pro proprio predio), nunca fica visivel nos outros seis
+dias, ocupa os dois postos todo dia, e nenhuma posicao dele — dentro ou fora,
+parado ou andando — cai em tile bloqueado. A grade do interior usada nessa
+conferencia inclui o corpo de cada movel solido, com a mesma caixa da FarmScene,
+entao ela pega tambem a caminhada do posto ate a porta.
 
 **As rotas usam coordenadas de tile e nao fazem pathfinding** — cada trecho e uma
 reta. Duas consequencias que ja morderam:
