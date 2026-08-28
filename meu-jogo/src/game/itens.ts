@@ -188,42 +188,81 @@ const MERCADO: readonly Entrada[] = [
 /**
  * Eletronicos — a folha e um cartaz com secoes rotuladas, entao o detector
  * tambem enxerga as tarjas de titulo ("AUDIO E SOM"). O gerador descarta essas
- * tarjas por geometria (barra larga e baixa) ANTES de numerar as linhas; ainda
- * assim ha linha de sobra na folha que nao virou item aqui — este catalogo e
- * uma selecao, nao a folha inteira.
+ * tarjas por geometria (barra larga e baixa) ANTES de numerar as linhas.
+ *
+ * Das 116 pecas que sobram, 110 estao aqui. As SEIS de fora, com o motivo de
+ * cada uma — a lista existe pra ninguem gastar tempo procurando de novo o que
+ * ja foi olhado:
+ *
+ *   [0,0]        lasca de celular cortada pela borda esquerda da folha
+ *   [2,1]        um fone solto, que o detector separou do estojo [2,0]
+ *   [3,0] [3,1]  a tarja "AUDIO E SOM": veio partida em duas, e cada metade
+ *                fica quase quadrada, entao escapa do filtro de tarja
+ *   [8,0]        a tarja "ELETRO", partida do mesmo jeito
+ *   [9,0]        o robo aspirador saiu GRUDADO no aspirador vertical: os dois
+ *                se tocam na arte, viram um blob so, e nao da pra separar sem
+ *                recortar a folha na mao
  */
 const ELETRONICOS: readonly Entrada[] = [
   // --- celular, tablet e computador ---
   [[0, 1], 'smartphone', 'Smartphone', 'Tela grande, bateria media.'],
   [[0, 3], 'smartphone_menta', 'Smartphone Menta', 'A cor que sobrou na loja.'],
   [[0, 6], 'smartphone_top', 'Smartphone Topo de Linha', 'Tres cameras e um preco absurdo.'],
+  [[0, 2], 'smartphone_preto', 'Smartphone Preto', 'Fica ligado na vitrine o dia todo.'],
+  [[0, 4], 'smartphone_roxo', 'Smartphone Roxo', 'A cor que some primeiro da prateleira.'],
+  [[0, 5], 'smartphone_azul', 'Smartphone Azul', 'Camera dupla, bateria honesta.'],
+  [[0, 7], 'smartphone_dourado', 'Smartphone Dourado', 'Marca o dedo so de pegar.'],
   [[1, 0], 'tablet', 'Tablet', 'Bom pra ler, ruim pra escrever.'],
   [[1, 4], 'tablet_caneta', 'Tablet com Caneta', 'Vem com caneta que some em uma semana.'],
+  [[1, 1], 'tablet_10', 'Tablet 10 Polegadas', 'Grande demais pra segurar com uma mao.'],
+  [[1, 2], 'tablet_pro', 'Tablet Pro', 'Tela que faz filme ruim parecer bom.'],
+  [[1, 3], 'tablet_grande', 'Tablet Grande', 'Pesa mais do que aparenta.'],
   [[1, 5], 'notebook', 'Notebook', 'Basico, pra planilha e navegador.'],
   [[1, 7], 'notebook_fino', 'Notebook Fino', 'Leve, aquece rapido.'],
   [[1, 8], 'notebook_gamer', 'Notebook Gamer', 'Ventoinha que parece um secador.'],
+  [[1, 6], 'notebook_prata', 'Notebook Prata', 'Tampa que guarda marca de dedo.'],
+  [[2, 9], 'ultrabook', 'Ultrabook', 'Fino a ponto de dar medo de fechar.'],
   [[0, 9], 'gabinete_pc', 'Gabinete de PC', 'Caixa preta, sem frescura.'],
   [[0, 11], 'gabinete_rgb', 'Gabinete RGB', 'Pisca mais do que processa.'],
+  [[2, 6], 'mini_pc', 'Mini PC', 'Do tamanho de um livro em pe.'],
   [[0, 8], 'monitor_azul', 'Monitor', 'Vinte e quatro polegadas.'],
+  [[0, 10], 'monitor_led', 'Monitor LED', 'Painel comum, sessenta hertz.'],
   // --- audio ---
   [[0, 12], 'headset', 'Headset', 'Almofada de espuma, cabo longo.'],
   [[0, 13], 'headset_branco', 'Headset Branco', 'Suja com facilidade.'],
   [[0, 14], 'headset_gamer', 'Headset Gamer', 'Com microfone que capta o mundo todo.'],
   [[2, 0], 'fone_bluetooth', 'Fone Bluetooth', 'Estojo que carrega sozinho.'],
   [[4, 0], 'fone_intra', 'Fone Intra-auricular', 'Cai da orelha ao correr.'],
+  [[4, 1], 'fone_esportivo', 'Fone Esportivo', 'Fica na orelha ate voce correr.'],
   [[0, 15], 'monitor_de_audio', 'Caixa de Estudio', 'Som limpo, grave curto.'],
+  [[0, 16], 'caixa_de_som', 'Caixa de Som', 'Vendida uma a uma, nao em par.'],
+  [[5, 0], 'subwoofer', 'Subwoofer', 'Grave que treme a mesa.'],
+  [[5, 1], 'alto_falante', 'Alto-falante', 'So o drive, sem caixa nenhuma.'],
+  [[5, 2], 'caixa_acustica', 'Caixa Acustica', 'Duas vias, madeira pintada.'],
+  [[5, 3], 'caixa_acustica_grande', 'Caixa Acustica Grande', 'Nao cabe na estante.'],
+  [[5, 4], 'caixa_de_estante', 'Caixa de Estante', 'Pequena, mas honesta.'],
   [[4, 2], 'caixa_portatil', 'Caixa Portatil', 'A prova de respingo, dizem.'],
+  [[2, 2], 'caixa_media', 'Caixa Media', 'Alca de mao e som de festa pequena.'],
+  [[2, 3], 'caixa_de_festa', 'Caixa de Festa', 'Pesada, com alca reforcada.'],
+  [[2, 4], 'caixa_amplificada', 'Caixa Amplificada', 'Tem entrada de microfone atras.'],
+  [[5, 5], 'caixa_bluetooth', 'Caixa Bluetooth', 'Bateria pra um dia inteiro.'],
   [[4, 3], 'radio_boombox', 'Radio Boombox', 'Toca radio e pendrive.'],
   [[4, 4], 'assistente_de_voz', 'Assistente de Voz', 'Escuta mais do que responde.'],
   [[1, 15], 'soundbar', 'Soundbar', 'Cabe embaixo da TV, quase.'],
+  [[6, 0], 'soundbar_longa', 'Soundbar Longa', 'Ocupa a largura da TV inteira.'],
   // --- tela ---
   [[4, 5], 'tv', 'TV', 'Quarenta polegadas, painel comum.'],
   [[5, 6], 'tv_4k', 'TV 4K', 'Mais pixel do que a vista alcanca.'],
   [[5, 8], 'monitor_24', 'Monitor 24"', 'IPS, borda fina.'],
   [[4, 7], 'monitor_curvo', 'Monitor Curvo', 'Ocupa a mesa inteira.'],
+  [[5, 7], 'monitor_27', 'Monitor 27 Polegadas', 'Ocupa metade da mesa, sem exagero.'],
+  [[5, 9], 'monitor_32', 'Monitor 32 Curvo', 'A curva so quem senta perto percebe.'],
+  [[4, 6], 'monitor_gamer', 'Monitor Gamer', 'Cento e sessenta hertz.'],
+  [[2, 5], 'projetor', 'Projetor', 'Imagem grande, so com a luz apagada.'],
   // --- periferico ---
   [[2, 7], 'teclado_rgb', 'Teclado RGB', 'Mecanico e barulhento.'],
   [[4, 9], 'teclado', 'Teclado', 'Membrana, silencioso.'],
+  [[4, 8], 'teclado_mecanico', 'Teclado Mecanico', 'Switch azul; o vizinho reclama.'],
   [[2, 8], 'mouse', 'Mouse', 'Sem fio, dois botoes.'],
   [[4, 10], 'mouse_gamer', 'Mouse Gamer', 'Sete botoes, usa dois.'],
   [[4, 11], 'mousepad', 'Mousepad', 'Grande o bastante pra caber o teclado.'],
@@ -231,6 +270,7 @@ const ELETRONICOS: readonly Entrada[] = [
   [[5, 11], 'controle_branco', 'Controle Branco', 'Pilha AA nao inclusa.'],
   [[5, 12], 'volante_gamer', 'Volante Gamer', 'Com pedal e tudo.'],
   [[5, 13], 'cadeira_gamer', 'Cadeira Gamer', 'Confortavel nas duas primeiras horas.'],
+  [[6, 1], 'pedaleira', 'Pedaleira', 'Tres pedais; a embreagem vem junto.'],
   [[1, 9], 'webcam', 'Webcam', 'Full HD, foco fixo.'],
   [[1, 10], 'microfone', 'Microfone', 'Condensador com trip de mesa.'],
   [[1, 11], 'ring_light', 'Ring Light', 'Tres tons de branco.'],
@@ -239,31 +279,45 @@ const ELETRONICOS: readonly Entrada[] = [
   [[2, 11], 'roteador_branco', 'Roteador Branco', 'Bonito e comum.'],
   [[2, 12], 'switch_de_rede', 'Switch de Rede', 'Cinco portas gigabit.'],
   [[2, 13], 'adaptador_wifi', 'Adaptador Wi-Fi', 'USB com antena removivel.'],
+  [[1, 13], 'adaptador_de_rede', 'Adaptador de Rede', 'Pro dia em que o Wi-Fi cai.'],
+  [[1, 12], 'adaptador_hdmi', 'Adaptador HDMI', 'Vive perdido na gaveta.'],
   // --- armazenamento ---
   [[7, 0], 'ssd', 'SSD', 'Portatil, um terabyte.'],
   [[7, 1], 'ssd_nvme', 'SSD NVMe', 'Rapido a ponto de esquentar.'],
   [[7, 2], 'hd_externo', 'HD Externo', 'Dois terabytes, faz barulho.'],
   [[7, 4], 'pendrive', 'Pendrive', 'Some na primeira semana.'],
+  [[1, 14], 'pendrive_azul', 'Pendrive Azul', 'Trinta e dois gigas, tampa ja perdida.'],
+  [[7, 5], 'pendrive_metal', 'Pendrive de Metal', 'Mais pesado do que parece.'],
   [[7, 6], 'cartao_sd', 'Cartao SD', '64 GB, classe 10.'],
   [[7, 7], 'cartao_micro_sd', 'Cartao microSD', '128 GB, do tamanho de uma unha.'],
   // --- camera ---
   [[7, 8], 'camera', 'Camera', 'Reflex com lente de kit.'],
   [[7, 9], 'camera_de_acao', 'Camera de Acao', 'Vai molhar de qualquer jeito.'],
+  [[7, 10], 'filmadora', 'Filmadora', 'Grava em cartao, com zoom otico.'],
   [[7, 11], 'camera_de_seguranca', 'Camera de Seguranca', 'Gira sozinha, meio assustadora.'],
   [[7, 12], 'drone', 'Drone', 'Autonomia de vinte minutos.'],
   // --- energia ---
   [[7, 13], 'carregador', 'Carregador', 'Rapido, se o cabo ajudar.'],
+  [[7, 14], 'carregador_de_parede', 'Carregador de Parede', 'Preto, esquenta um pouco.'],
+  [[7, 15], 'adaptador_de_tomada', 'Adaptador de Tomada', 'Serve em quase todo padrao.'],
   [[7, 16], 'filtro_de_linha', 'Filtro de Linha', 'Seis tomadas, cinco ocupadas.'],
   [[7, 17], 'power_bank', 'Power Bank', 'Carrega o celular duas vezes.'],
+  [[7, 3], 'power_bank_slim', 'Power Bank Slim', 'Tres saidas e nenhuma sobrando.'],
+  [[7, 18], 'power_bank_branco', 'Power Bank Branco', 'Mesma carga, cor diferente.'],
   [[7, 19], 'pilhas', 'Pilhas Recarregaveis', 'Quatro AA, com pouca carga de fabrica.'],
   // --- eletroportatil e casa ---
   [[9, 1], 'cafeteira', 'Cafeteira', 'De capsula, vermelha.'],
+  [[9, 2], 'cafeteira_expresso', 'Cafeteira Expresso', 'Moe o grao e acorda a casa.'],
   [[9, 3], 'air_fryer', 'Air Fryer', 'A que todo mundo tem.'],
   [[9, 4], 'liquidificador', 'Liquidificador', 'Copo de vidro, doze velocidades.'],
   [[9, 5], 'microondas_portatil', 'Micro-ondas', 'Vinte litros, prato giratorio.'],
   [[9, 6], 'lampada_led', 'Lampada LED', 'Branca quente, 9 W.'],
   [[9, 7], 'lampada_rgb', 'Lampada RGB', 'Dezesseis milhoes de cores, usa tres.'],
   [[9, 8], 'tomada_inteligente', 'Tomada Inteligente', 'Liga pelo celular.'],
+  [[9, 9], 'adaptador_de_streaming', 'Adaptador de Streaming', 'Deixa a TV velha esperta.'],
+  [[9, 10], 'assistente_mini', 'Assistente de Voz Mini', 'Aro azul que acende ao escutar.'],
+  [[9, 11], 'assistente_branco', 'Assistente de Voz Branco', 'Combina com a estante.'],
+  [[9, 12], 'hub_inteligente', 'Hub Inteligente', 'Manda em tudo que for esperto na casa.'],
   // --- outros ---
   [[9, 13], 'calculadora', 'Calculadora', 'Solar, das que nunca acabam.'],
   [[9, 14], 'relogio_digital', 'Relogio Digital', 'Numeros grandes e verdes.'],

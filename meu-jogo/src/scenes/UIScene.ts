@@ -11,7 +11,7 @@ import type { PontoDeLoja } from '../game/loja';
 import type { Fala, MundoJogavel } from '../game/tipos';
 
 const CAIXA = { x: 8, y: 188, w: CONFIG.largura - 16, h: 74 };
-const CONFIRMA = { w: 180, h: 56 };
+const CONFIRMA = { w: 248, h: 64 };
 const INV = {
   colunas: 5,
   linhas: 4,
@@ -219,6 +219,14 @@ export class UIScene extends Phaser.Scene {
   // ----------------------------------------------------------------- hud --
 
   private atualizarHud(): void {
+    // A janela da loja cobre quase a tela toda e ja mostra o saldo no proprio
+    // cabecalho; deixar a HUD por baixo so faz a caixa do relogio aparecer
+    // cortada pela borda de cima do painel.
+    const visivel = !this.lojaAberta;
+    this.hud.setVisible(visivel);
+    this.hudSaldo.setVisible(visivel);
+    if (!visivel) return;
+
     const texto = `${nomeDoDia(estado.dia)}  ${estado.relogio.texto}`;
     if (this.hud.text !== texto) this.hud.setText(texto);
     const saldo = estado.carteira.texto;
@@ -385,7 +393,9 @@ export class UIScene extends Phaser.Scene {
     const y = (CONFIG.altura - CONFIRMA.h) / 2;
 
     const fundo = this.add.graphics();
-    fundo.fillStyle(UI.fundo, 0.95);
+    // opaco, nao translucido: esta caixa abre por cima da janela da loja, e
+    // qualquer transparencia deixa o texto da lista vazando por tras da pergunta
+    fundo.fillStyle(UI.fundo, 1);
     fundo.fillRect(x, y, CONFIRMA.w, CONFIRMA.h);
     fundo.lineStyle(1, UI.borda, 1);
     fundo.strokeRect(x + 0.5, y + 0.5, CONFIRMA.w - 1, CONFIRMA.h - 1);
@@ -943,12 +953,15 @@ export class UIScene extends Phaser.Scene {
       fontSize: UI.tamanhoTitulo,
       color: UI.destaque,
     });
-    this.lojaAviso = this.add.text(dx, y + h - 32, '', {
+    // Linha inteira, e nao a coluna de detalhe: as recusas sao frases longas
+    // ("Saldo insuficiente: faltam R$ 1.088,90.") e nos 173px da coluna elas
+    // quebravam em duas linhas por cima do rodape — quando nao passavam da
+    // borda direita do painel.
+    this.lojaAviso = this.add.text(x + LOJA.margem, y + h - 26, '', {
       fontFamily: UI.fonte,
       fontSize: '9px',
       color: UI.textoFraco,
-      wordWrap: { width: dw },
-      lineSpacing: 1,
+      wordWrap: { width: w - LOJA.margem * 2 },
     });
     this.lojaRodape = this.add.text(x + LOJA.margem, y + h - 14, '', {
       fontFamily: UI.fonte,
