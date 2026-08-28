@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { SistemaRotinasNpc } from '../src/game/rotinasNpc.ts';
 import { DIA_DA_SEMANA, DIAS_DA_SEMANA } from '../src/game/calendario.ts';
+import { PROP_PORTA_NPC, tileBloqueia } from '../src/game/colisao.ts';
 import {
   LOCAIS_CIDADE,
   MORADIAS,
@@ -185,7 +186,10 @@ for (let minuto = 6 * 60; minuto <= 19 * 60; minuto++) {
           expedienteJaqueline.dentro.add(minuto);
           if (npc.acaoAtual === 'vagar_rota') expedienteJaqueline.trabalhou = true;
         }
-        if (minuto === 8 * 60 + 30 && npc.dentro === null
+        // A janela e de minutos, nao um instante: com a casa multi-comodo o NPC
+        // ANDA de dentro ate a porta antes de aparecer na rua, e o trajeto leva
+        // alguns minutos de jogo. Sair na hora exata voltaria a ser teleporte.
+        if (minuto >= 8 * 60 + 30 && minuto <= 8 * 60 + 45 && npc.dentro === null
           && Math.hypot(npc.x - 87.5, npc.y - 16.5) < 0.3) {
           transicoesPorta.jaquelineSaiuNaPorta = true;
         }
@@ -204,7 +208,7 @@ for (let minuto = 6 * 60; minuto <= 19 * 60; minuto++) {
         estadosAcademiaMari[npc.movendo ? 'andando' : 'parada'] = true;
         estadosAcademiaMari.posicoes.add(`${npc.x.toFixed(1)},${npc.y.toFixed(1)}`);
       }
-      if (npc.id === 'edu' && minuto === 8 * 60) {
+      if (npc.id === 'edu' && minuto >= 8 * 60 && minuto <= 8 * 60 + 15) {
         if (npc.dentro === 'casa_2' && npc.movendo) transicoesPorta.eduAndouDentro = true;
         if (npc.dentro === null && Math.hypot(npc.x - 43.5, npc.y - 16.5) < 0.3) {
           transicoesPorta.eduSaiuNaPorta = true;
@@ -312,6 +316,12 @@ console.log('[rotinas] cidade percorrida; caminhada, pausas e transicoes por por
  * mobilia solida ao trocar de posto ou ao sair pra rua.
  */
 const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
+/**
+ * Minimo de minutos de jogo que a troca de posto tem de levar. Nao e um numero
+ * de design: e so o piso que separa "andou" de "teleportou". A duracao real sai
+ * da distancia dentro do interior, com a mesma velocidade das rotas externas.
+ */
+const MINUTOS_MINIMOS_DE_TRANSITO = 3;
 const atlasCache = new Map();
 
 function framesDoAtlas(atlas) {
@@ -324,14 +334,15 @@ function framesDoAtlas(atlas) {
   return atlasCache.get(atlas);
 }
 
-function gradeInterior(nome) {
+function gradeInterior(nome, quem = 'npc') {
   const m = JSON.parse(readFileSync(url(`../public/assets/tilemaps/${nome}.json`)));
+  // `quem` escolhe QUAL colisao vale: a porta somente-NPC barra o jogador e nao
+  // barra o NPC, e e por ela que o dono de um lote misto vai da moradia pro
+  // balcao. Ver src/game/colisao.ts.
   const gids = new Set();
   for (const ts of m.tilesets) {
     for (const t of ts.tiles ?? []) {
-      if ((t.properties ?? []).some((p) => p.name === 'collides' && p.value === true)) {
-        gids.add(ts.firstgid + t.id);
-      }
+      if (tileBloqueia(t.properties ?? [], quem)) gids.add(ts.firstgid + t.id);
     }
   }
   const grade = new Uint8Array(m.width * m.height);
@@ -358,9 +369,30 @@ function gradeInterior(nome) {
     }
     solidos += 1;
   }
+  // Tiles de porta somente-NPC: e por eles que o dono do lote misto passa da
+  // moradia pro salao. Ficam expostos pra conferencia poder cobrar que a
+  // travessia ACONTECE, e nao so que ela seria possivel.
+  const gidsPortaNpc = new Set();
+  for (const ts of m.tilesets) {
+    for (const t of ts.tiles ?? []) {
+      if ((t.properties ?? []).some((q) => q.name === PROP_PORTA_NPC && q.value === true)) {
+        gidsPortaNpc.add(ts.firstgid + t.id);
+      }
+    }
+  }
+  const portasNpc = new Set();
+  for (const camada of m.layers) {
+    if (camada.type !== 'tilelayer') continue;
+    camada.data.forEach((gid, i) => {
+      if (!gidsPortaNpc.has(gid & 0x1fffffff)) return;
+      portasNpc.add(`${i % m.width},${Math.floor(i / m.width)}`);
+    });
+  }
   return {
     nome,
     solidos,
+    portasNpc,
+    naPortaNpc: (x, y) => portasNpc.has(`${Math.floor(x)},${Math.floor(y)}`),
     livre: (x, y) => {
       const tx = Math.floor(x);
       const ty = Math.floor(y);
@@ -368,6 +400,54 @@ function gradeInterior(nome) {
       return !grade[ty * m.width + tx];
     },
   };
+}
+
+/**
+ * Os interiores das casas de NPC viraram multi-comodo: a reta do ponto em que o
+ * morador acorda ate a porta da rua atravessa parede em quase todos. Como o motor
+ * nao faz pathfinding, quem resolve isso e o `corredorInterior` declarado em
+ * `LOCAIS_CIDADE` — e e ele que esta sendo conferido aqui.
+ *
+ * Roda um dia inteiro e, sempre que o NPC estiver DENTRO de um interior que a
+ * conferencia conhece, cobra que a posicao dele seja um tile livre. Cobra
+ * tambem que cada morador tenha ANDADO dentro de casa em algum momento: com a
+ * casa grande, sair dela deixou de ser um pulo de dois tiles.
+ */
+function conferirInterioresDeMoradores() {
+  const casas = ['casa_1', 'casa_2', 'casa_3', 'casa_4', 'casa_5', 'casa_6'];
+  const grades = new Map(casas.map((nome) => [nome, gradeInterior(nome)]));
+  const sistema = new SistemaRotinasNpc();
+  const andouDentro = new Set();
+  const ruins = [];
+  for (let minuto = 6 * 60; minuto <= 20 * 60; minuto++) {
+    for (let amostra = 0; amostra < 10; amostra++) {
+      sistema.atualizar(0, minuto, 100);
+      for (const npc of sistema.todos) {
+        const grade = npc.visivel ? null : grades.get(npc.dentro);
+        if (!grade) continue;
+        if (npc.movendo) andouDentro.add(npc.id);
+        if (!grade.livre(npc.x, npc.y)) {
+          ruins.push(`${npc.id} as ${minuto}min em ${npc.dentro} ${npc.x.toFixed(1)},${npc.y.toFixed(1)}`);
+        }
+      }
+    }
+  }
+  if (ruins.length) {
+    throw new Error(
+      'morador dentro de parede ou mobilia no interior da propria casa: ' +
+        ruins.slice(0, 4).join(' | '),
+    );
+  }
+  // casa_1 nao tem morador com rotina de sair, entao fica de fora da exigencia
+  const comRotina = Object.values(NPCS).filter(
+    (def) => casas.includes(def.casa) && def.casa !== 'casa_1' && def.rotina.length > 0,
+  );
+  for (const def of comRotina) {
+    if (!andouDentro.has(def.id)) {
+      throw new Error(`${def.id} nunca andou dentro de ${def.casa} — saiu por teleporte?`);
+    }
+  }
+  return { casas: grades.size, andaram: comRotina.length };
 }
 
 /**
@@ -379,8 +459,12 @@ function gradeInterior(nome) {
  * 2. em todos os outros dias ele nunca fica visivel la fora (logo, nunca sai no
  *    mapa da tecla M, que le o mesmo `visivel`);
  * 3. os dois postos sao ocupados todo dia (abre e fecha);
- * 4. nenhuma posicao dele, dentro ou fora, cai em tile bloqueado — incluindo a
- *    caminhada do posto ate a porta, que e a unica que acontece no interior.
+ * 4. nenhuma posicao dele, dentro ou fora, cai em tile bloqueado — incluindo as
+ *    caminhadas dentro do interior;
+ * 5. a troca de posto tem DURACAO REAL: ele passa minutos em transito
+ *    (`acaoAtual === "posto_interior"` com `posto` ainda null) em vez de trocar
+ *    de lugar num tick, e nesse transito ele CRUZA a porta somente-NPC — que e o
+ *    unico jeito de ir da moradia ao balcao.
  */
 function conferirPresencaInteriorFixa() {
   const DIAS_DE_VIAGEM = { wendel: DIA_DA_SEMANA.quarta, alice: DIA_DA_SEMANA.sexta };
@@ -401,7 +485,7 @@ function conferirPresencaInteriorFixa() {
     const registro = new Map(
       ids.map((id) => [id, {
         fora: new Set(), mercado: new Set(), postos: new Set(),
-        ruinsFora: [], ruinsDentro: [],
+        ruinsFora: [], ruinsDentro: [], transito: new Set(), cruzouPorta: new Set(),
       }]),
     );
     for (let minuto = 6 * 60; minuto <= 21 * 60; minuto++) {
@@ -411,6 +495,10 @@ function conferirPresencaInteriorFixa() {
           const npc = sistema.porId(id);
           const reg = registro.get(id);
           if (npc.posto) reg.postos.add(npc.posto);
+          if (npc.acaoAtual === 'posto_interior' && !npc.posto) reg.transito.add(minuto);
+          if (!npc.visivel && grades.get(npc.dentro)?.naPortaNpc(npc.x, npc.y)) {
+            reg.cruzouPorta.add(minuto);
+          }
           if (npc.visivel) {
             reg.fora.add(minuto);
             if (!livre(npc.x, npc.y)) {
@@ -470,6 +558,20 @@ function conferirPresencaInteriorFixa() {
           throw new Error(`${id} nao ocupou o posto "${posto}" em ${nomeDoDiaDaSemana(dia)}`);
         }
       }
+      // A troca de posto era instantanea (0 min). Agora e caminhada: se o
+      // transito voltar a caber num tick, isto reprova.
+      if (reg.transito.size < MINUTOS_MINIMOS_DE_TRANSITO) {
+        throw new Error(
+          `${id} levou so ${reg.transito.size} min trocando de posto em ` +
+            `${nomeDoDiaDaSemana(dia)} (esperado >= ${MINUTOS_MINIMOS_DE_TRANSITO}) — a troca voltou a ser instantanea?`,
+        );
+      }
+      if (reg.cruzouPorta.size < 2) {
+        throw new Error(
+          `${id} cruzou a porta somente-NPC em so ${reg.cruzouPorta.size} min de ` +
+            `${nomeDoDiaDaSemana(dia)} (esperado a ida e a volta)`,
+        );
+      }
       const fim = sistema.porId(id);
       if (fim.dentro !== def.casa) {
         throw new Error(`${id} terminou ${nomeDoDiaDaSemana(dia)} em "${fim.dentro}", nao em ${def.casa}`);
@@ -480,7 +582,9 @@ function conferirPresencaInteriorFixa() {
       linhas.push(
         `  ${nomeDoDiaDaSemana(dia).padEnd(13)} ${id.padEnd(7)} ` +
           `fora ${String(reg.fora.size).padStart(3)} min | ` +
-          `mercado ${String(reg.mercado.size).padStart(2)} min${viaja ? '  <- viagem semanal' : ''}`,
+          `mercado ${String(reg.mercado.size).padStart(2)} min | ` +
+          `troca de posto ${String(reg.transito.size).padStart(2)} min a pe, ` +
+          `porta privada em ${reg.cruzouPorta.size} min${viaja ? '  <- viagem semanal' : ''}`,
       );
     }
   }
@@ -489,6 +593,11 @@ function conferirPresencaInteriorFixa() {
 }
 
 const nomeDoDiaDaSemana = (dia) => DIAS_DA_SEMANA[dia];
+const moradores = conferirInterioresDeMoradores();
+console.log(
+  `[rotinas] interiores das casas: ${moradores.casas} conferidos, ` +
+    `${moradores.andaram} morador(es) andando de verdade de dentro de casa ate a porta`,
+);
 const presenca = conferirPresencaInteriorFixa();
 console.log(
   `[rotinas] presenca interior fixa: ${presenca.total} NPC(s) conferido(s) nos 7 dias ` +

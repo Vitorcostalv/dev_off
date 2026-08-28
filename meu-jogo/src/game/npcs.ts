@@ -12,12 +12,15 @@ export interface AreaVagar {
 }
 
 /**
- * Postos de uma PRESENCA INTERIOR FIXA. O NPC que mora onde trabalha nao faz
- * trajeto: ele existe dentro do proprio interior, num de dois lugares, e a
- * troca e so pelo relogio.
+ * Postos de uma PRESENCA INTERIOR FIXA. O NPC que mora onde trabalha passa o dia
+ * dentro do proprio interior, alternando entre dois lugares pelo relogio.
  *
- * - `trabalho` — atras do balcao, no horario de funcionamento
- * - `moradia`  — na metade residencial do mesmo interior, fora do horario
+ * - `trabalho` — atras do balcao, no salao, no horario de funcionamento
+ * - `moradia`  — na sala da area privada do mesmo interior, fora do horario
+ *
+ * A troca NAO e teleporte: ele percorre a espinha do predio
+ * (`LOCAIS_CIDADE[casa].rotaEntrePostos`) a pe, atravessando a porta
+ * somente-NPC. Quem estiver dentro do predio na hora ve o trajeto inteiro.
  */
 export type PostoInterior = 'trabalho' | 'moradia';
 
@@ -71,13 +74,16 @@ export type AcaoRotinaNpc =
   | (AcaoBase & { tipo: 'andar_rota'; waypoints: PontoTile[] })
   | (AcaoBase & {
       /**
-       * PRESENCA INTERIOR FIXA: poe o NPC num posto DENTRO da propria
-       * construcao (`def.casa`), sem trajeto e sem animacao de caminhada — e
-       * troca direta de posicao, resolvida no tick em que o horario chega.
+       * PRESENCA INTERIOR FIXA: leva o NPC ate um posto DENTRO da propria
+       * construcao (`def.casa`), ANDANDO. Nao e troca de posicao: ele segue os
+       * waypoints de `LOCAIS_CIDADE[casa].rotaEntrePostos` com o mesmo motor de
+       * caminhada das rotas externas, entao a duracao sai da distancia real
+       * dentro do interior e a animacao de passo roda normalmente.
        *
-       * Serve pro dono que mora onde trabalha: ele nao aparece no mapa externo
-       * (`visivel` fica false, como em qualquer NPC "dentro"), mas aparece e
-       * conversa quando o jogador entra no interior dele.
+       * Enquanto anda, `estado.posto` fica `null` (esta em transito) e vira o
+       * posto de destino so na chegada. Ele nao aparece no mapa externo
+       * (`visivel` fica false, como em qualquer NPC "dentro"), mas aparece,
+       * caminha e conversa quando o jogador esta no interior dele.
        *
        * Os postos sao do PREDIO, nao do NPC: saem de `LOCAIS_CIDADE[casa].postos`,
        * entao qualquer futuro dono do mesmo lote herda as duas posicoes ja
@@ -132,53 +138,124 @@ interface LocalCidade {
   /**
    * Postos de presenca interior fixa, quando o predio tem moradia junto do
    * comercio (os lotes MISTOS). Sao coordenadas do INTERIOR, e as mesmas que
-   * `conferirMistos()` em tools/gerar-assets.mjs exige livres e alcancaveis a
-   * partir da porta — mexer numa ponta sem a outra reprova na geracao.
+   * `conferirMistos()` em tools/gerar-assets.mjs exige alcancaveis — o de
+   * trabalho pelo JOGADOR (fica no salao) e o de moradia so pelo NPC (fica atras
+   * da porta somente-NPC). Mexer numa ponta sem a outra reprova na geracao.
    */
   postos?: Record<PostoInterior, PontoTile>;
   /**
-   * Caminho interno a percorrer ANTES da porta, ao sair do predio. A reta do
-   * posto de moradia ate a porta atravessa mobilia nos dois mistos (o interior e
-   * largo e a porta fica do outro lado do comodo), e o motor nao faz
-   * pathfinding: sem isto o dono sairia por dentro do sofa.
+   * ESPINHA do interior: o caminho que liga o posto de `moradia` ao de
+   * `trabalho`, escrito nessa ordem. E por ela que o dono ANDA quando troca de
+   * posto — atravessando a porta somente-NPC no meio, que e parede pro jogador.
    *
-   * Vale pro posto de MORADIA, que e de onde as saidas acontecem (a viagem
-   * semanal sai antes de abrir). Sair de tras do balcao precisaria contornar o
-   * balcao — se algum dia uma rotina fizer isso, a conferencia dos 7 dias em
-   * `verificar-rotinas` reprova e o caminho extra entra aqui.
+   * O motor nao faz pathfinding: ele entra na espinha pelo waypoint mais proximo
+   * da posicao atual e segue ate a ponta (ver `rotaAtePosto` em rotinasNpc.ts).
+   * Por isso a espinha e uma polilinha simples, sem se dobrar sobre si mesma, e
+   * passa pela frente da porta da rua — assim sair de tras do balcao, do quarto
+   * ou de quem acabou de entrar da rua usa sempre o mesmo corredor.
+   */
+  rotaEntrePostos?: PontoTile[];
+  /**
+   * Caminho interno a percorrer ANTES da porta, ao sair do predio. A reta do
+   * ponto onde o NPC esta ate a porta atravessa parede e mobilia em quase todo
+   * interior multi-comodo, e o motor nao faz pathfinding: sem isto o morador
+   * sairia por dentro do sofa.
+   *
+   * Vale a partir de onde o NPC comeca o dia (`interior`) ou, nos mistos, do
+   * posto de MORADIA — que e de onde as saidas acontecem (a viagem semanal sai
+   * antes de abrir a loja). A conferencia dos 7 dias em `verificar-rotinas`
+   * amostra a posicao contra a grade do interior, entao um caminho errado aqui
+   * reprova la.
    */
   corredorInterior?: PontoTile[];
 }
 
+/**
+ * ESPINHA dos predios mistos, de `moradia` (na sala dos fundos) ate `trabalho`
+ * (atras do balcao). Os dois lotes saem da MESMA planta privada — ver
+ * `PLANTA_MISTO_BASE` em tools/gerar-assets.mjs —, entao a espinha e uma so, e
+ * qualquer lote misto novo herda o percurso junto com a planta.
+ */
+const ESPINHA_MISTO: PontoTile[] = [
+  { x: 5.5, y: 11.5 }, // posto de moradia, na sala dos fundos
+  { x: 3.5, y: 11.5 },
+  { x: 3.5, y: 8.5 }, // corredor da moradia, ja alinhado com a porta privada
+  { x: 9.5, y: 8.5 }, // PORTA SOMENTE-NPC: o jogador bate aqui, o dono passa
+  { x: 10.5, y: 8.5 }, // primeiro tile do salao
+  { x: 10.5, y: 5.5 }, // sobe pela coluna livre, por fora do balcao
+  { x: 13.5, y: 5.5 }, // posto de trabalho, do lado de dentro do balcao
+];
+
+/**
+ * Saida de um predio misto: da sala dos fundos ate a frente da porta da rua,
+ * pelo mesmo corredor e pela mesma porta privada da espinha.
+ */
+const CORREDOR_SAIDA_MISTO: PontoTile[] = [
+  { x: 3.5, y: 11.5 },
+  { x: 3.5, y: 8.5 },
+  { x: 9.5, y: 8.5 },
+  { x: 10.5, y: 8.5 },
+  { x: 10.5, y: 12.5 },
+];
+
 export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
+  // casa_1 e a unica com o salao unico 16x12 do inicio do projeto.
   casa_1: { frente: { x: 31.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
-  casa_2: { frente: { x: 43.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
-  casa_3: { frente: { x: 75.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
-  casa_4: { frente: { x: 87.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
-  casa_5: { frente: { x: 31.5, y: 79.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
-  casa_6: { frente: { x: 43.5, y: 79.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
+  // As cinco casas de NPC viraram plantas multi-comodo, cada uma com porta,
+  // tamanho e disposicao propria (ver `PLANTAS_CASA` em tools/gerar-assets.mjs).
+  // `interior` e o tile em que o morador comeca o dia — sempre na sala, e sempre
+  // alinhado com o vao por onde ele sai, pra `corredorInterior` ser uma reta.
+  casa_2: {
+    frente: { x: 43.5, y: 16.5 },
+    interior: { x: 14.5, y: 6.5 },
+    portaInterior: { x: 11.5, y: 16.5 },
+    // sala -> vao (12,6) -> corredor central -> porta
+    corredorInterior: [{ x: 11.5, y: 6.5 }],
+  },
+  casa_3: {
+    frente: { x: 75.5, y: 16.5 },
+    interior: { x: 11.5, y: 14.5 },
+    portaInterior: { x: 11.5, y: 16.5 },
+    // a sala da frente ja e a circulacao: desce reto ate a porta
+  },
+  casa_4: {
+    frente: { x: 87.5, y: 16.5 },
+    interior: { x: 5.5, y: 15.5 },
+    portaInterior: { x: 5.5, y: 18.5 },
+  },
+  casa_5: {
+    frente: { x: 31.5, y: 79.5 },
+    interior: { x: 5.5, y: 14.5 },
+    portaInterior: { x: 5.5, y: 16.5 },
+  },
+  casa_6: {
+    frente: { x: 43.5, y: 79.5 },
+    interior: { x: 16.5, y: 12.5 },
+    portaInterior: { x: 10.5, y: 14.5 },
+    // sala -> vao (13,12) -> hall -> porta
+    corredorInterior: [{ x: 10.5, y: 12.5 }],
+  },
   mercado: { frente: { x: 70.5, y: 55.5 }, interior: { x: 11.5, y: 9.5 }, portaInterior: { x: 11.5, y: 13.5 } },
   academia: { frente: { x: 53.5, y: 35.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
-  // Mistos (casa + comercio no mesmo interior 20x14): `interior` fica na metade
-  // de MORADIA, que e onde o dono nasce — o mesmo papel que (8,8) tem nas casas.
-  // Os dois interiores saem da MESMA planta, entao os postos coincidem: (13,5)
-  // e atras do balcao (o movel de balcao ocupa 11..14 nas linhas 6 e 7 nos dois)
-  // e (4,8) e a sala da metade de moradia, ao lado da cama.
+  // Mistos (casa + comercio no mesmo interior 20x14): `interior` fica na sala da
+  // area PRIVADA, atras da porta somente-NPC — e onde o dono nasce e onde ele
+  // volta fora do horario de funcionamento. Os dois lotes usam a mesma planta,
+  // entao os postos e a espinha coincidem.
   bar: {
     frente: { x: 81.5, y: 29.5 },
-    interior: { x: 4.5, y: 8.5 },
+    interior: { x: 5.5, y: 11.5 },
     portaInterior: { x: 10.5, y: 12.5 },
-    postos: { trabalho: { x: 13.5, y: 5.5 }, moradia: { x: 4.5, y: 8.5 } },
-    // linha 8 livre de ponta a ponta, depois a coluna 9 (a passagem entre os
-    // dois ambientes, que o gerador mantem livre de cima a baixo)
-    corredorInterior: [{ x: 9.5, y: 8.5 }, { x: 9.5, y: 11.5 }],
+    postos: { trabalho: { x: 13.5, y: 5.5 }, moradia: { x: 5.5, y: 11.5 } },
+    rotaEntrePostos: ESPINHA_MISTO,
+    corredorInterior: CORREDOR_SAIDA_MISTO,
   },
   farmacia: {
     frente: { x: 85.5, y: 55.5 },
-    interior: { x: 4.5, y: 8.5 },
+    interior: { x: 5.5, y: 11.5 },
     portaInterior: { x: 10.5, y: 12.5 },
-    postos: { trabalho: { x: 13.5, y: 5.5 }, moradia: { x: 4.5, y: 8.5 } },
-    corredorInterior: [{ x: 9.5, y: 8.5 }, { x: 9.5, y: 11.5 }],
+    postos: { trabalho: { x: 13.5, y: 5.5 }, moradia: { x: 5.5, y: 11.5 } },
+    rotaEntrePostos: ESPINHA_MISTO,
+    corredorInterior: CORREDOR_SAIDA_MISTO,
   },
 };
 
@@ -228,7 +305,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   },
   edu: {
     id: 'edu', nome: 'Edu', casa: 'casa_2',
-    posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_2', horaAcordar: hora(7),
+    posicaoInicial: { x: 14.5, y: 6.5 }, dentroInicial: 'casa_2', horaAcordar: hora(7),
     sprite: {
       arquivo: 'assets/sprites/Edu_andando_runtime.png', colunas: 4, linhas: 4,
       frames: {
@@ -284,7 +361,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   },
   mari: {
     id: 'mari', nome: 'Mari', casa: 'casa_3',
-    posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_3', horaAcordar: hora(8),
+    posicaoInicial: { x: 11.5, y: 14.5 }, dentroInicial: 'casa_3', horaAcordar: hora(8),
     sprite: {
       arquivo: 'assets/sprites/Mari_andando_runtime.png', colunas: 4, linhas: 4,
       frames: {
@@ -330,7 +407,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   },
   jaqueline: {
     id: 'jaqueline', nome: 'Jaqueline', casa: 'casa_4',
-    posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_4', horaAcordar: hora(8),
+    posicaoInicial: { x: 5.5, y: 15.5 }, dentroInicial: 'casa_4', horaAcordar: hora(8),
     sprite: {
       arquivo: 'assets/sprites/Jaqueline_andando_runtime.png', colunas: 4, linhas: 4,
       frames: {
@@ -383,7 +460,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   },
   leticia: {
     id: 'leticia', nome: 'Leticia', casa: 'casa_5',
-    posicaoInicial: { x: 8.5, y: 8.5 }, dentroInicial: 'casa_5', horaAcordar: hora(9, 30),
+    posicaoInicial: { x: 5.5, y: 14.5 }, dentroInicial: 'casa_5', horaAcordar: hora(9, 30),
     sprite: {
       arquivo: 'assets/sprites/leticia_andando_runtime.png', colunas: 4, linhas: 4,
       frames: {
@@ -438,16 +515,17 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   },
   // ------------------------------------------------------------------------
   // PRESENCA INTERIOR FIXA: os dois donos dos lotes MISTOS. Eles moram onde
-  // trabalham, entao nao tem trajeto — passam o dia dentro do proprio interior,
-  // trocando entre o posto de trabalho (atras do balcao) e o de moradia. O
-  // jogador so os encontra entrando no predio; no mapa externo eles nao existem.
+  // trabalham, entao passam o dia dentro do proprio interior, indo A PE do posto
+  // de moradia (na area privada) ate o de trabalho (atras do balcao) e de volta,
+  // atravessando a porta somente-NPC. O jogador so os encontra entrando no
+  // predio; no mapa externo eles nao existem.
   //
   // A excecao e a viagem semanal ao mercado, que e o unico dia em que aparecem
   // la fora. Ela vem de `rotinaSemanal`, entao o motor nao precisa saber nada
   // sobre dia da semana alem de escolher a lista na virada do dia.
   wendel: {
     id: 'wendel', nome: 'Wendel', casa: 'farmacia',
-    posicaoInicial: { x: 4.5, y: 8.5 }, dentroInicial: 'farmacia', horaAcordar: hora(7),
+    posicaoInicial: { x: 5.5, y: 11.5 }, dentroInicial: 'farmacia', horaAcordar: hora(7),
     presencaInteriorFixa: true,
     // a arte grafa "Wendeu"; o personagem e Wendel (ver processar-sprites-npc)
     sprite: {
@@ -505,7 +583,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   },
   alice: {
     id: 'alice', nome: 'Alice', casa: 'bar',
-    posicaoInicial: { x: 4.5, y: 8.5 }, dentroInicial: 'bar', horaAcordar: hora(9),
+    posicaoInicial: { x: 5.5, y: 11.5 }, dentroInicial: 'bar', horaAcordar: hora(9),
     presencaInteriorFixa: true,
     sprite: {
       arquivo: 'assets/sprites/Alice_andando_runtime.png', colunas: 4, linhas: 4,

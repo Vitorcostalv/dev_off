@@ -1,22 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PROP_PORTA_NPC, tileBloqueia } from '../src/game/colisao.ts';
+import { MAPAS } from '../src/game/mapas.ts';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR_MAPAS = join(RAIZ, 'public', 'assets', 'tilemaps');
 const CASAS = Array.from({ length: 6 }, (_, i) => `casa_${i + 1}`);
-/** Predios MISTOS: casa + comercio no mesmo interior, com cama na metade de moradia. */
+/** Predios MISTOS: casa + comercio no mesmo interior, com cama na area privada. */
 const MISTOS = ['bar', 'farmacia'];
 /** Todo lote onde alguem pode morar — o que precisa de cama interativa. */
 const MORADIAS = [...CASAS, ...MISTOS];
-const SPAWNS = {
-  farm: [60, 45],
-  ...Object.fromEntries(CASAS.map((casa) => [casa, [8, 10]])),
-  mercado: [11, 13],
-  academia: [9, 10],
-  bar: [10, 12],
-  farmacia: [10, 12],
-};
+/** Comodos que toda casa de NPC multi-comodo tem de oferecer ao jogador. */
+const COMODOS_DE_CASA = ['quarto', 'sala', 'cozinha', 'banheiro'];
+/** Onde o jogador nasce no mapa externo. */
+const SPAWN_FARM = [60, 45];
 
 function lerMapa(nome) {
   return JSON.parse(readFileSync(join(DIR_MAPAS, `${nome}.json`), 'utf8'));
@@ -28,15 +26,35 @@ function camada(mapa, nome) {
   return encontrada;
 }
 
+function objetosDe(mapa, nome) {
+  return mapa.layers.find((item) => item.name === nome)?.objects ?? [];
+}
+
 function props(objeto) {
   return Object.fromEntries((objeto.properties ?? []).map((p) => [p.name, p.value]));
 }
 
-function gidsComColisao(mapa) {
+/**
+ * Gids que bloqueiam `quem` ('jogador' ou 'npc'). Sao dois conjuntos DIFERENTES
+ * sobre o mesmo tileset: a porta somente-NPC entra no do jogador e fica de fora
+ * no do NPC. Ver src/game/colisao.ts.
+ */
+function gidsQueBloqueiam(mapa, quem) {
   const resultado = new Set();
   for (const tileset of mapa.tilesets ?? []) {
     for (const tile of tileset.tiles ?? []) {
-      if ((tile.properties ?? []).some((p) => p.name === 'collides' && p.value === true)) {
+      if (tileBloqueia(tile.properties ?? [], quem)) resultado.add(tileset.firstgid + tile.id);
+    }
+  }
+  return resultado;
+}
+
+/** Gids marcados como porta somente-NPC — usados so pra contar/relatar. */
+function gidsDePortaNpc(mapa) {
+  const resultado = new Set();
+  for (const tileset of mapa.tilesets ?? []) {
+    for (const tile of tileset.tiles ?? []) {
+      if ((tile.properties ?? []).some((p) => p.name === PROP_PORTA_NPC && p.value === true)) {
         resultado.add(tileset.firstgid + tile.id);
       }
     }
@@ -44,14 +62,14 @@ function gidsComColisao(mapa) {
   return resultado;
 }
 
-function floodFill(mapa, spawn) {
+function floodFill(mapa, spawn, quem = 'jogador') {
   const objetos = camada(mapa, 'objetos');
-  const bloqueados = gidsComColisao(mapa);
+  const bloqueados = gidsQueBloqueiam(mapa, quem);
   const chave = (x, y) => `${x},${y}`;
   const livre = (x, y) =>
     x >= 0 && y >= 0 && x < mapa.width && y < mapa.height &&
     !bloqueados.has((objetos.data[y * mapa.width + x] ?? 0) & 0x1fffffff);
-  if (!livre(...spawn)) throw new Error(`spawn ${spawn.join(',')} bloqueado`);
+  if (!livre(...spawn)) throw new Error(`spawn ${spawn.join(',')} bloqueado para o ${quem}`);
 
   const visitados = new Set([chave(...spawn)]);
   const fila = [spawn];
@@ -78,38 +96,154 @@ function adjacenteAlcancavel(mapa, objeto, flood) {
     .some(([tx, ty]) => flood.visitados.has(`${tx},${ty}`));
 }
 
+/** Retangulo de um objeto de comodo, em tiles. */
+function retangulo(mapa, objeto) {
+  const [x, y] = tileDoObjeto(mapa, objeto);
+  return {
+    x,
+    y,
+    w: Math.round((objeto.width ?? 0) / mapa.tilewidth),
+    h: Math.round((objeto.height ?? 0) / mapa.tileheight),
+  };
+}
+
+function tilesDoRetangulo(r) {
+  const lista = [];
+  for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) lista.push(`${x},${y}`);
+  return lista;
+}
+
+/**
+ * Confere um interior. Sao DOIS flood-fills a partir do mesmo tile de entrada:
+ * o do jogador (a porta somente-NPC e parede) e o do NPC (ela e passagem).
+ *
+ * - todo comodo publico tem de ter tile alcancavel pelo JOGADOR;
+ * - todo comodo privado tem de ter tile alcancavel pelo NPC e NENHUM tile
+ *   alcancavel pelo jogador — e o contrato da area privada dos mistos;
+ * - a cama e alcancavel por quem mora nela: pelo jogador quando fica em comodo
+ *   publico (as casas), so pelo NPC quando fica no quarto privado (os mistos).
+ *
+ * O tile de entrada sai do proprio mapa (um acima da porta de saida) e e
+ * comparado com o `spawnTile` declarado em src/game/mapas.ts: se o gerador mudar
+ * a planta e o jogo nao acompanhar, reprova aqui em vez de largar o jogador
+ * dentro de uma parede.
+ */
 function verificarInterior(nome) {
   const mapa = lerMapa(nome);
-  const flood = floodFill(mapa, SPAWNS[nome]);
   const interativos = camada(mapa, 'interativos').objects ?? [];
   const saidas = interativos.filter((obj) => (obj.class || obj.type) === 'porta');
-  if (saidas.length !== 1 || !adjacenteAlcancavel(mapa, saidas[0], flood)) {
+  if (saidas.length !== 1) {
+    throw new Error(`${nome}: esperava 1 porta de saida, achei ${saidas.length}`);
+  }
+  const [portaX, portaY] = tileDoObjeto(mapa, saidas[0]);
+  const spawn = [portaX, portaY - 1];
+
+  const declarado = MAPAS[nome]?.spawnTile;
+  if (!declarado) throw new Error(`${nome}: nao existe em MAPAS (src/game/mapas.ts)`);
+  if (declarado.x !== spawn[0] || declarado.y !== spawn[1]) {
+    throw new Error(
+      `${nome}: spawnTile de src/game/mapas.ts e ${declarado.x},${declarado.y}, mas a porta ` +
+        `do tilemap pede ${spawn.join(',')}`,
+    );
+  }
+
+  const jogador = floodFill(mapa, spawn, 'jogador');
+  const npc = floodFill(mapa, spawn, 'npc');
+  if (!adjacenteAlcancavel(mapa, saidas[0], jogador)) {
     throw new Error(`${nome}: porta de saida nao esta alcancavel`);
   }
-  // Toda MORADIA precisa de uma cama alcancavel: as seis casas e os dois
-  // mistos. No misto a cama fica na metade de moradia, do outro lado do comodo
-  // em relacao a porta, entao este teste tambem prova que os dois ambientes
-  // estao conectados sem parede no meio.
+
+  // comodos: a camada e opcional (casa_1 e os saloes continuam sendo um comodo
+  // so, sem divisao interna pra declarar)
+  const comodos = objetosDe(mapa, 'comodos').map((obj) => ({
+    nome: obj.name,
+    privado: props(obj).privado === true,
+    ret: retangulo(mapa, obj),
+  }));
+  const privados = new Set();
+  for (const comodo of comodos) {
+    const tiles = tilesDoRetangulo(comodo.ret);
+    if (comodo.privado) for (const t of tiles) privados.add(t);
+    const doNpc = tiles.filter((t) => npc.visitados.has(t));
+    const doJogador = tiles.filter((t) => jogador.visitados.has(t));
+    if (comodo.privado) {
+      if (!doNpc.length) {
+        throw new Error(`${nome}: o comodo privado "${comodo.nome}" nao e alcancavel pelo NPC`);
+      }
+      if (doJogador.length) {
+        throw new Error(
+          `${nome}: o jogador alcanca ${doJogador.length} tile(s) do comodo PRIVADO ` +
+            `"${comodo.nome}" (${doJogador.slice(0, 4).join(' ')})`,
+        );
+      }
+      continue;
+    }
+    if (!doJogador.length) {
+      throw new Error(`${nome}: o comodo "${comodo.nome}" nao e alcancavel pelo jogador`);
+    }
+  }
+
+  // as cinco casas de NPC sao multi-comodo e TODOS os comodos sao do jogador
+  if (CASAS.includes(nome) && nome !== 'casa_1') {
+    const nomes = comodos.map((c) => c.nome);
+    const faltando = COMODOS_DE_CASA.filter((c) => !nomes.includes(c));
+    if (faltando.length) {
+      throw new Error(`${nome}: faltam os comodos ${faltando.join(', ')} (achei ${nomes.join(', ')})`);
+    }
+    const trancados = comodos.filter((c) => c.privado).map((c) => c.nome);
+    if (trancados.length) {
+      throw new Error(`${nome}: casa de NPC nao pode ter comodo privado (${trancados.join(', ')})`);
+    }
+  }
+
+  // Toda MORADIA precisa de uma cama: as seis casas e os dois mistos. Nas casas
+  // ela fica em comodo do jogador; nos mistos, no quarto da area privada, e ai o
+  // jogador NAO pode alcancar — quem dorme nela e o dono.
+  let camaPrivada = false;
   if (MORADIAS.includes(nome)) {
     const camas = interativos.filter((obj) => (obj.class || obj.type) === 'cama');
     if (camas.length !== 1) throw new Error(`${nome}: esperava 1 cama interativa, achei ${camas.length}`);
-    if (!adjacenteAlcancavel(mapa, camas[0], flood)) throw new Error(`${nome}: cama nao esta alcancavel`);
-  }
-  // No misto o flood-fill tem de cobrir os DOIS ambientes: confere um tile do
-  // fundo da area de trabalho, que fica na metade oposta a cama.
-  if (MISTOS.includes(nome)) {
-    const trabalho = [15, 8];
-    if (!flood.visitados.has(trabalho.join(','))) {
-      throw new Error(`${nome}: a area de trabalho (${trabalho}) nao esta alcancavel pela porta`);
+    camaPrivada = privados.has(tileDoObjeto(mapa, camas[0]).join(','));
+    if (camaPrivada) {
+      if (!adjacenteAlcancavel(mapa, camas[0], npc)) {
+        throw new Error(`${nome}: a cama do dono nao esta alcancavel pelo NPC`);
+      }
+      if (adjacenteAlcancavel(mapa, camas[0], jogador)) {
+        throw new Error(`${nome}: a cama do dono esta na area privada mas o jogador chega nela`);
+      }
+    } else if (!adjacenteAlcancavel(mapa, camas[0], jogador)) {
+      throw new Error(`${nome}: cama nao esta alcancavel`);
     }
-    const moveis = (camada(mapa, 'moveis').objects ?? []).length;
-    if (moveis < 15) throw new Error(`${nome}: esperava mobilia nos dois ambientes, achei ${moveis} moveis`);
   }
+
+  // Nos mistos a divisao publico/privado tem de ser feita por PORTA SOMENTE-NPC:
+  // sem ela o dono ficaria trancado de um lado do proprio predio.
+  const objetos = camada(mapa, 'objetos');
+  const portasNpc = gidsDePortaNpc(mapa);
+  const quantasPortasNpc = objetos.data.filter((gid) => portasNpc.has(gid & 0x1fffffff)).length;
+  if (MISTOS.includes(nome)) {
+    if (!camaPrivada) throw new Error(`${nome}: a cama do dono deveria estar na area privada`);
+    if (!quantasPortasNpc) {
+      throw new Error(`${nome}: nenhuma porta somente-NPC ligando o salao a moradia`);
+    }
+    if (!comodos.some((c) => c.privado)) throw new Error(`${nome}: nenhum comodo privado`);
+    const moveis = objetosDe(mapa, 'moveis').length;
+    if (moveis < 15) throw new Error(`${nome}: esperava mobilia nos dois ambientes, achei ${moveis}`);
+  }
+
+  return {
+    nome,
+    comodos: comodos.length,
+    privados: comodos.filter((c) => c.privado).length,
+    portasNpc: quantasPortasNpc,
+    jogador: jogador.visitados.size,
+    npc: npc.visitados.size,
+  };
 }
 
 function verificarZonasDaFazenda() {
   const mapa = lerMapa('farm');
-  const flood = floodFill(mapa, SPAWNS.farm);
+  const flood = floodFill(mapa, SPAWN_FARM);
   const interativos = camada(mapa, 'interativos').objects ?? [];
   const zonas = camada(mapa, 'zonas').objects ?? [];
   const esperadas = zonas.map((obj) => obj.name);
@@ -187,10 +321,23 @@ function verificarZonasDaFazenda() {
 }
 
 const { total, interiores, moradias } = verificarZonasDaFazenda();
-for (const nome of interiores) verificarInterior(nome);
+const relatorios = interiores.map((nome) => verificarInterior(nome));
 console.log(
   `[verificacao] ${total}/${total} lotes alcancaveis; ` +
     `${interiores.length} interiores conferidos (${interiores.join(', ')}); ` +
-    `${moradias.length}/${MORADIAS.length} moradias com cama interativa alcancavel ` +
+    `${moradias.length}/${MORADIAS.length} moradias com cama interativa ` +
     `(${CASAS.length} casas + ${MISTOS.length} mistos); 2/2 pickups`,
+);
+for (const r of relatorios) {
+  if (!r.comodos) continue;
+  console.log(
+    `  ${r.nome.padEnd(9)} ${String(r.comodos).padStart(2)} comodos ` +
+      `(${r.privados} privado(s), ${r.portasNpc} porta(s) somente-NPC) | ` +
+      `jogador alcanca ${String(r.jogador).padStart(3)} tiles, NPC alcanca ${r.npc}`,
+  );
+}
+const comPrivado = relatorios.filter((r) => r.privados);
+console.log(
+  `[verificacao] area privada CONFIRMADAMENTE inacessivel ao jogador em ` +
+    `${comPrivado.length} interior(es): ${comPrivado.map((r) => r.nome).join(', ') || '-'}`,
 );

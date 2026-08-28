@@ -254,23 +254,23 @@
     68,
     68,
     0,
-    70,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    68,
-    68,
-    0,
     71,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    68,
+    0,
+    72,
     0,
     0,
     0,
@@ -1057,15 +1057,15 @@
  ],
  "tilesets": [
   {
-   "columns": 71,
+   "columns": 72,
    "firstgid": 1,
    "image": "../tilesets/terrain.png",
-   "imagewidth": 2272,
+   "imagewidth": 2304,
    "imageheight": 32,
    "margin": 0,
    "spacing": 0,
    "name": "terrain",
-   "tilecount": 71,
+   "tilecount": 72,
    "tilewidth": 32,
    "tileheight": 32,
    "tiles": [
@@ -1256,11 +1256,26 @@
        "name": "collides",
        "type": "bool",
        "value": true
+      },
+      {
+       "name": "npcAtravessa",
+       "type": "bool",
+       "value": true
       }
      ]
     },
     {
      "id": 70,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 71,
      "properties": [
       {
        "name": "collides",

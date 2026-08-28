@@ -179,6 +179,36 @@ export class SistemaRotinasNpc {
     return ponto;
   }
 
+  /**
+   * Waypoints da posicao atual ate o posto pedido, pela ESPINHA do predio
+   * (`LOCAIS_CIDADE[casa].rotaEntrePostos`, escrita de `moradia` pra
+   * `trabalho`). Ir pro outro posto e percorrer a mesma espinha ao contrario.
+   *
+   * Como nao ha pathfinding, a entrada na espinha e pelo waypoint mais PROXIMO
+   * da posicao atual: sair de tras do balcao, do quarto ou da porta da rua
+   * pega o mesmo corredor, sem andar pra tras. A espinha e uma polilinha
+   * simples e passa pela frente da porta da rua justamente pra isso valer.
+   *
+   * Sem espinha declarada o posto continua sendo um ponto so — o NPC anda em
+   * reta ate ele, que e o certo num interior de um comodo so.
+   */
+  private rotaAtePosto(runtime: RuntimeNpc, posto: PostoInterior): PontoTile[] {
+    const destino = this.postoDe(runtime.def, posto);
+    const espinha = LOCAIS_CIDADE[runtime.def.casa]?.rotaEntrePostos;
+    if (!espinha?.length) return [destino];
+    const rota = posto === 'trabalho' ? [...espinha] : [...espinha].reverse();
+    let inicio = 0;
+    let melhor = Infinity;
+    rota.forEach((ponto, i) => {
+      const d = this.distancia(runtime.estado, ponto);
+      if (d < melhor) {
+        melhor = d;
+        inicio = i;
+      }
+    });
+    return rota.slice(inicio);
+  }
+
   private iniciarAcao(runtime: RuntimeNpc, acao: AcaoRotinaNpc): void {
     runtime.acao = acao;
     runtime.estado.acaoAtual = acao.tipo;
@@ -188,6 +218,24 @@ export class SistemaRotinasNpc {
     runtime.pausaRestante = 0;
     if (acao.tipo === 'andar_rota') runtime.rota = acao.waypoints;
     if (acao.tipo === 'vagar_rota') runtime.rota = acao.waypoints;
+    if (acao.tipo === 'posto_interior') {
+      // O dono ja esta dentro do proprio predio quando isto comeca (ou porque
+      // nasceu la, ou porque acabou de voltar pela porta). Se por algum motivo
+      // nao estiver, entra pela porta antes de andar — assim a rota parte sempre
+      // de um tile valido do interior.
+      const estado = runtime.estado;
+      if (estado.dentro !== runtime.def.casa) {
+        const porta = LOCAIS_CIDADE[runtime.def.casa]?.portaInterior;
+        estado.dentro = runtime.def.casa;
+        estado.visivel = false;
+        if (porta) {
+          estado.x = porta.x;
+          estado.y = porta.y;
+        }
+      }
+      estado.posto = null; // em transito: so vira o posto de destino na chegada
+      runtime.rota = this.rotaAtePosto(runtime, acao.posto);
+    }
     if (acao.tipo === 'sair_construcao') {
       const local = LOCAIS_CIDADE[acao.construcao];
       if (!local) throw new Error(`construcao desconhecida: ${acao.construcao}`);
@@ -212,17 +260,19 @@ export class SistemaRotinasNpc {
     if (!acao) return true;
     switch (acao.tipo) {
       case 'posto_interior': {
-        // Troca direta de posicao, sem trajeto: o dono some de um canto do
-        // proprio interior e aparece no outro. `visivel` fica false porque
-        // "dentro de construcao" e o que esconde o NPC do mapa externo — a cena
-        // desenha ele pelo par (dentro === mapa aberto), em posicaoNpcNoMapa.
+        // Caminhada de verdade DENTRO do interior, pelo mesmo `seguirRota` das
+        // rotas externas: a duracao sai da distancia real, nao de um numero
+        // fixo. `visivel` fica false porque "dentro de construcao" e o que
+        // esconde o NPC do mapa externo — a cena desenha ele pelo par
+        // (dentro === mapa aberto), em posicaoNpcNoMapa, entao quem estiver no
+        // predio ve o trajeto inteiro, inclusive a passagem pela porta privada.
+        runtime.estado.dentro = runtime.def.casa;
+        runtime.estado.visivel = false;
+        if (!this.seguirRota(runtime, deltaSegundos, false)) return false;
         const ponto = this.postoDe(runtime.def, acao.posto);
         runtime.estado.x = ponto.x;
         runtime.estado.y = ponto.y;
-        runtime.estado.dentro = runtime.def.casa;
-        runtime.estado.visivel = false;
         runtime.estado.posto = acao.posto;
-        runtime.estado.direcao = 'down';
         return true;
       }
       case 'entrar_construcao':

@@ -5,8 +5,8 @@
  "tilewidth": 32,
  "tileheight": 32,
  "infinite": false,
- "nextlayerid": 5,
- "nextobjectid": 993,
+ "nextlayerid": 6,
+ "nextobjectid": 1061,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -350,6 +350,133 @@
     68,
     68,
     0,
+    71,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    68,
+    0,
+    72,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    68,
+    68,
+    68,
+    68,
+    68,
+    68,
+    0,
+    68,
+    68,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    68,
+    68,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     70,
     0,
     0,
@@ -360,24 +487,17 @@
     0,
     0,
     0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
+    68,
+    68,
     68,
     68,
     0,
-    71,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
+    68,
+    68,
+    68,
+    68,
+    68,
+    68,
     0,
     0,
     0,
@@ -397,7 +517,7 @@
     0,
     0,
     0,
-    0,
+    68,
     0,
     0,
     0,
@@ -417,7 +537,7 @@
     0,
     0,
     0,
-    0,
+    68,
     0,
     0,
     0,
@@ -437,127 +557,7 @@
     0,
     0,
     0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
     68,
-    68,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    68,
-    68,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    68,
-    68,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    68,
-    68,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    68,
-    68,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    68,
-    68,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
     0,
     0,
     0,
@@ -609,7 +609,7 @@
      "type": "porta",
      "height": 32,
      "width": 32,
-     "id": 970,
+     "id": 1034,
      "name": "porta_saida",
      "rotation": 0,
      "visible": true,
@@ -643,7 +643,7 @@
      "type": "cama",
      "height": 32,
      "width": 32,
-     "id": 971,
+     "id": 1035,
      "name": "cama_farmacia",
      "rotation": 0,
      "visible": true,
@@ -669,78 +669,8 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 972,
+     "id": 1040,
      "name": "movel_farmacia_0",
-     "rotation": 0,
-     "visible": true,
-     "x": 213,
-     "y": 64,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_mobilia_v2"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_5_8"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.365
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 973,
-     "name": "movel_farmacia_1",
-     "rotation": 0,
-     "visible": true,
-     "x": 144,
-     "y": 64,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_mobilia_v1"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_4_9"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.041
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 974,
-     "name": "movel_farmacia_2",
      "rotation": 0,
      "visible": true,
      "x": 117,
@@ -774,12 +704,12 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 975,
-     "name": "movel_farmacia_3",
+     "id": 1041,
+     "name": "movel_farmacia_1",
      "rotation": 0,
      "visible": true,
-     "x": 214,
-     "y": 128,
+     "x": 150,
+     "y": 224,
      "properties": [
       {
        "name": "atlas",
@@ -809,12 +739,12 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 976,
-     "name": "movel_farmacia_4",
+     "id": 1042,
+     "name": "movel_farmacia_2",
      "rotation": 0,
      "visible": true,
-     "x": 122,
-     "y": 256,
+     "x": 213,
+     "y": 128,
      "properties": [
       {
        "name": "atlas",
@@ -824,12 +754,82 @@
       {
        "name": "frame",
        "type": "string",
-       "value": "movel_2_6"
+       "value": "movel_5_8"
       },
       {
        "name": "alturaTiles",
        "type": "float",
-       "value": 1.481
+       "value": 1.365
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 1043,
+     "name": "movel_farmacia_3",
+     "rotation": 0,
+     "visible": true,
+     "x": 240,
+     "y": 224,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_6_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.173
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 1044,
+     "name": "movel_farmacia_4",
+     "rotation": 0,
+     "visible": true,
+     "x": 72,
+     "y": 416,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.712
       },
       {
        "name": "colide",
@@ -844,12 +844,82 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 977,
+     "id": 1045,
      "name": "movel_farmacia_5",
      "rotation": 0,
      "visible": true,
-     "x": 195,
-     "y": 320,
+     "x": 156,
+     "y": 416,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.231
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 1046,
+     "name": "movel_farmacia_6",
+     "rotation": 0,
+     "visible": true,
+     "x": 250,
+     "y": 416,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_1_14"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.692
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 1047,
+     "name": "movel_farmacia_7",
+     "rotation": 0,
+     "visible": true,
+     "x": 99,
+     "y": 416,
      "properties": [
       {
        "name": "atlas",
@@ -879,82 +949,12 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 978,
-     "name": "movel_farmacia_6",
-     "rotation": 0,
-     "visible": true,
-     "x": 222,
-     "y": 320,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_mobilia_v2"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_3_1"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.212
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 979,
-     "name": "movel_farmacia_7",
-     "rotation": 0,
-     "visible": true,
-     "x": 44,
-     "y": 352,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_mobilia_v2"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_6_15"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.904
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 980,
+     "id": 1048,
      "name": "movel_farmacia_8",
      "rotation": 0,
      "visible": true,
-     "x": 82,
-     "y": 416,
+     "x": 48,
+     "y": 352,
      "properties": [
       {
        "name": "atlas",
@@ -964,12 +964,12 @@
       {
        "name": "frame",
        "type": "string",
-       "value": "movel_4_5"
+       "value": "movel_4_9"
       },
       {
        "name": "alturaTiles",
        "type": "float",
-       "value": 1.453
+       "value": 1.041
       },
       {
        "name": "colide",
@@ -984,7 +984,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 981,
+     "id": 1049,
      "name": "movel_farmacia_9",
      "rotation": 0,
      "visible": true,
@@ -1019,7 +1019,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 982,
+     "id": 1050,
      "name": "movel_farmacia_10",
      "rotation": 0,
      "visible": true,
@@ -1054,7 +1054,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 983,
+     "id": 1051,
      "name": "movel_farmacia_11",
      "rotation": 0,
      "visible": true,
@@ -1089,7 +1089,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 984,
+     "id": 1052,
      "name": "movel_farmacia_12",
      "rotation": 0,
      "visible": true,
@@ -1124,7 +1124,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 985,
+     "id": 1053,
      "name": "movel_farmacia_13",
      "rotation": 0,
      "visible": true,
@@ -1159,7 +1159,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 986,
+     "id": 1054,
      "name": "movel_farmacia_14",
      "rotation": 0,
      "visible": true,
@@ -1194,7 +1194,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 987,
+     "id": 1055,
      "name": "movel_farmacia_15",
      "rotation": 0,
      "visible": true,
@@ -1229,7 +1229,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 988,
+     "id": 1056,
      "name": "movel_farmacia_16",
      "rotation": 0,
      "visible": true,
@@ -1264,7 +1264,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 989,
+     "id": 1057,
      "name": "movel_farmacia_17",
      "rotation": 0,
      "visible": true,
@@ -1299,7 +1299,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 990,
+     "id": 1058,
      "name": "movel_farmacia_18",
      "rotation": 0,
      "visible": true,
@@ -1334,7 +1334,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 991,
+     "id": 1059,
      "name": "movel_farmacia_19",
      "rotation": 0,
      "visible": true,
@@ -1369,7 +1369,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 992,
+     "id": 1060,
      "name": "movel_farmacia_20",
      "rotation": 0,
      "visible": true,
@@ -1404,19 +1404,107 @@
    "visible": true,
    "x": 0,
    "y": 0
+  },
+  {
+   "draworder": "topdown",
+   "id": 5,
+   "name": "comodos",
+   "objects": [
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 160,
+     "width": 256,
+     "id": 1036,
+     "name": "quarto",
+     "rotation": 0,
+     "visible": true,
+     "x": 32,
+     "y": 64,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 32,
+     "width": 256,
+     "id": 1037,
+     "name": "corredor",
+     "rotation": 0,
+     "visible": true,
+     "x": 32,
+     "y": 256,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 96,
+     "width": 256,
+     "id": 1038,
+     "name": "sala",
+     "rotation": 0,
+     "visible": true,
+     "x": 32,
+     "y": 320,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 352,
+     "width": 288,
+     "id": 1039,
+     "name": "salao",
+     "rotation": 0,
+     "visible": true,
+     "x": 320,
+     "y": 64,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
   }
  ],
  "tilesets": [
   {
-   "columns": 71,
+   "columns": 72,
    "firstgid": 1,
    "image": "../tilesets/terrain.png",
-   "imagewidth": 2272,
+   "imagewidth": 2304,
    "imageheight": 32,
    "margin": 0,
    "spacing": 0,
    "name": "terrain",
-   "tilecount": 71,
+   "tilecount": 72,
    "tilewidth": 32,
    "tileheight": 32,
    "tiles": [
@@ -1607,11 +1695,26 @@
        "name": "collides",
        "type": "bool",
        "value": true
+      },
+      {
+       "name": "npcAtravessa",
+       "type": "bool",
+       "value": true
       }
      ]
     },
     {
      "id": 70,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 71,
      "properties": [
       {
        "name": "collides",
