@@ -56,7 +56,7 @@ tools/
   gerar-assets.mjs     monta tileset + folhas/atlas de sprite + todos os tilemaps
 public/assets/
   tilemaps/            farm.json (externo) + um por interior (casa_1..casa_6,
-                       mercado, academia) — todos gerados
+                       mercado, academia, bar, farmacia) — todos gerados
   tilesets/terrain.png tileset 32x32 montado pelo script (nao edite a mao)
   sprites/             folhas de runtime, folhas de movel geradas, spritesheets
                        do player e os atlas
@@ -91,6 +91,7 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `Utensilios_mercado.png` | `arte/` | folha+atlas `moveis_mercado` | build |
 | `Utensilios_academia.png` | `arte/` | folha+atlas `moveis_academia` | build |
 | `Mobilhas_v1.png` e `Mobilia_v2.png` | `arte/` | folha+atlas `moveis_mobilia_v1` / `_v2` | build |
+| `Moveis_farmacia_bar.png` | `arte/` | folha+atlas `moveis_farmacia_bar` (movel dos dois mistos) | build |
 | `player_sprites.png`, `Player_andando.png`, `Player_correndo.png` | `public/` | poses do player | runtime |
 | `<Npc>_andando.png` e `<Npc>_parada.png` | `public/` | folhas `_runtime` de caminhada e de pose parada | build |
 
@@ -199,17 +200,29 @@ espelho, e as 16 vao assadas no tileset.
 ### Camada `zonas`
 
 Camada de **objetos** chamada `zonas`, sem tile e sem colisao: e a demarcacao
-dos lotes. A *class* diz o tipo (`casa`, `mercado`, `academia`, `parque`) e o
-*name* e o id (`casa_1`..`casa_6`, `mercado`, `academia`, `parque`).
+dos lotes. A *class* diz o tipo (`casa`, `mercado`, `academia`, `parque`, `bar`,
+`farmacia`) e o *name* e o id (`casa_1`..`casa_6`, `mercado`, `academia`,
+`parque`, `bar`, `farmacia`).
 
 | propriedade | o que diz |
 | --- | --- |
 | `tipo` | mesmo valor da *class* |
+| `uso` | `moradia`, `comercio`, `misto` (casa+comercio) ou `praca` |
+| `moradia` | `true` quando o `uso` e `moradia` ou `misto` — alguem pode morar ai |
 | `construida` | `true` = ja tem predio de pe; `false` = lote reservado |
 | `mapaInterior` | chave em `game/mapas.ts` do interior, quando existe |
 
-**Os 9 lotes estao construidos.** 8 tem predio e interior (6 casas, mercado,
-academia) e vem de `CONSTRUCOES`; o parque e area externa e vem de `PRACAS`.
+**`uso` e o que separa "como o lote se chama" de "o que ele e".** As seis casas
+sao `moradia`, mercado e academia sao `comercio`, o parque e `praca`, e o bar e a
+farmacia sao `misto`: um predio so, um interior so, com a moradia do dono de um
+lado e o espaco de trabalho do outro. Como tem cama, os dois contam como
+**moradia disponivel** na mesma validacao que impede dois NPCs na mesma casa
+(`MORADIAS` em `game/npcs.ts`, conferida contra o mapa por `verificar-mapas`).
+
+**Os 11 lotes estao construidos.** 10 tem predio e interior (6 casas, mercado,
+academia, bar, farmacia) e vem de `CONSTRUCOES`; o parque e area externa e vem
+de `PRACAS`. Lote de misto tem 10x8 — maior que o de uma casa (8x6), porque o
+predio tem duas funcoes dentro, e menor que o do mercado (12x8).
 A posicao de cada construcao e **derivada do lote** (`construcaoDe()` centra a
 pegada e encosta no topo), entao mover o lote leva o predio junto — nao ha duas
 coordenadas pra sincronizar.
@@ -223,6 +236,7 @@ No jogo, na `FarmScene`:
 
 - `zonasReservadas` — todos os lotes
 - `zonasLivres` — so os que ainda nao tem construcao (hoje vazio)
+- `zonasDeMoradia` — os lotes onde alguem pode morar (6 casas + bar + farmacia)
 - `zonaPorId('mercado')` — o lote, com `construida: true` e `mapaInterior: 'mercado'`
 - `portaDaZona('mercado')` — o objeto `porta` que entra nessa construcao
 - **F6** desenha os retangulos; lote construido vem com borda grossa e o nome
@@ -251,9 +265,10 @@ partir da folha, e chutar produziria telhado torto.
 
 ### Camada `moveis`
 
-Camada de **objetos** de todo interior — as 6 casas, o mercado e a academia.
-Diferente da flora, aqui o gerador ja resolve tudo — `atlas`, `frame`,
-`alturaTiles` e `colide` — e o jogo so posiciona e ordena por y.
+Camada de **objetos** de todo interior — as 6 casas, o mercado, a academia e os
+dois mistos (bar e farmacia). Diferente da flora, aqui o gerador ja resolve tudo
+— `atlas`, `frame`, `alturaTiles` e `colide` — e o jogo so posiciona e ordena
+por y.
 
 Mexer no layout de uma loja e mexer so em `MERCADO_PECAS` / `ACADEMIA_PECAS`,
 onde cada item e `{ peca: [linha, indice], tx, ty }` com `tx`/`ty` no tile do
@@ -298,6 +313,26 @@ exigidos estao a frente da cama e `(8,8)`, onde o NPC dono da casa nasce.
 
 O que ela **nao** cobra e oclusao visual: peca de parede atras de movel alto passa
 a checagem de tile e fica escondida na tela. Isso ainda sai olhando a previa.
+
+**Interior misto: os dois ambientes no mesmo comodo.** O bar e a farmacia nao tem
+interior de moradia e interior de comercio separados — tem UM mapa de 20x14, sem
+parede nem porta interna entre as metades:
+
+- a metade esquerda (colunas 1 a `MISTO_LIMITE_CASA`) e a moradia: chao de
+  madeira, cama pintada no canto (o mesmo objeto `cama` das casas, entao dormir
+  e salvar funcionam sem maquina nova) e mobilia tirada de `MOVEIS_CASA`;
+- a metade direita e o trabalho: chao de ladrilho e mobilia da folha DEDICADA
+  `moveis_farmacia_bar` (balcao, estanteria, mesa, banqueta, barril, letreiro);
+- a troca de material do chao e o **unico** limite entre eles. A coluna do meio
+  fica livre de cima a baixo: e por ela que se atravessa, e e o que faz o comodo
+  ler como um espaco so.
+
+O layout de cada um esta em `MISTOS`, em dois blocos (`casa` com nomes de
+`MOVEIS_CASA`, `trabalho` com pares `[linha, indice]` da folha dedicada).
+`conferirMistos()` roda a mesma conferencia das casas e cobra, alem dela, que
+porta->cama, porta->area de trabalho, porta->spawn do dono e as duas pontas da
+coluna de passagem continuem livres e alcancaveis. Nao ha venda nem atendimento
+ainda: o espaco de trabalho e fisico, como no mercado e na academia.
 
 ### Camada `flora`
 
@@ -363,10 +398,19 @@ do script remapeia, e folha sem perfil esquerdo (Leticia, Mari) o gera
 espelhando o direito. Sem a folha de parado o idle cai no 1o frame da
 caminhada, que e uma pose de passo: o NPC parado parece andar no lugar.
 
-Sao 5 moradores, um por casa (a validacao em `npcs.ts` explode na carga se dois
-dividirem lote): morador_1 (placeholder), Edu (`casa_2`, vaga pela cidade), Mari
-(`casa_3`, academia 09:00-13:00), Jaqueline (`casa_4`, mercado 08:30-17:00) e
-Leticia (`casa_5`, sem destino fixo).
+Sao 5 moradores, um por moradia (a validacao em `npcs.ts` explode na carga se
+dois dividirem lote, ou se alguem for posto a morar em lote que nao e moradia):
+morador_1 (placeholder), Edu (`casa_2`, vaga pela cidade), Mari (`casa_3`,
+academia 09:00-13:00), Jaqueline (`casa_4`, mercado 08:30-17:00) e Leticia
+(`casa_5`, sem destino fixo).
+
+**Moradia disponivel** e o que `MORADIAS` lista: as 6 casas mais o bar e a
+farmacia, que sao lotes MISTOS (casa + comercio no mesmo interior) e por isso tem
+cama. `MORADIAS_VAGAS` deriva daquela lista menos quem ja tem morador — hoje
+`casa_6`, `bar` e `farmacia`. Os dois mistos ficam **prontos e vazios**: interior
+gerado, cama funcionando e `LOCAIS_CIDADE` com frente, porta e ponto de nascer do
+dono, esperando o NPC ser encaixado do mesmo jeito que os outros quatro.
+`npm run verificar-rotinas` confere que a frente de cada moradia vaga esta livre.
 
 **As rotas usam coordenadas de tile e nao fazem pathfinding** — cada trecho e uma
 reta. Duas consequencias que ja morderam:

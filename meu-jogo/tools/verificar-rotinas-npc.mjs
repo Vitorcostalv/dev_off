@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { SistemaRotinasNpc } from '../src/game/rotinasNpc.ts';
-import { LOCAIS_CIDADE, NPCS } from '../src/game/npcs.ts';
+import { LOCAIS_CIDADE, MORADIAS, MORADIAS_VAGAS, NPCS } from '../src/game/npcs.ts';
 
 const url = (caminho) => new URL(caminho, import.meta.url);
 const mapa = JSON.parse(readFileSync(url('../public/assets/tilemaps/farm.json')));
@@ -231,12 +231,24 @@ for (const def of Object.values(NPCS)) {
   }
 }
 
-// uma casa por morador — a validacao de npcs.ts ja explode na carga, aqui e so
-// pra a conferencia dizer com quantos lotes ela contou
+// uma moradia por morador — a validacao de npcs.ts ja explode na carga, aqui e
+// so pra a conferencia dizer com quantos lotes ela contou. `MORADIAS` inclui os
+// predios MISTOS (bar e farmacia): eles tem cama, entao contam como moradia
+// disponivel igual as seis casas.
 const casas = new Set(Object.values(NPCS).map((def) => def.casa));
 if (casas.size !== Object.keys(NPCS).length) throw new Error('dois NPCs na mesma casa');
 for (const casa of casas) {
   if (!LOCAIS_CIDADE[casa]) throw new Error(`casa "${casa}" nao existe em LOCAIS_CIDADE`);
+  if (!MORADIAS.includes(casa)) throw new Error(`"${casa}" nao e moradia disponivel`);
+}
+// as moradias vagas tem de ter local de cidade pronto, senao encaixar um NPC
+// nelas depois quebraria na primeira rotina
+for (const vaga of MORADIAS_VAGAS) {
+  const local = LOCAIS_CIDADE[vaga];
+  if (!local) throw new Error(`a moradia vaga "${vaga}" nao existe em LOCAIS_CIDADE`);
+  if (!livre(local.frente.x, local.frente.y)) {
+    throw new Error(`a frente da moradia vaga "${vaga}" esta bloqueada`);
+  }
 }
 
 if (expedienteJaqueline.dentro.size < 6 * 60) {
@@ -274,6 +286,10 @@ if (Object.values(transicoesPorta).some((valor) => !valor)) {
 console.log(
   `[rotinas] ${Object.keys(NPCS).length} NPCs em ${casas.size} casas | ` +
     `${corpos} corpos de flora no bloqueio | ${areasDeVagar} area(s) de vagar conferida(s)`,
+);
+console.log(
+  `[rotinas] ${MORADIAS.length} moradias no total, ${MORADIAS_VAGAS.length} vaga(s): ` +
+    `${MORADIAS_VAGAS.join(', ') || '-'} (frente livre conferida)`,
 );
 console.log(
   `[rotinas] Jaqueline: ${expedienteJaqueline.dentro.size} min de expediente no mercado | ` +

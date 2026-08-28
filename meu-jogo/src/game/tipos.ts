@@ -6,6 +6,24 @@ export type TipoInteragivel = 'placa' | 'npc' | 'porta' | 'cama' | 'item';
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
 export type TipoZona = 'casa' | 'mercado' | 'academia' | 'parque' | 'bar' | 'farmacia';
 
+/**
+ * O que a construcao do lote É, independente de como ela se chama:
+ *
+ * - `moradia`  — casa pura: uma cama, um morador (casa_1..casa_6)
+ * - `comercio` — salao puro: ninguem mora dentro (mercado, academia)
+ * - `misto`    — casa + comercio no MESMO predio e no MESMO interior, sem
+ *                parede interna: metade e a moradia do dono (com cama), metade
+ *                e o espaco de trabalho (bar, farmacia)
+ * - `praca`    — area externa, sem predio nem interior (parque)
+ *
+ * `moradia` e `misto` contam como moradia disponivel: e por isso que o bar e a
+ * farmacia entram na mesma validacao de "um NPC por casa" das seis casas.
+ */
+export type UsoZona = 'moradia' | 'comercio' | 'misto' | 'praca';
+
+/** Usos em que alguem mora — os lotes que podem receber um NPC morador. */
+export const USOS_DE_MORADIA: readonly UsoZona[] = ['moradia', 'misto'];
+
 export type PropObjeto = string | number | boolean;
 
 /** Um alvo de interacao ja resolvido a partir do objeto do Tiled. */
@@ -30,6 +48,10 @@ export interface ZonaReservada {
   /** id do objeto no Tiled, ex: 'casa_1', 'mercado' */
   id: string;
   tipo: TipoZona;
+  /** o que a construcao e: moradia, comercio, misto (casa+comercio) ou praca */
+  uso: UsoZona;
+  /** true = alguem pode morar aqui (uso `moradia` ou `misto`) */
+  moradia: boolean;
   /** true = ja tem construcao no lote; false = reservado */
   construida: boolean;
   /** chave em MAPAS do interior, quando a construcao tem um (ex: 'casa') */

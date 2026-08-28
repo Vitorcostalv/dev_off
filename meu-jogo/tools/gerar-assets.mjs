@@ -281,6 +281,18 @@ const FOLHAS_MOVEIS = {
     referencia: [2, 0], // sofa de 2 lugares
     larguraReferencia: 2.5,
   },
+  // Arte DEDICADA de bar e farmacia, na mesma folha: as duas metades do predio
+  // misto. Traz balcao, estanteria, mesa, banqueta, barril e letreiro dos dois
+  // ramos — e o que dispensa o placeholder de mobilia de casa que o salao usava
+  // antes. A deteccao sai limpa em 7 linhas com os parametros padrao.
+  farmacia_bar: {
+    arquivo: 'Moveis_farmacia_bar.png',
+    areaMinima: 1500,
+    tolerancia: 55,
+    linhas: 7,
+    referencia: [1, 0], // balcao do bar
+    larguraReferencia: 3,
+  },
 };
 
 function carregarFolhaMoveis(chave) {
@@ -754,22 +766,39 @@ function faixaDaVia(v, largura = LARGURA_VIA) {
  * Areas reservadas pros predios da proxima etapa. Vao numa camada de OBJETOS
  * separada ('zonas'): sem tile, sem colisao, so demarcacao.
  */
-// Os 9 lotes. Quem esta construido e o que tem interior sai de `CONSTRUCOES` /
+// Os 11 lotes. Quem esta construido e o que tem interior sai de `CONSTRUCOES` /
 // `PRACAS` mais abaixo — aqui fica so a geometria do loteamento.
+//
+// `uso` separa o que a construcao É, e nao so como ela se chama:
+//   moradia  — casa pura, uma cama e um morador (casa_1..casa_6)
+//   comercio — salao puro, ninguem mora dentro (mercado, academia)
+//   misto    — casa + comercio no MESMO predio e no MESMO interior, sem parede
+//              interna: metade e a moradia do dono (com cama), metade e o
+//              espaco de trabalho (bar, farmacia)
+//   praca    — area externa, sem predio (parque)
+// Quem conta como moradia disponivel pro morador vem daqui, entao 'misto' entra
+// na mesma validacao de "um NPC por casa" que as seis casas ja usam.
 const ZONAS = [
-  { nome: 'casa_1', classe: 'casa', x: 28, y: 12, w: 8, h: 6 },
-  { nome: 'casa_2', classe: 'casa', x: 40, y: 12, w: 8, h: 6 },
-  { nome: 'casa_3', classe: 'casa', x: 72, y: 12, w: 8, h: 6 },
-  { nome: 'casa_4', classe: 'casa', x: 84, y: 12, w: 8, h: 6 },
-  { nome: 'casa_5', classe: 'casa', x: 28, y: 75, w: 8, h: 6 },
-  { nome: 'casa_6', classe: 'casa', x: 40, y: 75, w: 8, h: 6 },
-  { nome: 'mercado', classe: 'mercado', x: 64, y: 50, w: 12, h: 8 },
-  { nome: 'academia', classe: 'academia', x: 48, y: 30, w: 10, h: 8 },
-  { nome: 'parque', classe: 'parque', x: 28, y: 48, w: 20, h: 14 },
-  // servicos: os dois quadrantes livres a leste da avenida vertical
-  { nome: 'bar', classe: 'bar', x: 76, y: 24, w: 10, h: 8 },
-  { nome: 'farmacia', classe: 'farmacia', x: 80, y: 50, w: 10, h: 8 },
+  { nome: 'casa_1', classe: 'casa', uso: 'moradia', x: 28, y: 12, w: 8, h: 6 },
+  { nome: 'casa_2', classe: 'casa', uso: 'moradia', x: 40, y: 12, w: 8, h: 6 },
+  { nome: 'casa_3', classe: 'casa', uso: 'moradia', x: 72, y: 12, w: 8, h: 6 },
+  { nome: 'casa_4', classe: 'casa', uso: 'moradia', x: 84, y: 12, w: 8, h: 6 },
+  { nome: 'casa_5', classe: 'casa', uso: 'moradia', x: 28, y: 75, w: 8, h: 6 },
+  { nome: 'casa_6', classe: 'casa', uso: 'moradia', x: 40, y: 75, w: 8, h: 6 },
+  { nome: 'mercado', classe: 'mercado', uso: 'comercio', x: 64, y: 50, w: 12, h: 8 },
+  { nome: 'academia', classe: 'academia', uso: 'comercio', x: 48, y: 30, w: 10, h: 8 },
+  { nome: 'parque', classe: 'parque', uso: 'praca', x: 28, y: 48, w: 20, h: 14 },
+  // Servicos: os dois quadrantes livres a leste da avenida vertical. O lote e
+  // maior que o de uma casa (10x8 contra 8x6) porque o predio tem duas funcoes
+  // dentro, e menor que o do mercado (12x8) porque a area de trabalho e um
+  // balcao e nao um salao de gondolas.
+  { nome: 'bar', classe: 'bar', uso: 'misto', x: 76, y: 24, w: 10, h: 8 },
+  { nome: 'farmacia', classe: 'farmacia', uso: 'misto', x: 80, y: 50, w: 10, h: 8 },
 ];
+
+/** Lotes onde alguem mora: casa pura mais os mistos (casa + comercio). */
+const USOS_DE_MORADIA = new Set(['moradia', 'misto']);
+const LOTES_DE_MORADIA = ZONAS.filter((z) => USOS_DE_MORADIA.has(z.uso)).map((z) => z.nome);
 
 /** Lago: retangulo, que e o que um 9-slice sem cantos internos aceita. */
 const LAGO = { x: 104, y: 49, w: 11, h: 9 };
@@ -820,8 +849,10 @@ const CONSTRUCOES = {
   casa_6: { pegada: { w: 5, h: 4 }, interior: 'casa_6', estilo: 5 },
   mercado: { pegada: { w: 8, h: 5 }, interior: 'mercado', fachada: 'mercado' },
   academia: { pegada: { w: 8, h: 5 }, interior: 'academia', fachada: 'academia' },
-  bar: { pegada: { w: 8, h: 5 }, interior: 'bar', fachada: 'bar' },
-  farmacia: { pegada: { w: 8, h: 5 }, interior: 'farmacia', fachada: 'farmacia' },
+  // Mistos: `misto` diz que o interior sai do gerador combinado (cama de um
+  // lado, trabalho do outro, tudo no mesmo comodo) em vez do salao puro.
+  bar: { pegada: { w: 8, h: 5 }, interior: 'bar', fachada: 'bar', misto: true },
+  farmacia: { pegada: { w: 8, h: 5 }, interior: 'farmacia', fachada: 'farmacia', misto: true },
 };
 
 /** Lotes que sao area externa: praca, sem predio e sem interior. */
@@ -1404,13 +1435,18 @@ function gerarFazenda(ts) {
     objeto('placa_teste', 'placa', CENTRO.x - 3, CENTRO.y + 3),
     objeto('pickup_cabo_usb_1', 'item', CENTRO.x - 2, CENTRO.y, { itemId: 'cabo_usb' }),
     objeto('pickup_cabo_usb_2', 'item', CENTRO.x + 2, CENTRO.y, { itemId: 'cabo_usb' }),
-    ...CONSTRUIDAS.map((c) =>
-      objeto(`porta_${c.nome}`, 'porta', c.portaX, c.portaY, {
+    ...CONSTRUIDAS.map((c) => {
+      // um tile acima da saida DAQUELE interior, ja dentro. Sai da geometria do
+      // proprio interior (que nem sempre tem 16x12: o salao e mais largo, o
+      // misto e mais fundo), senao entrar num predio grande larga o jogador no
+      // meio do comodo em vez de na porta.
+      const entrada = entradaDoInterior(c.interior);
+      return objeto(`porta_${c.nome}`, 'porta', c.portaX, c.portaY, {
         destino: c.interior,
-        destinoTx: PORTA_INTERIOR.x,
-        destinoTy: PORTA_INTERIOR.y - 1, // um tile acima da saida, ja dentro
-      }),
-    ),
+        destinoTx: entrada.x,
+        destinoTy: entrada.y,
+      });
+    }),
   ];
 
   // o sprite da fachada e um objeto da camada `construcoes`: o jogo posiciona
@@ -1428,6 +1464,8 @@ function gerarFazenda(ts) {
       z.y,
       {
         tipo: z.classe,
+        uso: z.uso,
+        moradia: USOS_DE_MORADIA.has(z.uso),
         construida: Boolean(c) || Boolean(PRACAS[z.nome]),
         ...(c ? { mapaInterior: c.interior } : {}),
       },
@@ -2043,15 +2081,15 @@ function conferirInterior(rotulo, tamanho, pecas, folhaPadrao, extras) {
 }
 
 /**
- * Salao de comercio: mesma conferencia das casas, sem cama. O que mais importa
- * aqui e a COLUNA DA PORTA — o salao e largo e e facil um balcao de 3 tiles
- * cair em cima dela, o que trancaria o jogador do lado de fora.
+ * Salao de comercio PURO: mesma conferencia das casas, sem cama — ninguem mora
+ * no mercado nem na academia. O bar e a farmacia sao mistos e tem conferencia
+ * propria (`conferirMistos`), que cobra a cama tambem. O que mais importa aqui
+ * e a COLUNA DA PORTA — o salao e largo e e facil um balcao de 3 tiles cair em
+ * cima dela, o que trancaria o jogador do lado de fora.
  */
 const SALOES = () => [
   { nome: 'mercado', tamanho: MERCADO_INTERIOR, pecas: MERCADO_PECAS, folha: 'mercado' },
   { nome: 'academia', tamanho: ACADEMIA_INTERIOR, pecas: ACADEMIA_PECAS, folha: 'academia' },
-  { nome: 'bar', tamanho: BAR_INTERIOR, pecas: BAR_PECAS, folha: 'mobilia_v2' },
-  { nome: 'farmacia', tamanho: FARMACIA_INTERIOR, pecas: FARMACIA_PECAS, folha: 'mobilia_v2' },
 ];
 
 function conferirSaloes() {
@@ -2098,57 +2136,247 @@ function conferirInterioresDeCasa() {
   console.log(`interiores de casa (${W}x${H}):\n${linhas.join('\n')}`);
 }
 
+// ------------------------------------------- interiores mistos (casa+comercio) --
 /**
- * Salao do bar: balcao com banquetas de frente pra porta, mesas redondas no
- * meio, lareira e sofa no fundo. Reaproveita a mobilia de casa — a folha de
- * utensilio de mercado/academia nao tem nada de bar, e a v2 tem balcao,
- * banqueta, mesa redonda e lareira.
+ * Predio misto: moradia e comercio no MESMO comodo, sem parede nem porta
+ * interna separando. O jogador entra pela porta unica e ve os dois ambientes de
+ * uma vez — a metade esquerda e a casa do dono (chao de madeira, cama que dorme
+ * e salva, mobilia de sala/quarto), a metade direita e o espaco de trabalho
+ * (chao de ladrilho, balcao e estanteria). A coluna entre as duas metades fica
+ * livre de cima a baixo: e por ela que se atravessa de um ambiente pro outro, e
+ * o que faz o comodo ler como UM espaco e nao como dois.
+ *
+ * A troca de chao e o unico limite entre os ambientes. Nao ha tile de parede no
+ * meio: quem quiser andar da cama ate o balcao anda em linha reta.
  */
-const BAR_INTERIOR = { largura: 18, altura: 12 };
-const BAR_PECAS = [
-  // fundo: lareira e estantes de garrafa
-  { peca: [9, 0], tx: 2, ty: 3 },
-  { peca: [1, 12], tx: 5, ty: 3 },
-  { peca: [1, 13], tx: 7, ty: 3 },
-  { peca: [5, 7], tx: 13, ty: 3 },
-  // balcao com banquetas, dos dois lados do corredor da porta
-  { peca: [5, 2], tx: 3, ty: 6 },
-  { peca: [5, 3], tx: 10, ty: 6 },
-  { peca: [2, 11], tx: 13, ty: 6, colide: false },
-  // mesas e assentos
-  { peca: [4, 4], tx: 2, ty: 9 },
-  { peca: [4, 2], tx: 12, ty: 9 },
-  { peca: [4, 10], tx: 16, ty: 10, colide: false },
-  { folha: 'mobilia_v1', peca: [4, 9], tx: 12, ty: 1, colide: false },
-];
+const MISTO_INTERIOR = { largura: 20, altura: 14 };
+/** Ultima coluna de chao de madeira; da dali pra direita e ladrilho. */
+const MISTO_LIMITE_CASA = 9;
+/** Porta unica, no meio da parede de baixo (o mesmo lugar de todo interior). */
+const MISTO_PORTA = { x: Math.floor(MISTO_INTERIOR.largura / 2), y: MISTO_INTERIOR.altura - 1 };
+/** Cama do dono, no canto da metade de moradia: topo aqui, base um tile abaixo. */
+const MISTO_CAMA = { x: 2, y: 2 };
+/**
+ * Onde o futuro dono nasce dentro do proprio predio, na metade de moradia. Os
+ * NPCs das casas nascem em (8,8) por `posicaoInicial`; aqui o equivalente e um
+ * tile livre no meio da sala, longe da cama e do balcao. A conferencia cobra
+ * que ele continue livre e alcancavel, entao encaixar o morador depois nao
+ * depende de reconferir o layout na mao.
+ */
+const MISTO_SPAWN_DONO = { x: 4, y: 8 };
+/** Um tile da area de trabalho que tem de ser alcancavel a partir da porta. */
+const MISTO_ALVO_TRABALHO = { x: 15, y: 8 };
 
 /**
- * Salao da farmacia: prateleira de potes nas laterais, geladeira ao fundo,
- * balcao de atendimento e caixa na saida.
+ * Mobilia de cada predio misto, em dois blocos.
  *
- * Nao ha arte de farmacia. As gondolas do `Utensilios_mercado` sao
- * inconfundivelmente de MERCADO — fruta, pao, balcao de carne — entao aqui a
- * estanteria vem da mobilia (potes e frascos, que leem como manipulacao) e da
- * folha do mercado sai so o que e neutro: a geladeira de porta de vidro e a
- * caixa registradora.
+ * `casa` sai do catalogo `MOVEIS_CASA` (as mesmas folhas de mobilia das seis
+ * residencias), entao a metade de moradia e literalmente o mesmo vocabulario
+ * visual das casas puras. `trabalho` sai da folha DEDICADA `farmacia_bar`, que
+ * traz balcao, estanteria, mesa, banqueta, barril e letreiro dos dois ramos.
+ *
+ * `tx`/`ty` sao o tile do canto esquerdo-INFERIOR, como no resto do gerador: a
+ * peca cresce pra cima e pra direita.
  */
-const FARMACIA_INTERIOR = { largura: 18, altura: 12 };
-const FARMACIA_PECAS = [
-  // fundo: geladeira de medicamento refrigerado e balcao de atendimento
-  { folha: 'mercado', peca: [2, 5], tx: 2, ty: 3 },
-  { peca: [1, 0], tx: 5, ty: 3 },
-  { peca: [1, 5], tx: 12, ty: 3 },
-  // duas fileiras de prateleira, deixando o corredor da porta livre
-  { peca: [1, 12], tx: 2, ty: 6 },
-  { peca: [1, 13], tx: 4, ty: 6 },
-  { peca: [1, 11], tx: 6, ty: 6 },
-  { peca: [1, 12], tx: 11, ty: 6 },
-  { peca: [1, 13], tx: 13, ty: 6 },
-  { peca: [1, 11], tx: 15, ty: 6 },
-  // frente: armario de organizacao e caixa
-  { folha: 'mercado', peca: [0, 0], tx: 2, ty: 10, colide: false },
-  { folha: 'mercado', peca: [1, 0], tx: 11, ty: 10 },
-];
+const MISTOS = {
+  // Bar: back bar de garrafas ao fundo, balcao com duas banquetas de frente pra
+  // porta, mesa e banco na parede da direita. A moradia e uma sala-quarto
+  // simples, com sofa e mesa de centro.
+  bar: {
+    casa: [
+      { movel: 'quadro_folha', tx: 5, ty: 1 },
+      { movel: 'relogio_v2', tx: 7, ty: 1 },
+      { movel: 'cabeceira_abajur', tx: 3, ty: 3 },
+      { movel: 'guarda_roupa_madeira', tx: 6, ty: 3 },
+      { movel: 'sofa_creme', tx: 3, ty: 7 },
+      { movel: 'tapete_creme', tx: 3, ty: 9 },
+      { movel: 'mesa_centro_madeira', tx: 4, ty: 9 },
+      { movel: 'poltrona_branca', tx: 7, ty: 9 },
+      { movel: 'vaso_planta', tx: 1, ty: 11 },
+      { movel: 'caminha_pet_v2', tx: 2, ty: 12 },
+    ],
+    trabalho: [
+      // fundo: estante de garrafas, engradado e barril
+      { peca: [0, 0], tx: 12, ty: 4 },
+      { peca: [4, 2], tx: 10, ty: 4 },
+      { peca: [4, 0], tx: 17, ty: 4 },
+      // balcao de frente pra porta, com as banquetas do lado do salao
+      { peca: [1, 0], tx: 12, ty: 7 },
+      { peca: [3, 1], tx: 12, ty: 9 },
+      { peca: [3, 2], tx: 14, ty: 9 },
+      { peca: [4, 1], tx: 17, ty: 6 },
+      // salao: mesa redonda, mesa de toalha, banco e tapete
+      { peca: [2, 0], tx: 16, ty: 9 },
+      { peca: [2, 1], tx: 11, ty: 12 },
+      { peca: [3, 0], tx: 16, ty: 11 },
+      { peca: [5, 2], tx: 12, ty: 11, chao: true, colide: false },
+      // letreiro de chope e lampiao na parede, mais o cavalete perto da porta
+      { peca: [5, 1], tx: 15, ty: 1, colide: false },
+      { peca: [4, 3], tx: 11, ty: 1, colide: false },
+      { peca: [5, 0], tx: 17, ty: 12, colide: false },
+    ],
+  },
+
+  // Farmacia: balcao de atendimento virado pra porta, vitrine refrigerada e
+  // armario de medicamento ao fundo, bancada de manipulacao com cadeira no
+  // canto. A moradia repete a planta do bar com outras pecas — a cama fica no
+  // mesmo canto, que e o que a conferencia cobra.
+  farmacia: {
+    casa: [
+      { movel: 'quadro_paisagem', tx: 6, ty: 1 },
+      { movel: 'relogio_parede', tx: 4, ty: 1 },
+      { movel: 'cabeceira_abajur', tx: 3, ty: 3 },
+      { movel: 'guarda_roupa_branco', tx: 6, ty: 3 },
+      { movel: 'poltrona_marinho', tx: 3, ty: 7 },
+      { movel: 'tapete_rosa', tx: 4, ty: 9 },
+      { movel: 'mesa_centro_madeira', tx: 6, ty: 9 },
+      { movel: 'planta_alta', tx: 1, ty: 10 },
+      { movel: 'cesto_vime', tx: 2, ty: 12 },
+    ],
+    trabalho: [
+      // fundo: vitrine refrigerada, armario de medicamento e estante de frascos
+      { peca: [2, 2], tx: 10, ty: 4 },
+      { peca: [0, 1], tx: 13, ty: 4 },
+      { peca: [2, 3], tx: 16, ty: 4 },
+      // balcao de atendimento de frente pra porta
+      { peca: [1, 1], tx: 11, ty: 7 },
+      { peca: [2, 4], tx: 16, ty: 7 },
+      // bancada de manipulacao com cadeira, e o engradado de reposicao
+      { peca: [4, 4], tx: 11, ty: 11 },
+      { peca: [4, 5], tx: 13, ty: 12 },
+      { peca: [5, 3], tx: 16, ty: 11 },
+      { peca: [6, 0], tx: 14, ty: 10, chao: true, colide: false },
+      // letreiro de cruz, lampiao e vaso na parede
+      { peca: [5, 5], tx: 15, ty: 1, colide: false },
+      { peca: [5, 6], tx: 11, ty: 1, colide: false },
+      { peca: [5, 4], tx: 18, ty: 9, colide: false },
+    ],
+  },
+};
+
+/** Traduz os dois blocos de um predio misto pro formato de `objetosDeMovel`. */
+function pecasDeMisto(nome) {
+  const def = MISTOS[nome];
+  if (!def) throw new Error(`o predio misto "${nome}" nao existe em MISTOS`);
+  const daCasa = def.casa.map((m) => {
+    const movel = MOVEIS_CASA[m.movel];
+    if (!movel) throw new Error(`"${nome}": movel "${m.movel}" nao existe em MOVEIS_CASA`);
+    return {
+      folha: movel.folha,
+      peca: movel.peca,
+      tx: m.tx,
+      ty: m.ty,
+      colide: movel.solido,
+      chao: movel.chao === true,
+      escala: movel.escala ?? 1,
+    };
+  });
+  const doTrabalho = def.trabalho.map((p) => ({ folha: 'farmacia_bar', ...p }));
+  return [...daCasa, ...doTrabalho];
+}
+
+/**
+ * Interior misto: um unico mapa com os dois ambientes. O chao troca de material
+ * na coluna `MISTO_LIMITE_CASA` (madeira -> ladrilho) e e SO isso que separa a
+ * moradia do trabalho: a camada de objetos tem parede apenas na borda.
+ *
+ * A cama e interativa igual a das casas — o mesmo objeto `cama`, entao dormir e
+ * salvar funcionam sem nenhuma maquina nova.
+ */
+function gerarInteriorMisto(nome, ts) {
+  const c = construcao(nome);
+  const { largura: W, altura: H } = MISTO_INTERIOR;
+  const chao = new Grade(W, H, GID.PISO);
+  chao.rect(0, 0, MISTO_LIMITE_CASA + 1, H, GID.MADEIRA);
+  const obj = new Grade(W, H);
+
+  obj.moldura(GID.PAREDE);
+  obj.rect(0, 0, W, PAREDE_TOPO, GID.PAREDE);
+  obj.set(MISTO_PORTA.x, MISTO_PORTA.y, GID.PORTA); // saida (nao colide)
+
+  obj.set(MISTO_CAMA.x, MISTO_CAMA.y, GID.CAMA_TOPO);
+  obj.set(MISTO_CAMA.x, MISTO_CAMA.y + 1, GID.CAMA_BASE);
+
+  const interativos = [
+    objeto('porta_saida', 'porta', MISTO_PORTA.x, MISTO_PORTA.y, {
+      destino: 'farm',
+      destinoTx: c.frente.x,
+      destinoTy: c.frente.y,
+      rotulo: 'Sair',
+    }),
+    objeto(`cama_${nome}`, 'cama', MISTO_CAMA.x, MISTO_CAMA.y + 1),
+  ];
+
+  const moveis = objetosDeMovel(nome, pecasDeMisto(nome));
+
+  return {
+    mapa: montarMapa(
+      W,
+      H,
+      [
+        camadaTiles('chao', 1, chao),
+        camadaTiles('objetos', 2, obj),
+        camadaObjetos('interativos', 3, interativos),
+        camadaObjetos('moveis', 4, moveis),
+      ],
+      ts,
+    ),
+    moveis: moveis.length,
+  };
+}
+
+/**
+ * Conferencia dos mistos: a mesma do resto, com as exigencias que fazem o
+ * comodo continuar sendo UM espaco. Alem de todo tile livre seguir alcancavel a
+ * partir da porta, cobra explicitamente porta->cama, porta->area de trabalho e
+ * porta->spawn do dono, que sao os tres caminhos que o pedido precisa.
+ */
+function conferirMistos() {
+  const { largura: W, altura: H } = MISTO_INTERIOR;
+  const linhas = [];
+  for (const nome of Object.keys(MISTOS)) {
+    const pecas = pecasDeMisto(nome);
+    const r = conferirInterior(nome, MISTO_INTERIOR, pecas, 'farmacia_bar', {
+      bloqueados: [
+        [MISTO_CAMA.x, MISTO_CAMA.y],
+        [MISTO_CAMA.x, MISTO_CAMA.y + 1],
+      ],
+      portaX: MISTO_PORTA.x,
+      paredeTopo: PAREDE_TOPO,
+      exigirLivres: [
+        [MISTO_PORTA.x, H - 2, 'a frente da porta'],
+        [MISTO_CAMA.x, MISTO_CAMA.y + 2, 'a frente da cama'],
+        [MISTO_ALVO_TRABALHO.x, MISTO_ALVO_TRABALHO.y, 'o meio da area de trabalho'],
+        [MISTO_SPAWN_DONO.x, MISTO_SPAWN_DONO.y, 'o spawn do dono do predio'],
+        [MISTO_LIMITE_CASA, PAREDE_TOPO, 'o topo da passagem entre os ambientes'],
+        [MISTO_LIMITE_CASA, H - 2, 'a base da passagem entre os ambientes'],
+      ],
+    });
+    const doTrabalho = MISTOS[nome].trabalho.length;
+    linhas.push(
+      `  ${nome}: ${pecas.length} moveis (${pecas.length - doTrabalho} de moradia,` +
+        ` ${doTrabalho} de trabalho | ${r.solidos} solidos, ${r.decorativos} decorativos)` +
+        ` | ${r.alcancaveis}/${r.livres} tiles livres alcancaveis`,
+    );
+  }
+  console.log(
+    `interiores mistos (${W}x${H}, casa 1..${MISTO_LIMITE_CASA} + trabalho):\n${linhas.join('\n')}`,
+  );
+}
+
+/**
+ * Onde o jogador cai ao entrar num predio: um tile acima da porta de saida do
+ * interior. Cada interior tem tamanho proprio, entao a posicao sai da geometria
+ * dele — e a mesma conta que `spawnTile` em src/game/mapas.ts declara.
+ */
+function entradaDoInterior(chave) {
+  if (MISTOS[chave]) return { x: MISTO_PORTA.x, y: MISTO_INTERIOR.altura - 2 };
+  const salao = SALOES().find((s) => s.nome === chave);
+  if (salao) {
+    return { x: Math.floor(salao.tamanho.largura / 2), y: salao.tamanho.altura - 2 };
+  }
+  return { x: PORTA_INTERIOR.x, y: PORTA_INTERIOR.y - 1 };
+}
 
 // ---------------------------------------------------------------- sanidade --
 /** Erra alto na geracao em vez de deixar o mapa quebrado silencioso no jogo. */
@@ -2246,8 +2474,26 @@ function conferirFazenda() {
 
   const casas = ZONAS.filter((z) => z.classe === 'casa').length;
   if (casas !== 6) throw new Error(`esperava 6 zonas de casa, achei ${casas}`);
-  for (const exigida of ['mercado', 'academia', 'parque']) {
+  for (const exigida of ['mercado', 'academia', 'parque', 'bar', 'farmacia']) {
     if (!ZONAS.some((z) => z.nome === exigida)) throw new Error(`falta a zona "${exigida}"`);
+  }
+
+  // todo lote tem de declarar um `uso` conhecido, e todo lote misto tem de ter
+  // interior proprio (e onde ficam a cama do dono e a area de trabalho)
+  const USOS = new Set(['moradia', 'comercio', 'misto', 'praca']);
+  for (const z of ZONAS) {
+    if (!USOS.has(z.uso)) throw new Error(`o lote "${z.nome}" tem uso invalido: "${z.uso}"`);
+    if (z.uso !== 'misto') continue;
+    if (!CONSTRUCOES[z.nome]?.misto) {
+      throw new Error(`o lote misto "${z.nome}" nao esta marcado como misto em CONSTRUCOES`);
+    }
+    if (!MISTOS[z.nome]) throw new Error(`o lote misto "${z.nome}" nao tem interior em MISTOS`);
+  }
+  // e o contrario: construcao marcada misto sem lote misto
+  for (const [nome, c] of Object.entries(CONSTRUCOES)) {
+    if (c.misto && zona(nome).uso !== 'misto') {
+      throw new Error(`"${nome}" e misto em CONSTRUCOES mas o lote nao declara uso "misto"`);
+    }
   }
 
   // toda mascara de estrada que a malha usa precisa existir no tileset
@@ -2269,6 +2515,7 @@ console.log('gerando assets...');
 conferirFazenda();
 conferirInterioresDeCasa();
 conferirSaloes();
+conferirMistos();
 const ts = gerarTileset();
 const molduras = {
   arvores: gerarAtlas('arvores', (c, r) => `arvore_${r}_${c}`),
@@ -2280,12 +2527,13 @@ const molduras = {
   moveis_academia: gerarAtlasMoveis('academia'),
   moveis_mobilia_v1: gerarAtlasMoveis('mobilia_v1'),
   moveis_mobilia_v2: gerarAtlasMoveis('mobilia_v2'),
+  moveis_farmacia_bar: gerarAtlasMoveis('farmacia_bar'),
 };
 const fazenda = gerarFazenda(ts);
 escrever(join(ASSETS, 'tilemaps', 'farm.json'), JSON.stringify(fazenda.mapa, null, 1));
 let moveisDeCasa = 0;
 for (const c of CONSTRUIDAS) {
-  if (c.fachada) continue; // comercio tem interior proprio, mais abaixo
+  if (c.fachada) continue; // comercio e misto tem interior proprio, mais abaixo
   const interior = gerarInteriorCasa(c.nome, ts);
   moveisDeCasa += interior.moveis;
   escrever(
@@ -2309,20 +2557,18 @@ const academia = gerarInteriorComercio(
   ts,
 );
 escrever(join(ASSETS, 'tilemaps', 'academia.json'), JSON.stringify(academia.mapa, null, 1));
-const bar = gerarInteriorComercio('bar', 'mobilia_v2', BAR_INTERIOR, BAR_PECAS, ts);
-escrever(join(ASSETS, 'tilemaps', 'bar.json'), JSON.stringify(bar.mapa, null, 1));
-const farmacia = gerarInteriorComercio(
-  'farmacia',
-  'mobilia_v2',
-  FARMACIA_INTERIOR,
-  FARMACIA_PECAS,
-  ts,
-);
-escrever(join(ASSETS, 'tilemaps', 'farmacia.json'), JSON.stringify(farmacia.mapa, null, 1));
+// mistos: um unico interior por lote, com a metade de moradia e a de trabalho
+let moveisMistos = 0;
+for (const nome of Object.keys(MISTOS)) {
+  const interior = gerarInteriorMisto(nome, ts);
+  moveisMistos += interior.moveis;
+  escrever(join(ASSETS, 'tilemaps', `${nome}.json`), JSON.stringify(interior.mapa, null, 1));
+}
 console.log(
   `pronto. tileset ${TILES.length} tiles de ${T}px | ` +
     `fazenda ${FAZENDA.largura}x${FAZENDA.altura} (${FAZENDA.largura * T}x${FAZENDA.altura * T} px) | ` +
     `${fazenda.contagem.arvores} arvores, ${fazenda.contagem.pedras} pedras, ` +
     `${fazenda.contagem.flores} flores | ` +
+    `moveis: ${moveisDeCasa} nas casas, ${moveisMistos} nos mistos | ` +
     `atlas: ${Object.entries(molduras).map(([k, v]) => `${k}=${Object.keys(v).length}`).join(' ')}`,
 );

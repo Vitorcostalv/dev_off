@@ -5,13 +5,17 @@ import { fileURLToPath } from 'node:url';
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR_MAPAS = join(RAIZ, 'public', 'assets', 'tilemaps');
 const CASAS = Array.from({ length: 6 }, (_, i) => `casa_${i + 1}`);
+/** Predios MISTOS: casa + comercio no mesmo interior, com cama na metade de moradia. */
+const MISTOS = ['bar', 'farmacia'];
+/** Todo lote onde alguem pode morar — o que precisa de cama interativa. */
+const MORADIAS = [...CASAS, ...MISTOS];
 const SPAWNS = {
   farm: [60, 45],
   ...Object.fromEntries(CASAS.map((casa) => [casa, [8, 10]])),
   mercado: [11, 13],
   academia: [9, 10],
-  bar: [9, 10],
-  farmacia: [9, 10],
+  bar: [10, 12],
+  farmacia: [10, 12],
 };
 
 function lerMapa(nome) {
@@ -82,10 +86,24 @@ function verificarInterior(nome) {
   if (saidas.length !== 1 || !adjacenteAlcancavel(mapa, saidas[0], flood)) {
     throw new Error(`${nome}: porta de saida nao esta alcancavel`);
   }
-  if (CASAS.includes(nome)) {
+  // Toda MORADIA precisa de uma cama alcancavel: as seis casas e os dois
+  // mistos. No misto a cama fica na metade de moradia, do outro lado do comodo
+  // em relacao a porta, entao este teste tambem prova que os dois ambientes
+  // estao conectados sem parede no meio.
+  if (MORADIAS.includes(nome)) {
     const camas = interativos.filter((obj) => (obj.class || obj.type) === 'cama');
     if (camas.length !== 1) throw new Error(`${nome}: esperava 1 cama interativa, achei ${camas.length}`);
     if (!adjacenteAlcancavel(mapa, camas[0], flood)) throw new Error(`${nome}: cama nao esta alcancavel`);
+  }
+  // No misto o flood-fill tem de cobrir os DOIS ambientes: confere um tile do
+  // fundo da area de trabalho, que fica na metade oposta a cama.
+  if (MISTOS.includes(nome)) {
+    const trabalho = [15, 8];
+    if (!flood.visitados.has(trabalho.join(','))) {
+      throw new Error(`${nome}: a area de trabalho (${trabalho}) nao esta alcancavel pela porta`);
+    }
+    const moveis = (camada(mapa, 'moveis').objects ?? []).length;
+    if (moveis < 15) throw new Error(`${nome}: esperava mobilia nos dois ambientes, achei ${moveis} moveis`);
   }
 }
 
@@ -95,11 +113,39 @@ function verificarZonasDaFazenda() {
   const interativos = camada(mapa, 'interativos').objects ?? [];
   const zonas = camada(mapa, 'zonas').objects ?? [];
   const esperadas = zonas.map((obj) => obj.name);
-  for (const casa of CASAS) {
+  for (const casa of MORADIAS) {
     if (!esperadas.includes(casa)) throw new Error(`farm: zona "${casa}" ausente`);
   }
-  if (esperadas.length < CASAS.length + 3) {
-    throw new Error(`farm: esperava ao menos 9 lotes, achei ${esperadas.length}`);
+  if (esperadas.length < MORADIAS.length + 3) {
+    throw new Error(`farm: esperava ao menos 11 lotes, achei ${esperadas.length}`);
+  }
+
+  // O campo `uso` e o que separa moradia pura de comercio puro e de misto
+  // (casa + comercio no mesmo predio). Quem conta como moradia disponivel sai
+  // daqui, entao ele tem de bater com `MORADIAS`.
+  const USOS = ['moradia', 'comercio', 'misto', 'praca'];
+  const moradiasDoMapa = [];
+  for (const zona of zonas) {
+    const uso = props(zona).uso;
+    if (!USOS.includes(uso)) {
+      throw new Error(`farm: lote "${zona.name}" com uso invalido: ${JSON.stringify(uso)}`);
+    }
+    if (props(zona).moradia !== (uso === 'moradia' || uso === 'misto')) {
+      throw new Error(`farm: lote "${zona.name}" tem moradia incoerente com o uso "${uso}"`);
+    }
+    if (uso === 'moradia' || uso === 'misto') moradiasDoMapa.push(zona.name);
+  }
+  const faltando = MORADIAS.filter((nome) => !moradiasDoMapa.includes(nome));
+  const sobrando = moradiasDoMapa.filter((nome) => !MORADIAS.includes(nome));
+  if (faltando.length || sobrando.length) {
+    throw new Error(
+      `farm: moradias do mapa divergem das esperadas (falta: ${faltando.join(', ') || '-'}; ` +
+        `sobra: ${sobrando.join(', ') || '-'})`,
+    );
+  }
+  for (const nome of MISTOS) {
+    const zona = zonas.find((obj) => obj.name === nome);
+    if (props(zona).uso !== 'misto') throw new Error(`farm: "${nome}" deveria ter uso "misto"`);
   }
 
   for (const nome of esperadas) {
@@ -131,6 +177,7 @@ function verificarZonasDaFazenda() {
     throw new Error('farm: pickups de empilhamento invalidos ou inalcançaveis');
   }
   return {
+    moradias: moradiasDoMapa,
     total: esperadas.length,
     interiores: esperadas.filter((nome) => {
       const zona = zonas.find((obj) => obj.name === nome);
@@ -139,10 +186,11 @@ function verificarZonasDaFazenda() {
   };
 }
 
-const { total, interiores } = verificarZonasDaFazenda();
+const { total, interiores, moradias } = verificarZonasDaFazenda();
 for (const nome of interiores) verificarInterior(nome);
 console.log(
   `[verificacao] ${total}/${total} lotes alcancaveis; ` +
     `${interiores.length} interiores conferidos (${interiores.join(', ')}); ` +
-    `${CASAS.length}/${CASAS.length} casas com cama interativa alcancavel; 2/2 pickups`,
+    `${moradias.length}/${MORADIAS.length} moradias com cama interativa alcancavel ` +
+    `(${CASAS.length} casas + ${MISTOS.length} mistos); 2/2 pickups`,
 );

@@ -32702,12 +32702,12 @@
       {
        "name": "destinoTx",
        "type": "int",
-       "value": 8
+       "value": 11
       },
       {
        "name": "destinoTy",
        "type": "int",
-       "value": 10
+       "value": 13
       }
      ]
     },
@@ -32731,7 +32731,7 @@
       {
        "name": "destinoTx",
        "type": "int",
-       "value": 8
+       "value": 9
       },
       {
        "name": "destinoTy",
@@ -32760,12 +32760,12 @@
       {
        "name": "destinoTx",
        "type": "int",
-       "value": 8
+       "value": 10
       },
       {
        "name": "destinoTy",
        "type": "int",
-       "value": 10
+       "value": 12
       }
      ]
     },
@@ -32789,12 +32789,12 @@
       {
        "name": "destinoTx",
        "type": "int",
-       "value": 8
+       "value": 10
       },
       {
        "name": "destinoTy",
        "type": "int",
-       "value": 10
+       "value": 12
       }
      ]
     }
@@ -32828,6 +32828,16 @@
        "value": "casa"
       },
       {
+       "name": "uso",
+       "type": "string",
+       "value": "moradia"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": true
+      },
+      {
        "name": "construida",
        "type": "bool",
        "value": true
@@ -32855,6 +32865,16 @@
        "name": "tipo",
        "type": "string",
        "value": "casa"
+      },
+      {
+       "name": "uso",
+       "type": "string",
+       "value": "moradia"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": true
       },
       {
        "name": "construida",
@@ -32886,6 +32906,16 @@
        "value": "casa"
       },
       {
+       "name": "uso",
+       "type": "string",
+       "value": "moradia"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": true
+      },
+      {
        "name": "construida",
        "type": "bool",
        "value": true
@@ -32913,6 +32943,16 @@
        "name": "tipo",
        "type": "string",
        "value": "casa"
+      },
+      {
+       "name": "uso",
+       "type": "string",
+       "value": "moradia"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": true
       },
       {
        "name": "construida",
@@ -32944,6 +32984,16 @@
        "value": "casa"
       },
       {
+       "name": "uso",
+       "type": "string",
+       "value": "moradia"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": true
+      },
+      {
        "name": "construida",
        "type": "bool",
        "value": true
@@ -32971,6 +33021,16 @@
        "name": "tipo",
        "type": "string",
        "value": "casa"
+      },
+      {
+       "name": "uso",
+       "type": "string",
+       "value": "moradia"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": true
       },
       {
        "name": "construida",
@@ -33002,6 +33062,16 @@
        "value": "mercado"
       },
       {
+       "name": "uso",
+       "type": "string",
+       "value": "comercio"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": false
+      },
+      {
        "name": "construida",
        "type": "bool",
        "value": true
@@ -33029,6 +33099,16 @@
        "name": "tipo",
        "type": "string",
        "value": "academia"
+      },
+      {
+       "name": "uso",
+       "type": "string",
+       "value": "comercio"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": false
       },
       {
        "name": "construida",
@@ -33060,6 +33140,16 @@
        "value": "parque"
       },
       {
+       "name": "uso",
+       "type": "string",
+       "value": "praca"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": false
+      },
+      {
        "name": "construida",
        "type": "bool",
        "value": true
@@ -33082,6 +33172,16 @@
        "name": "tipo",
        "type": "string",
        "value": "bar"
+      },
+      {
+       "name": "uso",
+       "type": "string",
+       "value": "misto"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": true
       },
       {
        "name": "construida",
@@ -33111,6 +33211,16 @@
        "name": "tipo",
        "type": "string",
        "value": "farmacia"
+      },
+      {
+       "name": "uso",
+       "type": "string",
+       "value": "misto"
+      },
+      {
+       "name": "moradia",
+       "type": "bool",
+       "value": true
       },
       {
        "name": "construida",

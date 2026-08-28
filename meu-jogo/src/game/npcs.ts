@@ -97,9 +97,34 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
   casa_6: { frente: { x: 43.5, y: 79.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
   mercado: { frente: { x: 70.5, y: 55.5 }, interior: { x: 11.5, y: 9.5 }, portaInterior: { x: 11.5, y: 13.5 } },
   academia: { frente: { x: 53.5, y: 35.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
-  bar: { frente: { x: 81.5, y: 29.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
-  farmacia: { frente: { x: 85.5, y: 55.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
+  // Mistos (casa + comercio no mesmo interior 20x14): `interior` fica na metade
+  // de MORADIA, que e onde o dono nasce — o mesmo papel que (8,8) tem nas casas.
+  bar: { frente: { x: 81.5, y: 29.5 }, interior: { x: 4.5, y: 8.5 }, portaInterior: { x: 10.5, y: 12.5 } },
+  farmacia: { frente: { x: 85.5, y: 55.5 }, interior: { x: 4.5, y: 8.5 }, portaInterior: { x: 10.5, y: 12.5 } },
 };
+
+/**
+ * Lotes onde alguem pode morar, na ordem em que aparecem no mapa. Sao as seis
+ * casas puras mais os dois predios MISTOS (casa + comercio no mesmo interior):
+ * o bar e a farmacia tem cama na metade de moradia, entao contam como moradia
+ * disponivel exatamente como `casa_2..casa_6`.
+ *
+ * Quem define isto de verdade e a camada `zonas` do mapa, no campo `uso`
+ * (`moradia` ou `misto` — ver `USOS_DE_MORADIA` em tipos.ts). A lista esta
+ * repetida aqui porque a validacao de moradores roda na CARGA do modulo, antes
+ * de existir tilemap; `npm run verificar-mapas` confere que as duas nao
+ * divergiram.
+ */
+export const MORADIAS = [
+  'casa_1',
+  'casa_2',
+  'casa_3',
+  'casa_4',
+  'casa_5',
+  'casa_6',
+  'bar',
+  'farmacia',
+] as const;
 
 export const hora = (horas: number, minutos = 0): number => horas * 60 + minutos;
 
@@ -341,6 +366,26 @@ export const MORADORES_POR_CASA = Object.fromEntries(
 if (Object.keys(MORADORES_POR_CASA).length !== Object.keys(NPCS).length) {
   throw new Error('dois NPCs foram configurados na mesma casa');
 }
+
+// Morar em algo que nao e moradia (mercado, academia, parque) nao existe: a
+// mesma validacao que impede dois NPCs na mesma casa cobra isto. Bar e farmacia
+// passam porque sao MISTOS — tem cama na metade de moradia.
+for (const npc of Object.values(NPCS)) {
+  if (!(MORADIAS as readonly string[]).includes(npc.casa)) {
+    throw new Error(
+      `"${npc.id}" mora em "${npc.casa}", que nao e moradia disponivel ` +
+        `(esperado um de: ${MORADIAS.join(', ')})`,
+    );
+  }
+  if (!LOCAIS_CIDADE[npc.casa]) {
+    throw new Error(`"${npc.id}" mora em "${npc.casa}", que nao existe em LOCAIS_CIDADE`);
+  }
+}
+
+/** Moradias ainda sem morador — onde o proximo NPC pode ser encaixado. */
+export const MORADIAS_VAGAS: readonly string[] = MORADIAS.filter(
+  (casa) => !MORADORES_POR_CASA[casa],
+);
 
 export function buscarNpc(id: unknown): DefinicaoNpc | null {
   return typeof id === 'string' ? (NPCS[id] ?? null) : null;

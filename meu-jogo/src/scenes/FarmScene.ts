@@ -7,13 +7,14 @@ import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
 import { CONFIG_TEMPO } from '../game/relogio';
 import type { EstadoNpc } from '../game/rotinasNpc';
 import { apagar, salvar } from '../game/save';
-import { falasDe } from '../game/tipos';
+import { USOS_DE_MORADIA, falasDe } from '../game/tipos';
 import type {
   Direcao,
   Interagivel,
   PropObjeto,
   TipoInteragivel,
   TipoZona,
+  UsoZona,
   ZonaReservada,
 } from '../game/tipos';
 import type { UIScene } from './UIScene';
@@ -73,6 +74,7 @@ const TIPOS_VALIDOS: TipoInteragivel[] = ['placa', 'npc', 'porta', 'cama', 'item
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
   'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
 ];
+const USOS_ZONA_VALIDOS: UsoZona[] = ['moradia', 'comercio', 'misto', 'praca'];
 
 export class FarmScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -149,6 +151,15 @@ export class FarmScene extends Phaser.Scene {
   /** Só os lotes ainda sem construcao — o que a proxima etapa vai preencher. */
   get zonasLivres(): readonly ZonaReservada[] {
     return this.zonas.filter((z) => !z.construida);
+  }
+
+  /**
+   * Lotes onde alguem pode morar: as seis casas mais os predios mistos (bar e
+   * farmacia, que tem cama na metade de moradia). E a lista que o encaixe de um
+   * NPC morador consulta — ver `MORADIAS` em src/game/npcs.ts.
+   */
+  get zonasDeMoradia(): readonly ZonaReservada[] {
+    return this.zonas.filter((z) => z.moradia);
   }
 
   /** Acha um lote pelo id do Tiled, ex: `zonaPorId('mercado')`. */
@@ -943,6 +954,15 @@ export class FarmScene extends Phaser.Scene {
         continue;
       }
       const props = lerProps(obj);
+      // `uso` diz o que a construcao E: moradia, comercio, misto (casa+comercio
+      // no mesmo interior) ou praca. Quem gera o mapa e tools/gerar-assets.mjs,
+      // que sempre escreve o campo — se ele nao vier, o lote esta malformado e
+      // seguir em frente esconderia o problema.
+      const uso = props.uso as UsoZona;
+      if (!USOS_ZONA_VALIDOS.includes(uso)) {
+        console.warn(`[zonas] uso desconhecido "${props.uso}" em "${obj.name}" — ignorada`);
+        continue;
+      }
       const x = obj.x ?? 0;
       const y = obj.y ?? 0;
       const largura = obj.width ?? 0;
@@ -950,6 +970,8 @@ export class FarmScene extends Phaser.Scene {
       lista.push({
         id: obj.name || `${classe}_${lista.length}`,
         tipo: classe,
+        uso,
+        moradia: USOS_DE_MORADIA.includes(uso),
         construida: props.construida === true,
         mapaInterior: typeof props.mapaInterior === 'string' ? props.mapaInterior : null,
         x,
