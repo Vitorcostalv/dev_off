@@ -2,7 +2,7 @@ export const CONFIG_TEMPO = {
   /** quantos minutos de jogo passam a cada tick */
   minutosPorTick: 10,
   /** de quantos em quantos segundos reais acontece um tick */
-  segundosPorTick: 5,
+  segundosPorTick: 10,
   /** hora em que o dia comeca ao acordar (6:00) */
   horaAoAcordar: 6 * 60,
   /** hora inicial de um jogo novo (7:20) */
@@ -39,6 +39,14 @@ export class Relogio {
         viradas += 1;
       }
     }
+    return viradas;
+  }
+
+  /** Atalho de debug (F7); tambem preserva corretamente a virada do dia. */
+  avancarMinutos(quantidade: number): number {
+    this.minutos += quantidade;
+    const viradas = Math.floor(this.minutos / MINUTOS_POR_DIA);
+    this.minutos %= MINUTOS_POR_DIA;
     return viradas;
   }
 

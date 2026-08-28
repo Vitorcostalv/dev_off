@@ -68,3 +68,40 @@ export class Img {
 
 /** ruido deterministico — mesma entrada, mesma saida, sem Math.random */
 export const ruido = (x, y, s) => ((Math.sin((x * 12.9898 + y * 78.233 + s) * 43758.5453) % 1) + 1) % 1;
+
+/**
+ * Hash inteiro -> [0,1). Deterministico (nada de Math.random), distribuicao
+ * uniforme e sem os padroes diagonais que o hash por Math.sin deixa visiveis
+ * quando usado tile a tile. Use este para escolher variantes de terreno.
+ */
+export function hash01(x, y, semente = 0) {
+  let h =
+    Math.imul(x | 0, 0x27d4eb2d) ^
+    Math.imul(y | 0, 0x165667b1) ^
+    Math.imul(semente | 0, 0x9e3779b1);
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** Cola um tile (array linear RGBA de tam*tam) na imagem, em (dx, dy). */
+export function colar(im, px, tam, dx, dy) {
+  for (let j = 0; j < tam; j++) {
+    for (let i = 0; i < tam; i++) {
+      const c = px[j * tam + i];
+      if (c[3] < 8) continue;
+      im.set(dx + i, dy + j, c);
+    }
+  }
+}
+
+/** Cola um retangulo de pixels (array linear RGBA, w x h) em (dx, dy). */
+export function colarRet(im, px, w, h, dx, dy) {
+  for (let j = 0; j < h; j++) {
+    for (let i = 0; i < w; i++) {
+      const c = px[j * w + i];
+      if (!c || c[3] < 8) continue;
+      im.set(dx + i, dy + j, c);
+    }
+  }
+}

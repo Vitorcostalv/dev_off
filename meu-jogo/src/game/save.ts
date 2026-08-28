@@ -1,7 +1,13 @@
 import type { Slot } from './inventario';
 
 const CHAVE = 'meu-jogo:save';
-const VERSAO = 1;
+// 2: o tile passou de 16 pra 32 px, entao x/y gravados na versao 1 apontam
+//    pra metade da posicao certa.
+// 3: o interior 'casa' virou 'casa_1'..'casa_6', entao a chave de mapa gravada
+//    na versao 2 pode nao existir mais.
+// 4: passa a persistir os pickups removidos do mundo junto com o inventario.
+// Subir a versao descarta os saves antigos em vez de restaurar posicao errada.
+const VERSAO = 4;
 
 export interface DadosSave {
   versao: number;
@@ -11,6 +17,7 @@ export interface DadosSave {
   x: number;
   y: number;
   inventario: (Slot | null)[];
+  itensColetados: string[];
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

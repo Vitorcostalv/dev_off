@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
-import { buscarMapa } from '../game/mapas';
+import { MAPAS, buscarMapa } from '../game/mapas';
+import type { SpriteNpc } from '../game/npcs';
+import { NPCS } from '../game/npcs';
 import { carregar } from '../game/save';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
@@ -34,12 +36,54 @@ export class BootScene extends Phaser.Scene {
     // tileset: a key ('tiles-terrain') e o que o Phaser usa;
     // o nome do tileset dentro do JSON do Tiled e 'terrain' (ver FarmScene).
     this.load.image('tiles-terrain', 'assets/tilesets/terrain.png');
-    this.load.tilemapTiledJSON('farm-map', 'assets/tilemaps/farm.json');
-    this.load.tilemapTiledJSON('casa-map', 'assets/tilemaps/casa.json');
+    // um tilemap por entrada de MAPAS: nao ha lista pra manter em dois lugares
+    for (const def of Object.values(MAPAS)) {
+      this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo);
+    }
+
+    // fachadas das construcoes: um frame por lote, com o nome do lote
+    this.load.atlas(
+      'construcoes',
+      'assets/sprites/construcoes.png',
+      'assets/sprites/construcoes.atlas.json',
+    );
+
+    // flora: os atlas sao gerados por tools/gerar-assets.mjs a partir da grade
+    // de cada spritesheet. Frames: arvore_<especie>_<estagio> / flor_<especie>_<estagio>.
+    this.load.atlas('arvores', 'assets/sprites/Arvores.png', 'assets/sprites/arvores.atlas.json');
+    this.load.atlas(
+      'flores_v1',
+      'assets/sprites/Flores_v1.png',
+      'assets/sprites/flores_v1.atlas.json',
+    );
+    this.load.atlas(
+      'flores_v2',
+      'assets/sprites/Flores_v2.png',
+      'assets/sprites/flores_v2.atlas.json',
+    );
+    // pedras soltas: frames `pedra_<i>`, do pedrisco ao matacao
+    this.load.atlas('pedras', 'assets/sprites/pedras.png', 'assets/sprites/pedras.atlas.json');
+
+    // Moveis de interior: frames `movel_<linha>_<indice>`. O PNG e a folha
+    // LIMPA gerada por tools/gerar-assets.mjs, nao a arte crua: nela cada peca
+    // tem so os proprios pixels, senao o frame de uma peca diagonal (tapete)
+    // leva lasca da vizinha. As duas folhas de mobilia se misturam peca por
+    // peca em MOBILIA_CASA, entao o atlas de cada uma e carregado a parte.
+    for (const folha of ['mercado', 'academia', 'mobilia_v1', 'mobilia_v2']) {
+      this.load.atlas(
+        `moveis_${folha}`,
+        `assets/sprites/moveis_${folha}.png`,
+        `assets/sprites/moveis_${folha}.atlas.json`,
+      );
+    }
 
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
+    for (const npc of Object.values(NPCS)) {
+      if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
+      if (npc.spriteParado) this.load.image(`npc-${npc.id}-parado`, npc.spriteParado.arquivo);
+    }
   }
 
   create(): void {
@@ -47,6 +91,7 @@ export class BootScene extends Phaser.Scene {
     this.criarFramesPlayer('walk');
     this.criarFramesPlayer('run');
     this.criarAnimacoes();
+    this.criarSpritesNpcs();
     const inicio = this.aplicarSave();
 
     // a UI roda em paralelo, por cima do mundo, na resolucao base (sem zoom).
@@ -73,6 +118,11 @@ export class BootScene extends Phaser.Scene {
     estado.relogio.definir(Number.isFinite(save.minutos) ? save.minutos : 0);
     estado.mapa = mapa.chave;
     estado.inventario.restaurar(save.inventario);
+    estado.itensColetados = new Set(
+      Array.isArray(save.itensColetados)
+        ? save.itensColetados.filter((id): id is string => typeof id === 'string')
+        : [],
+    );
 
     console.info(`[save] carregado: dia ${estado.dia}, ${estado.relogio.texto}, ${mapa.chave}`);
     return { mapa: mapa.chave, x: save.x, y: save.y };
@@ -106,6 +156,59 @@ export class BootScene extends Phaser.Scene {
         frames: [{ key: PLAYER_RECORTE.idle.textura, frame: `${key}-0` }],
         frameRate: 1,
       });
+    }
+  }
+
+  /**
+   * Registra os recortes de uma folha de NPC e devolve os frames por direcao.
+   * Os nomes de recorte (`down-0`...) sao por TEXTURA, e caminhada e parado sao
+   * texturas diferentes, entao as duas folhas podem usar os mesmos nomes.
+   */
+  private recortarFolhaNpc(
+    chaveTextura: string,
+    folha: SpriteNpc,
+  ): Record<string, Phaser.Types.Animations.AnimationFrame[]> {
+    const textura = this.textures.get(chaveTextura);
+    const fonte = textura.source[0];
+    const porDirecao: Record<string, Phaser.Types.Animations.AnimationFrame[]> = {};
+    for (const [direcao, faixa] of Object.entries(folha.frames)) {
+      porDirecao[direcao] = faixa.colunas.map((coluna, indice) => {
+        const x0 = Math.floor((coluna * fonte.width) / folha.colunas);
+        const x1 = Math.floor(((coluna + 1) * fonte.width) / folha.colunas);
+        const y0 = Math.floor((faixa.linha * fonte.height) / folha.linhas);
+        const y1 = Math.floor(((faixa.linha + 1) * fonte.height) / folha.linhas);
+        const nome = `${direcao}-${indice}`;
+        textura.add(nome, 0, x0, y0, x1 - x0, y1 - y0);
+        return { key: chaveTextura, frame: nome };
+      });
+    }
+    return porDirecao;
+  }
+
+  /** Recortes e animacoes sao inteiramente descritos pela entrada do NPC. */
+  private criarSpritesNpcs(): void {
+    for (const npc of Object.values(NPCS)) {
+      if (!npc.sprite) continue;
+      const andando = this.recortarFolhaNpc(`npc-${npc.id}-sprites`, npc.sprite);
+      // Sem folha de parado, o idle cai no 1o frame da caminhada — que e uma
+      // pose de passo, e le como se o NPC estivesse andando no lugar.
+      const parado = npc.spriteParado
+        ? this.recortarFolhaNpc(`npc-${npc.id}-parado`, npc.spriteParado)
+        : null;
+
+      for (const [direcao, frames] of Object.entries(andando)) {
+        this.anims.create({
+          key: `npc-${npc.id}-walk-${direcao}`,
+          frames,
+          frameRate: 8,
+          repeat: -1,
+        });
+        this.anims.create({
+          key: `npc-${npc.id}-idle-${direcao}`,
+          frames: [(parado?.[direcao] ?? frames)[0]],
+          frameRate: 1,
+        });
+      }
     }
   }
 

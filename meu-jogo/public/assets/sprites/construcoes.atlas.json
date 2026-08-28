@@ -1,0 +1,214 @@
+{
+ "frames": {
+  "casa_1": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_2": {
+   "frame": {
+    "x": 160,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_3": {
+   "frame": {
+    "x": 320,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_4": {
+   "frame": {
+    "x": 480,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_5": {
+   "frame": {
+    "x": 640,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_6": {
+   "frame": {
+    "x": 800,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "mercado": {
+   "frame": {
+    "x": 960,
+    "y": 0,
+    "w": 256,
+    "h": 252
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 252
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 252
+   }
+  },
+  "academia": {
+   "frame": {
+    "x": 1216,
+    "y": 0,
+    "w": 256,
+    "h": 235
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 235
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 235
+   }
+  },
+  "bar": {
+   "frame": {
+    "x": 1472,
+    "y": 0,
+    "w": 256,
+    "h": 307
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 307
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 307
+   }
+  },
+  "farmacia": {
+   "frame": {
+    "x": 1728,
+    "y": 0,
+    "w": 256,
+    "h": 289
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 289
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 289
+   }
+  }
+ },
+ "meta": {
+  "app": "gerar-assets.mjs",
+  "image": "construcoes.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1984,
+   "h": 307
+  },
+  "scale": "1"
+ }
+}

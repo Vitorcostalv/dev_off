@@ -1,5 +1,6 @@
 import { Inventario } from './inventario';
 import { Relogio } from './relogio';
+import { SistemaRotinasNpc } from './rotinasNpc';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
@@ -12,4 +13,7 @@ export const estado = {
   dia: 0,
   relogio: new Relogio(),
   inventario: new Inventario(),
+  /** IDs unicos dos objetos de mundo que ja foram recolhidos. */
+  itensColetados: new Set<string>(),
+  rotinasNpc: new SistemaRotinasNpc(),
 };

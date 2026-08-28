@@ -1,15 +1,31 @@
 export interface DefinicaoItem {
   id: string;
   nome: string;
-  /** cor do quadradinho, ate ter icone de verdade */
-  cor: number;
+  /** Cor do icone placeholder, ate haver arte de item. */
+  icone: number;
+  descricao: string;
+  tipo: 'componente' | 'consumivel' | 'ferramenta' | 'outro';
   /** quantos cabem em um slot */
   maxPilha: number;
 }
 
 export const ITENS: Record<string, DefinicaoItem> = {
-  item_teste: { id: 'item_teste', nome: 'Item de Teste', cor: 0x9ad06a, maxPilha: 99 },
-  item_teste_2: { id: 'item_teste_2', nome: 'Outro Item', cor: 0xd08a6a, maxPilha: 99 },
+  cabo_usb: {
+    id: 'cabo_usb',
+    nome: 'Cabo USB',
+    icone: 0x61b7d9,
+    descricao: 'Um cabo curto que ainda parece funcionar.',
+    tipo: 'componente',
+    maxPilha: 99,
+  },
+  bateria: {
+    id: 'bateria',
+    nome: 'Bateria',
+    icone: 0xe3c85b,
+    descricao: 'Uma bateria compacta com um pouco de carga.',
+    tipo: 'componente',
+    maxPilha: 20,
+  },
 };
 
 export interface Slot {

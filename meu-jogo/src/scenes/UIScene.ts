@@ -7,7 +7,15 @@ import type { Fala, MundoJogavel } from '../game/tipos';
 
 const CAIXA = { x: 8, y: 188, w: CONFIG.largura - 16, h: 74 };
 const CONFIRMA = { w: 180, h: 56 };
-const INV = { colunas: 5, linhas: 4, slot: 22, gap: 3, topo: 20, margem: 10 };
+const INV = {
+  colunas: 5,
+  linhas: 4,
+  slot: 22,
+  gap: 3,
+  topo: 20,
+  margem: 10,
+  detalhes: 176,
+};
 
 /**
  * Cena de interface, rodando em paralelo com a cena de mundo.
@@ -38,6 +46,11 @@ export class UIScene extends Phaser.Scene {
   private inventario!: Phaser.GameObjects.Container;
   private icones: Phaser.GameObjects.Rectangle[] = [];
   private contadores: Phaser.GameObjects.Text[] = [];
+  private seletores: Phaser.GameObjects.Rectangle[] = [];
+  private itemSelecionado: number | null = null;
+  private nomeItem!: Phaser.GameObjects.Text;
+  private tipoItem!: Phaser.GameObjects.Text;
+  private descricaoItem!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'UIScene', active: false });
@@ -311,11 +324,22 @@ export class UIScene extends Phaser.Scene {
       const slot = slots[i];
       const def = slot ? ITENS[slot.id] : undefined;
       this.icones[i].setVisible(Boolean(def));
-      if (def) this.icones[i].setFillStyle(def.cor, 1);
+      if (def) this.icones[i].setFillStyle(def.icone, 1);
 
-      const qtd = slot && slot.qtd > 1 ? String(slot.qtd) : '';
+      const qtd = slot && slot.qtd > 1 ? `x${slot.qtd}` : '';
       if (this.contadores[i].text !== qtd) this.contadores[i].setText(qtd);
+      this.seletores[i].setStrokeStyle(
+        this.itemSelecionado === i ? 2 : 1,
+        this.itemSelecionado === i ? 0xffd97d : UI.borda,
+        this.itemSelecionado === i ? 1 : 0.7,
+      );
     }
+
+    const slot = this.itemSelecionado === null ? null : slots[this.itemSelecionado];
+    const def = slot ? ITENS[slot.id] : undefined;
+    this.nomeItem.setText(def && slot ? `${def.nome} x${slot.qtd}` : 'Selecione um item');
+    this.tipoItem.setText(def ? `Tipo: ${def.tipo}` : '');
+    this.descricaoItem.setText(def?.descricao ?? '');
   }
 
   private criarPainelDeInventario(): Phaser.GameObjects.Container {
@@ -324,7 +348,7 @@ export class UIScene extends Phaser.Scene {
       w: INV.colunas * passo - INV.gap,
       h: INV.linhas * passo - INV.gap,
     };
-    const largura = grade.w + INV.margem * 2;
+    const largura = grade.w + INV.detalhes + INV.margem * 3;
     const altura = grade.h + INV.margem * 2 + INV.topo;
     const x = Math.round((CONFIG.largura - largura) / 2);
     const y = Math.round((CONFIG.altura - altura) / 2);
@@ -351,15 +375,21 @@ export class UIScene extends Phaser.Scene {
     const filhos: Phaser.GameObjects.GameObject[] = [fundo, titulo, dica];
     this.icones = [];
     this.contadores = [];
+    this.seletores = [];
 
     for (let i = 0; i < INV.colunas * INV.linhas; i++) {
       const sx = x + INV.margem + (i % INV.colunas) * passo;
       const sy = y + INV.margem + INV.topo + Math.floor(i / INV.colunas) * passo;
 
-      fundo.fillStyle(0x000000, 0.35);
-      fundo.fillRect(sx, sy, INV.slot, INV.slot);
-      fundo.lineStyle(1, UI.borda, 0.7);
-      fundo.strokeRect(sx + 0.5, sy + 0.5, INV.slot - 1, INV.slot - 1);
+      const seletor = this.add
+        .rectangle(sx, sy, INV.slot, INV.slot, 0x000000, 0.35)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, UI.borda, 0.7)
+        .setInteractive({ useHandCursor: true });
+      seletor.on('pointerdown', () => {
+        this.itemSelecionado = i;
+        this.desenharInventario();
+      });
 
       const icone = this.add
         .rectangle(sx + INV.slot / 2, sy + INV.slot / 2, INV.slot - 8, INV.slot - 8, 0xffffff)
@@ -374,8 +404,30 @@ export class UIScene extends Phaser.Scene {
 
       this.icones.push(icone);
       this.contadores.push(contador);
-      filhos.push(icone, contador);
+      this.seletores.push(seletor);
+      filhos.push(seletor, icone, contador);
     }
+
+    const detalhesX = x + INV.margem * 2 + grade.w;
+    this.nomeItem = this.add.text(detalhesX, y + INV.margem + INV.topo, '', {
+      fontFamily: UI.fonte,
+      fontSize: UI.tamanhoTitulo,
+      color: UI.destaque,
+      wordWrap: { width: INV.detalhes },
+    });
+    this.tipoItem = this.add.text(detalhesX, y + INV.margem + INV.topo + 22, '', {
+      fontFamily: UI.fonte,
+      fontSize: UI.tamanho,
+      color: UI.textoFraco,
+    });
+    this.descricaoItem = this.add.text(detalhesX, y + INV.margem + INV.topo + 42, '', {
+      fontFamily: UI.fonte,
+      fontSize: UI.tamanho,
+      color: UI.texto,
+      wordWrap: { width: INV.detalhes },
+      lineSpacing: 3,
+    });
+    filhos.push(this.nomeItem, this.tipoItem, this.descricaoItem);
 
     return this.add.container(0, 0, filhos).setDepth(105).setVisible(false);
   }

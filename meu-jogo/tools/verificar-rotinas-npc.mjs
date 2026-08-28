@@ -1,0 +1,286 @@
+import { readFileSync } from 'node:fs';
+import { SistemaRotinasNpc } from '../src/game/rotinasNpc.ts';
+import { LOCAIS_CIDADE, NPCS } from '../src/game/npcs.ts';
+
+const url = (caminho) => new URL(caminho, import.meta.url);
+const mapa = JSON.parse(readFileSync(url('../public/assets/tilemaps/farm.json')));
+const bloqueados = new Set();
+for (const tileset of mapa.tilesets) {
+  for (const tile of tileset.tiles ?? []) {
+    if ((tile.properties ?? []).some((p) => p.name === 'collides' && p.value === true)) {
+      bloqueados.add(tileset.firstgid + tile.id);
+    }
+  }
+}
+
+// Arvore e pedra sao SPRITE, nao tile: a colisao delas e uma caixa na base, do
+// mesmo tamanho que a FarmScene monta. Sem contar isso a conferencia aprova
+// rota que atravessa a mata — o que era justamente o risco das rotas novas,
+// que saem da malha viaria pra entrar no lote do mercado e na praca.
+const TRONCO = { largura: 0.56, altura: 0.375 };
+const PEDRA = { largura: 0.78, altura: 0.34 };
+const PEDRA_COLIDE_ACIMA_DE = 0.45;
+const T = mapa.tilewidth;
+
+const solido = new Uint8Array(mapa.width * mapa.height);
+for (const camada of mapa.layers) {
+  if (camada.type !== 'tilelayer') continue;
+  for (let i = 0; i < camada.data.length; i++) {
+    if (bloqueados.has(camada.data[i] & 0x1fffffff)) solido[i] = 1;
+  }
+}
+
+const props = (o) => Object.fromEntries((o.properties ?? []).map((p) => [p.name, p.value]));
+const framesPedra = JSON.parse(
+  readFileSync(url('../public/assets/sprites/pedras.atlas.json')),
+).frames;
+
+function marcarCorpo(cx, cy, largura, altura) {
+  for (let py = cy - altura; py < cy; py += 1) {
+    for (let px = cx - largura / 2; px < cx + largura / 2; px += 1) {
+      const tx = Math.floor(px / T);
+      const ty = Math.floor(py / T);
+      if (tx >= 0 && ty >= 0 && tx < mapa.width && ty < mapa.height) {
+        solido[ty * mapa.width + tx] = 1;
+      }
+    }
+  }
+}
+
+let corpos = 0;
+for (const o of mapa.layers.find((c) => c.name === 'flora')?.objects ?? []) {
+  const p = props(o);
+  if (o.type === 'arvore') {
+    if (p.estagio < 2) continue;
+    marcarCorpo(o.x, o.y, TRONCO.largura * T, TRONCO.altura * T);
+  } else if (o.type === 'pedra') {
+    if (p.alturaTiles <= PEDRA_COLIDE_ACIMA_DE) continue;
+    const f = framesPedra[`pedra_${p.indice}`].frame;
+    const h = p.alturaTiles * T;
+    marcarCorpo(o.x, o.y, h * (f.w / f.h) * PEDRA.largura, h * PEDRA.altura);
+  } else continue;
+  corpos += 1;
+}
+
+function livre(x, y) {
+  const tx = Math.floor(x);
+  const ty = Math.floor(y);
+  if (tx < 0 || ty < 0 || tx >= mapa.width || ty >= mapa.height) return false;
+  return !solido[ty * mapa.width + tx];
+}
+
+/** Amostra o segmento a->b como o NPC anda: em reta, sem pathfinding. */
+function trechoBloqueado(a, b) {
+  const passos = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.25));
+  for (let i = 0; i <= passos; i++) {
+    const x = a.x + ((b.x - a.x) * i) / passos;
+    const y = a.y + ((b.y - a.y) * i) / passos;
+    if (!livre(x, y)) return `${Math.floor(x)},${Math.floor(y)}`;
+  }
+  return null;
+}
+
+/**
+ * Retangulo de `vagar`: por ser convexo, basta que todo tile dele seja livre
+ * pra qualquer reta interna tambem ser. Confere na definicao, nao por amostra —
+ * o sorteio pode levar centenas de dias pra achar o canto ruim.
+ *
+ * Confere tambem a VOLTA PRA CASA a partir de cada area. O fallback das 18:00
+ * monta `[...saidaSegura, ...rotaCasa, frente]` e anda tudo em reta, entao:
+ * o primeiro ponto tem de ser alcancavel em reta dos quatro cantos da area (se
+ * estiver dentro dela, a convexidade ja garante), e cada perna da rota tem de
+ * estar livre. E isso que impede a definicao de depender de qual acao ficou por
+ * ultimo no dia.
+ */
+function conferirAreasDeVagar() {
+  let areas = 0;
+  for (const def of Object.values(NPCS)) {
+    for (const acao of def.rotina) {
+      if (acao.tipo !== 'vagar') continue;
+      areas += 1;
+      const { min, max } = acao.area;
+      for (let ty = Math.floor(min.y); ty <= Math.floor(max.y); ty++) {
+        for (let tx = Math.floor(min.x); tx <= Math.floor(max.x); tx++) {
+          if (!livre(tx + 0.5, ty + 0.5)) {
+            throw new Error(
+              `area de vagar de ${def.id} (${acao.horario}) inclui tile bloqueado ${tx},${ty}`,
+            );
+          }
+        }
+      }
+
+      const frente = LOCAIS_CIDADE[def.casa]?.frente;
+      if (!frente) throw new Error(`${def.id}: casa "${def.casa}" sem frente`);
+      const volta = [...(acao.saidaSegura ?? []), ...def.rotaCasa, frente];
+      const cantos = [
+        { x: min.x, y: min.y }, { x: max.x, y: min.y },
+        { x: min.x, y: max.y }, { x: max.x, y: max.y },
+      ];
+      for (const canto of cantos) {
+        const ruim = trechoBloqueado(canto, volta[0]);
+        if (ruim) {
+          throw new Error(
+            `${def.id} (${acao.horario}): do canto ${canto.x},${canto.y} da area ate ` +
+              `${volta[0].x},${volta[0].y} passa pelo tile bloqueado ${ruim}`,
+          );
+        }
+      }
+      for (let i = 0; i < volta.length - 1; i++) {
+        const ruim = trechoBloqueado(volta[i], volta[i + 1]);
+        if (ruim) {
+          throw new Error(
+            `${def.id} (${acao.horario}): a volta pra casa passa pelo tile bloqueado ${ruim} ` +
+              `entre ${volta[i].x},${volta[i].y} e ${volta[i + 1].x},${volta[i + 1].y}`,
+          );
+        }
+      }
+    }
+  }
+  return areas;
+}
+
+const sistema = new SistemaRotinasNpc();
+const registros = new Map();
+const alcanceEdu = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+const estadosAcademiaMari = { andando: false, parada: false, posicoes: new Set() };
+const transicoesPorta = {
+  eduAndouDentro: false, eduSaiuNaPorta: false,
+  mariAndouDentro: false, mariSaiuNaPorta: false,
+  jaquelineSaiuNaPorta: false, jaquelineVoltouNaPorta: false,
+};
+// Jaqueline: expediente no mercado. Leticia: alcance a ceu aberto, pra provar
+// que ela cobre tanto a avenida quanto a praca.
+const expedienteJaqueline = { dentro: new Set(), trabalhou: false };
+// Uma marca por area de vagar da Leticia, tirada da propria definicao: assim a
+// conferencia continua valendo se as areas mudarem de lugar.
+const areasLeticia = NPCS.leticia.rotina
+  .filter((acao) => acao.tipo === 'vagar')
+  .map((acao) => ({ area: acao.area, visitada: false, minutos: new Set() }));
+const areasDeVagar = conferirAreasDeVagar();
+for (let minuto = 6 * 60; minuto <= 19 * 60; minuto++) {
+  for (let amostra = 0; amostra < 10; amostra++) {
+    sistema.atualizar(0, minuto, 100);
+    for (const npc of sistema.todos) {
+      if (npc.visivel && !livre(npc.x, npc.y)) {
+        throw new Error(`${npc.id} entrou em tile bloqueado as ${minuto}: ${npc.x},${npc.y}`);
+      }
+      if (npc.id === 'leticia' && npc.visivel && npc.acaoAtual === 'vagar') {
+        for (const marca of areasLeticia) {
+          const dentroDaArea = npc.x >= marca.area.min.x && npc.x <= marca.area.max.x
+            && npc.y >= marca.area.min.y && npc.y <= marca.area.max.y;
+          if (!dentroDaArea) continue;
+          marca.visitada = true;
+          marca.minutos.add(minuto);
+        }
+      }
+      if (npc.id === 'jaqueline') {
+        if (npc.dentro === 'mercado') {
+          expedienteJaqueline.dentro.add(minuto);
+          if (npc.acaoAtual === 'vagar_rota') expedienteJaqueline.trabalhou = true;
+        }
+        if (minuto === 8 * 60 + 30 && npc.dentro === null
+          && Math.hypot(npc.x - 87.5, npc.y - 16.5) < 0.3) {
+          transicoesPorta.jaquelineSaiuNaPorta = true;
+        }
+        if (minuto >= 17 * 60 && minuto <= 17 * 60 + 2 && npc.dentro === null
+          && Math.hypot(npc.x - 70.5, npc.y - 55.5) < 0.3) {
+          transicoesPorta.jaquelineVoltouNaPorta = true;
+        }
+      }
+      if (npc.id === 'edu' && npc.visivel) {
+        alcanceEdu.minX = Math.min(alcanceEdu.minX, npc.x);
+        alcanceEdu.maxX = Math.max(alcanceEdu.maxX, npc.x);
+        alcanceEdu.minY = Math.min(alcanceEdu.minY, npc.y);
+        alcanceEdu.maxY = Math.max(alcanceEdu.maxY, npc.y);
+      }
+      if (npc.id === 'mari' && npc.dentro === 'academia' && npc.acaoAtual === 'vagar_rota') {
+        estadosAcademiaMari[npc.movendo ? 'andando' : 'parada'] = true;
+        estadosAcademiaMari.posicoes.add(`${npc.x.toFixed(1)},${npc.y.toFixed(1)}`);
+      }
+      if (npc.id === 'edu' && minuto === 8 * 60) {
+        if (npc.dentro === 'casa_2' && npc.movendo) transicoesPorta.eduAndouDentro = true;
+        if (npc.dentro === null && Math.hypot(npc.x - 43.5, npc.y - 16.5) < 0.3) {
+          transicoesPorta.eduSaiuNaPorta = true;
+        }
+      }
+      if (npc.id === 'mari' && minuto >= 12 * 60 + 40 && minuto <= 12 * 60 + 42) {
+        if (npc.dentro === 'academia' && npc.movendo) transicoesPorta.mariAndouDentro = true;
+        if (npc.dentro === null && Math.hypot(npc.x - 53.5, npc.y - 35.5) < 0.3) {
+          transicoesPorta.mariSaiuNaPorta = true;
+        }
+      }
+    }
+  }
+  if ([8 * 60, 8 * 60 + 30, 9 * 60, 10 * 60, 12 * 60 + 40, 13 * 60, 14 * 60, 17 * 60, 18 * 60, 19 * 60].includes(minuto)) {
+    registros.set(minuto, sistema.todos.map((npc) => ({
+      id: npc.id, x: +npc.x.toFixed(1), y: +npc.y.toFixed(1), dentro: npc.dentro,
+    })));
+  }
+}
+
+const edu = sistema.porId('edu');
+const mari = sistema.porId('mari');
+if (edu?.dentro !== 'casa_2') throw new Error('Edu nao voltou para casa apos as 18:00');
+if (mari?.dentro !== 'casa_3') throw new Error('Mari nao voltou para casa perto das 13:00');
+
+// todo NPC tem de terminar o dia dentro da PROPRIA casa
+for (const def of Object.values(NPCS)) {
+  const estado = sistema.porId(def.id);
+  if (estado?.dentro !== def.casa) {
+    throw new Error(`${def.id} terminou as 19:00 em "${estado?.dentro}", nao em ${def.casa}`);
+  }
+}
+
+// uma casa por morador — a validacao de npcs.ts ja explode na carga, aqui e so
+// pra a conferencia dizer com quantos lotes ela contou
+const casas = new Set(Object.values(NPCS).map((def) => def.casa));
+if (casas.size !== Object.keys(NPCS).length) throw new Error('dois NPCs na mesma casa');
+for (const casa of casas) {
+  if (!LOCAIS_CIDADE[casa]) throw new Error(`casa "${casa}" nao existe em LOCAIS_CIDADE`);
+}
+
+if (expedienteJaqueline.dentro.size < 6 * 60) {
+  throw new Error(
+    `Jaqueline ficou so ${expedienteJaqueline.dentro.size} min no mercado (esperado >= 360)`,
+  );
+}
+if (!expedienteJaqueline.trabalhou) throw new Error('Jaqueline nao trabalhou dentro do mercado');
+if (expedienteJaqueline.dentro.has(17 * 60 + 30)) {
+  throw new Error('Jaqueline continuou no mercado depois das 17:00');
+}
+
+// Leticia tem de ter vagado de fato em CADA area, nao so passado por perto: as
+// duas ficam longe uma da outra (avenida em y~45, praca em y~52..58).
+areasLeticia.forEach((marca, i) => {
+  if (!marca.visitada || marca.minutos.size < 30) {
+    throw new Error(
+      `Leticia vagou so ${marca.minutos.size} min na area ${i} ` +
+        `(${JSON.stringify(marca.area)})`,
+    );
+  }
+});
+const mariDez = registros.get(10 * 60).find((npc) => npc.id === 'mari');
+if (mariDez.dentro !== 'academia') throw new Error('Mari nao entrou na academia');
+if (!estadosAcademiaMari.andando || !estadosAcademiaMari.parada || estadosAcademiaMari.posicoes.size < 8) {
+  throw new Error('Mari nao alternou caminhada e pausa dentro da academia');
+}
+if (alcanceEdu.minX > 23 || alcanceEdu.maxX < 98 || alcanceEdu.minY > 22 || alcanceEdu.maxY < 70) {
+  throw new Error(`Edu nao percorreu a cidade inteira: ${JSON.stringify(alcanceEdu)}`);
+}
+if (Object.values(transicoesPorta).some((valor) => !valor)) {
+  throw new Error(`transicao pelas portas incompleta: ${JSON.stringify(transicoesPorta)}`);
+}
+
+console.log(
+  `[rotinas] ${Object.keys(NPCS).length} NPCs em ${casas.size} casas | ` +
+    `${corpos} corpos de flora no bloqueio | ${areasDeVagar} area(s) de vagar conferida(s)`,
+);
+console.log(
+  `[rotinas] Jaqueline: ${expedienteJaqueline.dentro.size} min de expediente no mercado | ` +
+    `Leticia vagou ${areasLeticia.map((m) => `${m.minutos.size} min`).join(' + ')}`,
+);
+console.log('[rotinas] cidade percorrida; caminhada, pausas e transicoes por portas validadas');
+for (const [minuto, estados] of registros) {
+  const hora = `${String(Math.floor(minuto / 60)).padStart(2, '0')}:${String(minuto % 60).padStart(2, '0')}`;
+  console.log(`  ${hora}`, JSON.stringify(estados));
+}
