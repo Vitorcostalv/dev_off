@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { SistemaRotinasNpc } from '../src/game/rotinasNpc.ts';
-import { LOCAIS_CIDADE, NPCS } from '../src/game/npcs.ts';
+import { DIA_DA_SEMANA, DIAS_DA_SEMANA } from '../src/game/calendario.ts';
+import {
+  LOCAIS_CIDADE,
+  MORADIAS,
+  MORADIAS_VAGAS,
+  NPCS,
+  NPCS_DE_PRESENCA_INTERIOR,
+} from '../src/game/npcs.ts';
 
 const url = (caminho) => new URL(caminho, import.meta.url);
 const mapa = JSON.parse(readFileSync(url('../public/assets/tilemaps/farm.json')));
@@ -231,12 +238,24 @@ for (const def of Object.values(NPCS)) {
   }
 }
 
-// uma casa por morador — a validacao de npcs.ts ja explode na carga, aqui e so
-// pra a conferencia dizer com quantos lotes ela contou
+// uma moradia por morador — a validacao de npcs.ts ja explode na carga, aqui e
+// so pra a conferencia dizer com quantos lotes ela contou. `MORADIAS` inclui os
+// predios MISTOS (bar e farmacia): eles tem cama, entao contam como moradia
+// disponivel igual as seis casas.
 const casas = new Set(Object.values(NPCS).map((def) => def.casa));
 if (casas.size !== Object.keys(NPCS).length) throw new Error('dois NPCs na mesma casa');
 for (const casa of casas) {
   if (!LOCAIS_CIDADE[casa]) throw new Error(`casa "${casa}" nao existe em LOCAIS_CIDADE`);
+  if (!MORADIAS.includes(casa)) throw new Error(`"${casa}" nao e moradia disponivel`);
+}
+// as moradias vagas tem de ter local de cidade pronto, senao encaixar um NPC
+// nelas depois quebraria na primeira rotina
+for (const vaga of MORADIAS_VAGAS) {
+  const local = LOCAIS_CIDADE[vaga];
+  if (!local) throw new Error(`a moradia vaga "${vaga}" nao existe em LOCAIS_CIDADE`);
+  if (!livre(local.frente.x, local.frente.y)) {
+    throw new Error(`a frente da moradia vaga "${vaga}" esta bloqueada`);
+  }
 }
 
 if (expedienteJaqueline.dentro.size < 6 * 60) {
@@ -276,10 +295,207 @@ console.log(
     `${corpos} corpos de flora no bloqueio | ${areasDeVagar} area(s) de vagar conferida(s)`,
 );
 console.log(
+  `[rotinas] ${MORADIAS.length} moradias no total, ${MORADIAS_VAGAS.length} vaga(s): ` +
+    `${MORADIAS_VAGAS.join(', ') || '-'} (frente livre conferida)`,
+);
+console.log(
   `[rotinas] Jaqueline: ${expedienteJaqueline.dentro.size} min de expediente no mercado | ` +
     `Leticia vagou ${areasLeticia.map((m) => `${m.minutos.size} min`).join(' + ')}`,
 );
 console.log('[rotinas] cidade percorrida; caminhada, pausas e transicoes por portas validadas');
+
+// ----------------------------------------- presenca interior fixa (7 dias) --
+/**
+ * Grade de colisao de um INTERIOR: os tiles que colidem mais o corpo de cada
+ * movel solido, com a mesma caixa que a FarmScene monta (`MOVEL_CORPO`). E o que
+ * permite cobrar que o dono do predio misto nunca pare — nem passe — em cima de
+ * mobilia solida ao trocar de posto ou ao sair pra rua.
+ */
+const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
+const atlasCache = new Map();
+
+function framesDoAtlas(atlas) {
+  if (!atlasCache.has(atlas)) {
+    atlasCache.set(
+      atlas,
+      JSON.parse(readFileSync(url(`../public/assets/sprites/${atlas}.atlas.json`))).frames,
+    );
+  }
+  return atlasCache.get(atlas);
+}
+
+function gradeInterior(nome) {
+  const m = JSON.parse(readFileSync(url(`../public/assets/tilemaps/${nome}.json`)));
+  const gids = new Set();
+  for (const ts of m.tilesets) {
+    for (const t of ts.tiles ?? []) {
+      if ((t.properties ?? []).some((p) => p.name === 'collides' && p.value === true)) {
+        gids.add(ts.firstgid + t.id);
+      }
+    }
+  }
+  const grade = new Uint8Array(m.width * m.height);
+  for (const camada of m.layers) {
+    if (camada.type !== 'tilelayer') continue;
+    for (let i = 0; i < camada.data.length; i++) {
+      if (gids.has(camada.data[i] & 0x1fffffff)) grade[i] = 1;
+    }
+  }
+  let solidos = 0;
+  for (const o of m.layers.find((c) => c.name === 'moveis')?.objects ?? []) {
+    const p = props(o);
+    if (p.colide === false) continue;
+    const f = framesDoAtlas(p.atlas)[p.frame].frame;
+    const h = p.alturaTiles * m.tileheight;
+    const largura = h * (f.w / f.h) * MOVEL_CORPO.largura;
+    const altura = h * MOVEL_CORPO.altura;
+    for (let py = o.y - altura; py < o.y; py += 1) {
+      for (let px = o.x - largura / 2; px < o.x + largura / 2; px += 1) {
+        const tx = Math.floor(px / m.tilewidth);
+        const ty = Math.floor(py / m.tileheight);
+        if (tx >= 0 && ty >= 0 && tx < m.width && ty < m.height) grade[ty * m.width + tx] = 1;
+      }
+    }
+    solidos += 1;
+  }
+  return {
+    nome,
+    solidos,
+    livre: (x, y) => {
+      const tx = Math.floor(x);
+      const ty = Math.floor(y);
+      if (tx < 0 || ty < 0 || tx >= m.width || ty >= m.height) return false;
+      return !grade[ty * m.width + tx];
+    },
+  };
+}
+
+/**
+ * Simula a SEMANA inteira, um dia por vez, e cobra o contrato da presenca
+ * interior fixa:
+ *
+ * 1. o dono aparece no mapa externo APENAS no dia da viagem semanal — e nesse
+ *    dia ele de fato chega ao mercado e volta pro proprio predio;
+ * 2. em todos os outros dias ele nunca fica visivel la fora (logo, nunca sai no
+ *    mapa da tecla M, que le o mesmo `visivel`);
+ * 3. os dois postos sao ocupados todo dia (abre e fecha);
+ * 4. nenhuma posicao dele, dentro ou fora, cai em tile bloqueado — incluindo a
+ *    caminhada do posto ate a porta, que e a unica que acontece no interior.
+ */
+function conferirPresencaInteriorFixa() {
+  const DIAS_DE_VIAGEM = { wendel: DIA_DA_SEMANA.quarta, alice: DIA_DA_SEMANA.sexta };
+  const grades = new Map(
+    ['bar', 'farmacia', 'mercado'].map((nome) => [nome, gradeInterior(nome)]),
+  );
+  const sistema = new SistemaRotinasNpc();
+  const ids = NPCS_DE_PRESENCA_INTERIOR;
+  if (!ids.length) throw new Error('nenhum NPC de presenca interior fixa pra conferir');
+  for (const id of ids) {
+    if (DIAS_DE_VIAGEM[id] === undefined) {
+      throw new Error(`"${id}" e de presenca interior fixa mas a conferencia nao sabe o dia da viagem dele`);
+    }
+  }
+
+  const linhas = [];
+  for (let dia = 0; dia < 7; dia++) {
+    const registro = new Map(
+      ids.map((id) => [id, {
+        fora: new Set(), mercado: new Set(), postos: new Set(),
+        ruinsFora: [], ruinsDentro: [],
+      }]),
+    );
+    for (let minuto = 6 * 60; minuto <= 21 * 60; minuto++) {
+      for (let amostra = 0; amostra < 10; amostra++) {
+        sistema.atualizar(dia, minuto, 100);
+        for (const id of ids) {
+          const npc = sistema.porId(id);
+          const reg = registro.get(id);
+          if (npc.posto) reg.postos.add(npc.posto);
+          if (npc.visivel) {
+            reg.fora.add(minuto);
+            if (!livre(npc.x, npc.y)) {
+              reg.ruinsFora.push(`${minuto}min em ${npc.x.toFixed(1)},${npc.y.toFixed(1)}`);
+            }
+            continue;
+          }
+          if (!npc.dentro) throw new Error(`${id}: invisivel e fora de construcao as ${minuto}`);
+          if (npc.dentro === 'mercado') reg.mercado.add(minuto);
+          const grade = grades.get(npc.dentro);
+          if (grade && !grade.livre(npc.x, npc.y)) {
+            reg.ruinsDentro.push(
+              `${minuto}min em ${npc.dentro} ${npc.x.toFixed(1)},${npc.y.toFixed(1)}`,
+            );
+          }
+        }
+      }
+    }
+
+    for (const id of ids) {
+      const def = NPCS[id];
+      const reg = registro.get(id);
+      const viaja = dia === DIAS_DE_VIAGEM[id];
+      if (reg.ruinsDentro.length) {
+        throw new Error(
+          `${id} (dia ${dia}) parou em mobilia solida dentro do interior: ` +
+            reg.ruinsDentro.slice(0, 4).join(' | '),
+        );
+      }
+      if (reg.ruinsFora.length) {
+        throw new Error(
+          `${id} (dia ${dia}) pisou em tile bloqueado no mapa externo: ` +
+            reg.ruinsFora.slice(0, 4).join(' | '),
+        );
+      }
+      if (!viaja && reg.fora.size) {
+        throw new Error(
+          `${id} apareceu no mapa externo em ${nomeDoDiaDaSemana(dia)} ` +
+            `(${reg.fora.size} min), e nao deveria sair nesse dia`,
+        );
+      }
+      if (!viaja && reg.mercado.size) {
+        throw new Error(`${id} entrou no mercado em ${nomeDoDiaDaSemana(dia)}, fora do dia da viagem`);
+      }
+      if (viaja) {
+        if (!reg.fora.size) {
+          throw new Error(`${id} nao apareceu no mapa externo no dia da viagem (${nomeDoDiaDaSemana(dia)})`);
+        }
+        if (reg.mercado.size < 20 || reg.mercado.size > 60) {
+          throw new Error(
+            `${id} ficou ${reg.mercado.size} min no mercado (esperado uma visita curta, 20..60)`,
+          );
+        }
+      }
+      for (const posto of ['trabalho', 'moradia']) {
+        if (!reg.postos.has(posto)) {
+          throw new Error(`${id} nao ocupou o posto "${posto}" em ${nomeDoDiaDaSemana(dia)}`);
+        }
+      }
+      const fim = sistema.porId(id);
+      if (fim.dentro !== def.casa) {
+        throw new Error(`${id} terminou ${nomeDoDiaDaSemana(dia)} em "${fim.dentro}", nao em ${def.casa}`);
+      }
+      if (fim.posto !== 'moradia') {
+        throw new Error(`${id} nao voltou ao posto de moradia no fim de ${nomeDoDiaDaSemana(dia)}`);
+      }
+      linhas.push(
+        `  ${nomeDoDiaDaSemana(dia).padEnd(13)} ${id.padEnd(7)} ` +
+          `fora ${String(reg.fora.size).padStart(3)} min | ` +
+          `mercado ${String(reg.mercado.size).padStart(2)} min${viaja ? '  <- viagem semanal' : ''}`,
+      );
+    }
+  }
+  const solidos = [...grades.values()].map((g) => `${g.nome}=${g.solidos}`).join(' ');
+  return { linhas, solidos, total: ids.length };
+}
+
+const nomeDoDiaDaSemana = (dia) => DIAS_DA_SEMANA[dia];
+const presenca = conferirPresencaInteriorFixa();
+console.log(
+  `[rotinas] presenca interior fixa: ${presenca.total} NPC(s) conferido(s) nos 7 dias ` +
+    `(corpos de movel por interior: ${presenca.solidos})`,
+);
+for (const linha of presenca.linhas) console.log(linha);
+
 for (const [minuto, estados] of registros) {
   const hora = `${String(Math.floor(minuto / 60)).padStart(2, '0')}:${String(minuto % 60).padStart(2, '0')}`;
   console.log(`  ${hora}`, JSON.stringify(estados));

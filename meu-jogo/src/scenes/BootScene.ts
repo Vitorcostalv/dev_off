@@ -69,7 +69,7 @@ export class BootScene extends Phaser.Scene {
     // tem so os proprios pixels, senao o frame de uma peca diagonal (tapete)
     // leva lasca da vizinha. As duas folhas de mobilia se misturam peca por
     // peca em MOBILIA_CASA, entao o atlas de cada uma e carregado a parte.
-    for (const folha of ['mercado', 'academia', 'mobilia_v1', 'mobilia_v2']) {
+    for (const folha of ['mercado', 'academia', 'mobilia_v1', 'mobilia_v2', 'farmacia_bar']) {
       this.load.atlas(
         `moveis_${folha}`,
         `assets/sprites/moveis_${folha}.png`,
