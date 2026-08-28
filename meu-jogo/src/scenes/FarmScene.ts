@@ -611,7 +611,9 @@ export class FarmScene extends Phaser.Scene {
       const y = obj.y ?? 0;
       const sprite = this.add.image(x, y, textura, quadro).setOrigin(0.5, 1);
       sprite.setScale((alturaTiles * this.tamanhoTile) / sprite.height);
-      sprite.setDepth(y);
+      // peca de chao (tapete) desce uma camada: ela e o unico movel que espera
+      // ter outro movel EM CIMA, e os dois costumam ter a base na mesma linha
+      sprite.setDepth(props.chao === true ? y - 1 : y);
 
       if (props.colide === true) {
         this.corpoNaBase(
