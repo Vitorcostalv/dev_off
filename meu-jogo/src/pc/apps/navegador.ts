@@ -1,56 +1,61 @@
 import type Phaser from 'phaser';
+import { UI } from '../../game/config.ts';
+import { nomeDoDia } from '../../game/calendario.ts';
 import { estado } from '../../game/estado.ts';
-import { NPCS } from '../../game/npcs.ts';
-import { percentualDescontoNpc } from '../../game/loja.ts';
+import { feedAte } from '../../game/blog.ts';
+import type { PostDoBlog } from '../../game/blog.ts';
+import { buscarNpc } from '../../game/npcs.ts';
+import { PONTOS_DE_LOJA, percentualDescontoNpc } from '../../game/loja.ts';
+import { SCORE_MAXIMO } from '../../game/relacoes.ts';
 import { PC, caixa, texto } from '../widgets.ts';
+import type { Retangulo } from '../widgets.ts';
 import type { AppDoPc, ContextoApp } from '../tipos.ts';
 
 /**
- * Navegador — dois abas: Blog (posts diarios do NPCs) e Relacionamento (status).
+ * Navegador — duas abas na mesma janela: Blog e Relacionamentos.
  *
- * BLOG: Posts diarios gerados por NPC, com seed deterministica. Cada NPC tem
- * sua voz e personalidade. O mesmo seed (dia) sempre produz os mesmos posts.
+ * BLOG: feed dos ultimos dias, gerado por `game/blog.ts` (deterministico por
+ * dia). So leitura — nao ha curtir nem comentar nesta etapa.
  *
- * RELACIONAMENTO: Lista de NPCs com quem ja houve interacao (score != 0).
- * Mostra coracaozinho (hearts), nivel do relacionamento com override aplicado,
- * e desconto (se for comerciante).
+ * RELACIONAMENTOS: quem o jogador ja abordou, com coracoes, o rotulo do nivel
+ * (com o override de rotulo do NPC) e o desconto ativo, quando o NPC vende
+ * alguma coisa.
+ *
+ * ---------------------------------------------------------------------------
+ * DESENHO
+ * ---------------------------------------------------------------------------
+ * O jogo roda em 480x270 e sobe por escala inteira, entao texto abaixo de 10px
+ * fica ilegivel e emoji nao ergue nesta resolucao. Os coracoes sao desenhados
+ * com `Graphics` — duas metades por coracao, o que da o meio-coracao dos scores
+ * fracionarios de graca — e nenhum texto aqui desce de 10px.
+ *
+ * Trocar de aba RECONSTROI o conteudo (`redesenhar`). A versao anterior trocava
+ * so o campo `abaAtiva` e nunca redesenhava, entao clicar na aba nao fazia nada
+ * visivel.
  */
 
 type AbaNavegador = 'blog' | 'relacionamento';
 
-// Posts de exemplo por NPC. Em producao seria um gerador determinístico.
-const POSTS_POR_NPC: Record<string, readonly string[]> = {
-  edu: [
-    'Acordei cedo hoje. A cidade fica mais silenciosa no comeco do dia.',
-    'Alguem sabe onde arruma um coracao de arduino? Preciso consertar um projeto.',
-    'Assistindo o mercado se encher de gente. Sempre frenético nos dias de feira.',
-  ],
-  mari: [
-    'Treino da manha foi bom! O corpo agradece a consistencia.',
-    'Aquele isotônico novo chegou na farmacia. Vale muito a pena.',
-    'Pensando em aumentar a serie de abdominal. Mais desafio!',
-  ],
-  jaqueline: [
-    'Novo lote de pâes saiu quente do forno. Vem quentinho!',
-    'O mercado ficou uma bagunça hoje. Mas o movimento foi bom.',
-    'Notei que a farmacia ao lado nao tinha as biscoitos que eu vendo. Vantagem pra gente!',
-  ],
-  leticia: [
-    'Capturei uma foto linda do por do sol de cima da colina.',
-    'Olha que interessante a forma como a luz bate nas cores aqui.',
-    'Pensando em montar um portfolio com as melhores fotos do mes.',
-  ],
-  wendel: [
-    'Organizei tudo no cômodo de trás da loja. Muito mais eficiente assim.',
-    'Uma tomada foi instalada no local certo. Sistema melhorou bastante.',
-    'Quando as coisas estao no lugar certo, tudo flui melhor.',
-  ],
-  alice: [
-    'Que dia agitado no bar! Praticamente lotado.',
-    'Alguem vai na festa de sabado? Vou estar na roda de amigos.',
-    'Descobri um remix que ta impecavel pra tocar na sexta. So animação!',
-  ],
-};
+const ABAS: readonly { id: AbaNavegador; rotulo: string; largura: number }[] = [
+  { id: 'blog', rotulo: 'Blog', largura: 62 },
+  { id: 'relacionamento', rotulo: 'Relacionamentos', largura: 132 },
+];
+
+const ALTURA_ABA = 18;
+/** altura de uma linha da lista de relacionamento */
+const LINHA_RELACAO = 30;
+/** altura reservada por post do blog (autor + duas linhas de texto) */
+const LINHA_POST = 40;
+
+const CORACAO = {
+  /** quantos coracoes representam a escala inteira (0 a 12) */
+  quantidade: SCORE_MAXIMO,
+  raio: 4,
+  passo: 10,
+  cheio: 0xe06a72,
+  vazio: 0x3a4150,
+  quebrado: 0xc4562f,
+} as const;
 
 export class Navegador implements AppDoPc {
   readonly id = 'navegador';
@@ -59,191 +64,300 @@ export class Navegador implements AppDoPc {
   readonly cor = 0x3a7f8c;
   readonly resumo = 'Blog e Relacionamentos';
 
+  private cena!: Phaser.Scene;
+  private area!: Retangulo;
+  private corpo!: Retangulo;
+  /** container do CONTEUDO da aba; trocar de aba destroi os filhos dele */
+  private conteudo!: Phaser.GameObjects.Container;
+  private rodape!: Phaser.GameObjects.Text;
+
   private abaAtiva: AbaNavegador = 'blog';
+  private abas: { fundo: Phaser.GameObjects.Rectangle; rotulo: Phaser.GameObjects.Text }[] = [];
+  /** primeiro item visivel da aba atual — e o que faz a lista rolar */
+  private topo = 0;
+  /** quantos itens a aba atual tem, pra limitar a rolagem */
+  private total = 0;
+  private visiveis = 1;
 
   montar(ctx: ContextoApp): Phaser.GameObjects.GameObject[] {
-    const { area, cena } = ctx;
+    this.cena = ctx.cena;
+    this.area = ctx.area;
+    this.abaAtiva = 'blog';
+    this.topo = 0;
+
     const objetos: Phaser.GameObjects.GameObject[] = [];
-    const g = cena.add.graphics();
+    const g = ctx.cena.add.graphics();
     objetos.push(g);
 
     // --- abas ---
-    const alturaAbas = 20;
-    const abaX1 = area.x + 6;
-    const abaX2 = area.x + 90;
-    const abaY = area.y + 4;
-
-    // Desenhar abas
-    const abaBlog = cena.add
-      .rectangle(abaX1 + 28, abaY + alturaAbas / 2, 56, alturaAbas - 2, this.abaAtiva === 'blog' ? PC.painelClaro : 0x2a3a45)
-      .setStrokeStyle(1, PC.borda)
-      .setInteractive({ useHandCursor: true });
-    abaBlog.on('pointerdown', () => {
-      this.abaAtiva = 'blog';
-      // Reconstruir (idealmente seria mais elegante, mas funciona)
+    let x = this.area.x;
+    this.abas = ABAS.map((aba) => {
+      const fundo = ctx.cena.add
+        .rectangle(x + aba.largura / 2, this.area.y + ALTURA_ABA / 2, aba.largura, ALTURA_ABA, PC.painelClaro)
+        .setStrokeStyle(1, PC.borda)
+        .setInteractive({ useHandCursor: true });
+      const rotulo = ctx.cena.add
+        .text(x + aba.largura / 2, this.area.y + ALTURA_ABA / 2, aba.rotulo, {
+          fontFamily: UI.fonte,
+          fontSize: UI.tamanho,
+          color: PC.textoFraco,
+        })
+        .setOrigin(0.5, 0.5);
+      fundo.on('pointerdown', () => this.trocarAba(aba.id));
+      objetos.push(fundo, rotulo);
+      x += aba.largura + 4;
+      return { fundo, rotulo };
     });
-    objetos.push(abaBlog);
 
-    const abaRel = cena.add
-      .rectangle(abaX2 + 50, abaY + alturaAbas / 2, 100, alturaAbas - 2, this.abaAtiva === 'relacionamento' ? PC.painelClaro : 0x2a3a45)
-      .setStrokeStyle(1, PC.borda)
-      .setInteractive({ useHandCursor: true });
-    abaRel.on('pointerdown', () => {
-      this.abaAtiva = 'relacionamento';
-    });
-    objetos.push(abaRel);
-
-    objetos.push(
-      texto(cena, abaX1 + 28, abaY + 2, 'Blog', {
-        fontSize: '10px',
-        color: this.abaAtiva === 'blog' ? PC.texto : PC.textoFraco,
-      }),
-    );
-    objetos.push(
-      texto(cena, abaX2 + 50, abaY + 2, 'Relacionamentos', {
-        fontSize: '9px',
-        color: this.abaAtiva === 'relacionamento' ? PC.texto : PC.textoFraco,
-      }),
-    );
-
-    // --- area de conteudo ---
-    const corpo = {
-      x: area.x,
-      y: area.y + alturaAbas + 6,
-      w: area.w,
-      h: area.h - alturaAbas - 6 - 13,
+    // --- moldura do conteudo ---
+    this.corpo = {
+      x: this.area.x,
+      y: this.area.y + ALTURA_ABA,
+      w: this.area.w,
+      h: this.area.h - ALTURA_ABA - 14,
     };
-    caixa(g, corpo, 0xf2efe6, PC.borda);
+    caixa(g, this.corpo, 0x0d1119, PC.borda);
 
-    if (this.abaAtiva === 'blog') {
-      objetos.push(...this.renderBlog(ctx, corpo));
-    } else {
-      objetos.push(...this.renderRelacionamentos(ctx, corpo));
+    this.conteudo = ctx.cena.add.container(0, 0);
+    objetos.push(this.conteudo);
+
+    this.rodape = texto(ctx.cena, this.area.x, this.area.y + this.area.h - 11, '', {
+      fontSize: UI.tamanho,
+      color: PC.textoFraco,
+    });
+    objetos.push(this.rodape);
+
+    this.redesenhar();
+    return objetos;
+  }
+
+  aoTeclar(evento: KeyboardEvent): boolean {
+    const k = evento.key;
+    if (k === 'Tab' || k === 'a' || k === 'A' || k === 'ArrowLeft' || k === 'd' || k === 'D' || k === 'ArrowRight') {
+      this.trocarAba(this.abaAtiva === 'blog' ? 'relacionamento' : 'blog');
+      return true;
     }
-
-    objetos.push(
-      texto(cena, area.x, area.y + area.h - 11, `Dia ${estado.dia}`, {
-        fontSize: '9px',
-        color: PC.textoFraco,
-      }),
-    );
-
-    return objetos;
+    const passo: Record<string, number> = {
+      ArrowUp: -1, w: -1, W: -1,
+      ArrowDown: 1, s: 1, S: 1,
+    };
+    if (passo[k] !== undefined) {
+      this.rolar(passo[k]);
+      return true;
+    }
+    return false;
   }
 
-  private renderBlog(ctx: ContextoApp, corpo: { x: number; y: number; w: number; h: number }): Phaser.GameObjects.GameObject[] {
-    const objetos: Phaser.GameObjects.GameObject[] = [];
-    const { cena } = ctx;
-
-    // Usar seed deterministica do dia para selecionar posts
-    // Simples: cada NPC contribui 1-3 posts por dia
-    const posts: Array<{ autor: string; texto: string }> = [];
-    const NPCIds = ['edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice'];
-
-    NPCIds.forEach((id) => {
-      const postsPorEste = POSTS_POR_NPC[id] || [];
-      const indice = (estado.dia * 7919 + id.length * 131) % postsPorEste.length;
-      const post = postsPorEste[indice];
-      if (post) {
-        posts.push({ autor: id, texto: post });
-      }
-    });
-
-    // Renderizar posts em ordem inversa (mais novos primeiro)
-    const postsOrdenados = posts.reverse();
-    const y0 = corpo.y + 10;
-    const lineHeight = 32;
-    const maxLines = Math.floor((corpo.h - 10) / lineHeight);
-
-    postsOrdenados.slice(0, maxLines).forEach((post, i) => {
-      const y = y0 + i * lineHeight;
-      const npcObj = NPCS[post.autor as keyof typeof NPCS];
-      const nomeNpc = npcObj?.nome || post.autor;
-
-      objetos.push(
-        texto(cena, corpo.x + 12, y, `${nomeNpc}:`, {
-          fontSize: '9px',
-          color: '#5b6c7f',
-          fontStyle: 'bold',
-        }),
-      );
-      objetos.push(
-        texto(cena, corpo.x + 12, y + 12, post.texto, {
-          fontSize: '8px',
-          color: '#2a2b2e',
-          wordWrap: { width: corpo.w - 24 },
-        }),
-      );
-    });
-
-    return objetos;
+  private trocarAba(aba: AbaNavegador): void {
+    if (this.abaAtiva === aba) return;
+    this.abaAtiva = aba;
+    this.topo = 0;
+    this.redesenhar();
   }
 
-  private renderRelacionamentos(ctx: ContextoApp, corpo: { x: number; y: number; w: number; h: number }): Phaser.GameObjects.GameObject[] {
-    const objetos: Phaser.GameObjects.GameObject[] = [];
-    const { cena } = ctx;
+  private rolar(passo: number): void {
+    const maximo = Math.max(0, this.total - this.visiveis);
+    const novo = Math.min(maximo, Math.max(0, this.topo + passo));
+    if (novo === this.topo) return;
+    this.topo = novo;
+    this.redesenhar();
+  }
 
-    // Listar NPCs com score != 0
-    const npcInteragidos = estado.relacoes.npcsBocaAberta();
-    if (npcInteragidos.length === 0) {
-      objetos.push(
-        texto(cena, corpo.x + 12, corpo.y + 10, 'Nenhum relacionamento ainda.', {
-          fontSize: '9px',
+  /** Repinta as abas e reconstroi o conteudo da aba ativa. */
+  private redesenhar(): void {
+    this.abas.forEach((visual, i) => {
+      const ativa = ABAS[i].id === this.abaAtiva;
+      visual.fundo.setFillStyle(ativa ? PC.bordaViva : PC.painelClaro);
+      visual.fundo.setStrokeStyle(1, ativa ? PC.bordaViva : PC.borda);
+      visual.rotulo.setColor(ativa ? '#0e1420' : PC.textoFraco);
+    });
+
+    this.conteudo.removeAll(true);
+    if (this.abaAtiva === 'blog') this.desenharBlog();
+    else this.desenharRelacoes();
+  }
+
+  // ---------------------------------------------------------------- blog --
+
+  private desenharBlog(): void {
+    const posts = feedAte(estado.dia);
+    this.total = posts.length;
+    this.visiveis = Math.max(1, Math.floor((this.corpo.h - 12) / LINHA_POST));
+    this.topo = Math.min(this.topo, Math.max(0, this.total - this.visiveis));
+
+    if (posts.length === 0) {
+      this.conteudo.add(
+        texto(this.cena, this.corpo.x + 12, this.corpo.y + 12, 'O feed ainda esta vazio.', {
+          fontSize: UI.tamanho,
           color: PC.textoFraco,
         }),
       );
-      return objetos;
+      this.rodape.setText('[A/D] trocar de aba   [Esc] sair');
+      return;
     }
 
-    const y0 = corpo.y + 10;
-    const lineHeight = 24;
-    const maxLines = Math.floor((corpo.h - 10) / lineHeight);
-
-    npcInteragidos.slice(0, maxLines).forEach((npcId, i) => {
-      const y = y0 + i * lineHeight;
-      const npcObj = NPCS[npcId as keyof typeof NPCS];
-      const npcNome = npcObj?.nome || npcId;
-      const score = estado.relacoes.getScore(npcId);
-      const label = estado.relacoes.getNivel(npcId);
-
-      // Coracaozinho visual (simples: X de 12, com metade pra meia unidade)
-      const coracao = this.coracaozinho(score);
-
-      // Desconto se aplicavel
-      let textoDesconto = '';
-      if (npcObj?.casa !== 'casa_1') {
-        const desconto = percentualDescontoNpc(npcId);
-        if (desconto > 0) {
-          textoDesconto = ` (-${Math.round(desconto * 100)}%)`;
-        }
-      }
-
-      objetos.push(
-        texto(cena, corpo.x + 12, y, `${npcNome}  ${coracao}  ${label}${textoDesconto}`, {
-          fontSize: '9px',
-          color: '#2a2b2e',
+    posts.slice(this.topo, this.topo + this.visiveis).forEach((post, i) => {
+      const y = this.corpo.y + 10 + i * LINHA_POST;
+      this.conteudo.add(
+        texto(this.cena, this.corpo.x + 12, y, this.cabecalhoDoPost(post), {
+          fontSize: UI.tamanho,
+          color: PC.destaque,
+        }),
+      );
+      this.conteudo.add(
+        texto(this.cena, this.corpo.x + 12, y + 13, post.texto, {
+          fontSize: UI.tamanho,
+          color: PC.texto,
+          wordWrap: { width: this.corpo.w - 26 },
+          lineSpacing: 1,
         }),
       );
     });
 
-    return objetos;
+    this.rodape.setText(
+      `${this.topo + 1}-${Math.min(this.total, this.topo + this.visiveis)} de ${this.total}` +
+        '   [W/S] rolar   [A/D] trocar de aba   [Esc] sair',
+    );
   }
 
-  /** Criar representacao visual de hearts baseado no score (-12 a 12). */
-  private coracaozinho(score: number): string {
-    // Score vai de -12 a 12
-    // Vamos representar como 6 posicoes no coracaozinho (0-12 = 0-6, negativo = quebrado)
-    if (score < 0) {
-      // Coração quebrado pra negativo
-      return '💔';
-    }
-    if (score === 0) {
-      return '  '; // Vazio
+  private cabecalhoDoPost(post: PostDoBlog): string {
+    const nome = buscarNpc(post.npcId)?.nome ?? post.npcId;
+    const hora = `${String(Math.floor(post.minuto / 60)).padStart(2, '0')}:${String(post.minuto % 60).padStart(2, '0')}`;
+    const quando =
+      post.dia === estado.dia
+        ? `hoje ${hora}`
+        : post.dia === estado.dia - 1
+          ? `ontem ${hora}`
+          : `${nomeDoDia(post.dia)} ${hora}`;
+    return `${nome}  ·  ${quando}`;
+  }
+
+  // ------------------------------------------------------- relacionamento --
+
+  private desenharRelacoes(): void {
+    const npcs = estado.relacoes.listaInteragidos();
+    this.total = npcs.length;
+    this.visiveis = Math.max(1, Math.floor((this.corpo.h - 12) / LINHA_RELACAO));
+    this.topo = Math.min(this.topo, Math.max(0, this.total - this.visiveis));
+
+    if (npcs.length === 0) {
+      this.conteudo.add(
+        texto(
+          this.cena,
+          this.corpo.x + 12,
+          this.corpo.y + 12,
+          'Voce ainda nao falou com ninguem.\nConverse com alguem na cidade pra a lista aparecer aqui.',
+          { fontSize: UI.tamanho, color: PC.textoFraco, lineSpacing: 3 },
+        ),
+      );
+      this.rodape.setText('[A/D] trocar de aba   [Esc] sair');
+      return;
     }
 
-    // Para score positivo, usar número de corações
-    // score 0.5-2.5 = 1 coração, 3-4.5 = 2, etc
-    const corações = Math.round(score / 2);
-    return '❤'.repeat(Math.min(corações, 6));
+    const g = this.cena.add.graphics();
+    this.conteudo.add(g);
+
+    npcs.slice(this.topo, this.topo + this.visiveis).forEach((npcId, i) => {
+      const y = this.corpo.y + 8 + i * LINHA_RELACAO;
+      const nome = buscarNpc(npcId)?.nome ?? npcId;
+      const score = estado.relacoes.getScore(npcId);
+      const rotulo = estado.relacoes.getRotulo(npcId);
+
+      this.conteudo.add(
+        texto(this.cena, this.corpo.x + 12, y, nome, { fontSize: UI.tamanhoTitulo, color: PC.texto }),
+      );
+
+      this.desenharCoracoes(g, this.corpo.x + 12, y + 19, score);
+
+      const xTexto = this.corpo.x + 12 + CORACAO.quantidade * CORACAO.passo + 12;
+      this.conteudo.add(
+        texto(this.cena, xTexto, y + 14, `${rotulo}  (${score.toFixed(1).replace('.', ',')})`, {
+          fontSize: UI.tamanho,
+          color: score < 0 ? PC.alerta : PC.textoFraco,
+        }),
+      );
+
+      const desconto = this.descontoDe(npcId);
+      if (desconto > 0) {
+        this.conteudo.add(
+          this.cena.add
+            .text(this.corpo.x + this.corpo.w - 12, y + 14, `desconto -${Math.round(desconto * 100)}%`, {
+              fontFamily: UI.fonte,
+              fontSize: UI.tamanho,
+              color: PC.sucesso,
+            })
+            .setOrigin(1, 0),
+        );
+      }
+    });
+
+    this.rodape.setText(
+      `${npcs.length} pessoa(s)   [W/S] rolar   [A/D] trocar de aba   [Esc] sair`,
+    );
+  }
+
+  /**
+   * O desconto que este NPC da HOJE, ou 0 se ele nao vende nada. Sai da lista
+   * de pontos de loja, entao quando a farmacia e o bar ganharem venda propria a
+   * linha deles aparece aqui sozinha, sem mexer neste arquivo.
+   */
+  private descontoDe(npcId: string): number {
+    const vende = PONTOS_DE_LOJA.some((p) => p.npcDono === npcId);
+    return vende ? percentualDescontoNpc(npcId) : 0;
+  }
+
+  /**
+   * A barra de coracoes. Cada coracao vale 1 ponto e e desenhado em duas
+   * metades, entao um score de 3,5 sai como tres coracoes cheios e um pela
+   * metade — sem precisar de fonte nem de emoji.
+   *
+   * Score negativo troca a barra por coracoes PARTIDOS (as duas metades
+   * afastadas, em laranja de alerta), um por ponto negativo: e uma leitura
+   * diferente da barra vazia, que significa "ainda nao conheco voce".
+   */
+  private desenharCoracoes(g: Phaser.GameObjects.Graphics, x: number, y: number, score: number): void {
+    if (score < 0) {
+      const partidos = Math.min(CORACAO.quantidade, Math.ceil(Math.abs(score)));
+      for (let i = 0; i < CORACAO.quantidade; i++) {
+        const cx = x + i * CORACAO.passo + CORACAO.raio;
+        if (i < partidos) {
+          g.fillStyle(CORACAO.quebrado, 1);
+          this.metadeDeCoracao(g, cx - 1, y, 'esquerda');
+          this.metadeDeCoracao(g, cx + 1, y, 'direita');
+        } else {
+          g.fillStyle(CORACAO.vazio, 1);
+          this.metadeDeCoracao(g, cx, y, 'esquerda');
+          this.metadeDeCoracao(g, cx, y, 'direita');
+        }
+      }
+      return;
+    }
+
+    for (let i = 0; i < CORACAO.quantidade; i++) {
+      const cx = x + i * CORACAO.passo + CORACAO.raio;
+      const preenchimento = Math.max(0, Math.min(1, score - i));
+      // metade esquerda: cheia a partir de 0,5 de ponto neste coracao
+      g.fillStyle(preenchimento >= 0.5 ? CORACAO.cheio : CORACAO.vazio, 1);
+      this.metadeDeCoracao(g, cx, y, 'esquerda');
+      g.fillStyle(preenchimento >= 1 ? CORACAO.cheio : CORACAO.vazio, 1);
+      this.metadeDeCoracao(g, cx, y, 'direita');
+    }
+  }
+
+  /**
+   * Uma metade de coracao: o lobo (meio circulo) mais o triangulo da ponta.
+   * Desenhar por metade e o que permite o meio-coracao sem mascara nenhuma —
+   * as duas metades se encostam exatamente no eixo vertical do centro.
+   */
+  private metadeDeCoracao(
+    g: Phaser.GameObjects.Graphics,
+    cx: number,
+    cy: number,
+    lado: 'esquerda' | 'direita',
+  ): void {
+    const r = CORACAO.raio;
+    const sinal = lado === 'esquerda' ? -1 : 1;
+    g.fillCircle(cx + (sinal * r) / 2, cy - r / 4, r / 2);
+    g.fillTriangle(cx, cy - r / 4, cx + sinal * r, cy - r / 4, cx, cy + r);
   }
 }

@@ -6,7 +6,15 @@ import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
 import type { DefinicaoItem } from '../game/inventario';
 import type { CategoriaItem, DefinicaoItemLoja } from '../game/itens';
-import { LIMITE_POR_COMPRA, buscarLoja, comprar, itensDaLoja, quantidadeViavel } from '../game/loja';
+import {
+  LIMITE_POR_COMPRA,
+  buscarLoja,
+  comprar,
+  itensDaLoja,
+  percentualDescontoNpc,
+  precoNoPonto,
+  quantidadeViavel,
+} from '../game/loja';
 import type { PontoDeLoja } from '../game/loja';
 import type { Fala, MundoJogavel } from '../game/tipos';
 
@@ -39,6 +47,19 @@ const LOJA = {
   alturaLinha: 21,
   /** largura da coluna da lista; o resto e a coluna de detalhe */
   lista: 252,
+};
+
+/**
+ * Menu de escolha (temas de conversa e escolha de presente). Fica logo acima da
+ * caixa de dialogo, que continua visivel por baixo — o jogador precisa ver COM
+ * QUEM esta falando enquanto escolhe o que dizer.
+ */
+const MENU = {
+  w: 300,
+  margem: 8,
+  alturaLinha: 15,
+  /** quantas opcoes aparecem por vez; o resto rola */
+  linhas: 6,
 };
 
 /** Quanto o icone de item ocupa, em px, no slot do inventario e na lista da loja. */
@@ -114,6 +135,17 @@ export class UIScene extends Phaser.Scene {
   private lojaDetalheTotal!: Phaser.GameObjects.Text;
   private lojaAviso!: Phaser.GameObjects.Text;
 
+  // --- menu de escolha (temas / presentes) ---
+  private menu!: Phaser.GameObjects.Container;
+  private menuFundo!: Phaser.GameObjects.Graphics;
+  private menuTitulo!: Phaser.GameObjects.Text;
+  private menuLinhas: Phaser.GameObjects.Text[] = [];
+  private menuRodape!: Phaser.GameObjects.Text;
+  private menuOpcoes: OpcaoDeMenu[] = [];
+  private menuCursor = 0;
+  private menuTopo = 0;
+  private menuAoCancelar: (() => void) | null = null;
+
   constructor() {
     super({ key: 'UIScene', active: false });
   }
@@ -125,8 +157,13 @@ export class UIScene extends Phaser.Scene {
       this.confirmacaoAberta ||
       this.inventarioAberto ||
       this.lojaAberta ||
+      this.menuAberto ||
       this.computadorAberto
     );
+  }
+
+  get menuAberto(): boolean {
+    return this.menu?.visible ?? false;
   }
 
   get computadorAberto(): boolean {
@@ -139,7 +176,7 @@ export class UIScene extends Phaser.Scene {
 
   /** true enquanto uma janela modal esta por cima das outras. */
   private get modalPorCima(): boolean {
-    return this.dialogoAberto || this.confirmacaoAberta;
+    return this.dialogoAberto || this.confirmacaoAberta || this.menuAberto;
   }
 
   get dialogoAberto(): boolean {
@@ -192,6 +229,7 @@ export class UIScene extends Phaser.Scene {
     this.confirmacao = this.criarCaixaDeConfirmacao();
     this.inventario = this.criarPainelDeInventario();
     this.loja = this.criarPainelDeLoja();
+    this.menu = this.criarMenu();
 
     const teclado = this.input.keyboard;
     // sem isso o Tab move o foco do navegador em vez de chegar aqui
@@ -205,12 +243,12 @@ export class UIScene extends Phaser.Scene {
     teclado?.on('keydown-A', (e: KeyboardEvent) => this.horizontal(-1, e));
     teclado?.on('keydown-D', (e: KeyboardEvent) => this.horizontal(1, e));
     // vertical: so a lista da loja usa
-    teclado?.on('keydown-UP', () => this.moverListaDaLoja(-1));
-    teclado?.on('keydown-DOWN', () => this.moverListaDaLoja(1));
-    teclado?.on('keydown-W', () => this.moverListaDaLoja(-1));
-    teclado?.on('keydown-S', () => this.moverListaDaLoja(1));
-    teclado?.on('keydown-PAGE_UP', () => this.moverListaDaLoja(-LOJA.linhas));
-    teclado?.on('keydown-PAGE_DOWN', () => this.moverListaDaLoja(LOJA.linhas));
+    teclado?.on('keydown-UP', () => this.mover(-1));
+    teclado?.on('keydown-DOWN', () => this.mover(1));
+    teclado?.on('keydown-W', () => this.mover(-1));
+    teclado?.on('keydown-S', () => this.mover(1));
+    teclado?.on('keydown-PAGE_UP', () => this.mover(-LOJA.linhas));
+    teclado?.on('keydown-PAGE_DOWN', () => this.mover(LOJA.linhas));
     teclado?.on('keydown-C', () => this.alternarFiltroDaLoja());
     // acoes do inventario
     teclado?.on('keydown-U', () => this.usarSelecionado());
@@ -220,6 +258,10 @@ export class UIScene extends Phaser.Scene {
     this.input.on(
       'wheel',
       (_p: unknown, _o: unknown, _dx: number, dy: number) => {
+        if (this.menuAberto) {
+          this.moverMenu(dy > 0 ? 1 : -1);
+          return;
+        }
         if (this.lojaAberta && !this.modalPorCima) this.moverListaDaLoja(dy > 0 ? 1 : -1);
       },
     );
@@ -394,6 +436,10 @@ export class UIScene extends Phaser.Scene {
   }
 
   private cancelar(): void {
+    if (this.menuAberto) {
+      this.cancelarMenu();
+      return;
+    }
     if (this.confirmacaoAberta) {
       const aoNao = this.aoNao;
       this.fecharConfirmacao();
@@ -446,6 +492,132 @@ export class UIScene extends Phaser.Scene {
     return this.add
       .container(0, 0, [fundo, this.confirmacaoTexto, ...this.opcoes])
       .setDepth(110)
+      .setVisible(false);
+  }
+
+  // ------------------------------------------------------------------ menu --
+
+  /**
+   * Menu de escolha, usado pelos temas de conversa e pela escolha de presente.
+   *
+   * Fica ACIMA da caixa de dialogo e nao a esconde: o jogador continua vendo
+   * com quem esta falando enquanto decide. Enquanto ele esta aberto, `bloqueado`
+   * segura o movimento do player, do mesmo jeito que o dialogo ja fazia.
+   */
+  abrirMenu(titulo: string, opcoes: OpcaoDeMenu[], aoCancelar?: () => void): void {
+    if (opcoes.length === 0) {
+      aoCancelar?.();
+      return;
+    }
+    this.menuOpcoes = opcoes;
+    this.menuCursor = 0;
+    this.menuTopo = 0;
+    this.menuAoCancelar = aoCancelar ?? null;
+    this.menuTitulo.setText(titulo);
+    this.menu.setVisible(true);
+    this.desenharMenu();
+    this.desenharPrompt();
+  }
+
+  fecharMenu(): void {
+    this.menu.setVisible(false);
+    this.menuOpcoes = [];
+    this.menuAoCancelar = null;
+    this.desenharPrompt();
+  }
+
+  private moverMenu(passo: number): void {
+    if (!this.menuAberto) return;
+    const ultimo = this.menuOpcoes.length - 1;
+    this.menuCursor = Math.min(ultimo, Math.max(0, this.menuCursor + passo));
+    const ultimoTopo = Math.max(0, this.menuOpcoes.length - MENU.linhas);
+    this.menuTopo = Math.min(ultimoTopo, Math.max(this.menuTopo, this.menuCursor - MENU.linhas + 1));
+    this.menuTopo = Math.min(this.menuTopo, this.menuCursor);
+    this.desenharMenu();
+  }
+
+  /**
+   * Confirma a opcao sob o cursor. O menu fecha ANTES de rodar a acao: quase
+   * toda acao abre um dialogo, e deixar o menu aberto por baixo empilharia as
+   * duas janelas.
+   */
+  private escolherNoMenu(): void {
+    const opcao = this.menuOpcoes[this.menuCursor];
+    if (!opcao) return;
+    this.fecharMenu();
+    opcao.aoEscolher();
+  }
+
+  private cancelarMenu(): void {
+    const aoCancelar = this.menuAoCancelar;
+    this.fecharMenu();
+    aoCancelar?.();
+  }
+
+  private desenharMenu(): void {
+    const visiveis = Math.min(MENU.linhas, this.menuOpcoes.length);
+    const altura = MENU.margem * 2 + 15 + visiveis * MENU.alturaLinha + 12;
+    const x = (CONFIG.largura - MENU.w) / 2;
+    const y = CAIXA.y - altura - 4;
+
+    this.menuFundo.clear();
+    this.menuFundo.fillStyle(UI.fundo, 1);
+    this.menuFundo.fillRect(x, y, MENU.w, altura);
+    this.menuFundo.lineStyle(1, UI.borda, 1);
+    this.menuFundo.strokeRect(x + 0.5, y + 0.5, MENU.w - 1, altura - 1);
+
+    this.menuTitulo.setPosition(x + MENU.margem, y + MENU.margem);
+
+    this.menuLinhas.forEach((linha, i) => {
+      const opcao = this.menuOpcoes[this.menuTopo + i];
+      const dentro = i < visiveis && Boolean(opcao);
+      linha.setVisible(dentro);
+      if (!dentro || !opcao) return;
+      const ativo = this.menuTopo + i === this.menuCursor;
+      linha.setPosition(x + MENU.margem, y + MENU.margem + 15 + i * MENU.alturaLinha);
+      linha.setColor(ativo ? UI.destaque : UI.textoFraco);
+      linha.setText(`${ativo ? '>' : ' '} ${encurtarMenu(opcao.rotulo)}`);
+    });
+
+    this.menuRodape.setPosition(x + MENU.margem, y + altura - 13);
+    this.menuRodape.setText(
+      this.menuOpcoes.length > MENU.linhas
+        ? `${this.menuCursor + 1}/${this.menuOpcoes.length}  [W/S] escolher  [E] confirmar  [ESC] sair`
+        : '[W/S] escolher   [E] confirmar   [ESC] sair',
+    );
+  }
+
+  private criarMenu(): Phaser.GameObjects.Container {
+    this.menuFundo = this.add.graphics();
+    this.menuTitulo = this.add.text(0, 0, '', {
+      fontFamily: UI.fonte,
+      fontSize: UI.tamanhoTitulo,
+      color: UI.destaque,
+    });
+    this.menuLinhas = Array.from({ length: MENU.linhas }, (_, i) => {
+      const linha = this.add
+        .text(0, 0, '', { fontFamily: UI.fonte, fontSize: UI.tamanho, color: UI.textoFraco })
+        .setInteractive({ useHandCursor: true });
+      // passar o mouse ja seleciona; o clique confirma pelo handler global,
+      // igual a confirmacao Sim/Nao
+      linha.on('pointerover', () => {
+        if (!this.menuAberto) return;
+        const indice = this.menuTopo + i;
+        if (indice >= this.menuOpcoes.length) return;
+        this.menuCursor = indice;
+        this.desenharMenu();
+      });
+      return linha;
+    });
+    this.menuRodape = this.add.text(0, 0, '', {
+      fontFamily: UI.fonte,
+      fontSize: UI.tamanho,
+      color: UI.textoFraco,
+    });
+
+    return this.add
+      .container(0, 0, [this.menuFundo, this.menuTitulo, ...this.menuLinhas, this.menuRodape])
+      .setDepth(108)
       .setVisible(false);
   }
 
@@ -754,6 +926,18 @@ export class UIScene extends Phaser.Scene {
     this.desenharLoja();
   }
 
+  /**
+   * W/S e as setas verticais. Um dono por vez, na ordem de quem esta por cima:
+   * o menu de escolha antes da lista da loja.
+   */
+  private mover(passo: number): void {
+    if (this.menuAberto) {
+      this.moverMenu(passo);
+      return;
+    }
+    this.moverListaDaLoja(passo);
+  }
+
   private moverListaDaLoja(passo: number): void {
     if (!this.lojaAberta || this.modalPorCima || this.lojaItens.length === 0) return;
     const ultimo = this.lojaItens.length - 1;
@@ -777,7 +961,10 @@ export class UIScene extends Phaser.Scene {
   private mudarQuantidade(passo: number): void {
     const item = this.lojaItens[this.lojaCursor];
     if (!item) return;
-    const teto = Math.max(1, Math.min(LIMITE_POR_COMPRA, quantidadeViavel(item.id) || 1));
+    const teto = Math.max(
+      1,
+      Math.min(LIMITE_POR_COMPRA, quantidadeViavel(item.id, this.lojaPonto) || 1),
+    );
     this.lojaQuantidade = Math.min(teto, Math.max(1, this.lojaQuantidade + passo));
     this.lojaAviso.setText('');
     this.desenharLoja();
@@ -792,7 +979,7 @@ export class UIScene extends Phaser.Scene {
     const item = this.lojaItens[this.lojaCursor];
     if (!item) return;
     const qtd = this.lojaQuantidade;
-    const total = item.preco * qtd;
+    const total = precoNoPonto(item, this.lojaPonto) * qtd;
 
     // as duas recusas previsiveis viram aviso na hora: nao ha por que abrir uma
     // confirmacao pra perguntar algo que ja se sabe que vai falhar
@@ -814,7 +1001,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private efetivarCompra(item: DefinicaoItemLoja, qtd: number): void {
-    const r = comprar(item.id, qtd);
+    const r = comprar(item.id, qtd, this.lojaPonto);
     if (r.ok) {
       this.avisoDaLoja(
         `Comprou ${item.nome} x${qtd} por ${formatarDinheiro(r.total)}.`,
@@ -847,7 +1034,11 @@ export class UIScene extends Phaser.Scene {
     if (!this.lojaPonto) return;
     const filtro =
       this.lojaFiltro === null ? 'tudo' : this.lojaFiltro === 'normal' ? 'mercado' : 'eletronico';
-    this.lojaTitulo.setText(`${this.lojaPonto.nome} - ${filtro}`);
+    const descontoTitulo = percentualDescontoNpc(this.lojaPonto.npcDono);
+    this.lojaTitulo.setText(
+      `${this.lojaPonto.nome} - ${filtro}` +
+        (descontoTitulo > 0 ? `   desconto de amizade -${Math.round(descontoTitulo * 100)}%` : ''),
+    );
     this.lojaSaldo.setText(estado.carteira.texto);
 
     this.lojaLinhas.forEach((linha, i) => {
@@ -866,8 +1057,15 @@ export class UIScene extends Phaser.Scene {
       linha.nome.setColor(ativo ? UI.destaque : UI.texto);
       linha.nome.setText(tem > 0 ? `${item.nome}  (tem ${tem})` : item.nome);
       // o que o saldo nao cobre ja aparece na cor de alerta, antes de tentar
-      linha.preco.setColor(estado.carteira.temSaldo(item.preco) ? UI.texto : UI.alerta);
-      linha.preco.setText(formatarDinheiro(item.preco));
+      const unidade = precoNoPonto(item, this.lojaPonto);
+      linha.preco.setColor(estado.carteira.temSaldo(unidade) ? UI.texto : UI.alerta);
+      // com desconto o preco de tabela fica visivel ao lado do cobrado: sem
+      // isso o jogador nao tem como saber que a relacao esta valendo alguma coisa
+      linha.preco.setText(
+        unidade === item.preco
+          ? formatarDinheiro(unidade)
+          : `${formatarDinheiro(item.preco)} > ${formatarDinheiro(unidade)}`,
+      );
     });
 
     const total = this.lojaItens.length;
@@ -884,13 +1082,19 @@ export class UIScene extends Phaser.Scene {
       this.lojaDetalheTotal.setText('');
       return;
     }
-    const teto = quantidadeViavel(item.id);
+    // o mesmo `precoNoPonto` que a lista e o caixa usam: se o detalhe calculasse
+    // por conta propria, a vitrine e a cobranca poderiam discordar
+    const unidade = precoNoPonto(item, this.lojaPonto);
+    const desconto = percentualDescontoNpc(this.lojaPonto.npcDono);
+    const teto = quantidadeViavel(item.id, this.lojaPonto);
     this.lojaDetalheNome.setText(item.nome);
     this.lojaDetalheTexto.setText(
-      `${item.descricao}\n\nUnidade: ${formatarDinheiro(item.preco)}\nLeva agora: ${teto}`,
+      `${item.descricao}\n\nUnidade: ${formatarDinheiro(unidade)}` +
+        (desconto > 0 ? `  (de ${formatarDinheiro(item.preco)}, -${Math.round(desconto * 100)}%)` : '') +
+        `\nLeva agora: ${teto}`,
     );
     this.lojaDetalheTotal.setText(
-      `x${this.lojaQuantidade}   ${formatarDinheiro(item.preco * this.lojaQuantidade)}`,
+      `x${this.lojaQuantidade}   ${formatarDinheiro(unidade * this.lojaQuantidade)}`,
     );
   }
 
@@ -1055,6 +1259,12 @@ export class UIScene extends Phaser.Scene {
       this.avancarDialogo();
       return;
     }
+    // o menu vem antes da loja: quando o jogador escolhe presente com a loja
+    // aberta por baixo, e o menu que esta na frente
+    if (this.menuAberto) {
+      this.escolherNoMenu();
+      return;
+    }
     if (this.lojaAberta) {
       this.pedirCompra();
       return;
@@ -1063,6 +1273,19 @@ export class UIScene extends Phaser.Scene {
     const mundo = this.scene.get('FarmScene') as unknown as MundoJogavel | undefined;
     mundo?.interagir();
   }
+}
+
+/** Uma linha do menu de escolha. */
+export interface OpcaoDeMenu {
+  rotulo: string;
+  aoEscolher(): void;
+}
+
+/** A fonte e monoespacada, entao contar caractere ja e medir largura. */
+const LIMITE_MENU = Math.floor((MENU.w - MENU.margem * 2) / 6) - 2;
+
+function encurtarMenu(conteudo: string): string {
+  return conteudo.length <= LIMITE_MENU ? conteudo : `${conteudo.slice(0, LIMITE_MENU - 1)}…`;
 }
 
 /**

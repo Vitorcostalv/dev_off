@@ -9,18 +9,19 @@ import {
   ITEM_ENCOMENDA,
   NOME_DE_DIFICULDADE,
   NOME_DE_TIPO,
-  pagamentoDeCodigo,
   pagamentoDeConserto,
-  perguntaDaVaga,
+  pagamentoDeVagaDeCodigo,
+  pecasDoConserto,
+  perguntasDaVaga,
   quadroDoDia,
-  sequenciaDoConserto,
+  tempoDoConserto,
 } from '../../../game/trabalhos.ts';
 import type { Vaga } from '../../../game/trabalhos.ts';
 import { PC, caixa, encurtar, texto } from '../../widgets.ts';
 import type { Retangulo } from '../../widgets.ts';
 import type { AppDoPc, ContextoApp } from '../../tipos.ts';
 import { QuizCodigo } from './quizCodigo.ts';
-import { SequenciaConserto } from './sequenciaConserto.ts';
+import { QuebraCabecaConserto } from './quebraCabecaConserto.ts';
 import type { Vista } from '../../vista.ts';
 
 /**
@@ -29,8 +30,8 @@ import type { Vista } from '../../vista.ts';
  * Tres tipos, cada um resolvido de um jeito:
  *   entrega  — poe uma encomenda no inventario e so paga quando o jogador
  *              chega na porta do destino, la no mundo (FarmScene.entregarNaPorta)
- *   codigo   — minigame de pergunta unica, resolvido aqui dentro
- *   conserto — minigame de sequencia, resolvido aqui dentro
+ *   codigo   — minigame de 1 a 5 perguntas, resolvido aqui dentro
+ *   conserto — quebra-cabeca de encaixe por arraste, resolvido aqui dentro
  *
  * ---------------------------------------------------------------------------
  * DINHEIRO
@@ -42,11 +43,12 @@ import type { Vista } from '../../vista.ts';
  * ---------------------------------------------------------------------------
  * QUANDO A VAGA SOME DO QUADRO
  * ---------------------------------------------------------------------------
- * Uma vaga e marcada como concluida quando PAGOU alguma coisa. Errar o quiz
- * paga zero e deixa a vaga no quadro, entao da pra tentar de novo (a pergunta e
- * a mesma — o custo do erro e o tempo, nao a vaga). Um conserto que acertou 3
- * de 7 passos pagou 3/7 e ESTA concluido: sem isso, daria pra repetir o mesmo
- * conserto ate raspar a recompensa inteira em pedacos.
+ * Uma vaga e marcada como concluida quando PAGOU alguma coisa. Zerar o quiz
+ * paga zero e deixa a vaga no quadro, entao da pra tentar de novo (as perguntas
+ * sao as mesmas — o custo do erro e o tempo, nao a vaga). Um conserto que
+ * encaixou 3 de 4 pecas pagou 3/4 e ESTA concluido: sem isso, daria pra repetir
+ * o mesmo conserto ate raspar a recompensa inteira em pedacos. Vale igual pra
+ * vaga de codigo multi-etapa que acertou parte das perguntas.
  */
 
 const LINHA = { altura: 27, gap: 4 };
@@ -129,8 +131,20 @@ export class Trabalho implements AppDoPc {
 
   // ------------------------------------------------------------- quadro --
 
+  /**
+   * Fecha a vista atual antes de destruir os objetos dela. `removeAll` so
+   * alcanca o que esta DENTRO do container; listener de input registrado na
+   * cena (o arraste do conserto) tem de sair pelo `aoFechar` da vista.
+   */
   private limparRaiz(): void {
+    this.minigame?.aoFechar?.();
+    this.minigame = null;
     this.raiz.removeAll(true);
+  }
+
+  /** A moldura chama ao sair do app; sem isto o arraste sobreviveria ao Esc. */
+  aoFechar(): void {
+    this.minigame?.aoFechar?.();
     this.minigame = null;
   }
 
@@ -249,11 +263,21 @@ export class Trabalho implements AppDoPc {
       linhas.push('', `Destino: ${vaga.moradorDestino} (${this.nomeDoMapa(vaga.destino)})`);
     }
     if (vaga.tipo === 'conserto') {
-      const { passos } = CONSERTO_POR_DIFICULDADE[vaga.dificuldade];
-      linhas.push('', `Sequencia de ${passos} pecas.`, 'Paga proporcional ao que acertar.');
+      const { pecas, segundos } = CONSERTO_POR_DIFICULDADE[vaga.dificuldade];
+      linhas.push(
+        '',
+        `Montar ${pecas} pecas em ${segundos}s.`,
+        'Paga proporcional ao que encaixar.',
+      );
     }
     if (vaga.tipo === 'codigo') {
-      linhas.push('', 'Uma pergunta. Acertou, paga tudo;', 'errou, nao paga nada.');
+      const etapas = vaga.etapas ?? 1;
+      linhas.push(
+        '',
+        etapas === 1
+          ? 'Uma pergunta. Acertou, paga tudo; errou, nao paga nada.'
+          : `${etapas} perguntas. Paga proporcional aos acertos.`,
+      );
     }
 
     linhas.push('', feita ? 'Ja concluida hoje.' : `[E] ${this.verboDaVaga(vaga)}`);
@@ -337,10 +361,21 @@ export class Trabalho implements AppDoPc {
 
   private abrirQuiz(vaga: Vaga): void {
     this.limparRaiz();
-    const pergunta = perguntaDaVaga(vaga, estado.dia);
-    this.minigame = new QuizCodigo(pergunta, (acertou) => this.pagarCodigo(vaga, acertou));
+    const perguntas = perguntasDaVaga(vaga, estado.dia);
+    if (perguntas.length === 0) {
+      this.avisar('Essa vaga esta sem pergunta. Avise o suporte.', PC.alerta);
+      this.abrirLista();
+      return;
+    }
+    this.minigame = new QuizCodigo(perguntas, (acertos, total) =>
+      this.pagarCodigo(vaga, acertos, total),
+    );
     this.minigame.montar(this.cena, this.raiz, this.areaDaVista);
-    this.avisar(`${vaga.titulo} — ${formatarDinheiro(vaga.recompensa)} se acertar. [Esc] desiste.`);
+    this.avisar(
+      perguntas.length === 1
+        ? `${vaga.titulo} — ${formatarDinheiro(vaga.recompensa)} se acertar. [Esc] desiste.`
+        : `${vaga.titulo} — ${perguntas.length} etapas, paga proporcional aos acertos. [Esc] desiste.`,
+    );
   }
 
   private abrirConserto(vaga: Vaga): void {
@@ -349,37 +384,48 @@ export class Trabalho implements AppDoPc {
       this.avisar('Aparelho nao encontrado no catalogo.', PC.alerta);
       return;
     }
+    const pecas = pecasDoConserto(vaga, estado.dia);
+    if (pecas.length === 0) {
+      this.avisar('Esse aparelho esta sem pecas no catalogo. Avise o suporte.', PC.alerta);
+      return;
+    }
     this.limparRaiz();
-    const sequencia = sequenciaDoConserto(vaga, estado.dia);
-    const { passos, msPorPasso } = CONSERTO_POR_DIFICULDADE[vaga.dificuldade];
-    this.minigame = new SequenciaConserto(
+    this.minigame = new QuebraCabecaConserto(
       aparelho,
-      sequencia,
-      passos * msPorPasso,
+      pecas,
+      tempoDoConserto(vaga),
+      // na dificuldade alta o slot nao diz que peca aceita: reconhecer o
+      // componente pela arte e parte do que a vaga esta pagando
+      vaga.dificuldade !== 'dificil',
       (acertos, total) => this.pagarConserto(vaga, acertos, total),
     );
     this.minigame.montar(this.cena, this.raiz, this.areaDaVista);
-    this.avisar(`${vaga.titulo} — ${formatarDinheiro(vaga.recompensa)} pela sequencia inteira.`);
+    this.avisar(`${vaga.titulo} — ${formatarDinheiro(vaga.recompensa)} pelo aparelho inteiro.`);
   }
 
   // ---------------------------------------------------------- pagamento --
 
-  private pagarCodigo(vaga: Vaga, acertou: boolean): void {
-    const valor = pagamentoDeCodigo(vaga, acertou);
+  private pagarCodigo(vaga: Vaga, acertos: number, total: number): void {
+    const valor = pagamentoDeVagaDeCodigo(vaga, acertos, total);
     if (valor <= 0) {
-      this.avisar('Resposta errada. Nao paga nada — a vaga continua no quadro. [Esc] volta.', PC.alerta);
+      this.avisar(
+        total > 1
+          ? 'Nenhuma etapa certa. Nao paga nada — a vaga continua no quadro. [Esc] volta.'
+          : 'Resposta errada. Nao paga nada — a vaga continua no quadro. [Esc] volta.',
+        PC.alerta,
+      );
       return;
     }
-    this.creditar(vaga, valor, 'Acertou');
+    this.creditar(vaga, valor, total > 1 ? `${acertos}/${total} etapas` : 'Acertou');
   }
 
   private pagarConserto(vaga: Vaga, acertos: number, total: number): void {
     const valor = pagamentoDeConserto(vaga, acertos, total);
     if (valor <= 0) {
-      this.avisar('Nenhum passo certo. Nao paga nada — a vaga continua no quadro. [Esc] volta.', PC.alerta);
+      this.avisar('Nenhuma peca encaixada. Nao paga nada — a vaga continua no quadro. [Esc] volta.', PC.alerta);
       return;
     }
-    this.creditar(vaga, valor, `${acertos}/${total} passos`);
+    this.creditar(vaga, valor, `${acertos}/${total} pecas`);
   }
 
   /** A unica porta de credito do app. */

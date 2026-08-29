@@ -2,6 +2,7 @@ import { estado } from './estado.ts';
 import type { Entrega } from './dinheiro.ts';
 import { CATALOGO_ITENS, buscarItemDeLoja } from './itens.ts';
 import type { CategoriaItem, DefinicaoItemLoja } from './itens.ts';
+import type { NivelRelacao } from './relacoes.ts';
 
 /**
  * Loja — o balcao que vende os itens do `CATALOGO_ITENS`.
@@ -44,6 +45,12 @@ export interface PontoDeLoja {
    * as duas; um ponto futuro (a farmacia, por exemplo) pode vender so uma.
    */
   categorias: readonly CategoriaItem[];
+  /**
+   * Dono do ponto, quando ha um NPC atras do balcao. E o que liga o preco ao
+   * relacionamento (ver `precoComDesconto`). Ponto SEM dono — a DevStore, que e
+   * uma loja online sem NPC — deixa isto de fora e nunca da desconto.
+   */
+  npcDono?: string;
 }
 
 export const PONTOS_DE_LOJA: readonly PontoDeLoja[] = [
@@ -57,6 +64,10 @@ export const PONTOS_DE_LOJA: readonly PontoDeLoja[] = [
     nome: 'Mercado',
     rotulo: 'Comprar',
     categorias: ['normal', 'eletronico'],
+    // Jaqueline e a atendente do mercado: e a relacao com ela que barateia a
+    // compra aqui. Farmacia (Wendel) e bar (Alice) ainda nao vendem; quando
+    // venderem, basta declarar o ponto com `npcDono` e o desconto ja vale.
+    npcDono: 'jaqueline',
   },
 ];
 
@@ -100,53 +111,51 @@ export interface ResultadoCompra {
 
 // --------------------------------------------------------- desconto por relacao --
 /**
- * Tabela de desconto por nível de relacionamento.
+ * Desconto por NIVEL de relacionamento com o dono do ponto.
  *
- * Os descontos sao aplicados baseado no score do relacionamento com o dono:
- * - score 0-3.5: sem desconto
- * - score 4-7.5: 5% de desconto
- * - score 8-11.5: 10% de desconto
- * - score 12: 15% de desconto
+ * A tabela e indexada pelo NIVEL (o valor mecanico), nao pelo rotulo mostrado
+ * ao jogador: Jaqueline le "Confianca profunda" onde os outros leem
+ * "Namorando", e as duas leituras tem de dar os mesmos 10%. Amarrar o desconto
+ * ao texto faria o override de rotulo mudar o preco sem querer.
+ *
+ *   Estranho / Conhecido   0%
+ *   Amigo      (4  a 7,5)  5%
+ *   Namorando  (8  a 11,5) 10%
+ *   Casamento  (12)        15%
  */
-export const DESCONTO_POR_NIVEL: Record<string, number> = {
-  'Estranho': 0,
-  'Conhecido': 0,
-  'Amigo': 0.05,
-  'Namorando': 0.10,
-  'Casamento': 0.15,
-  'Confiança profunda': 0.10, // jaqueline override em nivel 8
-  'Amizade de família': 0.15, // jaqueline override em nivel 12
+export const DESCONTO_POR_NIVEL: Record<NivelRelacao, number> = {
+  Estranho: 0,
+  Conhecido: 0,
+  Amigo: 0.05,
+  Namorando: 0.1,
+  Casamento: 0.15,
 };
 
-/**
- * Calcula o preço com desconto baseado no relacionamento com o dono da loja.
- *
- * @param precoBase - preço em centavos
- * @param npcDono - id do NPC dono da loja (ex: 'jaqueline' para o mercado)
- * @returns preço final em centavos, com desconto aplicado se houver relação
- */
-export function precoComDesconto(precoBase: number, npcDono: string | undefined): number {
-  if (!npcDono) return precoBase;
-
-  const nivel = estado.relacoes.getNivel(npcDono);
-  const desconto = DESCONTO_POR_NIVEL[nivel] ?? 0;
-
-  if (desconto === 0) return precoBase;
-
-  // aplica desconto e arredonda pra centavo
-  const precoCom = Math.round(precoBase * (1 - desconto));
-  return precoCom;
+/** O percentual ativo com um NPC agora: 0 a 0,15. */
+export function percentualDescontoNpc(npcDono: string | undefined): number {
+  if (!npcDono) return 0;
+  return DESCONTO_POR_NIVEL[estado.relacoes.getNivel(npcDono)] ?? 0;
 }
 
 /**
- * Retorna o percentual de desconto ativo para um NPC.
- * Usado pela UI pra mostrar "Desconto: -5%" ao jogador.
+ * Preco final de um item num ponto com dono.
  *
- * @returns número entre 0 e 1 (ex: 0.15 para 15%)
+ * FUNCAO UNICA: quem mostra preco e quem cobra chamam esta mesma funcao, senao
+ * a vitrine e o caixa discordam. Arredonda pra BAIXO — o desconto nunca pode
+ * sair menor do que o anunciado por causa de arredondamento.
+ *
+ * @param precoBase preco de tabela em CENTAVOS
+ * @param npcDono   dono do ponto; `undefined` devolve o preco cheio
  */
-export function percentualDescontoNpc(npcDono: string): number {
-  const nivel = estado.relacoes.getNivel(npcDono);
-  return DESCONTO_POR_NIVEL[nivel] ?? 0;
+export function precoComDesconto(precoBase: number, npcDono: string | undefined): number {
+  const desconto = percentualDescontoNpc(npcDono);
+  if (desconto <= 0) return precoBase;
+  return Math.floor(precoBase * (1 - desconto));
+}
+
+/** O preco de um item NO PONTO em que ele esta sendo vendido. */
+export function precoNoPonto(item: DefinicaoItemLoja, ponto: PontoDeLoja | null | undefined): number {
+  return precoComDesconto(item.preco, ponto?.npcDono);
 }
 
 /**
@@ -178,7 +187,11 @@ export function esquecerUltimaCompra(): void {
  * debitar qualquer coisa. Se faltar dinheiro OU faltar slot, a funcao devolve a
  * falha e nada mudou — nem o saldo, nem o inventario.
  */
-export function comprar(idItem: string, quantidade: number): ResultadoCompra {
+export function comprar(
+  idItem: string,
+  quantidade: number,
+  ponto?: PontoDeLoja | null,
+): ResultadoCompra {
   const def = buscarItemDeLoja(idItem);
   if (!def) {
     console.warn(`[loja] "${idItem}" nao esta a venda`);
@@ -191,7 +204,9 @@ export function comprar(idItem: string, quantidade: number): ResultadoCompra {
     return { ok: false, falha: 'quantidade', total: 0 };
   }
   const qtd = quantidade;
-  const total = def.preco * qtd;
+  // o desconto entra AQUI, na unica funcao que cobra. A vitrine usa a mesma
+  // `precoNoPonto`, entao o valor da tela e o valor do caixa sao o mesmo numero.
+  const total = precoNoPonto(def, ponto) * qtd;
 
   const t = agora();
   const repetida =
@@ -233,10 +248,12 @@ export function comprar(idItem: string, quantidade: number): ResultadoCompra {
  * que o dinheiro compra e o que o inventario aceita. Serve pra UI ja abrir numa
  * quantidade viavel em vez de deixar o jogador tentar e falhar.
  */
-export function quantidadeViavel(idItem: string): number {
+export function quantidadeViavel(idItem: string, ponto?: PontoDeLoja | null): number {
   const def = buscarItemDeLoja(idItem);
   if (!def || def.preco <= 0) return 0;
-  const porDinheiro = Math.floor(estado.carteira.saldo / def.preco);
+  const unidade = precoNoPonto(def, ponto);
+  if (unidade <= 0) return 0;
+  const porDinheiro = Math.floor(estado.carteira.saldo / unidade);
   let maximo = Math.min(porDinheiro, LIMITE_POR_COMPRA);
   // o teto por espaco nao tem formula fechada (depende das pilhas parciais),
   // entao desce ate caber — sao no maximo 99 passos

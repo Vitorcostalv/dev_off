@@ -54,8 +54,6 @@ interface ModeloDeVaga {
   recompensa: number;
   /** so `conserto`: id em APARELHOS */
   aparelho?: string;
-  /** so `codigo`: numero de etapas (perguntas) nesta vaga. 1 = acerto paga cheio; 2-5 = paga proporcional */
-  etapas?: number;
 }
 
 /**
@@ -111,7 +109,6 @@ const MODELOS: readonly ModeloDeVaga[] = [
     cliente: 'Padaria do Ze',
     dificuldade: 'facil',
     recompensa: 7500,
-    etapas: 1,
   },
   {
     id: 'codigo_script',
@@ -121,7 +118,6 @@ const MODELOS: readonly ModeloDeVaga[] = [
     cliente: 'Academia',
     dificuldade: 'media',
     recompensa: 14000,
-    etapas: 2,
   },
   {
     id: 'codigo_caixa',
@@ -131,7 +127,6 @@ const MODELOS: readonly ModeloDeVaga[] = [
     cliente: 'Mercado',
     dificuldade: 'media',
     recompensa: 16000,
-    etapas: 3,
   },
   {
     id: 'codigo_api',
@@ -141,7 +136,15 @@ const MODELOS: readonly ModeloDeVaga[] = [
     cliente: 'Distribuidora',
     dificuldade: 'dificil',
     recompensa: 32000,
-    etapas: 4,
+  },
+  {
+    id: 'codigo_relatorio',
+    tipo: 'codigo',
+    titulo: 'Relatorio que nao fecha',
+    descricao: 'Some um centavo no total e ninguem descobre onde.',
+    cliente: 'Contabilidade',
+    dificuldade: 'dificil',
+    recompensa: 22000,
   },
   // --- conserto ---
   {
@@ -195,8 +198,12 @@ export interface Vaga extends ModeloDeVaga {
   /** so `entrega`: id do NPC que recebe a entrega (pra bonus de relacao) */
   npcDestino?: string;
   /**
-   * `codigo`: numero de etapas. Pode ser diferente do modelo se a vaga foi sorteada
-   * pra ter multiplas etapas. 1 etapa = acerto paga cheio; 2-5 = paga proporcional.
+   * so `codigo`: quantas perguntas esta vaga tem HOJE, de 1 a 5. Sai de
+   * `etapasDeCodigo` (ver la a regra), nao do modelo — o mesmo modelo pode ter
+   * numero de etapas diferente em dias diferentes.
+   *
+   * 1 etapa  = acerto paga cheio, erro paga zero.
+   * 2-5      = pagamento PROPORCIONAL aos acertos.
    */
   etapas?: number;
 }
@@ -228,6 +235,34 @@ const SEMENTE_QUADRO = 20260901;
 
 /** Quantas vagas o quadro mostra por dia. */
 export const VAGAS_POR_DIA = 5;
+
+/** Piso de recompensa (em CENTAVOS) de cada numero de etapas. */
+const FAIXA_DE_ETAPAS: readonly { minimo: number; etapas: number }[] = [
+  { minimo: 25000, etapas: 5 },
+  { minimo: 19000, etapas: 4 },
+  { minimo: 15000, etapas: 3 },
+  { minimo: 10000, etapas: 2 },
+  { minimo: 0, etapas: 1 },
+];
+
+/** Quantas etapas o banco consegue servir sem repetir pergunta. */
+export const MAX_ETAPAS_CODIGO = 5;
+
+/**
+ * Quantas perguntas uma vaga de codigo tem hoje: de 1 a 5, CORRELACIONADO com a
+ * recompensa — quem paga mais cobra mais etapas.
+ *
+ * A faixa da recompensa da o piso; um sorteio deterministico por (vaga, dia)
+ * pode somar uma etapa a mais, pra a mesma vaga nao ser sempre identica. Vaga
+ * barata fica travada em 1 etapa: e ela que segura a regra de tudo-ou-nada,
+ * que so faz sentido com pergunta unica.
+ */
+export function etapasDeCodigo(recompensa: number, idVaga: string, dia: number): number {
+  const base = FAIXA_DE_ETAPAS.find((f) => recompensa >= f.minimo)?.etapas ?? 1;
+  if (base <= 1) return 1;
+  const extra = hash01(dia * 53 + idVaga.length, SEMENTE_QUADRO + 4) < 0.4 ? 1 : 0;
+  return Math.min(MAX_ETAPAS_CODIGO, base + extra);
+}
 
 /**
  * O quadro de um dia. Deterministico: mesmo dia, mesmas vagas.
@@ -270,32 +305,18 @@ export function quadroDoDia(dia: number): Vaga[] {
       return { ...vaga, destino: d.mapa, moradorDestino: d.morador, npcDestino: d.npcId };
     }
     
-    // codigo: pode randomizar etapas pra vagas mais dificeis/caras
+    // codigo: o numero de etapas sai da recompensa (ver `etapasDeCodigo`)
     if (modelo.tipo === 'codigo') {
-      // Quanto mais cara a vaga, maior a chance de multiplas etapas
-      // Usa o mesmo hash que o sorteio de vagas pra ser deterministica
-      const etapasBase = modelo.etapas ?? 1;
-      if (etapasBase === 1) {
-        // vaga facil fica sempre com 1 etapa
-        return vaga;
-      }
-      // vagas de 2+ etapas: pode ficar com as etapas do modelo ou randomizar
-      // aqui estamos mantendo as etapas do modelo por enquanto
-      // no futuro poderia sortear entre 2-5 baseado em recompensa
-      return vaga;
+      return { ...vaga, etapas: etapasDeCodigo(modelo.recompensa, modelo.id, dia) };
     }
-    
+
     return vaga;
   });
 }
 
 // --------------------------------------------------- regras de pagamento --
 /**
- * CODIGO — acerto paga cheio, ERRO PAGA ZERO.
- *
- * IMPORTANTE: Essa regra SO se aplica a vagas de 1 etapa (vaga.etapas === 1).
- *
- * Para vagas com multiplas etapas (2-5), ver pagamentoDeCodigoMultiEtapas().
+ * CODIGO DE UMA ETAPA — acerto paga cheio, ERRO PAGA ZERO.
  *
  * A alternativa (metade por errar) foi descartada com a conta na mao: sao 4
  * alternativas, entao chutar valeria 0,25 x cheio + 0,75 x metade = 62,5% do
@@ -307,24 +328,19 @@ export function quadroDoDia(dia: number): Vaga[] {
  * O custo do erro e o tempo, nao a perda da vaga.
  */
 export function pagamentoDeCodigo(vaga: Vaga, acertou: boolean): number {
-  // Se for multi-etapas, usar a funcao apropriada
-  if ((vaga.etapas ?? 1) > 1) {
-    console.warn('[trabalhos] pagamentoDeCodigo() recebeu vaga multi-etapas; use pagamentoDeCodigoMultiEtapas()');
-    return 0;
-  }
   return acertou ? vaga.recompensa : 0;
 }
 
 /**
- * CODIGO MULTI-ETAPAS — pagamento PROPORCIONAL aos acertos.
+ * CODIGO DE 2 A 5 ETAPAS — pagamento PROPORCIONAL aos acertos.
  *
- * Aplica SO a vagas com 2-5 etapas. O criterio e parecido ao conserto: quando
- * a pergunta tem MULTIPLAS etapas, trabalho parcial merece pagamento parcial.
- * Acertar 3 de 5 perguntas diferentes e mais valor que chutar na mao e estagnar
- * numa etapa, entao reconhecer o esforco e importante.
+ * REGRA DIFERENTE DA DE CIMA, de proposito. Com uma pergunta so, "trabalho
+ * parcial" nao existe: ou leu o codigo ou chutou. Com cinco perguntas
+ * DIFERENTES, acertar tres e um resultado de verdade — chutar as cinco rende
+ * 25% em media, ler e acertar tres rende 60%, e ai vale a pena ler.
  *
- * A vaga nao some ao errar: continue respondendo as etapas restantes e receba
- * o proporcional no final.
+ * Errar uma etapa NAO encerra a vaga: o jogador responde todas e recebe o
+ * proporcional no fim. E o mesmo principio ja validado no conserto.
  */
 export function pagamentoDeCodigoMultiEtapas(vaga: Vaga, acertos: number, total: number): number {
   if (total <= 0) return 0;
@@ -333,13 +349,21 @@ export function pagamentoDeCodigoMultiEtapas(vaga: Vaga, acertos: number, total:
 }
 
 /**
- * CONSERTO — pagamento PROPORCIONAL aos passos acertados.
+ * A porta unica de pagamento de uma vaga de codigo: escolhe a regra pelo numero
+ * de etapas em vez de deixar cada chamador lembrar qual das duas usar. Foi
+ * exatamente esse esquecimento que fez as vagas multi-etapa pagarem zero.
+ */
+export function pagamentoDeVagaDeCodigo(vaga: Vaga, acertos: number, total: number): number {
+  if (total <= 1) return pagamentoDeCodigo(vaga, acertos >= 1);
+  return pagamentoDeCodigoMultiEtapas(vaga, acertos, total);
+}
+
+/**
+ * CONSERTO — pagamento PROPORCIONAL as pecas encaixadas.
  *
- * Aqui a conta e outra: a sequencia tem de 4 a 7 passos e 4 botoes, entao a
- * chance de chutar a sequencia inteira e no maximo 1/256. Proporcional nao
- * premia chute, e reconhece que quem acertou 5 de 7 passos realmente trabalhou
- * — diferente da pergunta unica do codigo, em que "trabalho parcial" nao
- * existe.
+ * Cada peca so encaixa no proprio slot, entao nao ha chute que valha: arrastar
+ * a peca errada devolve ela pra bandeja e custa tempo. Proporcional reconhece
+ * quem encaixou 3 de 4 antes de o tempo acabar.
  */
 export function pagamentoDeConserto(vaga: Vaga, acertos: number, total: number): number {
   if (total <= 0) return 0;
@@ -363,15 +387,14 @@ export interface Pergunta {
  * de sintaxe de JS/TS mesmo — as primeiras valem pra quem nunca programou, as
  * ultimas pedem saber a diferenca entre coisas parecidas.
  *
- * A dificuldade da vaga escolhe a FATIA do banco (ver `perguntaDaVaga`), e a
- * pergunta dentro da fatia sai por sorteio deterministico do dia — o mesmo
- * mecanismo do quadro. Repetir a vaga no mesmo dia repete a pergunta; isso e
+ * A dificuldade da vaga escolhe a FATIA do banco (ver `fatiaDeDificuldade`), e
+ * as perguntas dentro da fatia saem por sorteio deterministico do dia — o mesmo
+ * mecanismo do quadro. Repetir a vaga no mesmo dia repete as perguntas; isso e
  * proposital, porque errar e tentar de novo deve exigir ter APRENDIDO, nao
  * esperar cair uma pergunta mais facil.
  *
- * Para vagas com multiplas etapas (2-5), nao se pode repetir a mesma pergunta
- * na mesma vaga — entao o banco foi expandido para ~20+ perguntas, com boa
- * distribuicao de dificuldade.
+ * Uma vaga de 5 etapas precisa de 5 perguntas DIFERENTES, entao cada fatia tem
+ * de ter pelo menos `MAX_ETAPAS_CODIGO` entradas — o verificador cobra isso.
  */
 export const PERGUNTAS: readonly Pergunta[] = [
   {
@@ -531,45 +554,97 @@ export const PERGUNTAS: readonly Pergunta[] = [
   },
 ];
 
-/** Quantas perguntas cada dificuldade sorteia, da mais facil pra mais dificil. */
+/**
+ * Fatia do banco por dificuldade. Cada fatia precisa ter pelo menos
+ * `MAX_ETAPAS_CODIGO` perguntas, senao uma vaga de 5 etapas nao teria como
+ * montar 5 perguntas DIFERENTES — `verificar-relacoes` confere isso.
+ */
 const FATIA_POR_DIFICULDADE: Record<Dificuldade, readonly [number, number]> = {
-  facil: [0, 4],
-  media: [3, 8],
-  dificil: [7, PERGUNTAS.length],
+  facil: [0, 6],
+  media: [4, 12],
+  dificil: [10, PERGUNTAS.length],
 };
 
-export function perguntaDaVaga(vaga: Vaga, dia: number): Pergunta {
-  const [ini, fim] = FATIA_POR_DIFICULDADE[vaga.dificuldade];
-  const fatia = PERGUNTAS.slice(ini, fim);
-  const i = Math.floor(hash01(dia * 13 + vaga.id.length, SEMENTE_QUADRO + 2) * fatia.length);
-  return fatia[Math.min(i, fatia.length - 1)];
+/** A fatia de perguntas de uma dificuldade. */
+export function fatiaDeDificuldade(dificuldade: Dificuldade): readonly Pergunta[] {
+  const [ini, fim] = FATIA_POR_DIFICULDADE[dificuldade];
+  return PERGUNTAS.slice(ini, fim);
+}
+
+/**
+ * As perguntas de uma vaga de codigo, na ordem em que serao feitas.
+ *
+ * SEM REPETICAO dentro da mesma vaga: a escolha vai puxando da fatia e riscando
+ * o que ja saiu. Repetir a mesma pergunta numa vaga de 5 etapas transformaria
+ * a vaga em "acerte uma, acerte todas".
+ *
+ * Deterministica por (vaga, dia), igual ao resto: refazer a vaga no mesmo dia
+ * traz as mesmas perguntas na mesma ordem, entao tentar de novo cobra ter
+ * APRENDIDO — nao esperar cair uma pergunta mais facil.
+ */
+export function perguntasDaVaga(vaga: Vaga, dia: number): Pergunta[] {
+  const fatia = fatiaDeDificuldade(vaga.dificuldade);
+  const quantas = Math.max(1, Math.min(vaga.etapas ?? 1, fatia.length));
+  const restantes = [...fatia];
+  const escolhidas: Pergunta[] = [];
+  for (let i = 0; i < quantas && restantes.length > 0; i++) {
+    const k = Math.floor(hash01(dia * 13 + vaga.id.length + i * 977, SEMENTE_QUADRO + 2) * restantes.length);
+    escolhidas.push(restantes.splice(Math.min(k, restantes.length - 1), 1)[0]);
+  }
+  return escolhidas;
 }
 
 // ------------------------------------------------------ minigame: conserto --
-/** Tamanho da sequencia e tempo por passo, por dificuldade. */
+/**
+ * Dificuldade do quebra-cabeca de conserto.
+ *
+ * Escala por NUMERO DE PECAS e por TEMPO. Cada aparelho do catalogo tem quatro
+ * componentes, entao `pecas` e um teto: `facil` usa tres dos quatro e sobra
+ * tempo; `dificil` usa os quatro com bem menos tempo. Quando um aparelho com
+ * mais componentes entrar em `APARELHOS`, os numeros aqui sobem sozinhos ate o
+ * tamanho do aparelho — `pecasDoConserto` corta pelo menor dos dois.
+ */
 export const CONSERTO_POR_DIFICULDADE: Record<
   Dificuldade,
-  { passos: number; msPorPasso: number }
+  { pecas: number; segundos: number }
 > = {
-  facil: { passos: 4, msPorPasso: 2600 },
-  media: { passos: 6, msPorPasso: 2200 },
-  dificil: { passos: 7, msPorPasso: 1800 },
+  facil: { pecas: 3, segundos: 45 },
+  media: { pecas: 4, segundos: 40 },
+  dificil: { pecas: 5, segundos: 30 },
 };
 
 /**
- * A sequencia de pecas a repetir. Deterministica por (vaga, dia): reabrir a
- * mesma vaga no mesmo dia da a mesma sequencia, entao errar e tentar de novo
- * cobra memoria, nao sorte.
+ * Quais componentes do aparelho entram no quebra-cabeca de hoje, na ordem em
+ * que os slots aparecem na tela.
+ *
+ * SEM REPETICAO — e esta a diferenca pro minigame de sequencia que existia
+ * antes. Naquele, o mesmo componente podia sair duas vezes; num quebra-cabeca
+ * de encaixe isso deixa o tabuleiro IMPOSSIVEL, porque a peca ja encaixada nao
+ * pode ser arrastada de novo pro segundo slot.
+ *
+ * Deterministica por (vaga, dia): a mesma vaga no mesmo dia monta o mesmo
+ * tabuleiro.
  */
-export function sequenciaDoConserto(vaga: Vaga, dia: number): number[] {
+export function pecasDoConserto(vaga: Vaga, dia: number): number[] {
   const aparelho = APARELHOS.find((a) => a.id === vaga.aparelho);
-  const total = aparelho ? aparelho.pecas.length : 4;
-  const { passos } = CONSERTO_POR_DIFICULDADE[vaga.dificuldade];
-  const seq: number[] = [];
-  for (let i = 0; i < passos; i++) {
-    seq.push(Math.floor(hash01(dia * 7919 + i * 131 + vaga.id.length, SEMENTE_QUADRO + 3) * total) % total);
+  const total = aparelho ? aparelho.pecas.length : 0;
+  if (total === 0) return [];
+  const quantas = Math.min(CONSERTO_POR_DIFICULDADE[vaga.dificuldade].pecas, total);
+
+  const restantes = Array.from({ length: total }, (_, i) => i);
+  const escolhidas: number[] = [];
+  for (let i = 0; i < quantas; i++) {
+    const k = Math.floor(
+      hash01(dia * 7919 + i * 131 + vaga.id.length, SEMENTE_QUADRO + 3) * restantes.length,
+    );
+    escolhidas.push(restantes.splice(Math.min(k, restantes.length - 1), 1)[0]);
   }
-  return seq;
+  return escolhidas;
+}
+
+/** Tempo total, em ms, do quebra-cabeca de uma vaga. */
+export function tempoDoConserto(vaga: Vaga): number {
+  return CONSERTO_POR_DIFICULDADE[vaga.dificuldade].segundos * 1000;
 }
 
 // ------------------------------------------------------------- estado --
@@ -640,6 +715,9 @@ export class SistemaTrabalhos {
         morador: typeof e.morador === 'string' ? e.morador : 'morador',
         recompensa,
         dia: Number.isFinite(e.dia) ? Number(e.dia) : 0,
+        // sem isto o bonus de relacao da entrega sumia ao salvar e recarregar:
+        // a entrega voltava sem dono e a porta pagava so o dinheiro
+        npcId: typeof e.npcId === 'string' ? e.npcId : undefined,
       };
     }
   }

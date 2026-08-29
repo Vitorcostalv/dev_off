@@ -1,55 +1,69 @@
 /**
  * Sistema de relacionamento com NPCs.
  *
- * Cada NPC tem um score de relacionamento que sai de -12 a 12, aumentando em
- * incrementos de 0.5. O score e persistido no save e usado pra calcular o
- * nivel de relacionamento (Estranho, Conhecido, Amigo, Namorando, Casamento).
+ * Cada NPC tem um score que vai de -12 a 12, sempre em passos de 0,5. O score
+ * e persistido no save e usado pra derivar o NIVEL (Estranho, Conhecido, Amigo,
+ * Namorando, Casamento) e, a partir dele, o desconto no comercio do NPC.
  *
  * O sistema e puramente aditivo: ninguem escreve o score direto. So
- * ganharRelacao() e perderRelacao() alteram o numero. Isso garante que a
- * logica de cap/floor e override de label rode num lugar so.
+ * `ganharRelacao()` e `perderRelacao()` alteram o numero — e as duas passam
+ * pelo mesmo lugar, onde ficam o arredondamento pra 0,5, o piso e o teto.
  *
- * LABEL OVERRIDE: alguns NPCs tem rótulos diferentes nos níveis altos.
- * Jaqueline, por exemplo, e CASADA — o nivel 8 dela vira "Confiança profunda"
- * em vez de "Namorando", e o nivel 12 vira "Amizade de família" em vez de
- * "Casamento". Wendel e VIÚVO (mecanicamente disponível pra romance) mas sem
- * label especial — so a progressão de diálogo reflete a abertura emocional dele.
+ * ---------------------------------------------------------------------------
+ * ROTULO POR NPC
+ * ---------------------------------------------------------------------------
+ * Alguns NPCs nao podem receber o rotulo romantico. Jaqueline e CASADA: o tier
+ * 8-11,5 dela le "Confianca profunda" e o 12 le "Amizade de familia", mesmo
+ * pontuando exatamente igual aos outros. O override vale pro TIER INTEIRO, nao
+ * so pro valor exato — 8,5 tambem e "Confianca profunda".
+ *
+ * Wendel e VIUVO: mecanicamente disponivel pra romance, sem override. Quem
+ * reflete a personalidade fechada dele e o texto do dialogo, nao o rotulo.
+ *
+ * ---------------------------------------------------------------------------
+ * LIMITE DIARIO
+ * ---------------------------------------------------------------------------
+ * Conversa e presente pontuam UMA VEZ POR DIA por NPC. A trava mora aqui
+ * (`podeConversar` / `registrarConversa` e o par equivalente pra presente)
+ * porque o dado precisa ir pro save junto com o score: sem isso, salvar e
+ * recarregar zeraria a trava e o grind por spam voltaria.
+ *
+ * ---------------------------------------------------------------------------
+ * "JA INTERAGIU" NAO E "SCORE != 0"
+ * ---------------------------------------------------------------------------
+ * Conversar sobre um tema neutro rende 0 ponto — e mesmo assim a conversa
+ * aconteceu. Por isso existe o conjunto `interagidos`, separado do score: e ele
+ * que a aba Relacionamento do Navegador usa pra decidir quem listar. Usar
+ * `score !== 0` esconderia justamente quem o jogador conheceu e nao agradou.
  */
 
-/** Score em cada NPC: -12 a 12, em incrementos de 0.5. */
+/** Score em cada NPC: -12 a 12, em incrementos de 0,5. */
 type ScoreRelacao = number;
 
+export const SCORE_MINIMO = -12;
+export const SCORE_MAXIMO = 12;
+
 /** Nivel de relacionamento derivado do score. */
-export type NivelRelacao =
-  | 'Estranho'
-  | 'Conhecido'
-  | 'Amigo'
-  | 'Namorando'
-  | 'Casamento'
-  | 'Confiança profunda' // override de jaqueline em nivel 8
-  | 'Amizade de família'; // override de jaqueline em nivel 12
+export type NivelRelacao = 'Estranho' | 'Conhecido' | 'Amigo' | 'Namorando' | 'Casamento';
 
-/** Qual NPC tem qual label override num nível específico. */
-interface OverrideLabelPorNpc {
-  8?: NivelRelacao;
-  12?: NivelRelacao;
-}
+/** Rotulo mostrado ao jogador. Igual ao nivel, exceto onde ha override. */
+export type RotuloRelacao = NivelRelacao | 'Confianca profunda' | 'Amizade de familia';
 
-const OVERRIDES_LABELS: Record<string, OverrideLabelPorNpc> = {
+/** Override de rotulo por NPC, por NIVEL (nao por valor exato). */
+const OVERRIDES_ROTULO: Record<string, Partial<Record<NivelRelacao, RotuloRelacao>>> = {
   jaqueline: {
-    8: 'Confiança profunda',
-    12: 'Amizade de família',
+    Namorando: 'Confianca profunda',
+    Casamento: 'Amizade de familia',
   },
-  // wendel: viúvo mas sem override de label. diálogo reflete a abertura emocional.
 };
 
 /**
- * Converte um score de relacionamento pra um nível.
+ * Converte um score num nivel.
  * - < 0: Estranho
- * - 0 a 3.5: Conhecido
- * - 4 a 7.5: Amigo
- * - 8 a 11.5: Namorando (ou override do NPC)
- * - 12: Casamento (ou override do NPC)
+ * - 0 a 3,5: Conhecido
+ * - 4 a 7,5: Amigo
+ * - 8 a 11,5: Namorando
+ * - 12: Casamento
  */
 export function nivelDeScore(score: number): NivelRelacao {
   if (score < 0) return 'Estranho';
@@ -59,102 +73,168 @@ export function nivelDeScore(score: number): NivelRelacao {
   return 'Casamento';
 }
 
-/**
- * Aplica o override de label se houver pra este NPC em seu nivel atual.
- */
-export function labelRelacao(npcId: string, score: number): NivelRelacao {
+/** O nivel com o override do NPC aplicado, se houver. */
+export function rotuloRelacao(npcId: string, score: number): RotuloRelacao {
   const nivel = nivelDeScore(score);
-  const scoreInteiro = Math.round(score * 2) / 2; // round pra 0.5 termos
-  const override = OVERRIDES_LABELS[npcId]?.[scoreInteiro as 8 | 12];
-  return override ?? nivel;
+  return OVERRIDES_ROTULO[npcId]?.[nivel] ?? nivel;
+}
+
+/** Arredonda pro multiplo de 0,5 mais proximo e prende na faixa valida. */
+function normalizar(valor: number): number {
+  if (!Number.isFinite(valor)) return 0;
+  const emMeios = Math.round(valor * 2) / 2;
+  return Math.max(SCORE_MINIMO, Math.min(SCORE_MAXIMO, emMeios));
+}
+
+/** O formato que vai pro save. */
+export interface DadosRelacoes {
+  scores: Array<[string, number]>;
+  interagidos: string[];
+  /** ultimo dia em que a conversa de cada NPC pontuou */
+  conversas: Array<[string, number]>;
+  /** ultimo dia em que o presente de cada NPC pontuou */
+  presentes: Array<[string, number]>;
 }
 
 export class SistemaRelacoes {
-  /** Score por NPC. Ausentes = 0 (nunca falou com o NPC). */
-  private scores: Map<string, ScoreRelacao> = new Map();
+  /** Score por NPC. Ausente = 0. */
+  private scores = new Map<string, ScoreRelacao>();
+  /** Quem o jogador ja abordou pelo menos uma vez, independente de pontuar. */
+  private interagidos = new Set<string>();
+  /** npcId -> dia da ultima conversa que PONTUOU */
+  private conversas = new Map<string, number>();
+  /** npcId -> dia do ultimo presente que PONTUOU */
+  private presentes = new Map<string, number>();
 
-  /**
-   * Score atual de um NPC. Retorna 0 se nunca conversou (não inicializado).
-   */
   getScore(npcId: string): number {
     return this.scores.get(npcId) ?? 0;
   }
 
-  /**
-   * Nível de um NPC. Retorna 0 se nunca conversou.
-   */
   getNivel(npcId: string): NivelRelacao {
-    return labelRelacao(npcId, this.getScore(npcId));
+    return nivelDeScore(this.getScore(npcId));
+  }
+
+  /** O rotulo mostrado ao jogador (com override de NPC). */
+  getRotulo(npcId: string): RotuloRelacao {
+    return rotuloRelacao(npcId, this.getScore(npcId));
   }
 
   /**
-   * Adiciona pontos de relacionamento ao NPC.
-   * - Incremento é 0.5
-   * - Teto é 12
-   * - Piso é -12
+   * Soma pontos ao NPC. Passo de 0,5, piso -12, teto 12. Registrar o NPC como
+   * "interagido" faz parte: quem ganhou ponto obviamente foi abordado.
    */
   ganharRelacao(npcId: string, valor: number): void {
-    const novoScore = Math.round((this.getScore(npcId) + valor) * 2) / 2; // arredonda pra 0.5
-    this.scores.set(npcId, Math.max(-12, Math.min(12, novoScore)));
+    if (!npcId) return;
+    this.interagidos.add(npcId);
+    this.scores.set(npcId, normalizar(this.getScore(npcId) + valor));
   }
 
-  /**
-   * Remove pontos de relacionamento (atalho pra `ganharRelacao` com valor negativo).
-   */
+  /** Atalho pra `ganharRelacao` com valor negativo. */
   perderRelacao(npcId: string, valor: number): void {
     this.ganharRelacao(npcId, -valor);
   }
 
   /**
-   * Retorna os NPCs com os quais o jogador JÁ conversou (score !== 0).
-   * Usado pra listar no app de Relacionamento — não mostra quem nunca falou.
+   * Marca que o jogador abordou o NPC, sem mexer no score. E o que faz um NPC
+   * aparecer na aba Relacionamento mesmo depois de uma conversa neutra.
    */
-  npcsBocaAberta(): string[] {
-    return Array.from(this.scores.keys()).filter((id) => this.scores.get(id) !== 0);
+  registrarInteracao(npcId: string): void {
+    if (npcId) this.interagidos.add(npcId);
   }
 
-  /**
-   * Dados por NPC, pra UI renderizar (relacionamento, barra, etc).
-   */
-  getDados(npcId: string): { score: number; nivel: NivelRelacao; label: string } {
-    const score = this.getScore(npcId);
-    const nivel = this.getNivel(npcId);
+  jaInteragiu(npcId: string): boolean {
+    return this.interagidos.has(npcId);
+  }
+
+  /** Todos os NPCs ja abordados, em ordem alfabetica de id (lista estavel). */
+  listaInteragidos(): string[] {
+    return [...this.interagidos].sort();
+  }
+
+  // ---------------------------------------------------------- limite diario --
+
+  /** true se a conversa de hoje com este NPC ainda pode render ponto. */
+  podeConversar(npcId: string, dia: number): boolean {
+    return this.conversas.get(npcId) !== dia;
+  }
+
+  registrarConversa(npcId: string, dia: number): void {
+    this.conversas.set(npcId, dia);
+    this.interagidos.add(npcId);
+  }
+
+  /** true se o presente de hoje pra este NPC ainda pode render ponto. */
+  podePresentear(npcId: string, dia: number): boolean {
+    return this.presentes.get(npcId) !== dia;
+  }
+
+  registrarPresente(npcId: string, dia: number): void {
+    this.presentes.set(npcId, dia);
+    this.interagidos.add(npcId);
+  }
+
+  // ------------------------------------------------------------------ save --
+
+  serializar(): DadosRelacoes {
     return {
-      score,
-      nivel,
-      label: labelRelacao(npcId, score),
+      scores: [...this.scores.entries()],
+      interagidos: [...this.interagidos],
+      conversas: [...this.conversas.entries()],
+      presentes: [...this.presentes.entries()],
     };
   }
 
   /**
-   * Serializa pra save. Guarda como array de [id, score] pra poupar espaço.
-   */
-  serializar(): Array<[string, number]> {
-    return Array.from(this.scores.entries());
-  }
-
-  /**
-   * Restaura do save. Gracioso com dados estranhos: QUALQUER coisa invalida
-   * em um NPC específico e pulada (aquele NPC volta a 0); as outras sao restauradas.
+   * Restaura do save. Gracioso com dado estranho: cada entrada invalida e
+   * pulada sozinha, as validas entram. Save antigo (campo ausente) cai no
+   * caminho de estado vazio, sem derrubar o resto do save.
    */
   restaurar(bruto: unknown): void {
     this.scores.clear();
-    if (!Array.isArray(bruto)) return;
+    this.interagidos.clear();
+    this.conversas.clear();
+    this.presentes.clear();
+    if (!bruto || typeof bruto !== 'object') return;
 
-    for (const entry of bruto) {
-      if (!Array.isArray(entry) || entry.length !== 2) continue;
-      const [npcId, score] = entry;
+    // Compatibilidade: a primeira versao gravava so o array de [id, score].
+    // Ele vira o campo `scores` e o resto (interagidos/limites) comeca vazio,
+    // em vez de o save perder o relacionamento inteiro por mudanca de formato.
+    const d: Partial<DadosRelacoes> = Array.isArray(bruto)
+      ? { scores: bruto as Array<[string, number]> }
+      : (bruto as Partial<DadosRelacoes>);
+
+    for (const entrada of Array.isArray(d.scores) ? d.scores : []) {
+      if (!Array.isArray(entrada) || entrada.length !== 2) continue;
+      const [npcId, score] = entrada;
       if (typeof npcId !== 'string' || typeof score !== 'number') continue;
-      if (!Number.isSafeInteger(Math.round(score * 2))) continue; // não é múltiplo de 0.5
-      const clamped = Math.max(-12, Math.min(12, score));
-      this.scores.set(npcId, clamped);
+      if (!Number.isFinite(score)) continue;
+      this.scores.set(npcId, normalizar(score));
+      this.interagidos.add(npcId);
     }
+
+    for (const npcId of Array.isArray(d.interagidos) ? d.interagidos : []) {
+      if (typeof npcId === 'string') this.interagidos.add(npcId);
+    }
+
+    const restaurarDias = (bruta: unknown, destino: Map<string, number>): void => {
+      for (const entrada of Array.isArray(bruta) ? bruta : []) {
+        if (!Array.isArray(entrada) || entrada.length !== 2) continue;
+        const [npcId, dia] = entrada;
+        if (typeof npcId !== 'string' || !Number.isSafeInteger(dia)) continue;
+        destino.set(npcId, dia);
+      }
+    };
+    restaurarDias(d.conversas, this.conversas);
+    restaurarDias(d.presentes, this.presentes);
   }
 }
 
 /**
- * Nota de design: "Exclusividade" (só poder namorar um NPC) fica como comentário
- * aqui. Se o design futuro decidir implementá-la, seria um check no UI do
- * diálogo que reprova ganhar relação "Namorando" se outro NPC já tiver esse
- * nível. Não há bloqueio de dados aqui — tudo fica aberto.
+ * Nota de design — EXCLUSIVIDADE.
+ *
+ * Nao ha trava de "so pode namorar um": nada aqui impede dois NPCs em
+ * "Namorando" ao mesmo tempo. Se um dia o design pedir exclusividade, o lugar
+ * e este arquivo (um check dentro de `ganharRelacao` recusando subir pro tier
+ * romantico quando outro NPC ja esta nele), NAO a UI — senao cada tela que
+ * pontua precisaria repetir a regra. Fica fora de proposito nesta etapa.
  */
