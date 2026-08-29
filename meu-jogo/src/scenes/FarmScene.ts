@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import { PROP_COLIDE } from '../game/colisao';
 import { CONFIG, COR_ZONA, ROTULOS, UI } from '../game/config';
+import { formatarDinheiro } from '../game/dinheiro';
 import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
 import { lojasDoMapa } from '../game/loja';
 import { buscarMapa } from '../game/mapas';
 import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
 import { CONFIG_TEMPO } from '../game/relogio';
+import { ITEM_ENCOMENDA } from '../game/trabalhos';
 import type { EstadoNpc } from '../game/rotinasNpc';
 import { apagar, salvar } from '../game/save';
 import { USOS_DE_MORADIA, falasDe } from '../game/tipos';
@@ -400,11 +402,57 @@ export class FarmScene extends Phaser.Scene {
         this.ui.abrirComputador();
         break;
       case 'porta':
-        this.atravessarPorta(this.alvo);
+        // a entrega vem antes de atravessar: se a porta e o destino, o E
+        // entrega em vez de entrar. O proximo E entra normalmente.
+        if (!this.entregarNaPorta(this.alvo)) this.atravessarPorta(this.alvo);
         break;
       default:
         break;
     }
+  }
+
+  // ------------------------------------------------------------- entrega --
+
+  /**
+   * Conclui a entrega quando o jogador aciona a porta do destino carregando a
+   * encomenda. Devolve true se tratou a interacao (e ai a porta NAO abre).
+   *
+   * A ordem e a mesma da compra: confere tudo, so entao aplica. Se a encomenda
+   * nao estiver mais no inventario (o jogador descartou), nada e pago e a vaga
+   * continua aceita — o jogador precisa buscar outra encomenda.
+   */
+  private entregarNaPorta(porta: Interagivel): boolean {
+    if (!this.ehPortaDeEntrega(porta)) return false;
+    const entrega = estado.trabalhos.entrega;
+    if (!entrega) return false;
+
+    const saiu = estado.inventario.remover(ITEM_ENCOMENDA, 1);
+    if (saiu < 1) return false;
+
+    // pagamento SEMPRE pela porta unica da carteira; ninguem escreve saldo aqui
+    const r = estado.carteira.ganhar(entrega.recompensa);
+    if (!r.ok) {
+      // teto de saldo estourado ou valor invalido: devolve a encomenda pra o
+      // jogador nao perder o trabalho junto com o pagamento
+      estado.inventario.adicionar(ITEM_ENCOMENDA, 1);
+      this.ui.iniciarDialogo(
+        falasDe(entrega.morador, ['Nao consigo pagar agora. Volta depois.']),
+      );
+      return true;
+    }
+
+    estado.trabalhos.marcarConcluida(entrega.dia, entrega.idVaga);
+    estado.trabalhos.entrega = null;
+    this.ui.mostrarPrompt(null);
+    this.alvo = null;
+
+    this.ui.iniciarDialogo(
+      falasDe(entrega.morador, [
+        'Ah, era isso que eu estava esperando!',
+        `Aqui, ${formatarDinheiro(entrega.recompensa)} pelo trabalho.`,
+      ]),
+    );
+    return true;
   }
 
   // -------------------------------------------------------------- portas --
@@ -480,6 +528,8 @@ export class FarmScene extends Phaser.Scene {
       inventario: estado.inventario.serializar(),
       itensColetados: [...estado.itensColetados],
       dinheiro: estado.carteira.serializar(),
+      lixeira: estado.lixeira.serializar(),
+      trabalhos: estado.trabalhos.serializar(),
     });
   }
 
@@ -990,8 +1040,27 @@ export class FarmScene extends Phaser.Scene {
 
     if (melhor !== this.alvo) {
       this.alvo = melhor;
-      this.ui.mostrarPrompt(melhor ? melhor.rotulo : null);
+      this.ui.mostrarPrompt(melhor ? this.rotuloDe(melhor) : null);
     }
+  }
+
+  /**
+   * O verbo do prompt. Quase sempre e o do proprio objeto; a excecao e a porta
+   * do destino de uma entrega em andamento, que vira "Entregar" — o jogador
+   * precisa ver ali, na porta, que aquele e o lugar certo.
+   */
+  private rotuloDe(alvo: Interagivel): string {
+    return this.ehPortaDeEntrega(alvo) ? 'Entregar' : alvo.rotulo;
+  }
+
+  private ehPortaDeEntrega(alvo: Interagivel): boolean {
+    const entrega = estado.trabalhos.entrega;
+    return (
+      alvo.tipo === 'porta' &&
+      entrega !== null &&
+      alvo.props.destino === entrega.destino &&
+      estado.inventario.contar(ITEM_ENCOMENDA) > 0
+    );
   }
 
   /** Converte a camada de objetos `interativos` do Tiled em dados do jogo. */

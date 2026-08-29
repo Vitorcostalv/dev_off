@@ -1,10 +1,10 @@
 import { Calculadora } from './calculadora.ts';
 import { Conquistas } from './conquistas.ts';
 import { DevStore } from './devstore.ts';
-import { Jogos } from './jogos.ts';
+import { Jogos } from './jogos/index.ts';
 import { Lixeira } from './lixeira.ts';
 import { Navegador } from './navegador.ts';
-import { Trabalho } from './trabalho.ts';
+import { Trabalho } from './trabalho/index.ts';
 import type { AppDoPc } from '../tipos.ts';
 
 /**
@@ -16,8 +16,12 @@ import type { AppDoPc } from '../tipos.ts';
  *
  * Estado de FUNCIONALIDADE hoje:
  *   DevStore    — funcional (compra de verdade, por game/loja.ts)
+ *   Trabalho    — funcional (3 tipos de vaga; paga por carteira.ganhar)
+ *   Jogos       — funcional (2 minijogos, sem efeito no jogo principal)
  *   Calculadora — funcional (nao depende de nada do jogo)
- *   os outros 5 — so fachada; cada arquivo diz onde a logica real entra
+ *   Lixeira     — funcional (historico real do descarte do inventario)
+ *   Navegador   — fachada; o cabecalho do arquivo diz onde a logica entra
+ *   Conquistas  — fachada; idem
  */
 export function criarApps(): AppDoPc[] {
   return [

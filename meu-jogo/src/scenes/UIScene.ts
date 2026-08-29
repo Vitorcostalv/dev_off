@@ -528,6 +528,15 @@ export class UIScene extends Phaser.Scene {
         return;
       }
       const fora = estado.inventario.removerDoSlot(alvo.indice, agora.qtd);
+      // o descarte e a UNICA fonte do historico da lixeira; se um dia outro
+      // caminho tirar item do inventario pra sempre, ele registra aqui tambem
+      estado.lixeira.registrar({
+        id: alvo.def.id,
+        nome: alvo.def.nome,
+        qtd: fora,
+        dia: estado.dia,
+        minutos: estado.relogio.minutos,
+      });
       this.itemSelecionado = null;
       this.avisar(`Descartou ${alvo.def.nome} x${fora}.`, UI.alerta);
       this.desenharInventario();

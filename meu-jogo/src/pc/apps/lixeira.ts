@@ -1,33 +1,25 @@
 import type Phaser from 'phaser';
 import { UI } from '../../game/config.ts';
-import { PC, caixa, texto } from '../widgets.ts';
+import { estado } from '../../game/estado.ts';
+import { LIMITE_DE_ENTRADAS, carimboDe } from '../../game/lixeira.ts';
+import { PC, caixa, encurtar, texto } from '../widgets.ts';
 import type { AppDoPc, ContextoApp } from '../tipos.ts';
 
 /**
- * Lixeira — lista do que foi excluido.
+ * Lixeira — historico do que o jogador descartou no inventario.
  *
- * ===========================================================================
- * SHELL VISUAL. A lista esta vazia porque nada alimenta a lixeira ainda.
- * ===========================================================================
- * ONDE A LOGICA REAL VAI ENTRAR:
+ * A fonte e uma so: `UIScene.descartarSelecionado()` chama
+ * `estado.lixeira.registrar()` no mesmo passo em que tira o item do slot. Este
+ * app so LE `estado.lixeira` — nao escreve nada.
  *
- *  1. A lixeira precisa de uma FONTE. O candidato natural e o descarte do
- *     inventario: `UIScene.descartarSelecionado()` hoje chama
- *     `inventario.removerDoSlot()` e o item some pra sempre. Passa a empurrar
- *     `{ id, qtd, dia, hora }` pra uma lista em `game/estado.ts`.
- *  2. Essa lista entra no save (`game/save.ts`) com um teto de itens, senao ela
- *     cresce sem limite ao longo da partida.
- *  3. `restaurar(indice)` devolve o item pelo caminho normal
- *     (`estado.inventario.cabe` + `adicionar`) — e recusa quando nao couber, do
- *     mesmo jeito que a compra recusa.
- *  4. `esvaziar()` limpa a lista; e a unica acao destrutiva, entao pede
- *     confirmacao.
- *
- * Enquanto isso, o app existe pra o icone do desktop nao mentir.
+ * NAO ha recuperacao de item, de proposito. Descartar e uma decisao com peso
+ * (o inventario tem 20 slots); poder desfazer tiraria esse peso e transformaria
+ * a lixeira num vigesimo-primeiro slot. Se um dia isso mudar, o caminho e
+ * `estado.inventario.cabe()` + `adicionar()`, recusando quando nao couber, do
+ * mesmo jeito que a compra recusa — nunca escrevendo no slot direto.
  */
 
-/** Vazia de proposito — ver o cabecalho. */
-const EXCLUIDOS: readonly { nome: string; quando: string }[] = [];
+const LINHA = { altura: 17, visiveis: 10 };
 
 export class Lixeira implements AppDoPc {
   readonly id = 'lixeira';
@@ -36,29 +28,40 @@ export class Lixeira implements AppDoPc {
   readonly cor = 0x6b6f78;
   readonly resumo = 'Itens excluidos';
 
+  private topo = 0;
+  private linhas: {
+    fundo: Phaser.GameObjects.Rectangle;
+    nome: Phaser.GameObjects.Text;
+    quando: Phaser.GameObjects.Text;
+  }[] = [];
+  private vazio!: Phaser.GameObjects.Text;
+  private contagem!: Phaser.GameObjects.Text;
+  private rodape!: Phaser.GameObjects.Text;
+
   montar(ctx: ContextoApp): Phaser.GameObjects.GameObject[] {
     const { area } = ctx;
+    this.topo = 0;
     const objetos: Phaser.GameObjects.GameObject[] = [];
     const g = ctx.cena.add.graphics();
     objetos.push(g);
 
     objetos.push(
-      texto(ctx.cena, area.x, area.y, 'Lixeira', {
+      texto(ctx.cena, area.x, area.y, 'Descartados', {
         fontSize: UI.tamanhoTitulo,
         color: PC.destaque,
       }),
-      ctx.cena.add
-        .text(area.x + area.w, area.y + 1, `${EXCLUIDOS.length} item(ns)`, {
-          fontFamily: UI.fonte,
-          fontSize: '9px',
-          color: PC.textoFraco,
-        })
-        .setOrigin(1, 0),
     );
+    this.contagem = ctx.cena.add
+      .text(area.x + area.w, area.y + 1, '', {
+        fontFamily: UI.fonte,
+        fontSize: '9px',
+        color: PC.textoFraco,
+      })
+      .setOrigin(1, 0);
+    objetos.push(this.contagem);
 
-    // cabecalho de lista, pra parecer uma tabela de verdade mesmo vazia
-    const topo = area.y + 20;
-    const lista = { x: area.x, y: topo, w: area.w, h: area.h - 20 - 26 };
+    // --- moldura da lista, com cabecalho de tabela ---
+    const lista = { x: area.x, y: area.y + 18, w: area.w, h: LINHA.visiveis * LINHA.altura + 17 };
     caixa(g, lista, 0x0d1119, PC.borda);
     g.lineStyle(1, PC.borda, 0.7);
     g.lineBetween(lista.x, lista.y + 15, lista.x + lista.w, lista.y + 15);
@@ -66,46 +69,101 @@ export class Lixeira implements AppDoPc {
     objetos.push(
       texto(ctx.cena, lista.x + 8, lista.y + 3, 'Item', { fontSize: '9px', color: PC.textoFraco }),
       ctx.cena.add
-        .text(lista.x + lista.w - 8, lista.y + 3, 'Excluido em', {
+        .text(lista.x + lista.w - 8, lista.y + 3, 'Descartado em', {
           fontFamily: UI.fonte,
           fontSize: '9px',
           color: PC.textoFraco,
         })
         .setOrigin(1, 0),
-      ctx.cena.add
-        .text(lista.x + lista.w / 2, lista.y + lista.h / 2 - 8, 'Nenhum item excluido', {
-          fontFamily: UI.fonte,
-          fontSize: '11px',
-          color: PC.textoFraco,
-        })
-        .setOrigin(0.5, 0.5),
-      ctx.cena.add
-        .text(
-          lista.x + lista.w / 2,
-          lista.y + lista.h / 2 + 8,
-          'O que voce descartar no inventario vai aparecer aqui.',
-          { fontFamily: UI.fonte, fontSize: '9px', color: '#4d5769' },
-        )
-        .setOrigin(0.5, 0.5),
     );
 
-    // botoes desabilitados: mostram o que o app VAI fazer, sem fingir que faz
-    const yBotoes = area.y + area.h - 22;
-    for (const [i, rotulo] of ['Restaurar', 'Esvaziar lixeira'].entries()) {
-      const largura = 104;
-      const x = area.x + i * (largura + 8);
-      caixa(g, { x, y: yBotoes, w: largura, h: 18 }, PC.bloqueado, PC.borda);
-      objetos.push(
-        ctx.cena.add
-          .text(x + largura / 2, yBotoes + 9, rotulo, {
-            fontFamily: UI.fonte,
-            fontSize: '9px',
-            color: '#4d5769',
-          })
-          .setOrigin(0.5, 0.5),
+    const topoLinhas = lista.y + 17;
+    this.linhas = [];
+    for (let i = 0; i < LINHA.visiveis; i++) {
+      const y = topoLinhas + i * LINHA.altura;
+      const fundo = ctx.cena.add
+        .rectangle(lista.x + lista.w / 2, y + LINHA.altura / 2, lista.w - 4, LINHA.altura - 1, PC.painelClaro)
+        .setVisible(false);
+      const nome = texto(ctx.cena, lista.x + 8, y + 4, '', { fontSize: '10px' });
+      const quando = ctx.cena.add
+        .text(lista.x + lista.w - 8, y + 4, '', {
+          fontFamily: UI.fonte,
+          fontSize: '9px',
+          color: PC.textoFraco,
+        })
+        .setOrigin(1, 0);
+      objetos.push(fundo, nome, quando);
+      this.linhas.push({ fundo, nome, quando });
+    }
+
+    this.vazio = ctx.cena.add
+      .text(lista.x + lista.w / 2, lista.y + lista.h / 2, '', {
+        fontFamily: UI.fonte,
+        fontSize: '11px',
+        color: PC.textoFraco,
+        align: 'center',
+      })
+      .setOrigin(0.5, 0.5);
+    objetos.push(this.vazio);
+
+    this.rodape = texto(ctx.cena, area.x, area.y + area.h - 11, '', { fontSize: '9px' });
+    objetos.push(this.rodape);
+
+    this.desenhar();
+    return objetos;
+  }
+
+  aoTeclar(evento: KeyboardEvent): boolean {
+    const passo: Record<string, number> = {
+      ArrowUp: -1, w: -1, W: -1,
+      ArrowDown: 1, s: 1, S: 1,
+      PageUp: -LINHA.visiveis, PageDown: LINHA.visiveis,
+    };
+    if (passo[evento.key] === undefined) return false;
+    this.rolar(passo[evento.key]);
+    return true;
+  }
+
+  private rolar(passo: number): void {
+    const maximo = Math.max(0, estado.lixeira.lista.length - LINHA.visiveis);
+    this.topo = Math.min(maximo, Math.max(0, this.topo + passo));
+    this.desenhar();
+  }
+
+  private desenhar(): void {
+    const entradas = estado.lixeira.lista;
+    const total = entradas.length;
+
+    this.contagem.setText(`${total} de ${LIMITE_DE_ENTRADAS} registros`);
+    this.vazio.setVisible(total === 0);
+    if (total === 0) {
+      this.vazio.setText(
+        'Nenhum item excluido\n\nO que voce descartar no inventario aparece aqui.',
       );
     }
 
-    return objetos;
+    this.linhas.forEach((linha, i) => {
+      const entrada = entradas[this.topo + i];
+      const tem = Boolean(entrada);
+      // faixa zebrada, so pra a lista longa nao virar um bloco de texto
+      linha.fundo.setVisible(tem && i % 2 === 1);
+      linha.nome.setVisible(tem);
+      linha.quando.setVisible(tem);
+      if (!entrada) return;
+      linha.nome.setText(
+        entrada.qtd > 1
+          ? `${encurtar(entrada.nome, 32)}  x${entrada.qtd}`
+          : encurtar(entrada.nome, 32),
+      );
+      linha.quando.setText(carimboDe(entrada));
+    });
+
+    this.rodape.setColor(PC.textoFraco);
+    this.rodape.setText(
+      total === 0
+        ? 'Sem recuperacao: a lixeira e so historico.'
+        : `${this.topo + 1}-${Math.min(total, this.topo + LINHA.visiveis)} de ${total}` +
+          `   [W/S] rolar   sem recuperacao: e so historico   [Esc] sair`,
+    );
   }
 }

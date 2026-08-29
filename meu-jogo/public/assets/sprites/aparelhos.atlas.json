@@ -1,0 +1,314 @@
+{
+ "frames": {
+  "aparelho_celular": {
+   "frame": {
+    "x": 2,
+    "y": 2,
+    "w": 104,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 104,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 104,
+    "h": 192
+   }
+  },
+  "peca_celular_bateria": {
+   "frame": {
+    "x": 108,
+    "y": 2,
+    "w": 93,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 93,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 93,
+    "h": 192
+   }
+  },
+  "peca_celular_placa": {
+   "frame": {
+    "x": 203,
+    "y": 2,
+    "w": 84,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 84,
+    "h": 192
+   }
+  },
+  "aparelho_notebook": {
+   "frame": {
+    "x": 289,
+    "y": 2,
+    "w": 192,
+    "h": 159
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 159
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 159
+   }
+  },
+  "aparelho_console": {
+   "frame": {
+    "x": 483,
+    "y": 2,
+    "w": 89,
+    "h": 153
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 89,
+    "h": 153
+   },
+   "sourceSize": {
+    "w": 89,
+    "h": 153
+   }
+  },
+  "peca_console_carcaca": {
+   "frame": {
+    "x": 574,
+    "y": 2,
+    "w": 77,
+    "h": 141
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 77,
+    "h": 141
+   },
+   "sourceSize": {
+    "w": 77,
+    "h": 141
+   }
+  },
+  "peca_console_placa": {
+   "frame": {
+    "x": 653,
+    "y": 2,
+    "w": 77,
+    "h": 138
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 77,
+    "h": 138
+   },
+   "sourceSize": {
+    "w": 77,
+    "h": 138
+   }
+  },
+  "peca_notebook_memoria": {
+   "frame": {
+    "x": 732,
+    "y": 2,
+    "w": 103,
+    "h": 91
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 103,
+    "h": 91
+   },
+   "sourceSize": {
+    "w": 103,
+    "h": 91
+   }
+  },
+  "peca_console_cartucho": {
+   "frame": {
+    "x": 837,
+    "y": 2,
+    "w": 81,
+    "h": 88
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 81,
+    "h": 88
+   },
+   "sourceSize": {
+    "w": 81,
+    "h": 88
+   }
+  },
+  "peca_console_disco": {
+   "frame": {
+    "x": 920,
+    "y": 2,
+    "w": 79,
+    "h": 81
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 79,
+    "h": 81
+   },
+   "sourceSize": {
+    "w": 79,
+    "h": 81
+   }
+  },
+  "peca_notebook_cooler": {
+   "frame": {
+    "x": 2,
+    "y": 196,
+    "w": 124,
+    "h": 75
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 124,
+    "h": 75
+   },
+   "sourceSize": {
+    "w": 124,
+    "h": 75
+   }
+  },
+  "peca_notebook_bateria": {
+   "frame": {
+    "x": 128,
+    "y": 196,
+    "w": 192,
+    "h": 68
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 68
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 68
+   }
+  },
+  "peca_celular_camera": {
+   "frame": {
+    "x": 322,
+    "y": 196,
+    "w": 52,
+    "h": 65
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 52,
+    "h": 65
+   },
+   "sourceSize": {
+    "w": 52,
+    "h": 65
+   }
+  },
+  "peca_celular_alto_falante": {
+   "frame": {
+    "x": 376,
+    "y": 196,
+    "w": 86,
+    "h": 53
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 86,
+    "h": 53
+   },
+   "sourceSize": {
+    "w": 86,
+    "h": 53
+   }
+  },
+  "peca_notebook_ssd": {
+   "frame": {
+    "x": 464,
+    "y": 196,
+    "w": 147,
+    "h": 43
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 147,
+    "h": 43
+   },
+   "sourceSize": {
+    "w": 147,
+    "h": 43
+   }
+  }
+ },
+ "meta": {
+  "app": "gerar-aparelhos.mjs",
+  "image": "aparelhos.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1001,
+   "h": 273
+  },
+  "scale": "1"
+ }
+}

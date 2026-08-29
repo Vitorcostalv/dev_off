@@ -10,7 +10,9 @@ npm run dev
 
 Abre em http://localhost:5173. `npm run build` gera o `dist/`.
 `npm run gerar-assets` remonta o tileset, os atlas de flora e os tilemaps a
-partir da arte em `public/assets/sprites/`.
+partir da arte em `public/assets/sprites/`. `npm run gerar-itens` monta o atlas
+de icone de item e `npm run gerar-aparelhos` o dos aparelhos do minigame de
+conserto.
 
 ## Controles
 
@@ -44,6 +46,9 @@ src/
     inventario.ts      slots, empilhamento, catalogo de itens
     mapas.ts           registro dos mapas (keys do Phaser + spawn)
     npcs.ts            catalogo, moradias, sprites, dialogos e rotinas dos NPCs
+    trabalhos.ts       quadro de vagas por dia, perguntas e regras de pagamento
+    aparelhos.ts       catalogo dos aparelhos do minigame de conserto
+    lixeira.ts         historico de descarte (o app Lixeira so le daqui)
     rotinasNpc.ts      motor generico de agenda e movimento dos NPCs
     save.ts            localStorage
     tipos.ts           tipos compartilhados
@@ -56,7 +61,15 @@ src/
     JanelaApp.ts       moldura unica em que os 7 apps abrem
     widgets.ts         caixa/botao/texto/icone compartilhados pelos apps
     tipos.ts           contrato AppDoPc + ContextoApp
-    apps/              devstore (funcional), calculadora (funcional) e 5 fachadas
+    vista.ts           contrato das sub-telas (minigames dentro de um app)
+    apps/
+      devstore.ts      loja online — compra por game/loja.ts
+      trabalho/        quadro de vagas + quiz de codigo + sequencia de conserto
+      jogos/           biblioteca + jogo da memoria + snake
+      calculadora.ts   quatro operacoes, sem dependencia do jogo
+      lixeira.ts       historico de descarte
+      navegador.ts     FACHADA — o cabecalho diz onde a logica entra
+      conquistas.ts    FACHADA — idem
 tools/
   png.mjs              encoder PNG minimo + hash deterministico
   imagem.mjs           decoder PNG, deteccao de grade/blob e reducao de tile
@@ -105,6 +118,7 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `paredes_academia.png`, `Paredes_mercado.png`, `Paredes_farmacia.png`, `Paredes_bar.png` | `arte/` | parede interna de cada ramo de comercio | build |
 | `Portas_v2.png` (faixa de casa) | `arte/` | tiles de porta nos vaos entre comodos | build |
 | `Pisos_banheiro.png` e `Pisos_cozinha.png` | `arte/` | tiles de piso de interior (madeira, azulejo, mosaico...) | build |
+| `Nootbook_desmontado.png`, `Celular_desmontado.png`, `Consoles_e_controles_desmontados.png` | `public/` | atlas `aparelhos` do minigame de conserto | build |
 | `player_sprites.png`, `Player_andando.png`, `Player_correndo.png` | `public/` | poses do player | runtime |
 | `<Npc>_andando.png` e `<Npc>_parada.png` | `public/` | folhas `_runtime` de caminhada e de pose parada | build |
 
