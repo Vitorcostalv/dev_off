@@ -83,6 +83,12 @@ export class BootScene extends Phaser.Scene {
     // PNG+atlas sai de tools/gerar-itens.mjs, que le o MESMO catalogo — entao
     // nao ha frame sobrando nem item do catalogo sem icone.
     this.load.atlas('itens', 'assets/sprites/itens.png', 'assets/sprites/itens.atlas.json');
+    // aparelhos do minigame de conserto (tools/gerar-aparelhos.mjs)
+    this.load.atlas(
+      'aparelhos',
+      'assets/sprites/aparelhos.png',
+      'assets/sprites/aparelhos.atlas.json',
+    );
 
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
@@ -127,6 +133,8 @@ export class BootScene extends Phaser.Scene {
     estado.inventario.restaurar(save.inventario);
     // valida sozinho: save com NaN/negativo/string volta pro saldo inicial
     estado.carteira.restaurar(save.dinheiro);
+    estado.lixeira.restaurar(save.lixeira);
+    estado.trabalhos.restaurar(save.trabalhos);
     estado.itensColetados = new Set(
       Array.isArray(save.itensColetados)
         ? save.itensColetados.filter((id): id is string => typeof id === 'string')

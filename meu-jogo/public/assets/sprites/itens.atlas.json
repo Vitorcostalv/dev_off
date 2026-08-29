@@ -420,10 +420,30 @@
     "h": 122
    }
   },
+  "item_monitor_gamer": {
+   "frame": {
+    "x": 2,
+    "y": 166,
+    "w": 171,
+    "h": 121
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 171,
+    "h": 121
+   },
+   "sourceSize": {
+    "w": 171,
+    "h": 121
+   }
+  },
   "item_volante_gamer": {
    "frame": {
-    "x": 1911,
-    "y": 2,
+    "x": 175,
+    "y": 166,
     "w": 117,
     "h": 121
    },
@@ -442,7 +462,7 @@
   },
   "item_refrigerante_limao": {
    "frame": {
-    "x": 2,
+    "x": 294,
     "y": 166,
     "w": 63,
     "h": 121
@@ -460,9 +480,29 @@
     "h": 121
    }
   },
+  "item_tablet_10": {
+   "frame": {
+    "x": 359,
+    "y": 166,
+    "w": 73,
+    "h": 119
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 73,
+    "h": 119
+   },
+   "sourceSize": {
+    "w": 73,
+    "h": 119
+   }
+  },
   "item_maionese": {
    "frame": {
-    "x": 67,
+    "x": 434,
     "y": 166,
     "w": 68,
     "h": 119
@@ -482,7 +522,7 @@
   },
   "item_leite": {
    "frame": {
-    "x": 137,
+    "x": 504,
     "y": 166,
     "w": 70,
     "h": 118
@@ -502,7 +542,7 @@
   },
   "item_mel": {
    "frame": {
-    "x": 209,
+    "x": 576,
     "y": 166,
     "w": 70,
     "h": 118
@@ -522,7 +562,7 @@
   },
   "item_molho_de_tomate": {
    "frame": {
-    "x": 281,
+    "x": 648,
     "y": 166,
     "w": 69,
     "h": 116
@@ -540,9 +580,29 @@
     "h": 116
    }
   },
+  "item_tablet_pro": {
+   "frame": {
+    "x": 719,
+    "y": 166,
+    "w": 111,
+    "h": 114
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 111,
+    "h": 114
+   },
+   "sourceSize": {
+    "w": 111,
+    "h": 114
+   }
+  },
   "item_ervilha_congelada": {
    "frame": {
-    "x": 352,
+    "x": 832,
     "y": 166,
     "w": 90,
     "h": 114
@@ -562,7 +622,7 @@
   },
   "item_adaptador_wifi": {
    "frame": {
-    "x": 444,
+    "x": 924,
     "y": 166,
     "w": 78,
     "h": 114
@@ -582,7 +642,7 @@
   },
   "item_console_portatil": {
    "frame": {
-    "x": 524,
+    "x": 1004,
     "y": 166,
     "w": 87,
     "h": 113
@@ -602,7 +662,7 @@
   },
   "item_sorvete": {
    "frame": {
-    "x": 613,
+    "x": 1093,
     "y": 166,
     "w": 95,
     "h": 111
@@ -622,7 +682,7 @@
   },
   "item_liquidificador": {
    "frame": {
-    "x": 710,
+    "x": 1190,
     "y": 166,
     "w": 57,
     "h": 111
@@ -642,7 +702,7 @@
   },
   "item_tablet_caneta": {
    "frame": {
-    "x": 769,
+    "x": 1249,
     "y": 166,
     "w": 85,
     "h": 110
@@ -662,7 +722,7 @@
   },
   "item_picole_chocolate": {
    "frame": {
-    "x": 856,
+    "x": 1336,
     "y": 166,
     "w": 50,
     "h": 110
@@ -682,7 +742,7 @@
   },
   "item_biscoito": {
    "frame": {
-    "x": 908,
+    "x": 1388,
     "y": 166,
     "w": 95,
     "h": 108
@@ -702,7 +762,7 @@
   },
   "item_smartwatch": {
    "frame": {
-    "x": 1005,
+    "x": 1485,
     "y": 166,
     "w": 76,
     "h": 108
@@ -720,9 +780,29 @@
     "h": 108
    }
   },
+  "item_tablet_grande": {
+   "frame": {
+    "x": 1563,
+    "y": 166,
+    "w": 108,
+    "h": 107
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 108,
+    "h": 107
+   },
+   "sourceSize": {
+    "w": 108,
+    "h": 107
+   }
+  },
   "item_gabinete_rgb": {
    "frame": {
-    "x": 1083,
+    "x": 1673,
     "y": 166,
     "w": 101,
     "h": 107
@@ -742,7 +822,7 @@
   },
   "item_filtro_de_linha": {
    "frame": {
-    "x": 1186,
+    "x": 1776,
     "y": 166,
     "w": 91,
     "h": 107
@@ -762,7 +842,7 @@
   },
   "item_headset_gamer": {
    "frame": {
-    "x": 1279,
+    "x": 1869,
     "y": 166,
     "w": 102,
     "h": 106
@@ -782,7 +862,7 @@
   },
   "item_milho": {
    "frame": {
-    "x": 1383,
+    "x": 1973,
     "y": 166,
     "w": 69,
     "h": 106
@@ -802,8 +882,8 @@
   },
   "item_notebook_gamer": {
    "frame": {
-    "x": 1454,
-    "y": 166,
+    "x": 2,
+    "y": 289,
     "w": 137,
     "h": 105
    },
@@ -822,8 +902,8 @@
   },
   "item_gabinete_pc": {
    "frame": {
-    "x": 1593,
-    "y": 166,
+    "x": 141,
+    "y": 289,
     "w": 67,
     "h": 105
    },
@@ -842,8 +922,8 @@
   },
   "item_monitor_azul": {
    "frame": {
-    "x": 1662,
-    "y": 166,
+    "x": 210,
+    "y": 289,
     "w": 119,
     "h": 104
    },
@@ -862,8 +942,8 @@
   },
   "item_console_retro": {
    "frame": {
-    "x": 1783,
-    "y": 166,
+    "x": 331,
+    "y": 289,
     "w": 117,
     "h": 103
    },
@@ -882,8 +962,8 @@
   },
   "item_pao_de_forma": {
    "frame": {
-    "x": 1902,
-    "y": 166,
+    "x": 450,
+    "y": 289,
     "w": 83,
     "h": 103
    },
@@ -902,8 +982,8 @@
   },
   "item_ring_light": {
    "frame": {
-    "x": 1987,
-    "y": 166,
+    "x": 535,
+    "y": 289,
     "w": 54,
     "h": 103
    },
@@ -920,9 +1000,29 @@
     "h": 103
    }
   },
+  "item_monitor_led": {
+   "frame": {
+    "x": 591,
+    "y": 289,
+    "w": 128,
+    "h": 102
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 102
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 102
+   }
+  },
   "item_tv_4k": {
    "frame": {
-    "x": 2,
+    "x": 721,
     "y": 289,
     "w": 127,
     "h": 101
@@ -942,7 +1042,7 @@
   },
   "item_salsicha": {
    "frame": {
-    "x": 131,
+    "x": 850,
     "y": 289,
     "w": 141,
     "h": 100
@@ -962,7 +1062,7 @@
   },
   "item_power_bank": {
    "frame": {
-    "x": 274,
+    "x": 993,
     "y": 289,
     "w": 59,
     "h": 100
@@ -982,7 +1082,7 @@
   },
   "item_roteador": {
    "frame": {
-    "x": 335,
+    "x": 1054,
     "y": 289,
     "w": 101,
     "h": 99
@@ -997,12 +1097,32 @@
    },
    "sourceSize": {
     "w": 101,
+    "h": 99
+   }
+  },
+  "item_caixa_acustica_grande": {
+   "frame": {
+    "x": 1157,
+    "y": 289,
+    "w": 91,
+    "h": 99
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 91,
+    "h": 99
+   },
+   "sourceSize": {
+    "w": 91,
     "h": 99
    }
   },
   "item_calculadora": {
    "frame": {
-    "x": 438,
+    "x": 1250,
     "y": 289,
     "w": 76,
     "h": 99
@@ -1020,9 +1140,49 @@
     "h": 99
    }
   },
+  "item_power_bank_branco": {
+   "frame": {
+    "x": 1328,
+    "y": 289,
+    "w": 60,
+    "h": 99
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 60,
+    "h": 99
+   },
+   "sourceSize": {
+    "w": 60,
+    "h": 99
+   }
+  },
+  "item_cafeteira_expresso": {
+   "frame": {
+    "x": 1390,
+    "y": 289,
+    "w": 58,
+    "h": 99
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 58,
+    "h": 99
+   },
+   "sourceSize": {
+    "w": 58,
+    "h": 99
+   }
+  },
   "item_bacon": {
    "frame": {
-    "x": 516,
+    "x": 1450,
     "y": 289,
     "w": 142,
     "h": 98
@@ -1042,7 +1202,7 @@
   },
   "item_notebook_fino": {
    "frame": {
-    "x": 660,
+    "x": 1594,
     "y": 289,
     "w": 131,
     "h": 98
@@ -1062,7 +1222,7 @@
   },
   "item_camera": {
    "frame": {
-    "x": 793,
+    "x": 1727,
     "y": 289,
     "w": 99,
     "h": 98
@@ -1082,7 +1242,7 @@
   },
   "item_headset_branco": {
    "frame": {
-    "x": 894,
+    "x": 1828,
     "y": 289,
     "w": 81,
     "h": 98
@@ -1097,13 +1257,33 @@
    },
    "sourceSize": {
     "w": 81,
+    "h": 98
+   }
+  },
+  "item_caixa_acustica": {
+   "frame": {
+    "x": 1911,
+    "y": 289,
+    "w": 74,
+    "h": 98
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 74,
+    "h": 98
+   },
+   "sourceSize": {
+    "w": 74,
     "h": 98
    }
   },
   "item_ovos": {
    "frame": {
-    "x": 977,
-    "y": 289,
+    "x": 2,
+    "y": 396,
     "w": 138,
     "h": 97
    },
@@ -1120,10 +1300,30 @@
     "h": 97
    }
   },
+  "item_monitor_27": {
+   "frame": {
+    "x": 142,
+    "y": 396,
+    "w": 120,
+    "h": 97
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 120,
+    "h": 97
+   },
+   "sourceSize": {
+    "w": 120,
+    "h": 97
+   }
+  },
   "item_iogurte": {
    "frame": {
-    "x": 1117,
-    "y": 289,
+    "x": 264,
+    "y": 396,
     "w": 82,
     "h": 97
    },
@@ -1142,8 +1342,8 @@
   },
   "item_cafeteira": {
    "frame": {
-    "x": 1201,
-    "y": 289,
+    "x": 348,
+    "y": 396,
     "w": 82,
     "h": 97
    },
@@ -1162,8 +1362,8 @@
   },
   "item_pilhas": {
    "frame": {
-    "x": 1285,
-    "y": 289,
+    "x": 432,
+    "y": 396,
     "w": 63,
     "h": 97
    },
@@ -1182,8 +1382,8 @@
   },
   "item_alface": {
    "frame": {
-    "x": 1350,
-    "y": 289,
+    "x": 497,
+    "y": 396,
     "w": 92,
     "h": 96
    },
@@ -1202,8 +1402,8 @@
   },
   "item_brocolis": {
    "frame": {
-    "x": 1444,
-    "y": 289,
+    "x": 591,
+    "y": 396,
     "w": 86,
     "h": 96
    },
@@ -1222,8 +1422,8 @@
   },
   "item_headset": {
    "frame": {
-    "x": 1532,
-    "y": 289,
+    "x": 679,
+    "y": 396,
     "w": 81,
     "h": 96
    },
@@ -1237,13 +1437,33 @@
    },
    "sourceSize": {
     "w": 81,
+    "h": 96
+   }
+  },
+  "item_caixa_de_estante": {
+   "frame": {
+    "x": 762,
+    "y": 396,
+    "w": 60,
+    "h": 96
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 60,
+    "h": 96
+   },
+   "sourceSize": {
+    "w": 60,
     "h": 96
    }
   },
   "item_microfone": {
    "frame": {
-    "x": 1615,
-    "y": 289,
+    "x": 824,
+    "y": 396,
     "w": 58,
     "h": 96
    },
@@ -1260,10 +1480,30 @@
     "h": 96
    }
   },
+  "item_monitor_32": {
+   "frame": {
+    "x": 884,
+    "y": 396,
+    "w": 119,
+    "h": 95
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 119,
+    "h": 95
+   },
+   "sourceSize": {
+    "w": 119,
+    "h": 95
+   }
+  },
   "item_cenoura": {
    "frame": {
-    "x": 1675,
-    "y": 289,
+    "x": 1005,
+    "y": 396,
     "w": 90,
     "h": 95
    },
@@ -1277,13 +1517,33 @@
    },
    "sourceSize": {
     "w": 90,
+    "h": 95
+   }
+  },
+  "item_subwoofer": {
+   "frame": {
+    "x": 1097,
+    "y": 396,
+    "w": 67,
+    "h": 95
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 67,
+    "h": 95
+   },
+   "sourceSize": {
+    "w": 67,
     "h": 95
    }
   },
   "item_barra_de_chocolate": {
    "frame": {
-    "x": 1767,
-    "y": 289,
+    "x": 1166,
+    "y": 396,
     "w": 51,
     "h": 95
    },
@@ -1302,8 +1562,8 @@
   },
   "item_hd_externo": {
    "frame": {
-    "x": 1820,
-    "y": 289,
+    "x": 1219,
+    "y": 396,
     "w": 79,
     "h": 94
    },
@@ -1322,8 +1582,8 @@
   },
   "item_smartphone_top": {
    "frame": {
-    "x": 1901,
-    "y": 289,
+    "x": 1300,
+    "y": 396,
     "w": 57,
     "h": 94
    },
@@ -1342,8 +1602,8 @@
   },
   "item_smartphone_menta": {
    "frame": {
-    "x": 1960,
-    "y": 289,
+    "x": 1359,
+    "y": 396,
     "w": 51,
     "h": 94
    },
@@ -1362,8 +1622,8 @@
   },
   "item_bolo_morango": {
    "frame": {
-    "x": 2,
-    "y": 392,
+    "x": 1412,
+    "y": 396,
     "w": 102,
     "h": 93
    },
@@ -1382,8 +1642,8 @@
   },
   "item_monitor_24": {
    "frame": {
-    "x": 106,
-    "y": 392,
+    "x": 1516,
+    "y": 396,
     "w": 98,
     "h": 93
    },
@@ -1402,8 +1662,8 @@
   },
   "item_air_fryer": {
    "frame": {
-    "x": 206,
-    "y": 392,
+    "x": 1616,
+    "y": 396,
     "w": 78,
     "h": 93
    },
@@ -1417,13 +1677,73 @@
    },
    "sourceSize": {
     "w": 78,
+    "h": 93
+   }
+  },
+  "item_adaptador_de_streaming": {
+   "frame": {
+    "x": 1696,
+    "y": 396,
+    "w": 64,
+    "h": 93
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 93
+   },
+   "sourceSize": {
+    "w": 64,
+    "h": 93
+   }
+  },
+  "item_smartphone_azul": {
+   "frame": {
+    "x": 1762,
+    "y": 396,
+    "w": 53,
+    "h": 93
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 53,
+    "h": 93
+   },
+   "sourceSize": {
+    "w": 53,
+    "h": 93
+   }
+  },
+  "item_smartphone_roxo": {
+   "frame": {
+    "x": 1817,
+    "y": 396,
+    "w": 51,
+    "h": 93
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 51,
+    "h": 93
+   },
+   "sourceSize": {
+    "w": 51,
     "h": 93
    }
   },
   "item_smartphone": {
    "frame": {
-    "x": 286,
-    "y": 392,
+    "x": 1870,
+    "y": 396,
     "w": 49,
     "h": 93
    },
@@ -1440,10 +1760,30 @@
     "h": 93
    }
   },
+  "item_smartphone_preto": {
+   "frame": {
+    "x": 1921,
+    "y": 396,
+    "w": 48,
+    "h": 92
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 48,
+    "h": 92
+   },
+   "sourceSize": {
+    "w": 48,
+    "h": 92
+   }
+  },
   "item_picole_frutas": {
    "frame": {
-    "x": 337,
-    "y": 392,
+    "x": 1971,
+    "y": 396,
     "w": 46,
     "h": 92
    },
@@ -1462,8 +1802,8 @@
   },
   "item_carne_moida": {
    "frame": {
-    "x": 385,
-    "y": 392,
+    "x": 2,
+    "y": 495,
     "w": 150,
     "h": 91
    },
@@ -1482,8 +1822,8 @@
   },
   "item_queijo_prato": {
    "frame": {
-    "x": 537,
-    "y": 392,
+    "x": 154,
+    "y": 495,
     "w": 119,
     "h": 91
    },
@@ -1502,8 +1842,8 @@
   },
   "item_notebook": {
    "frame": {
-    "x": 658,
-    "y": 392,
+    "x": 275,
+    "y": 495,
     "w": 110,
     "h": 91
    },
@@ -1520,10 +1860,30 @@
     "h": 91
    }
   },
+  "item_smartphone_dourado": {
+   "frame": {
+    "x": 387,
+    "y": 495,
+    "w": 56,
+    "h": 91
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 56,
+    "h": 91
+   },
+   "sourceSize": {
+    "w": 56,
+    "h": 91
+   }
+  },
   "item_pao_frances": {
    "frame": {
-    "x": 770,
-    "y": 392,
+    "x": 445,
+    "y": 495,
     "w": 139,
     "h": 90
    },
@@ -1542,8 +1902,8 @@
   },
   "item_creme_de_leite": {
    "frame": {
-    "x": 911,
-    "y": 392,
+    "x": 586,
+    "y": 495,
     "w": 78,
     "h": 90
    },
@@ -1557,13 +1917,33 @@
    },
    "sourceSize": {
     "w": 78,
+    "h": 90
+   }
+  },
+  "item_assistente_branco": {
+   "frame": {
+    "x": 666,
+    "y": 495,
+    "w": 58,
+    "h": 90
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 58,
+    "h": 90
+   },
+   "sourceSize": {
+    "w": 58,
     "h": 90
    }
   },
   "item_bife": {
    "frame": {
-    "x": 991,
-    "y": 392,
+    "x": 726,
+    "y": 495,
     "w": 155,
     "h": 89
    },
@@ -1580,10 +1960,50 @@
     "h": 89
    }
   },
+  "item_notebook_prata": {
+   "frame": {
+    "x": 883,
+    "y": 495,
+    "w": 123,
+    "h": 89
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 123,
+    "h": 89
+   },
+   "sourceSize": {
+    "w": 123,
+    "h": 89
+   }
+  },
+  "item_filmadora": {
+   "frame": {
+    "x": 1008,
+    "y": 495,
+    "w": 121,
+    "h": 89
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 121,
+    "h": 89
+   },
+   "sourceSize": {
+    "w": 121,
+    "h": 89
+   }
+  },
   "item_fatia_bolo": {
    "frame": {
-    "x": 1148,
-    "y": 392,
+    "x": 1131,
+    "y": 495,
     "w": 88,
     "h": 89
    },
@@ -1602,8 +2022,8 @@
   },
   "item_queijo_suico": {
    "frame": {
-    "x": 1238,
-    "y": 392,
+    "x": 1221,
+    "y": 495,
     "w": 95,
     "h": 88
    },
@@ -1620,10 +2040,30 @@
     "h": 88
    }
   },
+  "item_caixa_de_som": {
+   "frame": {
+    "x": 1318,
+    "y": 495,
+    "w": 62,
+    "h": 88
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 62,
+    "h": 88
+   },
+   "sourceSize": {
+    "w": 62,
+    "h": 88
+   }
+  },
   "item_monitor_de_audio": {
    "frame": {
-    "x": 1335,
-    "y": 392,
+    "x": 1382,
+    "y": 495,
     "w": 61,
     "h": 87
    },
@@ -1642,8 +2082,8 @@
   },
   "item_camera_de_seguranca": {
    "frame": {
-    "x": 1398,
-    "y": 392,
+    "x": 1445,
+    "y": 495,
     "w": 57,
     "h": 87
    },
@@ -1662,8 +2102,8 @@
   },
   "item_batata": {
    "frame": {
-    "x": 1457,
-    "y": 392,
+    "x": 1504,
+    "y": 495,
     "w": 104,
     "h": 86
    },
@@ -1682,8 +2122,8 @@
   },
   "item_baguete": {
    "frame": {
-    "x": 1563,
-    "y": 392,
+    "x": 1610,
+    "y": 495,
     "w": 127,
     "h": 85
    },
@@ -1702,8 +2142,8 @@
   },
   "item_muffin": {
    "frame": {
-    "x": 1692,
-    "y": 392,
+    "x": 1739,
+    "y": 495,
     "w": 102,
     "h": 85
    },
@@ -1720,10 +2160,30 @@
     "h": 85
    }
   },
+  "item_fone_esportivo": {
+   "frame": {
+    "x": 1843,
+    "y": 495,
+    "w": 77,
+    "h": 85
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 77,
+    "h": 85
+   },
+   "sourceSize": {
+    "w": 77,
+    "h": 85
+   }
+  },
   "item_cebola_roxa": {
    "frame": {
-    "x": 1796,
-    "y": 392,
+    "x": 1922,
+    "y": 495,
     "w": 70,
     "h": 85
    },
@@ -1742,8 +2202,8 @@
   },
   "item_fatia_cheesecake": {
    "frame": {
-    "x": 1868,
-    "y": 392,
+    "x": 2,
+    "y": 588,
     "w": 66,
     "h": 85
    },
@@ -1762,8 +2222,8 @@
   },
   "item_frango": {
    "frame": {
-    "x": 2,
-    "y": 487,
+    "x": 70,
+    "y": 588,
     "w": 148,
     "h": 84
    },
@@ -1782,8 +2242,8 @@
   },
   "item_manteiga": {
    "frame": {
-    "x": 152,
-    "y": 487,
+    "x": 220,
+    "y": 588,
     "w": 121,
     "h": 84
    },
@@ -1802,8 +2262,8 @@
   },
   "item_salame": {
    "frame": {
-    "x": 275,
-    "y": 487,
+    "x": 343,
+    "y": 588,
     "w": 107,
     "h": 84
    },
@@ -1822,8 +2282,8 @@
   },
   "item_ssd": {
    "frame": {
-    "x": 384,
-    "y": 487,
+    "x": 452,
+    "y": 588,
     "w": 75,
     "h": 84
    },
@@ -1840,10 +2300,30 @@
     "h": 84
    }
   },
+  "item_power_bank_slim": {
+   "frame": {
+    "x": 529,
+    "y": 588,
+    "w": 74,
+    "h": 84
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 74,
+    "h": 84
+   },
+   "sourceSize": {
+    "w": 74,
+    "h": 84
+   }
+  },
   "item_uva": {
    "frame": {
-    "x": 461,
-    "y": 487,
+    "x": 605,
+    "y": 588,
     "w": 72,
     "h": 84
    },
@@ -1862,8 +2342,8 @@
   },
   "item_cebola": {
    "frame": {
-    "x": 535,
-    "y": 487,
+    "x": 679,
+    "y": 588,
     "w": 70,
     "h": 84
    },
@@ -1882,8 +2362,8 @@
   },
   "item_roteador_branco": {
    "frame": {
-    "x": 607,
-    "y": 487,
+    "x": 751,
+    "y": 588,
     "w": 95,
     "h": 82
    },
@@ -1902,8 +2382,8 @@
   },
   "item_fone_intra": {
    "frame": {
-    "x": 704,
-    "y": 487,
+    "x": 848,
+    "y": 588,
     "w": 70,
     "h": 82
    },
@@ -1922,8 +2402,8 @@
   },
   "item_ssd_nvme": {
    "frame": {
-    "x": 776,
-    "y": 487,
+    "x": 920,
+    "y": 588,
     "w": 56,
     "h": 82
    },
@@ -1942,8 +2422,8 @@
   },
   "item_radio_boombox": {
    "frame": {
-    "x": 834,
-    "y": 487,
+    "x": 978,
+    "y": 588,
     "w": 126,
     "h": 81
    },
@@ -1962,8 +2442,8 @@
   },
   "item_lampada_led": {
    "frame": {
-    "x": 962,
-    "y": 487,
+    "x": 1106,
+    "y": 588,
     "w": 45,
     "h": 80
    },
@@ -1982,8 +2462,8 @@
   },
   "item_croissant": {
    "frame": {
-    "x": 1009,
-    "y": 487,
+    "x": 1153,
+    "y": 588,
     "w": 117,
     "h": 79
    },
@@ -2002,8 +2482,8 @@
   },
   "item_banana": {
    "frame": {
-    "x": 1128,
-    "y": 487,
+    "x": 1272,
+    "y": 588,
     "w": 93,
     "h": 79
    },
@@ -2022,8 +2502,8 @@
   },
   "item_microondas_portatil": {
    "frame": {
-    "x": 1223,
-    "y": 487,
+    "x": 1367,
+    "y": 588,
     "w": 103,
     "h": 78
    },
@@ -2040,10 +2520,30 @@
     "h": 78
    }
   },
+  "item_caixa_bluetooth": {
+   "frame": {
+    "x": 1472,
+    "y": 588,
+    "w": 131,
+    "h": 77
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 131,
+    "h": 77
+   },
+   "sourceSize": {
+    "w": 131,
+    "h": 77
+   }
+  },
   "item_mousepad": {
    "frame": {
-    "x": 1328,
-    "y": 487,
+    "x": 1605,
+    "y": 588,
     "w": 112,
     "h": 77
    },
@@ -2062,8 +2562,8 @@
   },
   "item_morango": {
    "frame": {
-    "x": 1442,
-    "y": 487,
+    "x": 1719,
+    "y": 588,
     "w": 95,
     "h": 77
    },
@@ -2082,8 +2582,8 @@
   },
   "item_camera_de_acao": {
    "frame": {
-    "x": 1539,
-    "y": 487,
+    "x": 1816,
+    "y": 588,
     "w": 79,
     "h": 77
    },
@@ -2102,8 +2602,8 @@
   },
   "item_pendrive": {
    "frame": {
-    "x": 1620,
-    "y": 487,
+    "x": 1897,
+    "y": 588,
     "w": 50,
     "h": 77
    },
@@ -2122,8 +2622,8 @@
   },
   "item_lampada_rgb": {
    "frame": {
-    "x": 1672,
-    "y": 487,
+    "x": 1949,
+    "y": 588,
     "w": 42,
     "h": 77
    },
@@ -2142,8 +2642,8 @@
   },
   "item_relogio_digital": {
    "frame": {
-    "x": 1716,
-    "y": 487,
+    "x": 2,
+    "y": 675,
     "w": 96,
     "h": 76
    },
@@ -2162,8 +2662,8 @@
   },
   "item_tomate": {
    "frame": {
-    "x": 1814,
-    "y": 487,
+    "x": 100,
+    "y": 675,
     "w": 75,
     "h": 76
    },
@@ -2182,8 +2682,8 @@
   },
   "item_maca": {
    "frame": {
-    "x": 1891,
-    "y": 487,
+    "x": 177,
+    "y": 675,
     "w": 69,
     "h": 76
    },
@@ -2202,8 +2702,8 @@
   },
   "item_maca_verde": {
    "frame": {
-    "x": 1962,
-    "y": 487,
+    "x": 248,
+    "y": 675,
     "w": 69,
     "h": 76
    },
@@ -2222,8 +2722,8 @@
   },
   "item_pao_caseiro": {
    "frame": {
-    "x": 2,
-    "y": 573,
+    "x": 319,
+    "y": 675,
     "w": 118,
     "h": 75
    },
@@ -2242,8 +2742,8 @@
   },
   "item_alho": {
    "frame": {
-    "x": 122,
-    "y": 573,
+    "x": 439,
+    "y": 675,
     "w": 63,
     "h": 73
    },
@@ -2262,8 +2762,8 @@
   },
   "item_torta": {
    "frame": {
-    "x": 187,
-    "y": 573,
+    "x": 504,
+    "y": 675,
     "w": 114,
     "h": 72
    },
@@ -2282,8 +2782,8 @@
   },
   "item_rosquinha": {
    "frame": {
-    "x": 303,
-    "y": 573,
+    "x": 620,
+    "y": 675,
     "w": 85,
     "h": 72
    },
@@ -2300,10 +2800,30 @@
     "h": 72
    }
   },
+  "item_mini_pc": {
+   "frame": {
+    "x": 707,
+    "y": 675,
+    "w": 41,
+    "h": 72
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 41,
+    "h": 72
+   },
+   "sourceSize": {
+    "w": 41,
+    "h": 72
+   }
+  },
   "item_rosquinha_chocolate": {
    "frame": {
-    "x": 390,
-    "y": 573,
+    "x": 750,
+    "y": 675,
     "w": 85,
     "h": 71
    },
@@ -2322,8 +2842,8 @@
   },
   "item_laranja": {
    "frame": {
-    "x": 477,
-    "y": 573,
+    "x": 837,
+    "y": 675,
     "w": 73,
     "h": 71
    },
@@ -2340,10 +2860,30 @@
     "h": 71
    }
   },
+  "item_pedaleira": {
+   "frame": {
+    "x": 912,
+    "y": 675,
+    "w": 127,
+    "h": 70
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 127,
+    "h": 70
+   },
+   "sourceSize": {
+    "w": 127,
+    "h": 70
+   }
+  },
   "item_carregador": {
    "frame": {
-    "x": 552,
-    "y": 573,
+    "x": 1041,
+    "y": 675,
     "w": 46,
     "h": 70
    },
@@ -2362,8 +2902,8 @@
   },
   "item_drone": {
    "frame": {
-    "x": 600,
-    "y": 573,
+    "x": 1089,
+    "y": 675,
     "w": 122,
     "h": 69
    },
@@ -2382,8 +2922,8 @@
   },
   "item_cartao_sd": {
    "frame": {
-    "x": 724,
-    "y": 573,
+    "x": 1213,
+    "y": 675,
     "w": 49,
     "h": 69
    },
@@ -2402,8 +2942,8 @@
   },
   "item_mouse_gamer": {
    "frame": {
-    "x": 775,
-    "y": 573,
+    "x": 1264,
+    "y": 675,
     "w": 47,
     "h": 69
    },
@@ -2420,10 +2960,50 @@
     "h": 69
    }
   },
+  "item_pendrive_metal": {
+   "frame": {
+    "x": 1313,
+    "y": 675,
+    "w": 41,
+    "h": 69
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 41,
+    "h": 69
+   },
+   "sourceSize": {
+    "w": 41,
+    "h": 69
+   }
+  },
+  "item_adaptador_de_tomada": {
+   "frame": {
+    "x": 1356,
+    "y": 675,
+    "w": 54,
+    "h": 68
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 54,
+    "h": 68
+   },
+   "sourceSize": {
+    "w": 54,
+    "h": 68
+   }
+  },
   "item_controle": {
    "frame": {
-    "x": 824,
-    "y": 573,
+    "x": 1412,
+    "y": 675,
     "w": 89,
     "h": 67
    },
@@ -2442,8 +3022,8 @@
   },
   "item_controle_branco": {
    "frame": {
-    "x": 915,
-    "y": 573,
+    "x": 1503,
+    "y": 675,
     "w": 87,
     "h": 67
    },
@@ -2458,12 +3038,92 @@
    "sourceSize": {
     "w": 87,
     "h": 67
+   }
+  },
+  "item_carregador_de_parede": {
+   "frame": {
+    "x": 1592,
+    "y": 675,
+    "w": 43,
+    "h": 67
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 43,
+    "h": 67
+   },
+   "sourceSize": {
+    "w": 43,
+    "h": 67
+   }
+  },
+  "item_alto_falante": {
+   "frame": {
+    "x": 1637,
+    "y": 675,
+    "w": 39,
+    "h": 67
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 39,
+    "h": 67
+   },
+   "sourceSize": {
+    "w": 39,
+    "h": 67
+   }
+  },
+  "item_hub_inteligente": {
+   "frame": {
+    "x": 1678,
+    "y": 675,
+    "w": 60,
+    "h": 66
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 60,
+    "h": 66
+   },
+   "sourceSize": {
+    "w": 60,
+    "h": 66
+   }
+  },
+  "item_assistente_mini": {
+   "frame": {
+    "x": 1740,
+    "y": 675,
+    "w": 75,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 75,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 75,
+    "h": 64
    }
   },
   "item_cookies": {
    "frame": {
-    "x": 1004,
-    "y": 573,
+    "x": 1817,
+    "y": 675,
     "w": 73,
     "h": 64
    },
@@ -2480,10 +3140,30 @@
     "h": 64
    }
   },
+  "item_projetor": {
+   "frame": {
+    "x": 1892,
+    "y": 675,
+    "w": 67,
+    "h": 63
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 67,
+    "h": 63
+   },
+   "sourceSize": {
+    "w": 67,
+    "h": 63
+   }
+  },
   "item_assistente_de_voz": {
    "frame": {
-    "x": 1079,
-    "y": 573,
+    "x": 1961,
+    "y": 675,
     "w": 51,
     "h": 62
    },
@@ -2502,8 +3182,8 @@
   },
   "item_caixa_portatil": {
    "frame": {
-    "x": 1132,
-    "y": 573,
+    "x": 2,
+    "y": 753,
     "w": 65,
     "h": 61
    },
@@ -2522,8 +3202,8 @@
   },
   "item_tomada_inteligente": {
    "frame": {
-    "x": 1199,
-    "y": 573,
+    "x": 69,
+    "y": 753,
     "w": 59,
     "h": 61
    },
@@ -2540,10 +3220,30 @@
     "h": 61
    }
   },
+  "item_teclado_mecanico": {
+   "frame": {
+    "x": 130,
+    "y": 753,
+    "w": 143,
+    "h": 59
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 143,
+    "h": 59
+   },
+   "sourceSize": {
+    "w": 143,
+    "h": 59
+   }
+  },
   "item_switch_de_rede": {
    "frame": {
-    "x": 1260,
-    "y": 573,
+    "x": 275,
+    "y": 753,
     "w": 135,
     "h": 59
    },
@@ -2562,8 +3262,8 @@
   },
   "item_fone_bluetooth": {
    "frame": {
-    "x": 1397,
-    "y": 573,
+    "x": 412,
+    "y": 753,
     "w": 68,
     "h": 59
    },
@@ -2582,8 +3282,8 @@
   },
   "item_teclado": {
    "frame": {
-    "x": 1467,
-    "y": 573,
+    "x": 482,
+    "y": 753,
     "w": 133,
     "h": 58
    },
@@ -2598,12 +3298,32 @@
    "sourceSize": {
     "w": 133,
     "h": 58
+   }
+  },
+  "item_adaptador_de_rede": {
+   "frame": {
+    "x": 617,
+    "y": 753,
+    "w": 60,
+    "h": 57
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 60,
+    "h": 57
+   },
+   "sourceSize": {
+    "w": 60,
+    "h": 57
    }
   },
   "item_webcam": {
    "frame": {
-    "x": 1602,
-    "y": 573,
+    "x": 679,
+    "y": 753,
     "w": 55,
     "h": 56
    },
@@ -2620,10 +3340,30 @@
     "h": 56
    }
   },
+  "item_ultrabook": {
+   "frame": {
+    "x": 736,
+    "y": 753,
+    "w": 118,
+    "h": 53
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 118,
+    "h": 53
+   },
+   "sourceSize": {
+    "w": 118,
+    "h": 53
+   }
+  },
   "item_cartao_micro_sd": {
    "frame": {
-    "x": 1659,
-    "y": 573,
+    "x": 856,
+    "y": 753,
     "w": 41,
     "h": 52
    },
@@ -2642,8 +3382,8 @@
   },
   "item_soundbar": {
    "frame": {
-    "x": 1702,
-    "y": 573,
+    "x": 899,
+    "y": 753,
     "w": 133,
     "h": 49
    },
@@ -2658,12 +3398,32 @@
    "sourceSize": {
     "w": 133,
     "h": 49
+   }
+  },
+  "item_caixa_de_festa": {
+   "frame": {
+    "x": 1034,
+    "y": 753,
+    "w": 77,
+    "h": 48
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 77,
+    "h": 48
+   },
+   "sourceSize": {
+    "w": 77,
+    "h": 48
    }
   },
   "item_teclado_rgb": {
    "frame": {
-    "x": 1837,
-    "y": 573,
+    "x": 1113,
+    "y": 753,
     "w": 118,
     "h": 45
    },
@@ -2680,10 +3440,70 @@
     "h": 45
    }
   },
+  "item_caixa_amplificada": {
+   "frame": {
+    "x": 1233,
+    "y": 753,
+    "w": 66,
+    "h": 44
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 66,
+    "h": 44
+   },
+   "sourceSize": {
+    "w": 66,
+    "h": 44
+   }
+  },
+  "item_soundbar_longa": {
+   "frame": {
+    "x": 1301,
+    "y": 753,
+    "w": 211,
+    "h": 43
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 211,
+    "h": 43
+   },
+   "sourceSize": {
+    "w": 211,
+    "h": 43
+   }
+  },
+  "item_caixa_media": {
+   "frame": {
+    "x": 1514,
+    "y": 753,
+    "w": 64,
+    "h": 43
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 43
+   },
+   "sourceSize": {
+    "w": 64,
+    "h": 43
+   }
+  },
   "item_mouse": {
    "frame": {
-    "x": 1957,
-    "y": 573,
+    "x": 1580,
+    "y": 753,
     "w": 48,
     "h": 43
    },
@@ -2698,6 +3518,46 @@
    "sourceSize": {
     "w": 48,
     "h": 43
+   }
+  },
+  "item_pendrive_azul": {
+   "frame": {
+    "x": 1630,
+    "y": 753,
+    "w": 39,
+    "h": 35
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 39,
+    "h": 35
+   },
+   "sourceSize": {
+    "w": 39,
+    "h": 35
+   }
+  },
+  "item_adaptador_hdmi": {
+   "frame": {
+    "x": 1671,
+    "y": 753,
+    "w": 56,
+    "h": 28
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 56,
+    "h": 28
+   },
+   "sourceSize": {
+    "w": 56,
+    "h": 28
    }
   }
  },
@@ -2706,8 +3566,8 @@
   "image": "itens.png",
   "format": "RGBA8888",
   "size": {
-   "w": 2043,
-   "h": 650
+   "w": 2044,
+   "h": 816
   },
   "scale": "1"
  }

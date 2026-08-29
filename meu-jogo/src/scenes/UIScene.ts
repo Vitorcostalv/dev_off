@@ -11,7 +11,7 @@ import type { PontoDeLoja } from '../game/loja';
 import type { Fala, MundoJogavel } from '../game/tipos';
 
 const CAIXA = { x: 8, y: 188, w: CONFIG.largura - 16, h: 74 };
-const CONFIRMA = { w: 180, h: 56 };
+const CONFIRMA = { w: 248, h: 64 };
 const INV = {
   colunas: 5,
   linhas: 4,
@@ -83,6 +83,13 @@ export class UIScene extends Phaser.Scene {
   private descricaoItem!: Phaser.GameObjects.Text;
   private avisoInventario!: Phaser.GameObjects.Text;
 
+  /**
+   * O PC roda em cena propria (`ComputadorScene`). Aqui so guardamos que ele
+   * esta aberto, pra `bloqueado` congelar o player e o relogio e pra esconder a
+   * HUD, que ficaria por baixo de uma janela de tela cheia.
+   */
+  private pcAberto = false;
+
   private loja!: Phaser.GameObjects.Container;
   private lojaPonto: PontoDeLoja | null = null;
   /** o catalogo do ponto aberto, ja filtrado pela categoria escolhida */
@@ -114,8 +121,16 @@ export class UIScene extends Phaser.Scene {
   /** true quando alguma janela da UI esta capturando o jogo (pausa movimento). */
   get bloqueado(): boolean {
     return (
-      this.dialogoAberto || this.confirmacaoAberta || this.inventarioAberto || this.lojaAberta
+      this.dialogoAberto ||
+      this.confirmacaoAberta ||
+      this.inventarioAberto ||
+      this.lojaAberta ||
+      this.computadorAberto
     );
+  }
+
+  get computadorAberto(): boolean {
+    return this.pcAberto;
   }
 
   get lojaAberta(): boolean {
@@ -219,6 +234,14 @@ export class UIScene extends Phaser.Scene {
   // ----------------------------------------------------------------- hud --
 
   private atualizarHud(): void {
+    // A janela da loja cobre quase a tela toda e ja mostra o saldo no proprio
+    // cabecalho; deixar a HUD por baixo so faz a caixa do relogio aparecer
+    // cortada pela borda de cima do painel.
+    const visivel = !this.lojaAberta && !this.pcAberto;
+    this.hud.setVisible(visivel);
+    this.hudSaldo.setVisible(visivel);
+    if (!visivel) return;
+
     const texto = `${nomeDoDia(estado.dia)}  ${estado.relogio.texto}`;
     if (this.hud.text !== texto) this.hud.setText(texto);
     const saldo = estado.carteira.texto;
@@ -385,7 +408,9 @@ export class UIScene extends Phaser.Scene {
     const y = (CONFIG.altura - CONFIRMA.h) / 2;
 
     const fundo = this.add.graphics();
-    fundo.fillStyle(UI.fundo, 0.95);
+    // opaco, nao translucido: esta caixa abre por cima da janela da loja, e
+    // qualquer transparencia deixa o texto da lista vazando por tras da pergunta
+    fundo.fillStyle(UI.fundo, 1);
     fundo.fillRect(x, y, CONFIRMA.w, CONFIRMA.h);
     fundo.lineStyle(1, UI.borda, 1);
     fundo.strokeRect(x + 0.5, y + 0.5, CONFIRMA.w - 1, CONFIRMA.h - 1);
@@ -503,6 +528,15 @@ export class UIScene extends Phaser.Scene {
         return;
       }
       const fora = estado.inventario.removerDoSlot(alvo.indice, agora.qtd);
+      // o descarte e a UNICA fonte do historico da lixeira; se um dia outro
+      // caminho tirar item do inventario pra sempre, ele registra aqui tambem
+      estado.lixeira.registrar({
+        id: alvo.def.id,
+        nome: alvo.def.nome,
+        qtd: fora,
+        dia: estado.dia,
+        minutos: estado.relogio.minutos,
+      });
       this.itemSelecionado = null;
       this.avisar(`Descartou ${alvo.def.nome} x${fora}.`, UI.alerta);
       this.desenharInventario();
@@ -860,6 +894,43 @@ export class UIScene extends Phaser.Scene {
     );
   }
 
+  // -------------------------------------------------------- computador --
+
+  /**
+   * Liga o computador de casa. Chamada pela FarmScene ao acionar o objeto de
+   * classe `computador`.
+   *
+   * O input DESTA cena e desligado enquanto o PC estiver aberto: assim as
+   * teclas de inventario, loja e dialogo nao disparam por baixo de uma janela
+   * de tela cheia. `bloqueado` cuida do resto (player parado, relogio parado).
+   */
+  abrirComputador(): void {
+    if (this.modalPorCima || this.pcAberto) return;
+    this.inventario.setVisible(false);
+    this.loja.setVisible(false);
+    this.pcAberto = true;
+    this.mostrarPrompt(null);
+    this.input.enabled = false;
+    if (this.input.keyboard) this.input.keyboard.enabled = false;
+    this.scene.launch('ComputadorScene');
+  }
+
+  /** Chamada pela ComputadorScene ao desligar. Devolve o controle do player. */
+  fecharComputador(): void {
+    if (!this.pcAberto) return;
+    this.pcAberto = false;
+    this.scene.stop('ComputadorScene');
+    // UM QUADRO de folga antes de reativar, nao um tempo em ms: o mesmo Esc que
+    // fechou o PC ainda pode estar na fila de input deste quadro e cairia aqui
+    // como "cancelar". Em ms, um loop com rAF estrangulado (aba em segundo
+    // plano) deixaria o input desligado por muito mais tempo que o previsto.
+    this.time.delayedCall(1, () => {
+      this.input.enabled = true;
+      if (this.input.keyboard) this.input.keyboard.enabled = true;
+    });
+    this.desenharPrompt();
+  }
+
   private criarPainelDeLoja(): Phaser.GameObjects.Container {
     const { x, y, w, h } = LOJA;
     const fundo = this.add.graphics();
@@ -943,12 +1014,15 @@ export class UIScene extends Phaser.Scene {
       fontSize: UI.tamanhoTitulo,
       color: UI.destaque,
     });
-    this.lojaAviso = this.add.text(dx, y + h - 32, '', {
+    // Linha inteira, e nao a coluna de detalhe: as recusas sao frases longas
+    // ("Saldo insuficiente: faltam R$ 1.088,90.") e nos 173px da coluna elas
+    // quebravam em duas linhas por cima do rodape — quando nao passavam da
+    // borda direita do painel.
+    this.lojaAviso = this.add.text(x + LOJA.margem, y + h - 26, '', {
       fontFamily: UI.fonte,
       fontSize: '9px',
       color: UI.textoFraco,
-      wordWrap: { width: dw },
-      lineSpacing: 1,
+      wordWrap: { width: w - LOJA.margem * 2 },
     });
     this.lojaRodape = this.add.text(x + LOJA.margem, y + h - 14, '', {
       fontFamily: UI.fonte,

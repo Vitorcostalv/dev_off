@@ -65,6 +65,23 @@ const ITENS_DE_TESTE: Record<string, DefinicaoItem> = {
   },
 };
 
+/**
+ * Itens de MISSAO: entram e saem por regra de jogo, nao pela loja. Ficam fora
+ * do `CATALOGO_ITENS` de proposito — nao tem arte propria nas folhas de item,
+ * nao tem preco e nao podem aparecer na vitrine da DevStore nem na loja fisica.
+ */
+const ITENS_DE_MISSAO: Record<string, DefinicaoItem> = {
+  encomenda: {
+    id: 'encomenda',
+    nome: 'Encomenda',
+    icone: 0xc9a86a,
+    descricao: 'Uma caixa lacrada com endereco escrito a mao. Nao e sua.',
+    tipo: 'outro',
+    // uma por vez: a vaga de entrega e uma so (ver SistemaTrabalhos)
+    maxPilha: 1,
+  },
+};
+
 /** Cor de fundo do slot por categoria, so pra o icone nao flutuar no vazio. */
 const COR_DE_CATEGORIA: Record<CategoriaItem, number> = {
   normal: 0x9ad27f,
@@ -78,7 +95,7 @@ const COR_DE_CATEGORIA: Record<CategoriaItem, number> = {
  * save de quem ja jogou.
  */
 export const ITENS: Record<string, DefinicaoItem> = (() => {
-  const registro: Record<string, DefinicaoItem> = { ...ITENS_DE_TESTE };
+  const registro: Record<string, DefinicaoItem> = { ...ITENS_DE_TESTE, ...ITENS_DE_MISSAO };
   for (const item of CATALOGO_ITENS) {
     if (registro[item.id]) {
       throw new Error(`[inventario] item "${item.id}" ja existe fora do catalogo`);
