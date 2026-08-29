@@ -15,7 +15,7 @@ globalThis.localStorage = {
 const [
   { Carteira, SALDO_INICIAL, formatarDinheiro },
   { ITENS, Inventario, TAMANHO_PADRAO },
-  { CATALOGO_ITENS, FAIXA_DE_PRECO, precoDe },
+  { CATALOGO_ITENS, FAIXA_DE_PRECO, PRECO_MANUAL, SECOES_ELETRONICO, faixaDoItem, precoDe },
   { PONTOS_DE_LOJA, comprar, esquecerUltimaCompra, itensDaLoja, quantidadeViavel },
   { estado },
   { carregar, salvar },
@@ -114,13 +114,84 @@ function zerar(saldo = SALDO_INICIAL) {
   }
   const eletronicos = CATALOGO_ITENS.filter((i) => i.categoria === 'eletronico');
   const normais = CATALOGO_ITENS.filter((i) => i.categoria === 'normal');
-  const menorEletronico = Math.min(...eletronicos.map((i) => i.preco));
+
+  // Todo eletronico tem secao, e o preco cai dentro da faixa DELA. E esta a
+  // conferencia que substituiu a regra antiga "todo eletronico e mais caro que
+  // todo item de mercado": aquela passava com um pendrive de R$ 1.200, porque
+  // so olhava o envelope da categoria inteira.
+  for (const item of eletronicos) {
+    conferir(Boolean(item.secao), `${item.id} e eletronico e nao tem secao`);
+    // preco fixado a mao pode sair da faixa de proposito — ver PRECO_MANUAL
+    if (PRECO_MANUAL[item.id] !== undefined) continue;
+    const [piso, teto] = faixaDoItem(item.id, item.categoria);
+    conferir(
+      item.preco >= piso && item.preco <= teto,
+      `${item.id} custa ${formatarDinheiro(item.preco)}, fora da faixa da secao ${item.secao}`,
+    );
+  }
+
+  // Toda secao declarada tem item, e nenhuma ficou com uma faixa larga demais:
+  // quanto mais larga, mais espaco pro hash produzir vizinhos absurdos dentro
+  // do MESMO tipo de produto (era o caso dos dois pendrives).
+  // 8x e o limite empirico: acima disso a mesma secao comeca a produzir
+  // vizinhos absurdos (era o caso de armazenamento com pendrive e SSD juntos,
+  // um pendrive a R$ 466 ao lado de outro a R$ 47).
+  const RAZAO_MAXIMA = 8;
+  for (const secao of SECOES_ELETRONICO) {
+    const dela = eletronicos.filter((i) => i.secao === secao.id);
+    conferir(dela.length > 0, `secao "${secao.id}" nao tem nenhum item`);
+    const [piso, teto] = secao.faixa;
+    conferir(piso > 0 && teto > piso, `faixa invalida na secao "${secao.id}"`);
+    conferir(
+      teto / piso <= RAZAO_MAXIMA,
+      `secao "${secao.id}" tem faixa larga demais (${(teto / piso).toFixed(1)}x)`,
+    );
+    // dentro da secao, o item mais caro nao pode ser um multiplo absurdo do mais
+    // barato — e exatamente a comparacao que o jogador faz na vitrine
+    const menor = Math.min(...dela.map((i) => i.preco));
+    const maior = Math.max(...dela.map((i) => i.preco));
+    conferir(
+      maior / menor <= RAZAO_MAXIMA,
+      `secao "${secao.id}": ${formatarDinheiro(menor)} ate ${formatarDinheiro(maior)} e absurdo`,
+    );
+  }
+
+  // Preco fixado a mao continua ganhando do gerado.
+  for (const [id, centavos] of Object.entries(PRECO_MANUAL)) {
+    const item = CATALOGO_ITENS.find((i) => i.id === id);
+    conferir(Boolean(item), `PRECO_MANUAL aponta pra "${id}", que nao esta no catalogo`);
+    conferir(item.preco === centavos, `PRECO_MANUAL de "${id}" nao foi respeitado`);
+    const [piso, teto] = FAIXA_DE_PRECO[item.categoria];
+    conferir(
+      centavos >= piso && centavos <= teto,
+      `PRECO_MANUAL de "${id}" saiu do envelope da categoria — engano de digitacao?`,
+    );
+  }
+
+  // As duas prateleiras agora SE SOBREPOEM na ponta de baixo de proposito (um
+  // cabo custa menos que um bolo). O que segue valendo e que a eletronica, no
+  // geral, e outro patamar: a mediana dela fica acima de todo item de mercado.
+  const ordenados = eletronicos.map((i) => i.preco).sort((a, b) => a - b);
+  const medianaEletronico = ordenados[Math.floor(ordenados.length / 2)];
   const maiorNormal = Math.max(...normais.map((i) => i.preco));
-  conferir(menorEletronico > maiorNormal, 'eletronico nao ficou mais caro que item normal');
-  console.log(
-    `  catalogo: ${normais.length} normal + ${eletronicos.length} eletronico,` +
-      ` precos deterministicos e sem sobreposicao de faixa`,
+  conferir(
+    medianaEletronico > maiorNormal,
+    'a mediana dos eletronicos caiu abaixo do item de mercado mais caro',
   );
+
+  console.log(
+    `  catalogo: ${normais.length} normal + ${eletronicos.length} eletronico em` +
+      ` ${SECOES_ELETRONICO.length} secoes, precos deterministicos e dentro da faixa`,
+  );
+  for (const secao of SECOES_ELETRONICO) {
+    const dela = eletronicos.filter((i) => i.secao === secao.id);
+    const precos = dela.map((i) => i.preco);
+    console.log(
+      `    ${secao.id.padEnd(14)} ${String(dela.length).padStart(2)} itens` +
+        `  faixa ${formatarDinheiro(secao.faixa[0])}..${formatarDinheiro(secao.faixa[1])}` +
+        `  real ${formatarDinheiro(Math.min(...precos))}..${formatarDinheiro(Math.max(...precos))}`,
+    );
+  }
 }
 
 // ------------------------------------------------------- compra que passa --

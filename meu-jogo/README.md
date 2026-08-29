@@ -21,8 +21,9 @@ partir da arte em `public/assets/sprites/`.
 | E ou clique | interagir, avancar dialogo, confirmar |
 | Setas ou A/D | escolher Sim/Nao na confirmacao |
 | Esc | cancelar confirmacao |
-| Tab | abrir/fechar inventario |
+| Tab | abrir/fechar inventario (e trocar de secao na DevStore) |
 | M | abrir/fechar mapa da cidade |
+| E no computador de casa | ligar o PC (desktop com 7 apps); Esc desliga |
 | F1 | debug das colisoes |
 | F6 | mostrar/esconder as zonas reservadas (debug) |
 | F7 | avancar uma hora para testar rotinas (debug) |
@@ -49,7 +50,13 @@ src/
   scenes/
     BootScene.ts       preload, animacoes, carga do save
     FarmScene.ts       cena de mundo: tilemap, player, colisao, camera, interacao
-    UIScene.ts         HUD, prompt, dialogo, confirmacao, inventario
+    UIScene.ts         HUD, prompt, dialogo, confirmacao, inventario, loja fisica
+    ComputadorScene.ts o PC do protagonista: desktop de tela cheia e os apps
+  pc/                  o "sistema operacional" do computador de casa
+    JanelaApp.ts       moldura unica em que os 7 apps abrem
+    widgets.ts         caixa/botao/texto/icone compartilhados pelos apps
+    tipos.ts           contrato AppDoPc + ContextoApp
+    apps/              devstore (funcional), calculadora (funcional) e 5 fachadas
 tools/
   png.mjs              encoder PNG minimo + hash deterministico
   imagem.mjs           decoder PNG, deteccao de grade/blob e reducao de tile

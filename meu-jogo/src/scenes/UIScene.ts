@@ -83,6 +83,13 @@ export class UIScene extends Phaser.Scene {
   private descricaoItem!: Phaser.GameObjects.Text;
   private avisoInventario!: Phaser.GameObjects.Text;
 
+  /**
+   * O PC roda em cena propria (`ComputadorScene`). Aqui so guardamos que ele
+   * esta aberto, pra `bloqueado` congelar o player e o relogio e pra esconder a
+   * HUD, que ficaria por baixo de uma janela de tela cheia.
+   */
+  private pcAberto = false;
+
   private loja!: Phaser.GameObjects.Container;
   private lojaPonto: PontoDeLoja | null = null;
   /** o catalogo do ponto aberto, ja filtrado pela categoria escolhida */
@@ -114,8 +121,16 @@ export class UIScene extends Phaser.Scene {
   /** true quando alguma janela da UI esta capturando o jogo (pausa movimento). */
   get bloqueado(): boolean {
     return (
-      this.dialogoAberto || this.confirmacaoAberta || this.inventarioAberto || this.lojaAberta
+      this.dialogoAberto ||
+      this.confirmacaoAberta ||
+      this.inventarioAberto ||
+      this.lojaAberta ||
+      this.computadorAberto
     );
+  }
+
+  get computadorAberto(): boolean {
+    return this.pcAberto;
   }
 
   get lojaAberta(): boolean {
@@ -222,7 +237,7 @@ export class UIScene extends Phaser.Scene {
     // A janela da loja cobre quase a tela toda e ja mostra o saldo no proprio
     // cabecalho; deixar a HUD por baixo so faz a caixa do relogio aparecer
     // cortada pela borda de cima do painel.
-    const visivel = !this.lojaAberta;
+    const visivel = !this.lojaAberta && !this.pcAberto;
     this.hud.setVisible(visivel);
     this.hudSaldo.setVisible(visivel);
     if (!visivel) return;
@@ -868,6 +883,43 @@ export class UIScene extends Phaser.Scene {
     this.lojaDetalheTotal.setText(
       `x${this.lojaQuantidade}   ${formatarDinheiro(item.preco * this.lojaQuantidade)}`,
     );
+  }
+
+  // -------------------------------------------------------- computador --
+
+  /**
+   * Liga o computador de casa. Chamada pela FarmScene ao acionar o objeto de
+   * classe `computador`.
+   *
+   * O input DESTA cena e desligado enquanto o PC estiver aberto: assim as
+   * teclas de inventario, loja e dialogo nao disparam por baixo de uma janela
+   * de tela cheia. `bloqueado` cuida do resto (player parado, relogio parado).
+   */
+  abrirComputador(): void {
+    if (this.modalPorCima || this.pcAberto) return;
+    this.inventario.setVisible(false);
+    this.loja.setVisible(false);
+    this.pcAberto = true;
+    this.mostrarPrompt(null);
+    this.input.enabled = false;
+    if (this.input.keyboard) this.input.keyboard.enabled = false;
+    this.scene.launch('ComputadorScene');
+  }
+
+  /** Chamada pela ComputadorScene ao desligar. Devolve o controle do player. */
+  fecharComputador(): void {
+    if (!this.pcAberto) return;
+    this.pcAberto = false;
+    this.scene.stop('ComputadorScene');
+    // UM QUADRO de folga antes de reativar, nao um tempo em ms: o mesmo Esc que
+    // fechou o PC ainda pode estar na fila de input deste quadro e cairia aqui
+    // como "cancelar". Em ms, um loop com rAF estrangulado (aba em segundo
+    // plano) deixaria o input desligado por muito mais tempo que o previsto.
+    this.time.delayedCall(1, () => {
+      this.input.enabled = true;
+      if (this.input.keyboard) this.input.keyboard.enabled = true;
+    });
+    this.desenharPrompt();
   }
 
   private criarPainelDeLoja(): Phaser.GameObjects.Container {

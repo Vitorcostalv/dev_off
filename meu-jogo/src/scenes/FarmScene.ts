@@ -75,7 +75,14 @@ const VETOR: Record<Direcao, { x: number; y: number }> = {
 // 'loja' NAO entra: nenhum tilemap traz objeto dessa classe hoje. Os pontos de
 // loja sao acrescentados depois da leitura, a partir de PONTOS_DE_LOJA — ver o
 // cabecalho de src/game/loja.ts, que documenta a pendencia de ligacao.
-const TIPOS_VALIDOS: TipoInteragivel[] = ['placa', 'npc', 'porta', 'cama', 'item'];
+const TIPOS_VALIDOS: TipoInteragivel[] = [
+  'placa',
+  'npc',
+  'porta',
+  'cama',
+  'item',
+  'computador',
+];
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
   'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
 ];
@@ -388,6 +395,9 @@ export class FarmScene extends Phaser.Scene {
         break;
       case 'loja':
         this.ui.abrirLoja(String(this.alvo.props.loja));
+        break;
+      case 'computador':
+        this.ui.abrirComputador();
         break;
       case 'porta':
         this.atravessarPorta(this.alvo);

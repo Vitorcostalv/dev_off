@@ -2119,6 +2119,22 @@ const PAREDE_TOPO = 2;
 const CAMA_INTERIOR = { x: 2, y: 2 }; // topo; a base fica um tile abaixo
 
 /**
+ * Onde nasce o objeto interativo `computador` de cada interior de salao unico.
+ *
+ * O PC e um MOVEL (`setup_gamer` em MOBILIA_CASA) — movel nao interage sozinho,
+ * a camada `moveis` e so desenho. Este e o tile do objeto que a `FarmScene`
+ * transforma em alvo de "[E] Usar": fica na base da mesa, entao o jogador
+ * aciona chegando por baixo, que e o unico lado livre (o corpo solido do movel
+ * bloqueia a propria fileira).
+ *
+ * Casa sem entrada aqui simplesmente nao tem PC — hoje so a casa_1, do
+ * protagonista.
+ */
+const PC_DO_INTERIOR = {
+  casa_1: { x: 5, y: 8 },
+};
+
+/**
  * Catalogo de mobilia, agrupado POR TIPO DE COMODO.
  *
  * O agrupamento nao e so arrumacao: e o contrato. `pecasDeCatalogo` cobra que
@@ -2368,7 +2384,9 @@ const MOBILIA_CASA = {
     { movel: 'rack_tv_v2', tx: 11, ty: 6 },
     { movel: 'tapete_creme', tx: 5, ty: 6 },
     { movel: 'mesa_centro_madeira', tx: 6, ty: 6 },
-    { movel: 'poltrona_branca', tx: 4, ty: 8 },
+    // o PC do protagonista: e ele que a classe `computador` da camada
+    // `interativos` aciona (ver PC_DO_INTERIOR logo abaixo)
+    { movel: 'setup_gamer', tx: 4, ty: 8 },
     { movel: 'vaso_planta', tx: 1, ty: 9 },
     { movel: 'caminha_pet_v2', tx: 10, ty: 9 },
     { movel: 'planta_alta', tx: 13, ty: 9 },
@@ -2882,6 +2900,9 @@ function gerarInteriorCasa(nome, ts) {
     }),
     objeto(`cama_${nome}`, 'cama', CAMA_INTERIOR.x, CAMA_INTERIOR.y + 1),
   ];
+
+  const pc = PC_DO_INTERIOR[nome];
+  if (pc) interativos.push(objeto(`computador_${nome}`, 'computador', pc.x, pc.y));
 
   const moveis = objetosDeMovel(nome, pecasDeMobilia(nome));
 
