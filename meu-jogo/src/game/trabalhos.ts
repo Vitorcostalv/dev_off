@@ -219,7 +219,8 @@ export interface Vaga extends ModeloDeVaga {
 export const DESTINOS_DE_ENTREGA: readonly { npcId: string; mapa: string; morador: string }[] = Object.values(
   NPCS,
 )
-  .filter((npc) => npc.casa !== 'casa_1') // a casa do proprio jogador nao vale
+  // a casa do protagonista nao entra: ela nao e casa de NPC nenhum desde que
+  // ele mudou pro lote `oficina` do Mapa 2
   // um destino por PORTA: quem divide teto (Luke com a mae, Vitor com o irmao)
   // fica de fora, senao o mesmo endereco apareceria duas vezes no quadro com
   // nomes diferentes e a entrega viraria loteria de qual dos dois atende

@@ -345,7 +345,7 @@ function zerar(saldo = SALDO_INICIAL) {
   inv.restaurar(dados.inventario);
   conferir(carteira.saldo === saldoEsperado, 'o saldo nao sobreviveu ao save');
   conferir(inv.contar(item.id) === 2, 'o item comprado nao sobreviveu ao save');
-  console.log(`  save v5: ${carteira.texto} e ${item.nome} x2 preservados no reload`);
+  console.log(`  save v6: ${carteira.texto} e ${item.nome} x2 preservados no reload`);
 }
 
 // ----------------------------------------------------- pontos de loja --

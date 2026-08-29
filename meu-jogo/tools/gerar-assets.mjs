@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { Img, colar, colarRet, hash01, ruido } from './png.mjs';
 import { PROP_COLIDE, PROP_PORTA_NPC } from '../src/game/colisao.ts';
 import { FOLHAS_DE_MOVEL } from '../src/game/moveis.ts';
+import { CATALOGO_MOBILIA } from '../src/game/casa.ts';
 import {
   agruparEmLinhas,
   blobs,
@@ -52,6 +53,12 @@ const SEMENTE = 20260827;
  */
 const FOLHAS = {
   grama: { arquivo: 'Grama.png', cols: 3, rows: 1, limiar: 0, inset: 0.22 },
+  // Grama propria do Mapa 2 (bairro) e do Mapa 3 (zona rural). As duas folhas
+  // vieram com grade 3x2 (seis variantes cada), contra a 3x1 da grama do Mapa
+  // 1 — e por isso que cada mapa tem material proprio em `MATERIAIS`, e nao um
+  // tinte por cima do mesmo tile.
+  grama2: { arquivo: 'Grama_mapa_2.png', cols: 3, rows: 2, limiar: 0, inset: 0.22 },
+  grama3: { arquivo: 'Grama_mapa_3.png', cols: 3, rows: 2, limiar: 0, inset: 0.22 },
   // estrada/lago: o inset subiu de 0.05 quando o tile foi pra 32 px. A arte tem
   // franja colorida na beirada de cada celula; em 16 px ela sumia na media do
   // downscale, em 32 resolve como pontinhos claros e o tile vira grade.
@@ -510,6 +517,14 @@ const FOLHAS_PAINEL = {
     porLinha: 6,
   },
   farmacia: { arquivo: 'Paredes_farmacia.png', modo: 'grade', paineis: 3, porLinha: 6 },
+  // Folhas novas desta leva. As tres vieram sobre fundo PRETO opaco (como a do
+  // bar), entao pedem `fundoPreto` pra projecao achar a grade; escola tem 5
+  // paineis por linha, biblioteca e o predio generico tem 6.
+  escola: { arquivo: 'Paredes_escola.png', modo: 'grade', fundoPreto: true, paineis: 3, porLinha: 5 },
+  biblioteca: { arquivo: 'Paredes_biblioteca.png', modo: 'grade', fundoPreto: true, paineis: 3, porLinha: 6 },
+  // `predio` e a folha de alvenaria neutra: serve a oficina do protagonista, a
+  // madeireira e a central telefonica, que nao tem folha de ramo propria.
+  predio: { arquivo: 'PAredes_predio.png', modo: 'grade', fundoPreto: true, paineis: 3, porLinha: 6 },
   bar: { arquivo: 'Paredes_bar.png', modo: 'grade', fundoPreto: true, paineis: 3, porLinha: 6 },
 };
 
@@ -694,6 +709,13 @@ const ESTILOS_PAREDE = {
   mercado: ['mercado', [0, 0], { campo: [0.26, 0.54] }],
   farmacia: ['farmacia', [1, 0]],
   bar: ['bar', [0, 0]],
+  // --- predios do Mapa 2, com as folhas novas ---
+  escola: ['escola', [0, 0]],
+  biblioteca: ['biblioteca', [0, 0]],
+  // alvenaria neutra: e a parede da parte de MORADIA da casa+oficina
+  predio: ['predio', [0, 0]],
+  // concreto rachado: a parede do comodo de OFICINA, que le como puxadinho
+  predio_gasto: ['predio', [1, 1]],
 };
 
 const TILES_DE_PAREDE = Object.entries(ESTILOS_PAREDE).flatMap(([nome, [folha, painel, faixas]]) =>
@@ -874,8 +896,8 @@ const TILES_DE_PORTA_INTERNA = Object.entries(CORES_DE_PORTA).flatMap(([nome, ba
  * e so a arte — sai a cama pintada a mao, entra a cama de solteiro da folha
  * dedicada de quarto, esticada nos 32x64 dos dois tiles.
  *
- * A cama PINTADA continua no tileset (`CAMA_TOPO`/`CAMA_BASE`): quem usa e o
- * salao unico da casa_1, que segue com o sistema original do protagonista.
+ * A cama pintada a mao saiu do tileset junto com o interior de salao unico da
+ * casa_1, que foi desativada nesta leva.
  */
 function tilesDeCamaDeQuarto() {
   const b = peca('quarto', 0, 0); // cama de solteiro
@@ -989,9 +1011,37 @@ const GRAMA = ['A', 'B', 'C'].flatMap((letra, v) =>
   rotacoes(tileDaArte('grama', v, 0)).map((px, r) => ({ nome: `GRAMA_${letra}${r}`, px })),
 );
 
+/**
+ * Grama dos mapas 2 e 3, das folhas novas.
+ *
+ * As duas vieram em grade 3x2, mas NEM TODA celula serve de tile de chao:
+ *
+ * - a LINHA 1 das duas folhas e a versao NOTURNA da linha 0 (mesmo pareamento
+ *   de `Grama.png` com `Grama_noite.png`). O jogo nao troca tile por horario,
+ *   entao ela fica FORA — anotada aqui pra quem for implementar noite saber
+ *   que a arte ja existe;
+ * - as celulas com CENARIO desenhado dentro (caminho de pedra na grama2, fardo
+ *   de feno / cerca / girassol na grama3) tambem ficam fora: sao pecas de
+ *   composicao, e ladrilhadas viram carimbo repetido.
+ *
+ * Sobra o que repete bem, cada uma nas 4 rotacoes.
+ */
+const gramaDeFolha = (prefixo, chave, celulas) =>
+  celulas.flatMap(([c, r], v) =>
+    rotacoes(tileDaArte(chave, c, r)).map((px, giro) => ({
+      nome: `${prefixo}_${v}${giro}`,
+      px,
+    })),
+  );
+const GRAMA2 = gramaDeFolha('GRAMA2', 'grama2', [[0, 0], [1, 0]]);
+const GRAMA3 = gramaDeFolha('GRAMA3', 'grama3', [[0, 0]]);
+
 const TILES = [
   // grama: arte lisa / com florzinhas / com terra, x4 rotacoes cada
   ...GRAMA,
+  // grama propria do Mapa 2 (bairro) e do Mapa 3 (zona rural)
+  ...GRAMA2,
+  ...GRAMA3,
 
   // terra batida (faixa da via): 4 rotacoes, senao as pedrinhas viram padrao
   ...rotacoes(tileDaArte('estrada', 0, 0)).map((px, r) => ({ nome: `TERRA_${r}`, px })),
@@ -1072,6 +1122,88 @@ const TILES = [
   ...TILES_DE_PISO,
   // cama dos interiores multi-comodo, com a arte da folha de quarto
   ...tilesDeCamaDeQuarto(),
+  // ------------------------------------------------ terreno dos mapas novos --
+  // Nenhuma destas cinco superficies tem folha de arte dedicada na pasta, entao
+  // seguem PINTADAS proceduralmente, como o MATO e o PISO ja eram. Cada uma
+  // esta documentada com o que ela representa, pra a troca por arte dedicada,
+  // quando houver, ser so mexer no pintor.
+
+  // Ponte de tabua sobre o rio do Mapa 2: e o UNICO tile andavel dentro da
+  // faixa de agua. Nao colide de proposito.
+  {
+    nome: 'PONTE',
+    px: pintado((im, ox, s) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [138, 104, 66]);
+      for (let y = 1; y < T_ARTE; y += 3) im.rect(ox, y, T_ARTE, 1, [104, 76, 46]);
+      im.rect(ox, 0, T_ARTE, 1, [176, 142, 96]); // guarda-corpo norte
+      im.rect(ox, T_ARTE - 1, T_ARTE, 1, [92, 66, 40]); // sombra sul
+      salpico(im, ox, s, [156, 122, 82], 0.85);
+    }),
+  },
+  // Muro do condominio fechado (Mapa 2) e cerca velha do terreno abandonado.
+  {
+    nome: 'MURO',
+    colide: true,
+    px: pintado((im, ox, s) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [188, 182, 168]);
+      im.rect(ox, 0, T_ARTE, 2, [214, 210, 198]); // capeamento
+      im.rect(ox, T_ARTE - 3, T_ARTE, 3, [148, 142, 130]); // base
+      for (let y = 4; y < T_ARTE - 3; y += 4) im.rect(ox, y, T_ARTE, 1, [162, 156, 144]);
+      salpico(im, ox, s, [172, 166, 154], 0.8);
+    }),
+  },
+  // Portao do condominio: vao do muro, andavel.
+  {
+    nome: 'PORTAO',
+    px: pintado((im, ox) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [96, 92, 84]);
+      for (let x = 1; x < T_ARTE; x += 3) im.rect(ox + x, 2, 1, T_ARTE - 4, [58, 56, 52]);
+      im.rect(ox, 2, T_ARTE, 1, [124, 120, 110]);
+      im.rect(ox, T_ARTE - 3, T_ARTE, 1, [124, 120, 110]);
+    }),
+  },
+  // Plantacao das fazendas do Mapa 3: leira de terra com o pe de planta em
+  // cima. AMBIENTACAO — nao ha mecanica de plantio/colheita nesta leva.
+  {
+    nome: 'PLANTACAO',
+    px: pintado((im, ox, s) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [122, 92, 62]);
+      for (let y = 1; y < T_ARTE; y += 4) {
+        im.rect(ox, y, T_ARTE, 2, [96, 70, 46]); // sulco
+        im.rect(ox, y + 2, T_ARTE, 1, [86, 122, 58]); // muda
+      }
+      salpico(im, ox, s, [104, 140, 66], 0.86);
+    }),
+  },
+  // Cascalho da pedreira do Mapa 3. AMBIENTACAO — sem mecanica de mineracao.
+  {
+    nome: 'CASCALHO',
+    px: pintado((im, ox, s) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [148, 142, 132]);
+      salpico(im, ox, s, [124, 118, 110], 0.62);
+      salpico(im, ox, s + 7, [172, 166, 156], 0.72);
+      salpico(im, ox, s + 13, [100, 96, 90], 0.86);
+    }),
+  },
+  // Piso da quadra esportiva do Mapa 2. Sem funcao de jogo nesta leva: e chao.
+  {
+    nome: 'QUADRA',
+    px: pintado((im, ox, s) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [176, 108, 78]);
+      salpico(im, ox, s, [186, 118, 88], 0.8);
+      im.rect(ox, 0, T_ARTE, 1, [162, 96, 68]);
+      im.rect(ox, 0, 1, T_ARTE, [162, 96, 68]);
+    }),
+  },
+  // Faixa branca da quadra: usada so na moldura do retangulo de jogo.
+  {
+    nome: 'QUADRA_LINHA',
+    px: pintado((im, ox, s) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [176, 108, 78]);
+      salpico(im, ox, s, [186, 118, 88], 0.85);
+      im.rect(ox, 7, T_ARTE, 2, [236, 232, 222]);
+    }),
+  },
   {
     nome: 'PAREDE',
     colide: true,
@@ -1117,26 +1249,6 @@ const TILES = [
       im.rect(ox + 3, 10, 10, 4, [74, 78, 86]); // almofada de baixo
       im.rect(ox + 5, 8, 6, 2, [214, 210, 198]); // placa de "privado"
       im.rect(ox + 12, 8, 1, 2, [188, 178, 140]); // macaneta discreta
-    }),
-  },
-  {
-    nome: 'CAMA_TOPO',
-    colide: true,
-    px: pintado((im, ox) => {
-      im.rect(ox, 0, T_ARTE, T_ARTE, [122, 82, 50]);
-      im.rect(ox + 1, 1, 14, 14, [232, 228, 216]);
-      im.rect(ox + 3, 3, 10, 6, [246, 246, 240]);
-      im.rect(ox + 1, 12, 14, 3, [200, 84, 96]);
-    }),
-  },
-  {
-    nome: 'CAMA_BASE',
-    colide: true,
-    px: pintado((im, ox) => {
-      im.rect(ox, 0, T_ARTE, T_ARTE, [122, 82, 50]);
-      im.rect(ox + 1, 0, 14, 14, [200, 84, 96]);
-      im.rect(ox + 1, 3, 14, 1, [226, 128, 136]);
-      im.rect(ox + 1, 8, 14, 1, [226, 128, 136]);
     }),
   },
 ];
@@ -1190,6 +1302,16 @@ const MATERIAIS = {
   ),
   agua_centro: [0, 1, 2, 3, 4, 5, 6, 7].map((r) => ({ gid: GID[`AGUA_C${r}`], peso: 1 })),
   madeira: [{ gid: GID.MADEIRA, peso: 1 }],
+  // Grama dos mapas novos. O bairro tem duas leituras de gramado (3:2); a zona
+  // rural, uma so, nas 4 rotacoes — e a unica celula da folha que nao traz
+  // cenario desenhado dentro.
+  grama_bairro: [3, 2].flatMap((peso, v) =>
+    [0, 1, 2, 3].map((r) => ({ gid: GID[`GRAMA2_${v}${r}`], peso })),
+  ),
+  grama_rural: [0, 1, 2, 3].map((r) => ({ gid: GID[`GRAMA3_0${r}`], peso: 1 })),
+  plantacao: [{ gid: GID.PLANTACAO, peso: 1 }],
+  cascalho: [{ gid: GID.CASCALHO, peso: 1 }],
+  quadra: [{ gid: GID.QUADRA, peso: 1 }],
 };
 
 /**
@@ -1265,7 +1387,9 @@ const FAZENDA = { largura: 120, altura: 90 };
  */
 const LARGURA_VIA = 3;
 const VIAS = [
-  { nome: 'avenida_h', x: 3, y: 45, w: 114, h: 1 },
+  // Vai de borda a borda: a ponta OESTE e por onde se sai pro Mapa 2 (ver
+  // `BORDAS`). A ponta leste continua so terminando na mata.
+  { nome: 'avenida_h', x: 0, y: 45, w: 120, h: 1 },
   { nome: 'avenida_v', x: 60, y: 3, w: 1, h: 84 },
   { nome: 'anel_norte', x: 22, y: 20, w: 78, h: 1 },
   { nome: 'anel_sul', x: 22, y: 71, w: 78, h: 1 },
@@ -1298,7 +1422,11 @@ function faixaDaVia(v, largura = LARGURA_VIA) {
 // Quem conta como moradia disponivel pro morador vem daqui, entao 'misto' entra
 // na mesma validacao de "um NPC por casa" que as seis casas ja usam.
 const ZONAS = [
-  { nome: 'casa_1', classe: 'casa', uso: 'moradia', x: 28, y: 12, w: 8, h: 6 },
+  // casa_1 — a casinha inicial do protagonista. Nesta leva ele MUDOU pro Mapa 2
+  // (lote `oficina`), e este lote virou VAGO: o predio continua de pe, mas a
+  // porta nao abre mais e nao ha interior. Fica reservado pra uso narrativo
+  // futuro (outro morador entrando ali).
+  { nome: 'casa_1', classe: 'casa', uso: 'vago', x: 28, y: 12, w: 8, h: 6 },
   { nome: 'casa_2', classe: 'casa', uso: 'moradia', x: 40, y: 12, w: 8, h: 6 },
   { nome: 'casa_3', classe: 'casa', uso: 'moradia', x: 72, y: 12, w: 8, h: 6 },
   { nome: 'casa_4', classe: 'casa', uso: 'moradia', x: 84, y: 12, w: 8, h: 6 },
@@ -1322,11 +1450,22 @@ const LOTES_DE_MORADIA = ZONAS.filter((z) => USOS_DE_MORADIA.has(z.uso)).map((z)
 /** Lago: retangulo, que e o que um 9-slice sem cantos internos aceita. */
 const LAGO = { x: 104, y: 49, w: 11, h: 9 };
 
+/**
+ * Acha um lote pelo nome, EM QUALQUER mapa externo, e devolve junto de que mapa
+ * ele e. Nome de lote e globalmente unico (`conferirNomesDeLote` cobra isso),
+ * entao a busca nao e ambigua.
+ */
+function loteDe(nome) {
+  for (const [mapa, m] of Object.entries(MUNDO)) {
+    const z = m.zonas.find((x) => x.nome === nome);
+    if (z) return { mapa, zona: z, def: m.construcoes[nome] };
+  }
+  throw new Error(`lote "${nome}" nao existe em nenhum mapa de MUNDO`);
+}
+
 /** Acha uma zona pelo nome; erra alto se o nome nao existir mais. */
 function zona(nome) {
-  const z = ZONAS.find((x) => x.nome === nome);
-  if (!z) throw new Error(`zona "${nome}" nao existe em ZONAS`);
-  return z;
+  return loteDe(nome).zona;
 }
 
 // ----------------------------------------------------------- construcoes --
@@ -1360,7 +1499,7 @@ const SOBRA_TELHADO = 0.7;
  * laterais do lote, e o flood-fill confere que da.
  */
 const CONSTRUCOES = {
-  casa_1: { pegada: { w: 5, h: 4 }, interior: 'casa_1', estilo: 0 },
+  casa_1: { pegada: { w: 5, h: 4 }, estilo: 0, fechada: true },
   casa_2: { pegada: { w: 5, h: 4 }, interior: 'casa_2', estilo: 1 },
   casa_3: { pegada: { w: 5, h: 4 }, interior: 'casa_3', estilo: 2 },
   casa_4: { pegada: { w: 5, h: 4 }, interior: 'casa_4', estilo: 3 },
@@ -1378,7 +1517,286 @@ const CONSTRUCOES = {
 };
 
 /** Lotes que sao area externa: praca, sem predio e sem interior. */
-const PRACAS = { parque: true };
+const PRACAS = { parque: true, quadra: true };
+
+// ================================================================= MUNDO ==
+// A partir desta leva o jogo tem TRES mapas externos, e nao mais um. O que era
+// especifico da fazenda (`FAZENDA`, `VIAS`, `ZONAS`, `CONSTRUCOES`) continua
+// existindo com o mesmo nome — o Mapa 1 nao mudou de forma — e os mapas novos
+// entram como tabelas irmas, registradas em `MUNDO`.
+//
+// Quem resolve "de que mapa e este lote" e o registro: `zona()`,
+// `construcaoDe()` e `construcao()` varrem os tres. Por isso NOME DE LOTE E
+// GLOBALMENTE UNICO — a conferencia embaixo reprova se dois mapas repetirem um.
+
+// ------------------------------------------------------- vias em polilinha --
+/**
+ * Malha viaria dos mapas 2 e 3.
+ *
+ * O Mapa 1 tem vias RETAS (`VIAS`), o que deixou a cidade com cara de
+ * quadriculado. Os mapas novos usam POLILINHA: uma sequencia de pontos ligados
+ * por Bresenham, entao o eixo desce em degraus e a rua sai torta de proposito.
+ *
+ * A faixa de terra sai por DILATACAO quadrada do eixo (raio 1 = faixa de 3
+ * tiles), e nao pelo alargamento perpendicular de `faixaDaVia`: num trecho
+ * diagonal nao existe "perpendicular" unica, e a dilatacao fecha o degrau sem
+ * deixar buraco. O autotile de `pintarVias` continua o mesmo — ele so olha a
+ * vizinhanca de 4 do eixo.
+ */
+const RAIO_FAIXA = 1;
+
+/** Tiles do eixo de uma polilinha, em degraus de Bresenham. */
+function tilesDaPolilinha(pontos) {
+  const saida = [];
+  const vistos = new Set();
+  const por1 = (x, y) => {
+    const k = `${x},${y}`;
+    if (vistos.has(k)) return;
+    vistos.add(k);
+    saida.push([x, y]);
+  };
+  for (let i = 0; i < pontos.length - 1; i++) {
+    let [x, y] = pontos[i];
+    const [x1, y1] = pontos[i + 1];
+    const dx = Math.abs(x1 - x);
+    const dy = -Math.abs(y1 - y);
+    const sx = x < x1 ? 1 : -1;
+    const sy = y < y1 ? 1 : -1;
+    let erro = dx + dy;
+    for (;;) {
+      por1(x, y);
+      if (x === x1 && y === y1) break;
+      const e2 = 2 * erro;
+      // move UM eixo por vez: o eixo da via tem de ser conexo por vizinhanca de
+      // 4, senao o autotile abre buraco na diagonal
+      if (e2 >= dy) {
+        erro += dy;
+        x += sx;
+      } else {
+        erro += dx;
+        y += sy;
+      }
+    }
+  }
+  return saida;
+}
+
+/** Eixo (Grade 0/1) de uma lista de polilinhas. */
+function eixoDeVias(W, H, vias) {
+  const eixo = new Grade(W, H, 0);
+  for (const v of vias) for (const [x, y] of tilesDaPolilinha(v.pontos)) eixo.set(x, y, 1);
+  return eixo;
+}
+
+/** Faixa de terra: o eixo dilatado por `RAIO_FAIXA` em quadrado. */
+function faixaDeVias(W, H, vias) {
+  const eixo = eixoDeVias(W, H, vias);
+  const faixa = new Grade(W, H, 0);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!eixo.get(x, y)) continue;
+      for (let j = -RAIO_FAIXA; j <= RAIO_FAIXA; j++) {
+        for (let i = -RAIO_FAIXA; i <= RAIO_FAIXA; i++) faixa.set(x + i, y + j, 1);
+      }
+    }
+  }
+  return faixa;
+}
+
+const linha = (nome, pontos) => ({ nome, pontos });
+
+// ------------------------------------------ Mapa 2 — Bairro da Estacao --
+/**
+ * Mapa 2 — "Bairro da Estacao" / "Bairro Baixo".
+ *
+ * Maior que o Mapa 1 (140x110 contra 120x90) e MENOS denso: menos lotes, mais
+ * respiro entre eles, e a rua principal descendo torta de leste pra oeste em
+ * vez da avenida reta da fazenda.
+ *
+ * Ligacoes: borda LESTE volta pro Mapa 1; borda SUL, depois da ponte, vai pro
+ * Mapa 3.
+ */
+const BAIRRO = { largura: 140, altura: 110 };
+
+const VIAS_BAIRRO = [
+  // rua principal: entra pela borda leste e desce em curva ate a borda oeste
+  linha('rua_principal', [
+    [139, 55], [122, 55], [108, 49], [92, 47], [78, 50], [66, 54], [52, 57], [36, 63], [20, 66], [1, 66],
+  ]),
+  // rua da estacao: eixo norte-sul, cruza a principal em (66,54) e segue ate a
+  // ponte e a saida pro Mapa 3
+  linha('rua_estacao', [[58, 2], [58, 28], [62, 42], [66, 54], [66, 74], [66, 96], [66, 108]]),
+  // rua baixa: serve a zona residencial ao sul da principal
+  linha('rua_baixa', [[20, 78], [44, 76], [66, 74], [92, 76], [112, 72]]),
+  // acesso ao condominio fechado: sobe da principal ate o portao
+  linha('rua_condominio', [[104, 48], [104, 42]]),
+  // acesso a escola, subindo da principal
+  linha('rua_escola', [[26, 65], [26, 36], [42, 30]]),
+];
+
+/**
+ * Rio da borda inferior. Faixa de agua ONDULADA (a linha do leito varia com x),
+ * intransponivel — o unico jeito de passar e a PONTE, que e um tile andavel por
+ * cima da agua na coluna da rua da estacao.
+ */
+const RIO_BAIRRO = {
+  y: 88,
+  altura: 5,
+  /** deslocamento vertical do leito, em tiles, pra o rio nao sair reto */
+  onda: (x) => Math.round(2 * Math.sin(x / 11)),
+  ponte: { x: 63, w: 7 },
+};
+
+/** Linha de topo do rio na coluna `x`. */
+const topoDoRio = (x) => RIO_BAIRRO.y + RIO_BAIRRO.onda(x);
+
+/**
+ * Condominio fechado: um cluster de lotes cercado por muro, com PORTAO unico ao
+ * sul. Os quatro lotes de dentro ficam RESERVADOS (sem construcao) — o objetivo
+ * e a densidade residencial, nao mobiliar quatro casas sem morador.
+ *
+ * O muro NAO e um lote: e desenho na camada `objetos`. Por isso ele pode
+ * abracar os quatro lotes sem disparar a conferencia de "lote invade lote".
+ */
+const CONDOMINIO = { x: 92, y: 20, w: 28, h: 22, portao: { x: 103, w: 3 } };
+
+/** Quadra esportiva: retangulo de piso dentro do lote `quadra`. */
+const QUADRA_BAIRRO = { x: 90, y: 60, w: 12, h: 8 };
+
+/** Terreno abandonado: mato, entulho e um resto de cerca. */
+const TERRENO_BAIRRO = { x: 109, y: 59, w: 10, h: 7 };
+
+const ZONAS_BAIRRO = [
+  // casa+oficina do protagonista: e o predio principal do mapa
+  { nome: 'oficina', classe: 'oficina', uso: 'moradia', x: 74, y: 34, w: 12, h: 10 },
+  { nome: 'escola', classe: 'escola', uso: 'comercio', x: 30, y: 42, w: 16, h: 11 },
+  { nome: 'biblioteca', classe: 'biblioteca', uso: 'comercio', x: 46, y: 44, w: 14, h: 10 },
+  { nome: 'quadra', classe: 'quadra', uso: 'praca', x: 88, y: 58, w: 16, h: 12 },
+  { nome: 'terreno_baldio', classe: 'terreno', uso: 'vago', x: 108, y: 58, w: 12, h: 9 },
+  // predio misterioso: fechado, sem interior
+  { nome: 'central', classe: 'servico', uso: 'vago', x: 46, y: 63, w: 8, h: 6 },
+  // zona residencial: lotes RESERVADOS, sem construcao e sem morador
+  { nome: 'casa_b1', classe: 'casa', uso: 'moradia', x: 14, y: 44, w: 8, h: 6 },
+  { nome: 'casa_b2', classe: 'casa', uso: 'moradia', x: 14, y: 52, w: 8, h: 6 },
+  { nome: 'casa_b3', classe: 'casa', uso: 'moradia', x: 34, y: 70, w: 8, h: 6 },
+  { nome: 'casa_b4', classe: 'casa', uso: 'moradia', x: 56, y: 68, w: 8, h: 6 },
+  { nome: 'casa_b5', classe: 'casa', uso: 'moradia', x: 78, y: 66, w: 8, h: 6 },
+  { nome: 'casa_b6', classe: 'casa', uso: 'moradia', x: 4, y: 52, w: 8, h: 6 },
+  { nome: 'casa_b7', classe: 'casa', uso: 'moradia', x: 30, y: 80, w: 8, h: 5 },
+  { nome: 'casa_b8', classe: 'casa', uso: 'moradia', x: 124, y: 62, w: 8, h: 6 },
+  // dentro do condominio fechado
+  { nome: 'casa_c1', classe: 'casa', uso: 'moradia', x: 95, y: 24, w: 9, h: 7 },
+  { nome: 'casa_c2', classe: 'casa', uso: 'moradia', x: 107, y: 24, w: 9, h: 7 },
+  { nome: 'casa_c3', classe: 'casa', uso: 'moradia', x: 95, y: 33, w: 9, h: 7 },
+  { nome: 'casa_c4', classe: 'casa', uso: 'moradia', x: 107, y: 33, w: 9, h: 7 },
+];
+
+const CONSTRUCOES_BAIRRO = {
+  oficina: { pegada: { w: 8, h: 5 }, interior: 'oficina', comercio: true },
+  escola: { pegada: { w: 10, h: 6 }, interior: 'escola', comercio: true },
+  biblioteca: { pegada: { w: 10, h: 6 }, interior: 'biblioteca', comercio: true },
+  // `fechada` = predio de pe SEM interior: a porta nao abre, e no lugar dela o
+  // mapa poe um objeto de exame com o texto fixo da Central Telefonica.
+  central: { pegada: { w: 5, h: 4 }, comercio: true, fechada: true },
+};
+
+// ----------------------------------------------------- Mapa 3 — Zona Rural --
+/**
+ * Mapa 3 — Zona Rural. Grande (150x120) e vazio: terrenos enormes, poucas
+ * construcoes, estrada de terra unica serpenteando de norte a sul com tres
+ * ramais.
+ *
+ * Ligacoes: borda NORTE volta pro Mapa 2.
+ *
+ * RESERVA PRO MAPA 4 (represa): a estrada principal desce ate a borda SUL, nos
+ * tiles `RESERVA_MAPA_4`. NADA esta implementado la — nao ha objeto de borda,
+ * nao ha mapa de destino e nao ha gancho no codigo do jogo. O que existe e a
+ * malha de vias ja desenhada ate esse ponto, pra a etapa do Mapa 4 nao precisar
+ * redesenhar a estrada inteira.
+ */
+const RURAL = { largura: 150, altura: 120 };
+/** Tiles da borda sul reservados pra futura ligacao com o Mapa 4 (represa). */
+const RESERVA_MAPA_4 = { x: 59, w: 7 };
+
+const VIAS_RURAL = [
+  linha('estrada_rural', [
+    [66, 1], [66, 18], [74, 34], [82, 52], [78, 74], [68, 92], [62, 110], [62, 118],
+  ]),
+  linha('ramal_madeireira', [[82, 52], [104, 46], [122, 42]]),
+  linha('ramal_fazenda', [[74, 34], [48, 30], [26, 38]]),
+  linha('ramal_pedreira', [[78, 74], [100, 70], [118, 72]]),
+];
+
+/** Areas AMBIENTADAS do Mapa 3 — visual, sem mecanica nenhuma nesta leva. */
+const PLANTIOS_RURAL = [
+  { lote: 'fazenda_1', x: 26, y: 46, w: 22, h: 14 },
+  { lote: 'fazenda_2', x: 28, y: 74, w: 20, h: 12 },
+];
+const PEDREIRA_RURAL = { lote: 'pedreira', x: 108, y: 78, w: 22, h: 12 };
+
+const ZONAS_RURAL = [
+  { nome: 'madeireira', classe: 'madeireira', uso: 'comercio', x: 110, y: 30, w: 14, h: 10 },
+  { nome: 'pedreira', classe: 'pedreira', uso: 'vago', x: 106, y: 76, w: 26, h: 16 },
+  { nome: 'fazenda_1', classe: 'fazenda', uso: 'vago', x: 24, y: 44, w: 26, h: 18 },
+  { nome: 'fazenda_2', classe: 'fazenda', uso: 'vago', x: 26, y: 72, w: 24, h: 16 },
+  { nome: 'casa_rural_1', classe: 'casa', uso: 'moradia', x: 52, y: 66, w: 10, h: 7 },
+  { nome: 'casa_rural_2', classe: 'casa', uso: 'moradia', x: 96, y: 30, w: 10, h: 7 },
+];
+
+const CONSTRUCOES_RURAL = {
+  // A madeireira NAO tem interior: o atendimento e num BALCAO externo, no tile
+  // da porta. Foi o caminho mais direto pra ligar a loja de expansao (Parte 5)
+  // sem gerar mais um tilemap so pra um balcao.
+  madeireira: { pegada: { w: 8, h: 5 }, comercio: true, balcao: true },
+};
+
+// -------------------------------------------------------- registro global --
+/**
+ * Os tres mapas externos do jogo. `grama` e o material de chao de cada um (as
+ * folhas novas de grama sao por mapa).
+ */
+const MUNDO = {
+  farm: {
+    largura: FAZENDA.largura,
+    altura: FAZENDA.altura,
+    grama: 'grama',
+    zonas: ZONAS,
+    construcoes: CONSTRUCOES,
+  },
+  bairro: {
+    largura: BAIRRO.largura,
+    altura: BAIRRO.altura,
+    grama: 'grama_bairro',
+    zonas: ZONAS_BAIRRO,
+    construcoes: CONSTRUCOES_BAIRRO,
+  },
+  rural: {
+    largura: RURAL.largura,
+    altura: RURAL.altura,
+    grama: 'grama_rural',
+    zonas: ZONAS_RURAL,
+    construcoes: CONSTRUCOES_RURAL,
+  },
+};
+
+/**
+ * BORDAS: as zonas de transicao entre mapas externos.
+ *
+ * Cada entrada e um retangulo em TILES na beira de um mapa; encostar nele troca
+ * o mapa carregado (com fade) e larga o jogador em `destinoTx/destinoTy` do
+ * mapa de destino. Elas sao declaradas AOS PARES, e a conferencia cobra que o
+ * par exista e que o ponto de chegada de uma caia dentro da outra.
+ */
+const BORDAS = [
+  // Mapa 1 <-> Mapa 2, pela ponta oeste da avenida horizontal da fazenda
+  { mapa: 'farm', nome: 'borda_oeste', x: 0, y: 44, w: 2, h: 3, destino: 'bairro', destinoTx: 136, destinoTy: 55 },
+  { mapa: 'bairro', nome: 'borda_leste', x: 138, y: 54, w: 2, h: 3, destino: 'farm', destinoTx: 3, destinoTy: 45 },
+  // Mapa 2 <-> Mapa 3, pela rua da estacao, DEPOIS da ponte
+  { mapa: 'bairro', nome: 'borda_sul', x: 65, y: 108, w: 3, h: 2, destino: 'rural', destinoTx: 66, destinoTy: 4 },
+  { mapa: 'rural', nome: 'borda_norte', x: 65, y: 0, w: 3, h: 2, destino: 'bairro', destinoTx: 66, destinoTy: 105 },
+];
+
+const bordasDoMapa = (mapa) => BORDAS.filter((b) => b.mapa === mapa);
 
 /**
  * A praca do parque: um retangulo calcado no meio do lote, mais uma calcada de
@@ -1495,18 +1913,24 @@ function pavimentarPraca(caminhos) {
 
 /** Resolve a construcao de um lote em coordenadas de tile. */
 function construcaoDe(nome) {
-  const def = CONSTRUCOES[nome];
-  const z = zona(nome);
+  const { mapa, zona: z, def } = loteDe(nome);
+  if (!def) throw new Error(`o lote "${nome}" nao tem construcao`);
   const { w, h } = def.pegada;
   if (w > z.w || h > z.h) throw new Error(`a construcao de "${nome}" nao cabe no lote`);
   const x = z.x + Math.floor((z.w - w) / 2);
   const y = z.y;
   const portaX = x + Math.floor(w / 2);
   const portaY = y + h - 1;
-  return { nome, ...def, x, y, w, h, portaX, portaY, frente: { x: portaX, y: portaY + 1 } };
+  return { nome, mapa, ...def, x, y, w, h, portaX, portaY, frente: { x: portaX, y: portaY + 1 } };
 }
 
-const CONSTRUIDAS = Object.keys(CONSTRUCOES).map(construcaoDe);
+/** Toda construcao de pe do jogo, dos tres mapas externos. */
+const CONSTRUIDAS = Object.values(MUNDO).flatMap((m) =>
+  Object.keys(m.construcoes).map(construcaoDe),
+);
+
+/** So as construcoes de um mapa — e o que cada gerador de mapa desenha. */
+const construidasDe = (mapa) => CONSTRUIDAS.filter((c) => c.mapa === mapa);
 
 /**
  * Compoe a fachada de uma casa: laje de telhado repetida no alto, parede
@@ -1645,6 +2069,43 @@ function portaDeComercio(linha, estado) {
   return b;
 }
 
+/**
+ * `Portas_predio.png` — folha nova de porta de PREDIO PUBLICO (escola,
+ * biblioteca, oficina, madeireira). Mesma situacao da `Portas_v2`: a folha tem
+ * rotulo e cabecalho misturados com a arte, entao o recorte e por componente
+ * conexo com piso de tamanho, e nao por grade.
+ */
+const PORTAS_PREDIO = { arquivo: 'Portas_predio.png', areaMinima: 20000, larguraMinima: 90, alturaMinima: 120, tolerancia: 70 };
+
+const folhaPortasPredio = (() => {
+  const img = lerPng(caminhoFolha(PORTAS_PREDIO.arquivo, false));
+  const pecas = blobs(img, PORTAS_PREDIO.areaMinima).filter(
+    (b) => b.w > PORTAS_PREDIO.larguraMinima && b.h > PORTAS_PREDIO.alturaMinima,
+  );
+  const linhas = agruparEmLinhas(pecas, PORTAS_PREDIO.tolerancia);
+  if (linhas.length < 4) {
+    throw new Error(
+      `${PORTAS_PREDIO.arquivo}: esperava 4 linhas de porta, achei ${linhas.length}` +
+        ' — a arte mudou de layout?',
+    );
+  }
+  return { arquivo: PORTAS_PREDIO.arquivo, img, linhas };
+})();
+
+/** A porta [linha, indice] da folha de predio. */
+function portaDePredio(linha, indice) {
+  const b = folhaPortasPredio.linhas[linha]
+    ? folhaPortasPredio.linhas[linha][indice]
+    : undefined;
+  if (!b) {
+    const forma = folhaPortasPredio.linhas.map((l) => l.length).join('x');
+    throw new Error(
+      `${folhaPortasPredio.arquivo}: nao existe porta [${linha},${indice}] (linhas: ${forma})`,
+    );
+  }
+  return b;
+}
+
 // ------------------------------------------------- fachada de comercio --
 /**
  * Fachada de COMERCIO, composta peca a peca — mesmo metodo das casas
@@ -1698,6 +2159,59 @@ const ESTILOS_COMERCIO = {
     letreiro: [0, 4],
     // linha 1 de Portas_v2 e a do bar (porta de taverna em arco)
     porta: { linha: 1, estado: 0 },
+    telhado: 2,
+  },
+
+  // --------------------------------------------------- predios desta leva --
+  // Todos usam `Portas_predio.png` (folha nova de porta de predio publico) e a
+  // folha de parede do proprio predio. Nenhum tem arte de fachada pronta, entao
+  // a composicao segue o mesmo esquema parede/letreiro/porta dos quatro acima.
+  // parede lisa creme com rodape, quadro-negro grande como letreiro e porta
+  // dupla de vidro: le como escola publica de bairro
+  escola: {
+    painel: 'escola',
+    parede: [0, 0],
+    letreiro: [1, 2],
+    porta: { predio: [0, 2] },
+    telhado: null,
+  },
+  biblioteca: {
+    painel: 'biblioteca',
+    parede: [0, 0],
+    letreiro: [0, 2],
+    porta: { predio: [0, 0] },
+    telhado: null,
+  },
+  // Casa+oficina do protagonista. DECISAO DE COMPOSICAO: nao ha folha de
+  // "assistencia tecnica velha" na pasta de arte, entao a fachada sai da
+  // alvenaria neutra (`PAredes_predio.png`) no painel mais gasto da folha, com
+  // telha de barro por cima — le como puxadinho antigo em vez de loja nova.
+  // A PROGRESSAO VISUAL do documento de enredo (sujo -> limpo -> centro
+  // comunitario) NAO esta implementada: e gancho futuro, e vai pedir um segundo
+  // e um terceiro frame deste mesmo lote.
+  oficina: {
+    painel: 'predio',
+    parede: [1, 1],
+    letreiro: [1, 4],
+    porta: { predio: [1, 2] },
+    telhado: 1,
+  },
+  madeireira: {
+    painel: 'predio',
+    parede: [0, 3],
+    letreiro: [0, 5],
+    porta: { predio: [1, 4] },
+    telhado: 1,
+  },
+  // Central Telefonica Municipal: predio pequeno e FECHADO. A porta da folha
+  // entra na composicao so como desenho — no mapa o tile dela colide, entao
+  // nao ha como entrar (ver `CONSTRUCOES_BAIRRO`).
+  central: {
+    painel: 'predio',
+    parede: [1, 0],
+    letreiro: [1, 5],
+    // a "porta" e uma porta de aco baixada: le como predio lacrado ha anos
+    porta: { predio: [3, 0] },
     telhado: 2,
   },
 };
@@ -1763,7 +2277,21 @@ function comporComercio(estilo, larguraPx, alturaPx) {
 
   const alturaPorta = alturaCorpo - alturaFileira;
   const yPorta = alturaTelhado + alturaFileira;
-  if (estilo.porta.painel) {
+  if (estilo.porta.predio) {
+    // porta da folha `Portas_predio.png`: mesmo encaixe pela ALTURA da porta de
+    // comercio, so muda a folha de origem
+    const cx = portaDePredio(estilo.porta.predio[0], estilo.porta.predio[1]);
+    const lp = Math.max(1, Math.min(larguraMeio, Math.round(cx.w * (alturaPorta / cx.h))));
+    colarPeca(
+      im,
+      folhaPortasPredio.img,
+      cx,
+      xMeio + Math.round((larguraMeio - lp) / 2),
+      yPorta,
+      lp,
+      alturaPorta,
+    );
+  } else if (estilo.porta.painel) {
     colarPeca(
       im,
       folhasPainel[estilo.porta.painel].img,
@@ -1846,6 +2374,40 @@ function gerarConstrucoes() {
   escrever(join(SPRITES, 'construcoes.png'), folha.png());
   escreverAtlas('construcoes', { arquivo: 'construcoes.png', img: folha }, frames);
   return frames;
+}
+
+/**
+ * Catalogo de mobilia COMPRAVEL, pro sistema de expansao de casa.
+ *
+ * A lista de pecas e os precos moram em src/game/casa.ts (e codigo de jogo, nao
+ * de arte). O que sai daqui sao as MEDIDAS: atlas, frame e tamanho em tiles de
+ * cada peca, lidos da propria folha. Assim o jogo posiciona e valida a pegada
+ * com o mesmo numero que a conferencia de interior usa, sem ninguem repetir
+ * medida a mao.
+ */
+function gerarCatalogoMobilia() {
+  const saida = {};
+  for (const item of CATALOGO_MOBILIA) {
+    if (saida[item.id]) throw new Error(`catalogo de mobilia: id repetido "${item.id}"`);
+    const def = MOVEIS_CASA[item.movel];
+    if (!def) {
+      throw new Error(
+        `catalogo de mobilia: a peca "${item.id}" aponta pra "${item.movel}", que nao existe ` +
+          'em MOVEIS_CASA',
+      );
+    }
+    const { w, h } = tamanhoDeMovel(def.folha, def.peca, def.escala ?? 1);
+    saida[item.id] = {
+      atlas: `moveis_${def.folha}`,
+      frame: nomePeca(def.peca[0], def.peca[1]),
+      larguraTiles: +w.toFixed(3),
+      alturaTiles: +h.toFixed(3),
+      solido: def.solido === true,
+      chao: def.chao === true,
+    };
+  }
+  escrever(join(SPRITES, 'mobilia.json'), JSON.stringify(saida, null, 1));
+  return saida;
 }
 
 /** Acha a construcao de um lote; erra alto se o lote nao tiver uma. */
@@ -2104,7 +2666,14 @@ const FLOR_ESTAGIOS = [0, 1, 1, 2];
  * Sai numa camada de objetos ('flora'), nao em tiles: arvore precisa ser
  * sprite pra ordenar profundidade com o player e ter copa maior que 1 tile.
  */
-function gerarFlora(W, H, via, ocupado) {
+function gerarFlora(W, H, via, ocupado, opcoes = {}) {
+  // Cada mapa tem a sua densidade e a sua semente: sem deslocar a semente, o
+  // mesmo (x,y) sortearia a mesma arvore nos tres mapas, e os trechos que
+  // coincidem sairiam identicos.
+  const semente = opcoes.semente ?? SEMENTE;
+  const dens = opcoes.densidades ?? { beira: 0.55, perto: 0.1, longe: 0.03 };
+  const densPedra = opcoes.pedra ?? 0.028;
+  const densFlor = opcoes.flor ?? 0.03;
   const arvores = [];
   const flores = [];
   const pedras = [];
@@ -2127,16 +2696,16 @@ function gerarFlora(W, H, via, ocupado) {
     for (let x = 1; x < W - 1; x++) {
       // mais denso perto da borda: fecha o mapa com mata em vez de parede
       const beira = Math.min(x, y, W - 1 - x, H - 1 - y);
-      const densidade = beira < 3 ? 0.55 : beira < 9 ? 0.1 : 0.03;
+      const densidade = beira < 3 ? dens.beira : beira < 9 ? dens.perto : dens.longe;
 
       // folga 1 = nenhuma outra arvore na vizinhanca 3x3, senao vira parede
-      if (hash01(x, y, SEMENTE + 101) < densidade && livre(x, y, 1)) {
-        const especie = Math.floor(hash01(x, y, SEMENTE + 202) * especiesArvore) % especiesArvore;
+      if (hash01(x, y, semente + 101) < densidade && livre(x, y, 1)) {
+        const especie = Math.floor(hash01(x, y, semente + 202) * especiesArvore) % especiesArvore;
         const estagio =
-          ARVORE_ESTAGIOS[Math.floor(hash01(x, y, SEMENTE + 303) * ARVORE_ESTAGIOS.length)];
+          ARVORE_ESTAGIOS[Math.floor(hash01(x, y, semente + 303) * ARVORE_ESTAGIOS.length)];
         // desloca dentro do tile pra mata nao virar grade
-        const dx = (hash01(x, y, SEMENTE + 404) - 0.5) * T * 0.7;
-        const dy = (hash01(x, y, SEMENTE + 505) - 0.5) * T * 0.7;
+        const dx = (hash01(x, y, semente + 404) - 0.5) * T * 0.7;
+        const dy = (hash01(x, y, semente + 505) - 0.5) * T * 0.7;
         arvores.push(
           ponto(`arvore_${arvores.length}`, 'arvore', (x + 0.5) * T + dx, (y + 1) * T + dy, {
             especie,
@@ -2147,15 +2716,15 @@ function gerarFlora(W, H, via, ocupado) {
         continue; // arvore, pedra e flor nao dividem tile
       }
 
-      if (hash01(x, y, SEMENTE + 121) < 0.028 && livre(x, y, 0)) {
+      if (hash01(x, y, semente + 121) < densPedra && livre(x, y, 0)) {
         // sorteio puxado pro comeco da lista (que esta ordenada do menor pro
         // maior): matacao e raro, pedrisco e comum
         const indice = Math.min(
           totalPedras - 1,
-          Math.floor(hash01(x, y, SEMENTE + 232) ** 2.2 * totalPedras),
+          Math.floor(hash01(x, y, semente + 232) ** 2.2 * totalPedras),
         );
-        const dx = (hash01(x, y, SEMENTE + 343) - 0.5) * T * 0.6;
-        const dy = (hash01(x, y, SEMENTE + 454) - 0.5) * T * 0.6;
+        const dx = (hash01(x, y, semente + 343) - 0.5) * T * 0.6;
+        const dy = (hash01(x, y, semente + 454) - 0.5) * T * 0.6;
         pedras.push(
           ponto(`pedra_${pedras.length}`, 'pedra', (x + 0.5) * T + dx, (y + 1) * T + dy, {
             indice,
@@ -2166,14 +2735,14 @@ function gerarFlora(W, H, via, ocupado) {
         continue;
       }
 
-      if (hash01(x, y, SEMENTE + 606) < 0.03 && livre(x, y, 0)) {
-        const folha = hash01(x, y, SEMENTE + 707) < 0.5 ? 'v1' : 'v2';
+      if (hash01(x, y, semente + 606) < densFlor && livre(x, y, 0)) {
+        const folha = hash01(x, y, semente + 707) < 0.5 ? 'v1' : 'v2';
         const especies = folhas[`flores_${folha}`].rows.length;
-        const especie = Math.floor(hash01(x, y, SEMENTE + 808) * especies) % especies;
+        const especie = Math.floor(hash01(x, y, semente + 808) * especies) % especies;
         const estagio =
-          FLOR_ESTAGIOS[Math.floor(hash01(x, y, SEMENTE + 909) * FLOR_ESTAGIOS.length)];
-        const dx = (hash01(x, y, SEMENTE + 111) - 0.5) * T * 0.6;
-        const dy = (hash01(x, y, SEMENTE + 222) - 0.5) * T * 0.6;
+          FLOR_ESTAGIOS[Math.floor(hash01(x, y, semente + 909) * FLOR_ESTAGIOS.length)];
+        const dx = (hash01(x, y, semente + 111) - 0.5) * T * 0.6;
+        const dy = (hash01(x, y, semente + 222) - 0.5) * T * 0.6;
         flores.push(
           ponto(`flor_${flores.length}`, 'flor', (x + 0.5) * T + dx, (y + 1) * T + dy, {
             folha,
@@ -2206,21 +2775,29 @@ function gerarFazenda(ts) {
   pavimentarPraca(caminhos);
 
   obj.moldura(GID.MATO);
+  // vao na mata da borda: e por ele que se atravessa pro Mapa 2
+  for (const b of bordasDoMapa('farm')) obj.rect(b.x, b.y, b.w, b.h, 0);
   pintarLago(obj, LAGO);
 
   // Pegada de cada construcao: PAREDE colide, PORTA nao. O sprite da fachada
   // cobre a pegada inteira por cima, entao a colisao continua vindo dos tiles —
   // nenhuma maquina nova, o mesmo caminho que casa_1 ja usava.
-  for (const c of CONSTRUIDAS) {
+  for (const c of construidasDe('farm')) {
     obj.rect(c.x, c.y, c.w, c.h, GID.PAREDE);
-    obj.set(c.portaX, c.portaY, GID.PORTA);
+    // lote FECHADO (a casa_1 desativada) fica so com parede: a porta desenhada
+    // na fachada nao tem tile andavel atras dela
+    if (c.interior) obj.set(c.portaX, c.portaY, GID.PORTA);
   }
 
   const interativos = [
     objeto('placa_teste', 'placa', CENTRO.x - 3, CENTRO.y + 3),
     objeto('pickup_cabo_usb_1', 'item', CENTRO.x - 2, CENTRO.y, { itemId: 'cabo_usb' }),
     objeto('pickup_cabo_usb_2', 'item', CENTRO.x + 2, CENTRO.y, { itemId: 'cabo_usb' }),
-    ...CONSTRUIDAS.map((c) => {
+    ...construidasDe('farm').map((c) => {
+      // predio desativado: em vez de porta, um objeto de exame na frente dela
+      if (!c.interior) {
+        return objeto(`aviso_${c.nome}`, 'placa', c.portaX, c.portaY + 1, { aviso: c.nome });
+      }
       // um tile acima da saida DAQUELE interior, ja dentro. Sai da geometria do
       // proprio interior (que nem sempre tem 16x12: o salao e mais largo, o
       // misto e mais fundo), senao entrar num predio grande larga o jogador no
@@ -2236,7 +2813,7 @@ function gerarFazenda(ts) {
 
   // o sprite da fachada e um objeto da camada `construcoes`: o jogo posiciona
   // pelo rodape da pegada e ordena profundidade por y, como a flora
-  const fachadas = CONSTRUIDAS.map((c) =>
+  const fachadas = construidasDe('farm').map((c) =>
     ponto(c.nome, 'fachada', (c.x + c.w / 2) * T, (c.y + c.h) * T, { frame: c.nome }),
   );
 
@@ -2275,6 +2852,7 @@ function gerarFazenda(ts) {
   for (const [x, y] of tilesDaPraca()) bloquear(x - 1, y - 1, 3, 3);
   bloquear(LAGO.x - 1, LAGO.y - 1, LAGO.w + 2, LAGO.h + 2);
   bloquear(CENTRO.x - 4, CENTRO.y - 2, 9, 7); // respiro em volta do spawn
+  for (const b of bordasDoMapa('farm')) bloquear(b.x - 2, b.y - 2, b.w + 4, b.h + 4);
   for (const it of interativos) bloquear(it.x / T - 1, it.y / T - 1, 3, 3);
 
   const { arvores, flores, pedras } = gerarFlora(W, H, faixasDeVias(W, H), ocupado);
@@ -2294,10 +2872,342 @@ function gerarFazenda(ts) {
         // o parque e o unico mobiliario do mapa externo; a cena le esta camada
         // com o MESMO `criarMoveis` dos interiores
         camadaObjetos('moveis', 8, moveisDoParque()),
+        camadaObjetos('bordas', 9, objetosDeBorda('farm')),
       ],
       ts,
     ),
     contagem: { arvores: arvores.length, pedras: pedras.length, flores: flores.length },
+  };
+}
+
+
+// ==================================================== mapas externos novos ==
+/**
+ * Base comum dos mapas externos 2 e 3: grama do mapa, malha de vias em
+ * polilinha, moldura de mata na borda e os vaos das zonas de transicao.
+ *
+ * O Mapa 1 continua com `gerarFazenda`, que e anterior a este caminho e usa
+ * vias retas. Nao vale a pena reescrever a fazenda so pra ela passar por aqui:
+ * o resultado seria o mesmo mapa com risco de regressao.
+ */
+function baseExterna(chave, vias) {
+  const m = MUNDO[chave];
+  const W = m.largura;
+  const H = m.altura;
+  const chao = new Grade(W, H);
+  const caminhos = new Grade(W, H);
+  const obj = new Grade(W, H);
+
+  chao.rect(0, 0, W, H, de(m.grama));
+
+  // 1a passada: faixa de terra batida (o eixo dilatado). 2a: a trilha clara.
+  const faixa = faixaDeVias(W, H, vias);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (faixa.get(x, y)) caminhos.set(x, y, variante('terra', x, y));
+    }
+  }
+  pintarVias(caminhos, eixoDeVias(W, H, vias));
+
+  obj.moldura(GID.MATO);
+  // as zonas de transicao sao buracos na moldura: e por elas que se sai do mapa
+  for (const b of bordasDoMapa(chave)) obj.rect(b.x, b.y, b.w, b.h, 0);
+
+  return { m, W, H, chao, caminhos, obj, faixa };
+}
+
+/** Objetos da camada `bordas` de um mapa externo. */
+function objetosDeBorda(chave) {
+  return bordasDoMapa(chave).map((b) =>
+    objeto(
+      b.nome,
+      'borda',
+      b.x,
+      b.y,
+      { destino: b.destino, destinoTx: b.destinoTx, destinoTy: b.destinoTy },
+      b.w,
+      b.h,
+    ),
+  );
+}
+
+/**
+ * Pegada + porta + fachada + objeto interativo de cada construcao de um mapa.
+ *
+ * Ha tres formas de construcao agora:
+ *  - com INTERIOR  — a porta e um tile andavel e vira objeto `porta`;
+ *  - com BALCAO    — sem interior; a porta vira objeto `expansao` (a madeireira,
+ *                    que atende do lado de fora);
+ *  - FECHADA       — sem interior e sem servico; a porta e PAREDE e no lugar
+ *                    dela fica um objeto `placa` de exame (a central telefonica).
+ */
+function predionosDoMapa(chave, obj) {
+  const interativos = [];
+  const fachadas = [];
+  for (const c of construidasDe(chave)) {
+    obj.rect(c.x, c.y, c.w, c.h, GID.PAREDE);
+    if (c.interior) {
+      obj.set(c.portaX, c.portaY, GID.PORTA);
+      const entrada = entradaDoInterior(c.interior);
+      interativos.push(
+        objeto(`porta_${c.nome}`, 'porta', c.portaX, c.portaY, {
+          destino: c.interior,
+          destinoTx: entrada.x,
+          destinoTy: entrada.y,
+        }),
+      );
+    } else if (c.balcao) {
+      // balcao: o tile da porta continua andavel (o jogador encosta nele), mas
+      // quem responde ao [E] e a loja de expansao de casa
+      obj.set(c.portaX, c.portaY, GID.PORTA);
+      interativos.push(objeto(`balcao_${c.nome}`, 'expansao', c.portaX, c.portaY, {}));
+    } else {
+      interativos.push(
+        objeto(`aviso_${c.nome}`, 'placa', c.portaX, c.portaY + 1, { aviso: c.nome }),
+      );
+    }
+    fachadas.push(
+      ponto(c.nome, 'fachada', (c.x + c.w / 2) * T, (c.y + c.h) * T, { frame: c.nome }),
+    );
+  }
+  return { interativos, fachadas };
+}
+
+/** Objetos da camada `zonas` de um mapa externo. */
+function objetosDeZona(chave) {
+  const m = MUNDO[chave];
+  return m.zonas.map((z) => {
+    const c = m.construcoes[z.nome];
+    return objeto(
+      z.nome,
+      z.classe,
+      z.x,
+      z.y,
+      {
+        tipo: z.classe,
+        uso: z.uso,
+        moradia: USOS_DE_MORADIA.has(z.uso),
+        construida: Boolean(c) || Boolean(PRACAS[z.nome]),
+        ...(c?.interior ? { mapaInterior: c.interior } : {}),
+      },
+      z.w,
+      z.h,
+    );
+  });
+}
+
+/**
+ * Entulho: pedras soltas espalhadas de proposito numa area (pedreira, terreno
+ * abandonado). Diferente da flora, que sorteia o mapa inteiro, aqui a area e
+ * dada e a densidade e alta — e o que faz a pedreira LER como pedreira sem
+ * precisar de arte nova.
+ */
+function entulhoEm(prefixo, r, semente, densidade, ocupado) {
+  const pedras = [];
+  const total = folhaPedras.pedras.length;
+  for (let y = r.y; y < r.y + r.h; y++) {
+    for (let x = r.x; x < r.x + r.w; x++) {
+      if (ocupado.has(`${x},${y}`)) continue;
+      if (hash01(x, y, semente) >= densidade) continue;
+      const indice = Math.min(total - 1, Math.floor(hash01(x, y, semente + 11) ** 1.4 * total));
+      const dx = (hash01(x, y, semente + 22) - 0.5) * T * 0.6;
+      const dy = (hash01(x, y, semente + 33) - 0.5) * T * 0.6;
+      pedras.push(
+        ponto(`${prefixo}_${pedras.length}`, 'pedra', (x + 0.5) * T + dx, (y + 1) * T + dy, {
+          indice,
+          alturaTiles: alturaPedraTiles(indice),
+        }),
+      );
+      ocupado.add(`${x},${y}`);
+    }
+  }
+  return pedras;
+}
+
+/** Bloqueia um retangulo pra flora (helper compartilhado pelos mapas novos). */
+function bloquearEm(ocupado, x, y, w, h) {
+  for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) ocupado.add(`${i},${j}`);
+}
+
+// ------------------------------------------------------------- Mapa 2 --
+function gerarBairro(ts) {
+  const { W, H, chao, caminhos, obj, faixa } = baseExterna('bairro', VIAS_BAIRRO);
+
+  // --- rio ondulado na faixa de baixo, com a ponte na coluna da rua ---
+  const ponte = RIO_BAIRRO.ponte;
+  for (let x = 0; x < W; x++) {
+    const topo = topoDoRio(x);
+    for (let j = 0; j < RIO_BAIRRO.altura; j++) {
+      const y = topo + j;
+      const naPonte = x >= ponte.x && x < ponte.x + ponte.w;
+      if (naPonte) {
+        obj.set(x, y, GID.PONTE);
+        continue;
+      }
+      const linhaAgua = j === 0 ? 0 : j === RIO_BAIRRO.altura - 1 ? 2 : 1;
+      obj.set(x, y, GID_AGUA[linhaAgua][1] ?? variante('agua_centro', x, y));
+    }
+  }
+  // as cabeceiras: 1 tile de tabua de cada lado, pra a ponte nao "comecar" na agua
+  for (let x = ponte.x; x < ponte.x + ponte.w; x++) {
+    obj.set(x, topoDoRio(x) - 1, GID.PONTE);
+    obj.set(x, topoDoRio(x) + RIO_BAIRRO.altura, GID.PONTE);
+  }
+
+  // --- muro do condominio fechado, com portao unico ao sul ---
+  const cd = CONDOMINIO;
+  obj.rect(cd.x, cd.y, cd.w, 1, GID.MURO);
+  obj.rect(cd.x, cd.y + cd.h - 1, cd.w, 1, GID.MURO);
+  obj.rect(cd.x, cd.y, 1, cd.h, GID.MURO);
+  obj.rect(cd.x + cd.w - 1, cd.y, 1, cd.h, GID.MURO);
+  obj.rect(cd.portao.x, cd.y + cd.h - 1, cd.portao.w, 1, GID.PORTAO);
+
+  // --- quadra esportiva: piso na camada de caminhos, com a moldura marcada ---
+  const q = QUADRA_BAIRRO;
+  for (let y = q.y; y < q.y + q.h; y++) {
+    for (let x = q.x; x < q.x + q.w; x++) {
+      const naLinha = y === q.y || y === q.y + q.h - 1 || x === q.x || x === q.x + q.w - 1;
+      caminhos.set(x, y, naLinha ? GID.QUADRA_LINHA : GID.QUADRA);
+    }
+  }
+  // calcada ligando a quadra a rua baixa, senao ela fica ilhada no mato
+  const meioQuadra = q.x + Math.floor(q.w / 2);
+  for (let y = q.y + q.h; y <= 74; y++) {
+    caminhos.set(meioQuadra, y, variante('calcada', meioQuadra, y));
+    caminhos.set(meioQuadra + 1, y, variante('calcada', meioQuadra + 1, y));
+  }
+
+  // --- terreno abandonado: chao pelado, cerca velha com falhas ---
+  const tb = TERRENO_BAIRRO;
+  for (let y = tb.y; y < tb.y + tb.h; y++) {
+    for (let x = tb.x; x < tb.x + tb.w; x++) caminhos.set(x, y, variante('terra', x, y));
+  }
+  for (let x = tb.x; x < tb.x + tb.w; x++) {
+    // cerca com falha: 1 tile em cada 4 esta caido
+    if (x % 4 !== 1) obj.set(x, tb.y, GID.MURO);
+    if (x % 4 !== 3) obj.set(x, tb.y + tb.h - 1, GID.MURO);
+  }
+  for (let y = tb.y; y < tb.y + tb.h; y++) {
+    if (y % 3 !== 0) obj.set(tb.x, y, GID.MURO);
+    if (y % 3 !== 2) obj.set(tb.x + tb.w - 1, y, GID.MURO);
+  }
+
+  const { interativos, fachadas } = predionosDoMapa('bairro', obj);
+  const bordas = objetosDeBorda('bairro');
+  const zonas = objetosDeZona('bairro');
+
+  // --- o que a flora tem de respeitar ---
+  const ocupado = new Set();
+  for (const z of MUNDO.bairro.zonas) bloquearEm(ocupado, z.x - 1, z.y - 1, z.w + 2, z.h + 2);
+  bloquearEm(ocupado, cd.x - 1, cd.y - 1, cd.w + 2, cd.h + 2);
+  bloquearEm(ocupado, q.x - 1, q.y - 1, q.w + 2, q.h + 2);
+  bloquearEm(ocupado, meioQuadra - 1, q.y + q.h, 4, 16);
+  // rio + ponte: nada de arvore em cima da agua nem na cabeceira
+  for (let x = 0; x < W; x++) bloquearEm(ocupado, x, topoDoRio(x) - 2, 1, RIO_BAIRRO.altura + 4);
+  for (const b of bordasDoMapa('bairro')) bloquearEm(ocupado, b.x - 2, b.y - 2, b.w + 4, b.h + 4);
+  for (const it of interativos) bloquearEm(ocupado, it.x / T - 1, it.y / T - 1, 3, 3);
+
+  // entulho DENTRO do terreno abandonado (fora do bloqueio geral do lote, que
+  // so vale pra flora sorteada)
+  const entulho = entulhoEm('entulho', tb, SEMENTE + 1701, 0.22, new Set());
+
+  // Menos denso que o Mapa 1 de proposito: o bairro e periferia urbana, nao
+  // mata. Semente deslocada pra o desenho nao repetir o da fazenda.
+  const flora = gerarFlora(W, H, faixa, ocupado, {
+    semente: SEMENTE + 1000,
+    densidades: { beira: 0.42, perto: 0.05, longe: 0.014 },
+    pedra: 0.012,
+    flor: 0.022,
+  });
+
+  return {
+    mapa: montarMapa(
+      W,
+      H,
+      [
+        camadaTiles('chao', 1, chao),
+        camadaTiles('caminhos', 2, caminhos),
+        camadaTiles('objetos', 3, obj),
+        camadaObjetos('interativos', 4, interativos),
+        camadaObjetos('zonas', 5, zonas),
+        camadaObjetos('flora', 6, [...flora.arvores, ...flora.pedras, ...entulho, ...flora.flores]),
+        camadaObjetos('construcoes', 7, fachadas),
+        camadaObjetos('bordas', 8, bordas),
+      ],
+      ts,
+    ),
+    contagem: {
+      arvores: flora.arvores.length,
+      pedras: flora.pedras.length + entulho.length,
+      flores: flora.flores.length,
+    },
+  };
+}
+
+// ------------------------------------------------------------- Mapa 3 --
+function gerarRural(ts) {
+  const { W, H, chao, caminhos, obj, faixa } = baseExterna('rural', VIAS_RURAL);
+
+  // --- plantacoes: leira de terra dentro dos lotes de fazenda ---
+  for (const pl of PLANTIOS_RURAL) {
+    for (let y = pl.y; y < pl.y + pl.h; y++) {
+      for (let x = pl.x; x < pl.x + pl.w; x++) {
+        // deixa uma carreira de grama a cada 5 linhas: e o carreador da roca
+        caminhos.set(x, y, (y - pl.y) % 5 === 4 ? variante('terra', x, y) : GID.PLANTACAO);
+      }
+    }
+  }
+
+  // --- pedreira: cascalho no chao; o entulho de pedra entra na camada flora ---
+  const pd = PEDREIRA_RURAL;
+  for (let y = pd.y; y < pd.y + pd.h; y++) {
+    for (let x = pd.x; x < pd.x + pd.w; x++) caminhos.set(x, y, GID.CASCALHO);
+  }
+
+  const { interativos, fachadas } = predionosDoMapa('rural', obj);
+  const bordas = objetosDeBorda('rural');
+  const zonas = objetosDeZona('rural');
+
+  const ocupado = new Set();
+  for (const z of MUNDO.rural.zonas) bloquearEm(ocupado, z.x - 1, z.y - 1, z.w + 2, z.h + 2);
+  for (const b of bordasDoMapa('rural')) bloquearEm(ocupado, b.x - 2, b.y - 2, b.w + 4, b.h + 4);
+  // corredor reservado pro Mapa 4: fica limpo de arvore, pra a ligacao futura
+  // nao precisar derrubar mata gerada
+  bloquearEm(ocupado, RESERVA_MAPA_4.x, H - 6, RESERVA_MAPA_4.w, 6);
+  for (const it of interativos) bloquearEm(ocupado, it.x / T - 1, it.y / T - 1, 3, 3);
+
+  const entulho = entulhoEm('cascalho', pd, SEMENTE + 2702, 0.3, new Set());
+
+  // Zona rural: densidade de mata parecida com a da fazenda no miolo, mas com
+  // os lotes enormes vazios ela le como campo aberto.
+  const flora = gerarFlora(W, H, faixa, ocupado, {
+    semente: SEMENTE + 2000,
+    densidades: { beira: 0.5, perto: 0.08, longe: 0.026 },
+    pedra: 0.02,
+    flor: 0.03,
+  });
+
+  return {
+    mapa: montarMapa(
+      W,
+      H,
+      [
+        camadaTiles('chao', 1, chao),
+        camadaTiles('caminhos', 2, caminhos),
+        camadaTiles('objetos', 3, obj),
+        camadaObjetos('interativos', 4, interativos),
+        camadaObjetos('zonas', 5, zonas),
+        camadaObjetos('flora', 6, [...flora.arvores, ...flora.pedras, ...entulho, ...flora.flores]),
+        camadaObjetos('construcoes', 7, fachadas),
+        camadaObjetos('bordas', 8, bordas),
+      ],
+      ts,
+    ),
+    contagem: {
+      arvores: flora.arvores.length,
+      pedras: flora.pedras.length + entulho.length,
+      flores: flora.flores.length,
+    },
   };
 }
 
@@ -2359,9 +3269,6 @@ function corpoDeMovel(p, folhaPadrao) {
 }
 
 // ---------------------------------------------------------------- interiores --
-/** Onde fica a porta de saida em todo interior: meio da parede de baixo. */
-const INTERIOR_CASA = { largura: 16, altura: 12 };
-const PORTA_INTERIOR = { x: 8, y: INTERIOR_CASA.altura - 1 };
 /**
  * Espessura da parede de CIMA no interior de casa, em tiles. Com 1 tile nao ha
  * superficie pra pendurar nada: o quadro sai flutuando no meio do chao. Com 2 a
@@ -2369,29 +3276,6 @@ const PORTA_INTERIOR = { x: 8, y: INTERIOR_CASA.altura - 1 };
  * O movel alto encostado na parede tambem passa a cobri-la, que e o certo.
  */
 const PAREDE_TOPO = 2;
-
-/**
- * Cama do salao unico da casa_1: nao muda de lugar. Os interiores multi-comodo
- * usam a mesma geometria de 2 tiles, mas com a arte da folha de quarto — ver
- * `tilesDeCamaDeQuarto`.
- */
-const CAMA_INTERIOR = { x: 2, y: 2 }; // topo; a base fica um tile abaixo
-
-/**
- * Onde nasce o objeto interativo `computador` de cada interior de salao unico.
- *
- * O PC e um MOVEL (`setup_gamer` em MOBILIA_CASA) — movel nao interage sozinho,
- * a camada `moveis` e so desenho. Este e o tile do objeto que a `FarmScene`
- * transforma em alvo de "[E] Usar": fica na base da mesa, entao o jogador
- * aciona chegando por baixo, que e o unico lado livre (o corpo solido do movel
- * bloqueia a propria fileira).
- *
- * Casa sem entrada aqui simplesmente nao tem PC — hoje so a casa_1, do
- * protagonista.
- */
-const PC_DO_INTERIOR = {
-  casa_1: { x: 5, y: 8 },
-};
 
 /**
  * Catalogo de mobilia, agrupado POR TIPO DE COMODO.
@@ -2554,6 +3438,52 @@ const CATALOGO_POR_COMODO = {
     otomana: { folha: 'mobilia_v2', peca: [2, 11], solido: false },
   },
 
+  /**
+   * OFICINA — categoria nova desta leva, pro comodo de trabalho da casa do
+   * protagonista e pros comodos de expansao (deposito e garagem).
+   *
+   * Nao ha folha de arte de oficina na pasta. DECISAO DE COMPOSICAO: as pecas
+   * saem de folhas ja processadas, escolhidas pela leitura e nao pelo nome de
+   * origem — a bancada de pia da folha de cozinha le como bancada de trabalho,
+   * a estante industrial da mobilia le como prateleira de pecas, e o bau do
+   * quarto le como caixa de ferramenta. Sao PLACEHOLDERS conscientes: quando
+   * houver folha dedicada de oficina, e so trocar `folha`/`peca` aqui.
+   */
+  oficina: {
+    bancada_trabalho: { folha: 'cozinha', peca: [1, 3], solido: true },
+    armario_pecas: { folha: 'cozinha', peca: [2, 0], solido: true },
+    prateleira_pecas: { folha: 'mobilia_v1', peca: [3, 0], solido: true },
+    estante_caixas: { folha: 'mobilia_v1', peca: [4, 4], solido: true },
+    mesa_bancada_pc: { folha: 'eletronicos', peca: [2, 3], solido: true },
+    setup_oficina: { folha: 'eletronicos', peca: [2, 0], solido: true },
+    caixa_ferramenta: { folha: 'quarto', peca: [5, 0], solido: true },
+    ventilador_oficina: { folha: 'eletronicos', peca: [5, 7], solido: false },
+    ar_oficina: { folha: 'eletronicos', peca: [5, 4], solido: false },
+    cesto_sucata: { folha: 'mobilia_v1', peca: [4, 5], solido: false },
+    caixa_som_oficina: { folha: 'eletronicos', peca: [0, 3], solido: false },
+  },
+
+  /** ESCOLA — carteira, mesa do professor e quadro. Mesmo criterio da oficina. */
+  escola: {
+    carteira: { folha: 'quarto', peca: [2, 1], solido: true },
+    mesa_professor: { folha: 'cozinha', peca: [3, 1], solido: true },
+    armario_escolar: { folha: 'quarto', peca: [0, 4], solido: true },
+    estante_escolar: { folha: 'mobilia_v1', peca: [4, 4], solido: true },
+    quadro_sala: { folha: 'cozinha', peca: [7, 5], solido: false },
+  },
+
+  /** BIBLIOTECA — estante de acervo, mesa de leitura e balcao. */
+  biblioteca: {
+    estante_acervo: { folha: 'mobilia_v1', peca: [4, 4], solido: true },
+    estante_acervo_alta: { folha: 'mobilia_v2', peca: [1, 14], solido: true },
+    estante_arquivo: { folha: 'mobilia_v1', peca: [3, 0], solido: true },
+    mesa_leitura: { folha: 'cozinha', peca: [3, 1], solido: true },
+    balcao_atendimento: { folha: 'cozinha', peca: [1, 3], solido: true },
+    // computador DECORATIVO: nao ha objeto interativo nele (gancho futuro)
+    pc_consulta: { folha: 'eletronicos', peca: [2, 3], solido: true },
+    luminaria_leitura: { folha: 'quarto', peca: [2, 3], solido: false },
+  },
+
   comum: {
     // chao
     tapete_marrom: { folha: 'mobilia_v2', peca: [3, 5], solido: false, chao: true, escala: 1.7 },
@@ -2614,43 +3544,14 @@ const TIPO_DE_COMODO = {
   corredor: 'comum',
   hall: 'comum',
   salao: 'comum',
-};
-
-/**
- * Mobilia do interior de SALAO UNICO — hoje so `casa_1`, a casinha do
- * protagonista, que segue com a planta original (16x12, um comodo so) e sistema
- * proprio. As outras cinco casas passaram a ter varios comodos e levam a
- * mobilia dentro da propria planta, em `PLANTAS_CASA`.
- *
- * `tx`/`ty` sao o tile do canto esquerdo-INFERIOR da peca, como no comercio.
- *
- * Restricoes que a conferencia embaixo cobra: nao encostar na cama (2,2)-(2,3),
- * deixar a coluna da porta (x=8) livre de cima a baixo, nao ocupar (8,8) — e
- * onde o NPC dono da casa nasce (ver `posicaoInicial` em npcs.ts) — e nenhuma
- * peca sobrepor outra.
- */
-const MOBILIA_CASA = {
-  // sala neutra: sofa, mesa de centro e TV
-  casa_1: [
-    { movel: 'quadro_folha', tx: 2, ty: 1 },
-    { movel: 'relogio_v2', tx: 6, ty: 1 },
-    { movel: 'quadro_paisagem', tx: 9, ty: 1 },
-    { movel: 'guarda_roupa_madeira', tx: 4, ty: 2 },
-    { movel: 'estante_livros_v2', tx: 12, ty: 2 },
-    { movel: 'cabeceira_abajur', tx: 3, ty: 4 },
-    { movel: 'cesto_vime', tx: 1, ty: 6 },
-    { movel: 'sofa_cinza', tx: 5, ty: 4 },
-    { movel: 'rack_tv_v2', tx: 11, ty: 6 },
-    { movel: 'tapete_creme', tx: 5, ty: 6 },
-    { movel: 'mesa_centro_madeira', tx: 6, ty: 6 },
-    // o PC do protagonista: e ele que a classe `computador` da camada
-    // `interativos` aciona (ver PC_DO_INTERIOR logo abaixo)
-    { movel: 'setup_gamer', tx: 4, ty: 8 },
-    { movel: 'vaso_planta', tx: 1, ty: 9 },
-    { movel: 'caminha_pet_v2', tx: 10, ty: 9 },
-    { movel: 'planta_alta', tx: 13, ty: 9 },
-    { movel: 'velas', tx: 14, ty: 10 },
-  ],
+  // --- comodos dos predios desta leva ---
+  oficina: 'oficina',
+  deposito: 'oficina',
+  garagem: 'oficina',
+  estudio: 'oficina',
+  sala_aula: 'escola',
+  acervo: 'biblioteca',
+  leitura: 'biblioteca',
 };
 
 // -------------------------------------------------- plantas multi-comodo --
@@ -3059,12 +3960,256 @@ const PLANTAS_CASA = {
   },
 };
 
+
+// ---------------------------------------- interiores dos predios desta leva --
+/**
+ * PLANTAS_PROPRIAS — os interiores que NAO sao casa de NPC nem predio misto:
+ *
+ *  - `oficina`    — casa + oficina do protagonista, no Mapa 2. E pra ca que
+ *                   migraram o dormir/salvar e o computador dos 7 apps, que
+ *                   antes ficavam na `casa_1` do Mapa 1;
+ *  - `escola`     — predio publico de salas genericas, sem NPC aluno;
+ *  - `biblioteca` — acervo + sala de leitura, com um computador DECORATIVO.
+ *
+ * Sao plantas do mesmo formato de `PLANTAS_CASA` (ver o cabecalho la), com tres
+ * campos a mais, todos opcionais:
+ *
+ *  - `cama`      — deixou de ser obrigatorio: escola e biblioteca nao tem;
+ *  - `spawnNpc`  — idem: nenhum dos tres tem morador;
+ *  - `pc`        — tile do objeto interativo `computador`;
+ *  - `mobiliar`  — tile do objeto interativo `mobilia` (a bancada da oficina,
+ *                  que abre o catalogo de mobilia — ver Parte 5);
+ *  - `expansoes` — comodos que NASCEM CONSTRUIDOS no tilemap mas ficam
+ *                  LACRADOS em jogo ate serem comprados na madeireira. Cada um
+ *                  declara o `vao` (o tile de passagem) que o jogo tapa com
+ *                  parede enquanto o comodo nao foi comprado. Ver
+ *                  src/game/casa.ts.
+ */
+const PLANTAS_PROPRIAS = {
+  /**
+   * Casa+oficina do protagonista. Espinha central de corredor, moradia a oeste
+   * (quarto/cozinha/banheiro), sala e OFICINA a leste, e uma terceira faixa a
+   * leste de tudo com os tres comodos de EXPANSAO.
+   *
+   *   quarto   | corr | sala      | deposito
+   *   cozinha  |  i   |-----------|----------
+   *   banheiro |  d   | oficina   | estudio
+   *            |  or  |           | garagem
+   */
+  oficina: {
+    parede: 'predio',
+    paredePorComodo: {
+      banheiro: 'azulejo_branco',
+      cozinha: 'azulejo_verde',
+      oficina: 'predio_gasto',
+      deposito: 'predio_gasto',
+      garagem: 'predio_gasto',
+    },
+    chao: 'PISO_MADEIRA_CLARA',
+    pisos: {
+      cozinha: 'ladrilho_bege',
+      banheiro: 'hexagonal',
+      corredor: 'granilite',
+      oficina: 'concreto',
+      deposito: 'concreto_escuro',
+      estudio: 'espinha_clara',
+      garagem: 'concreto_escuro',
+    },
+    largura: 34,
+    altura: 22,
+    porta: 12,
+    cama: { x: 2, y: 3 },
+    pc: { x: 17, y: 14 },
+    mobiliar: { x: 21, y: 14 },
+    paredes: [
+      [11, 2, 1, 19], // divisa oeste do corredor
+      [14, 2, 1, 19], // divisa leste do corredor
+      [25, 2, 1, 19], // divisa da faixa de expansao
+      [1, 9, 10, 2], // quarto / cozinha
+      [1, 15, 10, 2], // cozinha / banheiro
+      [15, 10, 10, 2], // sala / oficina
+      [26, 7, 7, 2], // deposito / estudio
+      [26, 14, 7, 2], // estudio / garagem
+    ],
+    vaos: [
+      [11, 5], [11, 12], [11, 18], // corredor -> quarto / cozinha / banheiro
+      [14, 5], [14, 16], // corredor -> sala / oficina
+      [25, 4], [25, 12], [25, 18], // vaos das EXPANSOES (lacrados ate a compra)
+    ],
+    comodos: {
+      quarto: [1, 2, 10, 7],
+      cozinha: [1, 11, 10, 4],
+      banheiro: [1, 17, 10, 4],
+      corredor: [12, 2, 2, 19],
+      sala: [15, 2, 10, 8],
+      oficina: [15, 12, 10, 9],
+      deposito: [26, 2, 7, 5],
+      estudio: [26, 9, 7, 5],
+      garagem: [26, 16, 7, 5],
+    },
+    expansoes: {
+      deposito: { vao: [25, 4] },
+      estudio: { vao: [25, 12] },
+      garagem: { vao: [25, 18] },
+    },
+    mobilia: {
+      quarto: [
+        { movel: 'criado_mudo', tx: 4, ty: 4 },
+        { movel: 'guarda_roupa', tx: 7, ty: 4 },
+        { movel: 'comoda_quarto', tx: 1, ty: 8 },
+        { movel: 'tapete_quarto', tx: 4, ty: 7 },
+        { movel: 'poster_galaxia', tx: 6, ty: 2 },
+        { movel: 'abajur_mesa', tx: 9, ty: 4 },
+        { movel: 'cesto_roupa', tx: 9, ty: 8 },
+      ],
+      cozinha: [
+        { movel: 'geladeira', tx: 1, ty: 12 },
+        { movel: 'fogao', tx: 3, ty: 12 },
+        { movel: 'pia', tx: 5, ty: 12 },
+        { movel: 'mesa_de_jantar', tx: 2, ty: 14 },
+        { movel: 'relogio_cozinha', tx: 8, ty: 11 },
+        { movel: 'lixeira', tx: 9, ty: 14 },
+      ],
+      banheiro: [
+        { movel: 'vaso_sanitario', tx: 1, ty: 20 },
+        { movel: 'gabinete_pia', tx: 4, ty: 20 },
+        { movel: 'box_chuveiro', tx: 7, ty: 20 },
+        { movel: 'espelho_banheiro', tx: 4, ty: 18 },
+        { movel: 'tapete_banheiro', tx: 2, ty: 18 },
+      ],
+      sala: [
+        { movel: 'sofa_creme', tx: 16, ty: 6 },
+        { movel: 'mesa_centro_madeira', tx: 17, ty: 8 },
+        { movel: 'tapete_cinza', tx: 16, ty: 8 },
+        { movel: 'tv_rack_madeira', tx: 20, ty: 4 },
+        { movel: 'planta_alta', tx: 23, ty: 9 },
+        { movel: 'quadro_paisagem', tx: 18, ty: 2 },
+      ],
+      // A oficina sai TODA do catalogo novo `oficina` (ver CATALOGO_POR_COMODO):
+      // bancada, armario de pecas, estante de sucata e o computador de trabalho.
+      oficina: [
+        { movel: 'bancada_trabalho', tx: 20, ty: 14 },
+        { movel: 'setup_oficina', tx: 16, ty: 14 },
+        { movel: 'prateleira_pecas', tx: 15, ty: 18 },
+        { movel: 'estante_caixas', tx: 23, ty: 14 },
+        { movel: 'caixa_ferramenta', tx: 18, ty: 20 },
+        { movel: 'cesto_sucata', tx: 21, ty: 20 },
+        { movel: 'ventilador_oficina', tx: 24, ty: 20 },
+      ],
+      // Comodos de EXPANSAO: nascem VAZIOS de proposito. A graca da Parte 5 e o
+      // jogador mobiliar peca por peca depois de comprar o comodo.
+    },
+  },
+
+  /**
+   * Escola: hall corrido no fundo e tres salas de aula em cima. Interior
+   * simples, como pedido — nao ha NPC aluno pra povoar, entao ele existe como
+   * espaco navegavel.
+   *
+   * GANCHO FUTURO (nao implementado): horario de entrada/saida, aluno e
+   * professor. Nada no codigo depende disso hoje.
+   */
+  escola: {
+    parede: 'escola',
+    chao: 'PISO_GRANILITE',
+    pisos: { sala_aula_1: 'madeira_clara', sala_aula_2: 'madeira_clara', sala_aula_3: 'madeira_clara' },
+    largura: 24,
+    altura: 16,
+    porta: 12,
+    paredes: [
+      [1, 9, 22, 2], // divisa hall / salas
+      [7, 2, 1, 7],
+      [16, 2, 1, 7],
+    ],
+    vaos: [[3, 9], [3, 10], [11, 9], [11, 10], [20, 9], [20, 10]],
+    comodos: {
+      sala_aula_1: [1, 2, 6, 7],
+      sala_aula_2: [8, 2, 8, 7],
+      sala_aula_3: [17, 2, 6, 7],
+      hall: [1, 11, 22, 4],
+    },
+    // Sala de aula e comodo ESTREITO (6 a 8 tiles) e a carteira ocupa 2,5 deles.
+    // Por isso a mobilia e curta e deixa coluna livre de proposito: cada peca a
+    // mais fecharia uma fileira inteira e ilharia o fundo da sala.
+    mobilia: {
+      sala_aula_1: [
+        { movel: 'quadro_sala', tx: 2, ty: 3 },
+        { movel: 'mesa_professor', tx: 1, ty: 4 },
+        { movel: 'carteira', tx: 1, ty: 7 },
+      ],
+      sala_aula_2: [
+        { movel: 'quadro_sala', tx: 11, ty: 3 },
+        { movel: 'mesa_professor', tx: 8, ty: 4 },
+        { movel: 'carteira', tx: 8, ty: 7 },
+        { movel: 'carteira', tx: 12, ty: 7 },
+        { movel: 'armario_escolar', tx: 14, ty: 4 },
+      ],
+      sala_aula_3: [
+        { movel: 'quadro_sala', tx: 19, ty: 3 },
+        { movel: 'mesa_professor', tx: 17, ty: 4 },
+        { movel: 'carteira', tx: 20, ty: 7 },
+      ],
+      hall: [
+        { movel: 'planta_grande', tx: 1, ty: 14 },
+        { movel: 'quadros', tx: 5, ty: 11 },
+        { movel: 'relogio_parede', tx: 16, ty: 11 },
+        { movel: 'planta_alta', tx: 22, ty: 14 },
+      ],
+    },
+  },
+
+  /**
+   * Biblioteca: acervo a oeste, sala de leitura a leste, ligados por um vao.
+   *
+   * O computador da leitura e DECORATIVO — nao ha objeto interativo nele. A
+   * pesquisa/arquivo que o documento de enredo pede pro misterio da AuroraLivre
+   * fica como GANCHO FUTURO: nada aqui prepara terreno pra isso alem do movel.
+   */
+  biblioteca: {
+    parede: 'biblioteca',
+    chao: 'PISO_ESPINHA_MADEIRA',
+    pisos: { leitura: 'madeira_escura' },
+    largura: 22,
+    altura: 15,
+    porta: 11,
+    paredes: [[10, 2, 1, 11]],
+    vaos: [[10, 6]],
+    comodos: {
+      acervo: [1, 2, 9, 12],
+      leitura: [11, 2, 10, 12],
+    },
+    mobilia: {
+      // as estantes ficam em fileiras com coluna de circulacao entre elas
+      acervo: [
+        { movel: 'estante_acervo_alta', tx: 1, ty: 4 },
+        { movel: 'estante_acervo_alta', tx: 4, ty: 4 },
+        { movel: 'estante_acervo_alta', tx: 7, ty: 4 },
+        { movel: 'estante_arquivo', tx: 1, ty: 9 },
+        { movel: 'estante_acervo', tx: 5, ty: 9 },
+        { movel: 'luminaria_leitura', tx: 9, ty: 12 },
+      ],
+      leitura: [
+        { movel: 'balcao_atendimento', tx: 13, ty: 13 },
+        { movel: 'mesa_leitura', tx: 15, ty: 8 },
+        { movel: 'estante_acervo', tx: 19, ty: 4 },
+        // computador DECORATIVO: nao ha objeto interativo nele
+        { movel: 'pc_consulta', tx: 11, ty: 4 },
+        { movel: 'quadro_paisagem', tx: 15, ty: 2 },
+        { movel: 'planta_alta', tx: 19, ty: 12 },
+      ],
+    },
+  },
+};
+
 /** A planta de um interior multi-comodo; erra alto se a casa nao tiver uma. */
 function planta(nome) {
-  const p = PLANTAS_CASA[nome] ?? PLANTAS_MISTO[nome];
-  if (!p) throw new Error(`"${nome}" nao tem planta em PLANTAS_CASA nem em PLANTAS_MISTO`);
+  const p = PLANTAS_CASA[nome] ?? PLANTAS_MISTO[nome] ?? PLANTAS_PROPRIAS[nome];
+  if (!p) throw new Error(`"${nome}" nao tem planta em PLANTAS_CASA/MISTO/PROPRIAS`);
   return p;
 }
+
+/** Toda planta multi-comodo do jogo, das tres tabelas. */
+const TODAS_AS_PLANTAS = () => ({ ...PLANTAS_CASA, ...PLANTAS_MISTO, ...PLANTAS_PROPRIAS });
 
 /** Toda a mobilia de uma planta, achatada e com o comodo de origem no rotulo. */
 function mobiliaDaPlanta(p) {
@@ -3109,13 +4254,6 @@ function pecasDeCatalogo(rotulo, lista) {
   });
 }
 
-/** Traduz a mobilia de um interior de salao unico (hoje so casa_1). */
-function pecasDeMobilia(nome) {
-  const lista = MOBILIA_CASA[nome];
-  if (!lista) throw new Error(`a casa "${nome}" nao tem mobilia em MOBILIA_CASA`);
-  return pecasDeCatalogo(nome, lista);
-}
-
 /**
  * Traduz a mobilia de uma planta multi-comodo. Sao duas fontes: `mobilia` vem
  * do catalogo `MOVEIS_CASA` (as folhas genericas de sala e quarto) e
@@ -3129,56 +4267,6 @@ function pecasDaPlanta(nome) {
     lista.map((m) => ({ folha: p.folha, comodo, ...m })),
   );
   return [...doCatalogo, ...daFolha];
-}
-
-/**
- * Interior de casa: mesma planta pra todas (chao de madeira, cama no canto,
- * saida no meio da parede de baixo), e a mobilia de `MOBILIA_CASA` por cima —
- * so visual, sem interacao. Cada saida devolve o player na frente da porta da
- * SUA construcao.
- */
-function gerarInteriorCasa(nome, ts) {
-  const c = construcao(nome);
-  const { largura: W, altura: H } = INTERIOR_CASA;
-  const chao = new Grade(W, H, GID.MADEIRA);
-  const obj = new Grade(W, H);
-
-  obj.moldura(GID.PAREDE);
-  obj.rect(0, 0, W, PAREDE_TOPO, GID.PAREDE);
-  obj.set(PORTA_INTERIOR.x, PORTA_INTERIOR.y, GID.PORTA); // saida (nao colide)
-
-  obj.set(CAMA_INTERIOR.x, CAMA_INTERIOR.y, GID.CAMA_TOPO);
-  obj.set(CAMA_INTERIOR.x, CAMA_INTERIOR.y + 1, GID.CAMA_BASE);
-
-  const interativos = [
-    objeto('porta_saida', 'porta', PORTA_INTERIOR.x, PORTA_INTERIOR.y, {
-      destino: 'farm',
-      destinoTx: c.frente.x,
-      destinoTy: c.frente.y, // um tile abaixo da porta da casa, ja na grama
-      rotulo: 'Sair',
-    }),
-    objeto(`cama_${nome}`, 'cama', CAMA_INTERIOR.x, CAMA_INTERIOR.y + 1),
-  ];
-
-  const pc = PC_DO_INTERIOR[nome];
-  if (pc) interativos.push(objeto(`computador_${nome}`, 'computador', pc.x, pc.y));
-
-  const moveis = objetosDeMovel(nome, pecasDeMobilia(nome));
-
-  return {
-    mapa: montarMapa(
-      W,
-      H,
-      [
-        camadaTiles('chao', 1, chao),
-        camadaTiles('objetos', 2, obj),
-        camadaObjetos('interativos', 3, interativos),
-        camadaObjetos('moveis', 4, moveis),
-      ],
-      ts,
-    ),
-    moveis: moveis.length,
-  };
 }
 
 // --------------------------------------------------- portas entre comodos --
@@ -3419,18 +4507,27 @@ function gerarInteriorPlanta(nome, ts) {
   for (const [x, y, gid] of portasDeVao(p)) obj.set(x, y, gid);
   acabarParedes(obj, W, H, estiloDeParedeDoTile(p));
 
-  obj.set(p.cama.x, p.cama.y, GID.CAMA_QUARTO_TOPO);
-  obj.set(p.cama.x, p.cama.y + 1, GID.CAMA_QUARTO_BASE);
+  // `cama` e opcional: escola e biblioteca nao tem uma.
+  if (p.cama) {
+    obj.set(p.cama.x, p.cama.y, GID.CAMA_QUARTO_TOPO);
+    obj.set(p.cama.x, p.cama.y + 1, GID.CAMA_QUARTO_BASE);
+  }
 
   const interativos = [
+    // a saida devolve o jogador na frente da porta DAQUELE lote, no mapa
+    // externo a que o lote pertence — que ja nao e sempre a fazenda
     objeto('porta_saida', 'porta', p.porta, H - 1, {
-      destino: 'farm',
+      destino: c.mapa,
       destinoTx: c.frente.x,
       destinoTy: c.frente.y,
       rotulo: 'Sair',
     }),
-    objeto(`cama_${nome}`, 'cama', p.cama.x, p.cama.y + 1),
   ];
+  if (p.cama) interativos.push(objeto(`cama_${nome}`, 'cama', p.cama.x, p.cama.y + 1));
+  if (p.pc) interativos.push(objeto(`computador_${nome}`, 'computador', p.pc.x, p.pc.y));
+  if (p.mobiliar) {
+    interativos.push(objeto(`mobilia_${nome}`, 'mobilia', p.mobiliar.x, p.mobiliar.y));
+  }
 
   const privados = new Set(p.privados ?? []);
   const comodos = Object.entries(p.comodos).map(([comodo, [x, y, w, h]]) =>
@@ -3439,19 +4536,38 @@ function gerarInteriorPlanta(nome, ts) {
 
   const moveis = objetosDeMovel(nome, pecasDaPlanta(nome), p.folha);
 
+  /**
+   * Camada `expansoes`: um retangulo por comodo COMPRAVEL, com o tile do vao
+   * que o jogo tapa com parede enquanto o comodo nao foi comprado.
+   *
+   * O comodo ja nasce CONSTRUIDO no tilemap (piso, parede, vao) — lacrar em
+   * runtime e mais simples e mais confiavel do que abrir alvenaria: nao ha
+   * geometria pra inventar na hora da compra, so um tile pra apagar.
+   */
+  const camadas = [
+    camadaTiles('chao', 1, chao),
+    camadaTiles('objetos', 2, obj),
+    camadaObjetos('interativos', 3, interativos),
+    camadaObjetos('moveis', 4, moveis),
+    camadaObjetos('comodos', 5, comodos),
+  ];
+  const expansoes = Object.entries(p.expansoes ?? {}).map(([comodo, def]) => {
+    const ret = p.comodos[comodo];
+    if (!ret) throw new Error(`"${nome}": expansao "${comodo}" nao tem comodo`);
+    return objeto(
+      comodo,
+      'expansao',
+      ret[0],
+      ret[1],
+      { comodo, vaoTx: def.vao[0], vaoTy: def.vao[1], gidParede: GID.PAREDE },
+      ret[2],
+      ret[3],
+    );
+  });
+  if (expansoes.length) camadas.push(camadaObjetos('expansoes', 6, expansoes));
+
   return {
-    mapa: montarMapa(
-      W,
-      H,
-      [
-        camadaTiles('chao', 1, chao),
-        camadaTiles('objetos', 2, obj),
-        camadaObjetos('interativos', 3, interativos),
-        camadaObjetos('moveis', 4, moveis),
-        camadaObjetos('comodos', 5, comodos),
-      ],
-      ts,
-    ),
+    mapa: montarMapa(W, H, camadas, ts),
     moveis: moveis.length,
   };
 }
@@ -3590,6 +4706,13 @@ function conferirInterior(rotulo, tamanho, pecas, folhaPadrao, extras) {
     vaos = [],
     portasNpc = [],
     privados = [],
+    /**
+     * Retangulos LACRADOS: tiles que ficam fora da conta de acesso, dos dois
+     * lados. E o que a conferencia do estado "expansao nao comprada" usa — o
+     * comodo existe no tilemap e e livre, mas o vao esta tapado, entao exigir
+     * que ele seja alcancavel seria exigir o contrario do que se quer provar.
+     */
+    lacrados = [],
     portaX,
     paredeTopo = 1,
   } = extras;
@@ -3691,12 +4814,17 @@ function conferirInterior(rotulo, tamanho, pecas, folhaPadrao, extras) {
     for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) privado.add(`${x},${y}`);
   }
 
+  const lacrado = new Set();
+  for (const [x0, y0, w, h] of lacrados) {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) lacrado.add(`${x},${y}`);
+  }
+
   let livres = 0;
   const ilhados = [];
   const semJogador = [];
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (bloqNpc.get(x, y)) continue;
+      if (bloqNpc.get(x, y) || lacrado.has(`${x},${y}`)) continue;
       livres++;
       const k = `${x},${y}`;
       if (!vistoNpc.has(k)) ilhados.push(k);
@@ -3804,34 +4932,6 @@ function conferirSaloes() {
   console.log(['saloes de comercio:', ...linhas].join('\n'));
 }
 
-/** Roda a conferencia no interior de salao unico (hoje so casa_1). */
-function conferirInterioresDeCasa() {
-  const { largura: W, altura: H } = INTERIOR_CASA;
-  const cama = [
-    [CAMA_INTERIOR.x, CAMA_INTERIOR.y],
-    [CAMA_INTERIOR.x, CAMA_INTERIOR.y + 1],
-  ];
-  const linhas = [];
-  for (const nome of Object.keys(MOBILIA_CASA)) {
-    const pecas = pecasDeMobilia(nome);
-    const r = conferirInterior(nome, INTERIOR_CASA, pecas, null, {
-      bloqueados: cama,
-      portaX: PORTA_INTERIOR.x,
-      paredeTopo: PAREDE_TOPO,
-      exigirLivres: [
-        [CAMA_INTERIOR.x, CAMA_INTERIOR.y + 2, 'a frente da cama'],
-        [PORTA_INTERIOR.x, H - 2, 'a frente da porta'],
-        [8, 8, 'o spawn do NPC dono da casa'],
-      ],
-    });
-    linhas.push(
-      `  ${nome}: ${pecas.length} moveis (${r.solidos} solidos, ${r.decorativos} decorativos)` +
-        ` | ${r.alcancaveis}/${r.livres} tiles livres alcancaveis`,
-    );
-  }
-  console.log(`interior de salao unico (${W}x${H}):\n${linhas.join('\n')}`);
-}
-
 /**
  * Roda a conferencia numa planta multi-comodo. Alem do que `conferirInterior` ja
  * cobra sozinho, exige explicitamente:
@@ -3852,8 +4952,11 @@ function conferirPlanta(nome, extras = {}) {
   const quemUsaACama = privados.size ? 'npc' : 'jogador';
   const exigir = [
     [p.porta, p.altura - 2, 'a frente da porta'],
-    [p.cama.x, p.cama.y + 2, 'a frente da cama', quemUsaACama],
-    [p.spawnNpc.x, p.spawnNpc.y, 'o spawn do morador', 'npc'],
+    // cama e morador sao OPCIONAIS: escola e biblioteca nao tem nem um nem outro
+    ...(p.cama ? [[p.cama.x, p.cama.y + 2, 'a frente da cama', quemUsaACama]] : []),
+    ...(p.spawnNpc ? [[p.spawnNpc.x, p.spawnNpc.y, 'o spawn do morador', 'npc']] : []),
+    ...(p.pc ? [[p.pc.x, p.pc.y + 1, 'a frente do computador']] : []),
+    ...(p.mobiliar ? [[p.mobiliar.x, p.mobiliar.y + 1, 'a frente da bancada']] : []),
     ...(extras.exigirLivres ?? []),
   ];
   const proibir = [...(extras.proibirJogador ?? [])];
@@ -3886,10 +4989,12 @@ function conferirPlanta(nome, extras = {}) {
   }
 
   const r = conferirInterior(nome, p, pecas, p.folha, {
-    bloqueados: [
-      [p.cama.x, p.cama.y],
-      [p.cama.x, p.cama.y + 1],
-    ],
+    bloqueados: p.cama
+      ? [
+          [p.cama.x, p.cama.y],
+          [p.cama.x, p.cama.y + 1],
+        ]
+      : [],
     paredes: p.paredes,
     vaos: p.vaos,
     portasNpc: p.portasNpc ?? [],
@@ -3901,6 +5006,92 @@ function conferirPlanta(nome, extras = {}) {
     proibirJogador: proibir,
   });
   return { p, pecas, ...r };
+}
+
+/**
+ * Conferencia dos interiores proprios (oficina, escola, biblioteca).
+ *
+ * Na casa+oficina ela roda DUAS vezes: uma com todas as expansoes abertas (que
+ * e o estado gravado no tilemap) e outra com elas LACRADAS, que e o estado de
+ * um jogo novo. A segunda passada e o que prova que tapar o vao nao ilha nenhum
+ * comodo basico — o jogador de jogo novo tem de alcancar quarto, sala, cozinha,
+ * banheiro e oficina do mesmo jeito.
+ */
+function conferirPlantasProprias() {
+  const linhas = [];
+  for (const nome of Object.keys(PLANTAS_PROPRIAS)) {
+    const p = PLANTAS_PROPRIAS[nome];
+    const expandiveis = Object.keys(p.expansoes ?? {});
+    const r = conferirPlanta(nome);
+    if (expandiveis.length) conferirLacrada(nome, p, expandiveis);
+    const comodos = Object.keys(r.p.comodos);
+    const compraveis = expandiveis.length
+      ? ` | ${expandiveis.length} compraveis (${expandiveis.join(', ')})`
+      : '';
+    linhas.push(
+      `  ${nome} (${r.p.largura}x${r.p.altura}): ${comodos.length} comodos ` +
+        `[${comodos.join(', ')}]${compraveis} | ${r.pecas.length} moveis | ` +
+        `${r.alcancaveis}/${r.livres} tiles livres`,
+    );
+  }
+  console.log(`interiores proprios (protagonista e predios publicos):`);
+  for (const l of linhas) console.log(l);
+}
+
+/** A mesma planta com os vaos de expansao tapados e os comodos comprados fora. */
+function conferirLacrada(nome, p, expandiveis) {
+  const eVaoDeExpansao = (x, y) =>
+    Object.values(p.expansoes).some((e) => e.vao[0] === x && e.vao[1] === y);
+  const semExpansao = (obj) =>
+    Object.fromEntries(Object.entries(obj ?? {}).filter(([c]) => !expandiveis.includes(c)));
+  const lacrada = {
+    ...p,
+    vaos: p.vaos.filter(([x, y]) => !eVaoDeExpansao(x, y)),
+    comodos: semExpansao(p.comodos),
+    pisos: semExpansao(p.pisos),
+    mobilia: semExpansao(p.mobilia),
+  };
+  conferirInterior(
+    `${nome} (expansoes lacradas)`,
+    lacrada,
+    pecasDeCatalogo(nome, mobiliaDaPlanta(lacrada)),
+    lacrada.folha,
+    {
+      bloqueados: lacrada.cama
+        ? [
+            [lacrada.cama.x, lacrada.cama.y],
+            [lacrada.cama.x, lacrada.cama.y + 1],
+          ]
+        : [],
+      paredes: lacrada.paredes,
+      vaos: lacrada.vaos,
+      portasNpc: [],
+      privados: [],
+      portaX: lacrada.porta,
+      paredeTopo: PAREDE_TOPO,
+      exigirLivres: [
+        [lacrada.porta, lacrada.altura - 2, 'a frente da porta'],
+        ...(lacrada.pc ? [[lacrada.pc.x, lacrada.pc.y + 1, 'a frente do computador']] : []),
+        ...(lacrada.mobiliar
+          ? [[lacrada.mobiliar.x, lacrada.mobiliar.y + 1, 'a frente da bancada']]
+          : []),
+      ],
+      exigirComodos: Object.entries(lacrada.comodos).map(([c, [x, y, w, h]]) => [
+        x,
+        y,
+        w,
+        h,
+        c,
+        'jogador',
+      ]),
+      // o comodo comprado, mais o proprio tile do vao tapado
+      lacrados: [
+        ...expandiveis.map((c) => p.comodos[c]),
+        ...Object.values(p.expansoes).map((e) => [e.vao[0], e.vao[1], 1, 1]),
+      ],
+      proibirJogador: [],
+    },
+  );
 }
 
 /** Conferencia das 5 casas de NPC, todas multi-comodo e todas do jogador. */
@@ -4152,13 +5343,13 @@ function conferirMistos() {
  * dele — e a mesma conta que `spawnTile` em src/game/mapas.ts declara.
  */
 function entradaDoInterior(chave) {
-  const p = PLANTAS_CASA[chave] ?? PLANTAS_MISTO[chave];
+  const p = PLANTAS_CASA[chave] ?? PLANTAS_MISTO[chave] ?? PLANTAS_PROPRIAS[chave];
   if (p) return { x: p.porta, y: p.altura - 2 };
   const salao = SALOES().find((s) => s.nome === chave);
   if (salao) {
     return { x: Math.floor(salao.tamanho.largura / 2), y: salao.tamanho.altura - 2 };
   }
-  return { x: PORTA_INTERIOR.x, y: PORTA_INTERIOR.y - 1 };
+  throw new Error(`"${chave}" nao tem planta nem salao — nao da pra saber a entrada`);
 }
 
 // ---------------------------------------------------------------- sanidade --
@@ -4184,7 +5375,11 @@ function conferirFazenda() {
   const asfalto = new Set();
   for (const v of VIAS) {
     const faixa = faixaDaVia(v);
-    conferirLimites(v.nome, faixa);
+    // via PODE encostar na borda: a avenida horizontal termina na zona de
+    // transicao pro Mapa 2. O que nao pode e sair do mapa.
+    if (faixa.x < 0 || faixa.y < 0 || faixa.x + faixa.w > W || faixa.y + faixa.h > H) {
+      throw new Error(`"${v.nome}" sai do mapa (${W}x${H})`);
+    }
     for (const t of tiles(faixa)) asfalto.add(t);
   }
 
@@ -4203,7 +5398,7 @@ function conferirFazenda() {
   marcarLote('lago', LAGO);
 
   // As construcoes nao sao lotes separados: cada uma mora dentro do seu lote.
-  for (const c of CONSTRUIDAS) {
+  for (const c of construidasDe('farm')) {
     const lote = zona(c.nome);
     const dentro =
       c.x >= lote.x &&
@@ -4225,7 +5420,12 @@ function conferirFazenda() {
     if (c.frente.y > lote.y + lote.h - 1) {
       throw new Error(`"${c.nome}" nao deixou quintal na frente da porta`);
     }
-    if (!c.interior) throw new Error(`"${c.nome}" nao tem interior definido`);
+    // `interior` deixou de ser obrigatorio: um lote pode ter predio FECHADO
+    // (casa_1 desativada). O que continua obrigatorio e a frente da porta ser
+    // andavel — e nela que fica o objeto de exame.
+    if (!c.interior && !c.fechada) {
+      throw new Error(`"${c.nome}" nao tem interior nem esta marcado como fechada`);
+    }
   }
 
   // a praca nao pode cair em cima de via nem sair do mapa, e o piso tem de
@@ -4263,7 +5463,7 @@ function conferirFazenda() {
 
   // todo lote tem de declarar um `uso` conhecido, e todo lote misto tem de ter
   // interior proprio (e onde ficam a cama do dono e a area de trabalho)
-  const USOS = new Set(['moradia', 'comercio', 'misto', 'praca']);
+  const USOS = new Set(['moradia', 'comercio', 'misto', 'praca', 'vago']);
   for (const z of ZONAS) {
     if (!USOS.has(z.uso)) throw new Error(`o lote "${z.nome}" tem uso invalido: "${z.uso}"`);
     if (z.uso !== 'misto') continue;
@@ -4296,12 +5496,157 @@ function conferirFazenda() {
   }
 }
 
+
+// ------------------------------------------- sanidade: mapas externos novos --
+/**
+ * Conferencia dos mapas externos 2 e 3, feita SOBRE O TILEMAP JA GERADO.
+ *
+ * A da fazenda (`conferirFazenda`) roda antes da geracao, em cima das tabelas.
+ * Aqui e o contrario, e de proposito: os mapas novos tem rio, muro, ponte e
+ * cerca desenhados direto na camada `objetos`, e nenhuma tabela sabe o efeito
+ * combinado deles. Conferir o resultado e o unico jeito de provar que a ponte
+ * atravessa, que o condominio tem entrada e que nenhum lote ficou ilhado.
+ *
+ * O que cobra:
+ *  - lote dentro do mapa, sem sobrepor outro lote nem cair em cima de via;
+ *  - construcao dentro do proprio lote, com a frente da porta livre;
+ *  - flood-fill a partir da zona de transicao de entrada alcanca TODO lote,
+ *    TODA frente de porta, TODA outra zona de transicao e o outro lado do rio;
+ *  - o par de cada borda existe e o ponto de chegada cai dentro dele.
+ */
+function gidBloqueia(gid) {
+  const t = TILES[(gid & 0x1fffffff) - 1];
+  return Boolean(t?.colide);
+}
+
+function conferirExterno(chave, vias, gerado, alvosExtras = []) {
+  const m = MUNDO[chave];
+  const W = m.largura;
+  const H = m.altura;
+
+  // --- geometria: lote nao invade lote nem via ---
+  const faixa = faixaDeVias(W, H, vias);
+  const ocupado = new Map();
+  for (const z of m.zonas) {
+    if (z.x < 1 || z.y < 1 || z.x + z.w > W - 1 || z.y + z.h > H - 1) {
+      throw new Error(`${chave}: lote "${z.nome}" sai do mapa (${W}x${H})`);
+    }
+    for (let y = z.y; y < z.y + z.h; y++) {
+      for (let x = z.x; x < z.x + z.w; x++) {
+        if (faixa.get(x, y)) {
+          throw new Error(`${chave}: lote "${z.nome}" fica em cima de via em ${x},${y}`);
+        }
+        const antes = ocupado.get(`${x},${y}`);
+        if (antes) throw new Error(`${chave}: "${z.nome}" invade "${antes}" em ${x},${y}`);
+        ocupado.set(`${x},${y}`, z.nome);
+      }
+    }
+  }
+
+  for (const c of construidasDe(chave)) {
+    const lote = zona(c.nome);
+    const dentro =
+      c.x >= lote.x && c.y >= lote.y && c.x + c.w <= lote.x + lote.w && c.y + c.h <= lote.y + lote.h;
+    if (!dentro) throw new Error(`${chave}: a construcao de "${c.nome}" nao cabe no lote`);
+    if (c.frente.y > lote.y + lote.h - 1) {
+      throw new Error(`${chave}: "${c.nome}" nao deixou quintal na frente da porta`);
+    }
+  }
+
+  // --- travessabilidade, sobre o tilemap gerado ---
+  const objetos = gerado.mapa.layers.find((l) => l.name === 'objetos').data;
+  const livre = (x, y) =>
+    x >= 0 && y >= 0 && x < W && y < H && !gidBloqueia(objetos[y * W + x] ?? 0);
+
+  const entrada = bordasDoMapa(chave)[0];
+  if (!entrada) throw new Error(`${chave}: nenhuma zona de transicao declarada`);
+  const inicio = [entrada.x + Math.floor(entrada.w / 2), entrada.y + Math.floor(entrada.h / 2)];
+  if (!livre(...inicio)) throw new Error(`${chave}: a borda "${entrada.nome}" nasce bloqueada`);
+
+  const vistos = new Set([inicio.join(',')]);
+  const fila = [inicio];
+  for (let i = 0; i < fila.length; i++) {
+    const [x, y] = fila[i];
+    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+      const k = `${nx},${ny}`;
+      if (livre(nx, ny) && !vistos.has(k)) {
+        vistos.add(k);
+        fila.push([nx, ny]);
+      }
+    }
+  }
+
+  const alcanca = (x, y) => vistos.has(`${x},${y}`);
+  for (const z of m.zonas) {
+    let ok = false;
+    for (let y = z.y; y < z.y + z.h && !ok; y++) {
+      for (let x = z.x; x < z.x + z.w; x++) ok ||= alcanca(x, y);
+    }
+    if (!ok) throw new Error(`${chave}: o lote "${z.nome}" nao esta alcancavel`);
+  }
+  for (const c of construidasDe(chave)) {
+    if (!alcanca(c.frente.x, c.frente.y)) {
+      throw new Error(`${chave}: a frente da porta de "${c.nome}" nao esta alcancavel`);
+    }
+  }
+  for (const b of bordasDoMapa(chave)) {
+    const alvo = [b.x + Math.floor(b.w / 2), b.y + Math.floor(b.h / 2)];
+    if (!alcanca(...alvo)) {
+      throw new Error(`${chave}: a zona de transicao "${b.nome}" nao esta alcancavel`);
+    }
+  }
+  for (const [x, y, rotulo] of alvosExtras) {
+    if (!alcanca(x, y)) throw new Error(`${chave}: ${rotulo} (${x},${y}) nao esta alcancavel`);
+  }
+
+  return { alcancaveis: vistos.size, lotes: m.zonas.length };
+}
+
+/** Todo par de borda tem de existir dos dois lados e chegar dentro do irmao. */
+function conferirBordas() {
+  for (const b of BORDAS) {
+    const alvo = MUNDO[b.destino];
+    if (!alvo) throw new Error(`borda "${b.nome}" aponta pro mapa inexistente "${b.destino}"`);
+    const volta = BORDAS.find((o) => o.mapa === b.destino && o.destino === b.mapa);
+    if (!volta) throw new Error(`borda "${b.nome}" nao tem par de volta em "${b.destino}"`);
+    const dentro =
+      b.destinoTx >= 0 && b.destinoTy >= 0 && b.destinoTx < alvo.largura && b.destinoTy < alvo.altura;
+    if (!dentro) throw new Error(`borda "${b.nome}" chega fora do mapa "${b.destino}"`);
+    // chegar EM CIMA da borda de volta faria o jogador quicar entre os dois
+    // mapas sem conseguir sair; o ponto de chegada tem de ficar ao lado dela
+    const emCima =
+      b.destinoTx >= volta.x &&
+      b.destinoTx < volta.x + volta.w &&
+      b.destinoTy >= volta.y &&
+      b.destinoTy < volta.y + volta.h;
+    if (emCima) {
+      throw new Error(
+        `borda "${b.nome}" larga o jogador dentro de "${volta.nome}" — ele voltaria na hora`,
+      );
+    }
+  }
+}
+
+/** Nome de lote e chave global: dois mapas nao podem repetir um. */
+function conferirNomesDeLote() {
+  const vistos = new Map();
+  for (const [mapa, m] of Object.entries(MUNDO)) {
+    for (const z of m.zonas) {
+      const antes = vistos.get(z.nome);
+      if (antes) throw new Error(`o lote "${z.nome}" existe em "${antes}" e em "${mapa}"`);
+      vistos.set(z.nome, mapa);
+    }
+  }
+}
+
 console.log('gerando assets...');
+conferirNomesDeLote();
+conferirBordas();
 conferirFazenda();
-conferirInterioresDeCasa();
 conferirPlantasDeCasa();
 conferirSaloes();
 conferirMistos();
+conferirPlantasProprias();
 const ts = gerarTileset();
 const molduras = {
   arvores: gerarAtlas('arvores', (c, r) => `arvore_${r}_${c}`),
@@ -4314,21 +5659,47 @@ const molduras = {
   // pra atlas que nao foi carregado
   ...Object.fromEntries(FOLHAS_DE_MOVEL.map((f) => [`moveis_${f}`, gerarAtlasMoveis(f)])),
 };
+const catalogoMobilia = gerarCatalogoMobilia();
 const fazenda = gerarFazenda(ts);
 escrever(join(ASSETS, 'tilemaps', 'farm.json'), JSON.stringify(fazenda.mapa, null, 1));
+const bairro = gerarBairro(ts);
+// o outro lado do rio so e alcancavel pela ponte: e o alvo extra que prova isso
+const rBairro = conferirExterno('bairro', VIAS_BAIRRO, bairro, [
+  [66, 104, 'a margem sul do rio (so a ponte leva la)'],
+  [CONDOMINIO.x + 4, CONDOMINIO.y + 4, 'o miolo do condominio fechado'],
+  [QUADRA_BAIRRO.x + 2, QUADRA_BAIRRO.y + 2, 'o piso da quadra'],
+]);
+escrever(join(ASSETS, 'tilemaps', 'bairro.json'), JSON.stringify(bairro.mapa, null, 1));
+const rural = gerarRural(ts);
+const rRural = conferirExterno('rural', VIAS_RURAL, rural, [
+  [PEDREIRA_RURAL.x + 4, PEDREIRA_RURAL.y + 4, 'o cascalho da pedreira'],
+  [PLANTIOS_RURAL[0].x + 2, PLANTIOS_RURAL[0].y + 2, 'a plantacao da fazenda_1'],
+  [RESERVA_MAPA_4.x + 3, RURAL.altura - 3, 'o corredor reservado pro Mapa 4'],
+]);
+escrever(join(ASSETS, 'tilemaps', 'rural.json'), JSON.stringify(rural.mapa, null, 1));
+console.log(
+  `mapas externos: bairro ${BAIRRO.largura}x${BAIRRO.altura} ` +
+    `(${rBairro.lotes} lotes, ${rBairro.alcancaveis} tiles alcancaveis) | ` +
+    `rural ${RURAL.largura}x${RURAL.altura} ` +
+    `(${rRural.lotes} lotes, ${rRural.alcancaveis} tiles alcancaveis)`,
+);
 let moveisDeCasa = 0;
 for (const c of CONSTRUIDAS) {
-  if (c.comercio) continue; // comercio e misto tem interior proprio, mais abaixo
-  // casa_1 e salao unico (sistema proprio do protagonista); as outras cinco sao
-  // multi-comodo e saem da planta
-  const interior = PLANTAS_CASA[c.nome]
-    ? gerarInteriorPlanta(c.nome, ts)
-    : gerarInteriorCasa(c.nome, ts);
+  if (c.comercio || !c.interior) continue; // comercio, misto e fechados ficam de fora
+  const interior = gerarInteriorPlanta(c.nome, ts);
   moveisDeCasa += interior.moveis;
   escrever(
     join(ASSETS, 'tilemaps', `${c.interior}.json`),
     JSON.stringify(interior.mapa, null, 1),
   );
+}
+// interiores PROPRIOS desta leva: casa+oficina do protagonista, escola e
+// biblioteca. Todos multi-comodo, todos no Mapa 2.
+let moveisProprios = 0;
+for (const nome of Object.keys(PLANTAS_PROPRIAS)) {
+  const interior = gerarInteriorPlanta(nome, ts);
+  moveisProprios += interior.moveis;
+  escrever(join(ASSETS, 'tilemaps', `${nome}.json`), JSON.stringify(interior.mapa, null, 1));
 }
 for (const salao of SALOES()) {
   const interior = gerarInteriorComercio(salao, ts);
@@ -4346,6 +5717,8 @@ console.log(
     `fazenda ${FAZENDA.largura}x${FAZENDA.altura} (${FAZENDA.largura * T}x${FAZENDA.altura * T} px) | ` +
     `${fazenda.contagem.arvores} arvores, ${fazenda.contagem.pedras} pedras, ` +
     `${fazenda.contagem.flores} flores | ` +
-    `moveis: ${moveisDeCasa} nas casas, ${moveisMistos} nos mistos | ` +
+    `moveis: ${moveisDeCasa} nas casas, ${moveisMistos} nos mistos, ` +
+    `${moveisProprios} nos proprios | ` +
+    `catalogo de mobilia: ${Object.keys(catalogoMobilia).length} pecas | ` +
     `atlas: ${Object.entries(molduras).map(([k, v]) => `${k}=${Object.keys(v).length}`).join(' ')}`,
 );

@@ -8,25 +8,52 @@ export type TipoInteragivel =
   | 'cama'
   | 'item'
   | 'loja'
-  | 'computador';
+  | 'computador'
+  /** balcao da madeireira: abre a loja de EXPANSAO DE COMODO da casa */
+  | 'expansao'
+  /** bancada da oficina: abre o catalogo de MOBILIA da casa */
+  | 'mobilia';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
-export type TipoZona = 'casa' | 'mercado' | 'academia' | 'parque' | 'bar' | 'farmacia';
+export type TipoZona =
+  // Mapa 1
+  | 'casa'
+  | 'mercado'
+  | 'academia'
+  | 'parque'
+  | 'bar'
+  | 'farmacia'
+  // Mapa 2 — Bairro da Estacao
+  | 'oficina'
+  | 'escola'
+  | 'biblioteca'
+  | 'quadra'
+  | 'terreno'
+  | 'servico'
+  // Mapa 3 — Zona Rural
+  | 'madeireira'
+  | 'pedreira'
+  | 'fazenda';
 
 /**
  * O que a construcao do lote É, independente de como ela se chama:
  *
- * - `moradia`  — casa pura: uma cama, um morador (casa_1..casa_6)
+ * - `moradia`  — casa pura: uma cama, um morador (casa_2..casa_6)
  * - `comercio` — salao puro: ninguem mora dentro (mercado, academia)
  * - `misto`    — casa + comercio no MESMO predio e no MESMO interior, sem
  *                parede interna: metade e a moradia do dono (com cama), metade
  *                e o espaco de trabalho (bar, farmacia)
- * - `praca`    — area externa, sem predio nem interior (parque)
+ * - `praca`    — area externa, sem predio nem interior (parque, quadra)
+ * - `vago`     — lote SEM interior ativo: ou nunca teve construcao (os lotes
+ *                residenciais reservados do Mapa 2 e as areas ambientadas do
+ *                Mapa 3), ou tem predio de pe com a porta fechada (a `casa_1`,
+ *                desativada nesta leva, e a Central Telefonica). Nao recebe
+ *                morador e nao entra em nenhuma conta de moradia.
  *
  * `moradia` e `misto` contam como moradia disponivel: e por isso que o bar e a
  * farmacia entram na mesma validacao de "um NPC por casa" das seis casas.
  */
-export type UsoZona = 'moradia' | 'comercio' | 'misto' | 'praca';
+export type UsoZona = 'moradia' | 'comercio' | 'misto' | 'praca' | 'vago';
 
 /** Usos em que alguem mora — os lotes que podem receber um NPC morador. */
 export const USOS_DE_MORADIA: readonly UsoZona[] = ['moradia', 'misto'];
@@ -48,11 +75,12 @@ export interface Interagivel {
 /**
  * Um lote do mapa, vindo da camada de objetos `zonas` do Tiled. A camada nao
  * tem tile nem colisao: e demarcacao. `construida` separa as duas situacoes —
- * lote ja com predio de pe (hoje so `casa_1`, a casinha inicial) e lote ainda
- * reservado, aguardando a etapa de construcao.
+ * lote ja com predio de pe e lote ainda reservado, aguardando construcao. Nos
+ * mapas 2 e 3 a maioria dos lotes esta reservada de proposito: eles dao a
+ * densidade visual do bairro sem exigir um interior mobiliado por lote.
  */
 export interface ZonaReservada {
-  /** id do objeto no Tiled, ex: 'casa_1', 'mercado' */
+  /** id do objeto no Tiled, ex: 'casa_2', 'mercado', 'oficina' */
   id: string;
   tipo: TipoZona;
   /** o que a construcao e: moradia, comercio, misto (casa+comercio) ou praca */

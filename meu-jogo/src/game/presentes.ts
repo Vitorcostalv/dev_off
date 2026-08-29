@@ -128,14 +128,6 @@ export const PREFERENCIAS_NPCS: Record<string, PreferenciaNpc> = {
     neutro: ['pao_frances', 'queijo_prato', 'agua'],
     nao_gosta: ['cafeteira_expresso', 'relogio_digital'],
   },
-
-  // MORADOR_1 — placeholder sem perfil escrito.
-  morador_1: {
-    amado: ['cafe', 'pao_frances'],
-    gosta: ['agua', 'maca', 'banana'],
-    neutro: ['biscoito', 'arroz'],
-    nao_gosta: [],
-  },
 };
 
 /**

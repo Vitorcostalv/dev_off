@@ -3,18 +3,31 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PROP_PORTA_NPC, tileBloqueia } from '../src/game/colisao.ts';
 import { MAPAS } from '../src/game/mapas.ts';
+import { EXPANSOES, buscarExpansao } from '../src/game/casa.ts';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR_MAPAS = join(RAIZ, 'public', 'assets', 'tilemaps');
-const CASAS = Array.from({ length: 6 }, (_, i) => `casa_${i + 1}`);
+/**
+ * As cinco casas de NPC do Mapa 1. A `casa_1` NAO entra: nesta leva o
+ * protagonista mudou pro Mapa 2 e o lote virou `vago` — predio de pe, porta
+ * fechada, sem interior.
+ */
+const CASAS = ['casa_2', 'casa_3', 'casa_4', 'casa_5', 'casa_6'];
 /** Predios MISTOS: casa + comercio no mesmo interior, com cama na area privada. */
 const MISTOS = ['bar', 'farmacia'];
-/** Todo lote onde alguem pode morar — o que precisa de cama interativa. */
+/** Todo lote do Mapa 1 onde um NPC mora — o que precisa de cama interativa. */
 const MORADIAS = [...CASAS, ...MISTOS];
 /** Comodos que toda casa de NPC multi-comodo tem de oferecer ao jogador. */
 const COMODOS_DE_CASA = ['quarto', 'sala', 'cozinha', 'banheiro'];
-/** Onde o jogador nasce no mapa externo. */
-const SPAWN_FARM = [60, 45];
+/**
+ * Comodos que a casa+oficina do protagonista tem de oferecer DE SAIDA, sem
+ * comprar nada: os quatro de moradia mais o de trabalho.
+ */
+const COMODOS_DA_OFICINA = ['quarto', 'sala', 'cozinha', 'banheiro', 'oficina'];
+/** Usos de lote validos — `vago` entrou nesta leva. */
+const USOS = ['moradia', 'comercio', 'misto', 'praca', 'vago'];
+/** Os mapas externos, na ordem em que o jogador os encontra. */
+const EXTERNOS = Object.values(MAPAS).filter((def) => def.externo);
 
 function lerMapa(nome) {
   return JSON.parse(readFileSync(join(DIR_MAPAS, `${nome}.json`), 'utf8'));
@@ -62,12 +75,16 @@ function gidsDePortaNpc(mapa) {
   return resultado;
 }
 
-function floodFill(mapa, spawn, quem = 'jogador') {
+function floodFill(mapa, spawn, quem = 'jogador', tapados = []) {
   const objetos = camada(mapa, 'objetos');
   const bloqueados = gidsQueBloqueiam(mapa, quem);
   const chave = (x, y) => `${x},${y}`;
+  // `tapados` sao tiles tratados como parede mesmo estando livres no tilemap:
+  // e assim que se confere o estado "expansao ainda nao comprada".
+  const tapado = new Set(tapados.map(([x, y]) => chave(x, y)));
   const livre = (x, y) =>
     x >= 0 && y >= 0 && x < mapa.width && y < mapa.height &&
+    !tapado.has(chave(x, y)) &&
     !bloqueados.has((objetos.data[y * mapa.width + x] ?? 0) & 0x1fffffff);
   if (!livre(...spawn)) throw new Error(`spawn ${spawn.join(',')} bloqueado para o ${quem}`);
 
@@ -153,8 +170,8 @@ function verificarInterior(nome) {
     throw new Error(`${nome}: porta de saida nao esta alcancavel`);
   }
 
-  // comodos: a camada e opcional (casa_1 e os saloes continuam sendo um comodo
-  // so, sem divisao interna pra declarar)
+  // comodos: a camada e opcional (os saloes de comercio continuam sendo um
+  // comodo so, sem divisao interna pra declarar)
   const comodos = objetosDe(mapa, 'comodos').map((obj) => ({
     nome: obj.name,
     privado: props(obj).privado === true,
@@ -183,8 +200,67 @@ function verificarInterior(nome) {
     }
   }
 
+  // a casa+oficina do protagonista: os cinco comodos basicos tem de estar
+  // acessiveis mesmo com todas as expansoes ainda lacradas. O tilemap traz as
+  // expansoes ABERTAS (quem lacra e o jogo, ao carregar), entao aqui basta
+  // conferir que os basicos existem e que a camada `expansoes` esta coerente.
+  if (nome === 'oficina') {
+    const nomes = comodos.map((c) => c.nome);
+    const faltando = COMODOS_DA_OFICINA.filter((c) => !nomes.includes(c));
+    if (faltando.length) {
+      throw new Error(`oficina: faltam os comodos ${faltando.join(', ')}`);
+    }
+    const expansoes = objetosDe(mapa, 'expansoes');
+    if (!expansoes.length) throw new Error('oficina: nenhum comodo de expansao declarado');
+    for (const exp of expansoes) {
+      const prop = props(exp);
+      const comodo = String(prop.comodo ?? exp.name);
+      if (!nomes.includes(comodo)) {
+        throw new Error(`oficina: a expansao "${comodo}" nao tem comodo correspondente`);
+      }
+      if (!buscarExpansao(comodo)) {
+        throw new Error(`oficina: a expansao "${comodo}" nao existe em EXPANSOES (casa.ts)`);
+      }
+      if (!Number.isFinite(prop.vaoTx) || !Number.isFinite(prop.vaoTy)) {
+        throw new Error(`oficina: a expansao "${comodo}" nao declara o tile do vao`);
+      }
+      if (!Number.isFinite(prop.gidParede)) {
+        throw new Error(`oficina: a expansao "${comodo}" nao declara o gid de parede`);
+      }
+    }
+    if (expansoes.length !== EXPANSOES.length) {
+      throw new Error(
+        `oficina: ${expansoes.length} expansao(oes) no tilemap contra ${EXPANSOES.length} em casa.ts`,
+      );
+    }
+    // com os vaos tapados, todo comodo BASICO continua alcancavel
+    const vaos = expansoes.map((exp) => {
+      const prop = props(exp);
+      return [Number(prop.vaoTx), Number(prop.vaoTy)];
+    });
+    const lacrado = floodFill(mapa, spawn, 'jogador', vaos);
+    for (const comodo of comodos) {
+      if (buscarExpansao(comodo.nome)) continue;
+      const alcanca = tilesDoRetangulo(comodo.ret).some((t) => lacrado.visitados.has(t));
+      if (!alcanca) {
+        throw new Error(
+          `oficina: com as expansoes lacradas o comodo "${comodo.nome}" fica inalcancavel`,
+        );
+      }
+    }
+    for (const comodo of comodos) {
+      if (!buscarExpansao(comodo.nome)) continue;
+      const alcanca = tilesDoRetangulo(comodo.ret).some((t) => lacrado.visitados.has(t));
+      if (alcanca) {
+        throw new Error(
+          `oficina: o comodo compravel "${comodo.nome}" ja e alcancavel sem a compra`,
+        );
+      }
+    }
+  }
+
   // as cinco casas de NPC sao multi-comodo e TODOS os comodos sao do jogador
-  if (CASAS.includes(nome) && nome !== 'casa_1') {
+  if (CASAS.includes(nome)) {
     const nomes = comodos.map((c) => c.nome);
     const faltando = COMODOS_DE_CASA.filter((c) => !nomes.includes(c));
     if (faltando.length) {
@@ -241,36 +317,87 @@ function verificarInterior(nome) {
   };
 }
 
-function verificarZonasDaFazenda() {
-  const mapa = lerMapa('farm');
-  const flood = floodFill(mapa, SPAWN_FARM);
+/**
+ * Confere um mapa EXTERNO inteiro (Mapa 1, 2 ou 3).
+ *
+ * O flood-fill sai do spawn declarado em `MAPAS` — no Mapa 1 e o centro da
+ * cidade, nos dois novos e o tile em que o jogador cai vindo do mapa vizinho.
+ * Dele tem de sair caminho ate:
+ *
+ *  - algum tile de TODO lote (construido ou reservado);
+ *  - a porta de TODO lote que tem interior;
+ *  - TODA zona de transicao declarada na camada `bordas`.
+ *
+ * A checagem de MORADIAS (um lote de moradia por NPC) so vale pro Mapa 1: os
+ * lotes residenciais dos mapas 2 e 3 estao reservados de proposito, sem morador.
+ */
+function verificarMapaExterno(def) {
+  const nome = def.chave;
+  const mapa = lerMapa(nome);
+  const flood = floodFill(mapa, [def.spawnTile.x, def.spawnTile.y]);
   const interativos = camada(mapa, 'interativos').objects ?? [];
   const zonas = camada(mapa, 'zonas').objects ?? [];
-  const esperadas = zonas.map((obj) => obj.name);
-  for (const casa of MORADIAS) {
-    if (!esperadas.includes(casa)) throw new Error(`farm: zona "${casa}" ausente`);
-  }
-  if (esperadas.length < MORADIAS.length + 3) {
-    throw new Error(`farm: esperava ao menos 11 lotes, achei ${esperadas.length}`);
-  }
 
-  // O campo `uso` e o que separa moradia pura de comercio puro e de misto
-  // (casa + comercio no mesmo predio). Quem conta como moradia disponivel sai
-  // daqui, entao ele tem de bater com `MORADIAS`.
-  const USOS = ['moradia', 'comercio', 'misto', 'praca'];
   const moradiasDoMapa = [];
   for (const zona of zonas) {
     const uso = props(zona).uso;
     if (!USOS.includes(uso)) {
-      throw new Error(`farm: lote "${zona.name}" com uso invalido: ${JSON.stringify(uso)}`);
+      throw new Error(`${nome}: lote "${zona.name}" com uso invalido: ${JSON.stringify(uso)}`);
     }
     if (props(zona).moradia !== (uso === 'moradia' || uso === 'misto')) {
-      throw new Error(`farm: lote "${zona.name}" tem moradia incoerente com o uso "${uso}"`);
+      throw new Error(`${nome}: lote "${zona.name}" tem moradia incoerente com o uso "${uso}"`);
     }
     if (uso === 'moradia' || uso === 'misto') moradiasDoMapa.push(zona.name);
   }
-  const faltando = MORADIAS.filter((nome) => !moradiasDoMapa.includes(nome));
-  const sobrando = moradiasDoMapa.filter((nome) => !MORADIAS.includes(nome));
+
+  for (const zona of zonas) {
+    const destino = props(zona).mapaInterior;
+    if (!destino) {
+      // lote sem interior (praca, terreno, predio fechado, lote reservado):
+      // basta ter algum tile alcancavel dentro dele
+      const r = retangulo(mapa, zona);
+      if (!tilesDoRetangulo(r).some((t) => flood.visitados.has(t))) {
+        throw new Error(`${nome}: lote "${zona.name}" nao esta alcancavel`);
+      }
+      continue;
+    }
+    if (!MAPAS[destino]) {
+      throw new Error(`${nome}: lote "${zona.name}" aponta pro interior "${destino}", que nao existe em MAPAS`);
+    }
+    const porta = interativos.find(
+      (obj) => (obj.class || obj.type) === 'porta' && props(obj).destino === destino,
+    );
+    if (!porta || !adjacenteAlcancavel(mapa, porta, flood)) {
+      throw new Error(`${nome}: porta de "${zona.name}" nao esta alcancavel`);
+    }
+  }
+
+  // zonas de transicao: a camada e obrigatoria em mapa externo desta leva
+  const bordas = objetosDe(mapa, 'bordas');
+  if (!bordas.length) throw new Error(`${nome}: nenhuma zona de transicao na camada "bordas"`);
+  for (const borda of bordas) {
+    const r = retangulo(mapa, borda);
+    if (!tilesDoRetangulo(r).some((t) => flood.visitados.has(t))) {
+      throw new Error(`${nome}: a zona de transicao "${borda.name}" nao esta alcancavel`);
+    }
+  }
+
+  return {
+    nome,
+    lotes: zonas.length,
+    moradias: moradiasDoMapa,
+    bordas: bordas.length,
+    alcancaveis: flood.visitados.size,
+    interiores: zonas
+      .filter((zona) => props(zona).mapaInterior)
+      .map((zona) => props(zona).mapaInterior),
+  };
+}
+
+/** So o Mapa 1 tem NPC morador; a lista dele tem de bater com `MORADIAS`. */
+function conferirMoradiasDoMapa1(relatorio) {
+  const faltando = MORADIAS.filter((n) => !relatorio.moradias.includes(n));
+  const sobrando = relatorio.moradias.filter((n) => !MORADIAS.includes(n));
   if (faltando.length || sobrando.length) {
     throw new Error(
       `farm: moradias do mapa divergem das esperadas (falta: ${faltando.join(', ') || '-'}; ` +
@@ -278,60 +405,89 @@ function verificarZonasDaFazenda() {
     );
   }
   for (const nome of MISTOS) {
-    const zona = zonas.find((obj) => obj.name === nome);
-    if (props(zona).uso !== 'misto') throw new Error(`farm: "${nome}" deveria ter uso "misto"`);
+    if (!relatorio.moradias.includes(nome)) throw new Error(`farm: "${nome}" deveria ser moradia`);
   }
-
-  for (const nome of esperadas) {
-    const zona = zonas.find((obj) => obj.name === nome);
-    if (!zona) throw new Error(`farm: zona "${nome}" ausente`);
-    if (!props(zona).mapaInterior) {
-      // lote sem interior (a praca): basta ter algum tile alcancavel dentro
-      const x0 = Math.floor(zona.x / mapa.tilewidth);
-      const y0 = Math.floor(zona.y / mapa.tileheight);
-      const x1 = x0 + Math.floor(zona.width / mapa.tilewidth);
-      const y1 = y0 + Math.floor(zona.height / mapa.tileheight);
-      let alcancavel = false;
-      for (let y = y0; y < y1 && !alcancavel; y++) {
-        for (let x = x0; x < x1; x++) alcancavel ||= flood.visitados.has(`${x},${y}`);
-      }
-      if (!alcancavel) throw new Error(`farm: lote "${nome}" nao esta alcancavel`);
-      continue;
-    }
-    const destino = props(zona).mapaInterior;
-    const porta = interativos.find((obj) =>
-      (obj.class || obj.type) === 'porta' && props(obj).destino === destino);
-    if (!porta || !adjacenteAlcancavel(mapa, porta, flood)) {
-      throw new Error(`farm: porta de "${nome}" nao esta alcancavel`);
-    }
-  }
-  const pickups = interativos.filter((obj) => (obj.class || obj.type) === 'item');
+  const mapa = lerMapa('farm');
+  const flood = floodFill(mapa, [MAPAS.farm.spawnTile.x, MAPAS.farm.spawnTile.y]);
+  const pickups = (camada(mapa, 'interativos').objects ?? []).filter(
+    (obj) => (obj.class || obj.type) === 'item',
+  );
   if (pickups.length !== 2) throw new Error(`farm: esperava 2 pickups, achei ${pickups.length}`);
   if (!pickups.every((obj) => props(obj).itemId === 'cabo_usb' && adjacenteAlcancavel(mapa, obj, flood))) {
-    throw new Error('farm: pickups de empilhamento invalidos ou inalcançaveis');
+    throw new Error('farm: pickups de empilhamento invalidos ou inalcancaveis');
   }
-  return {
-    moradias: moradiasDoMapa,
-    total: esperadas.length,
-    interiores: esperadas.filter((nome) => {
-      const zona = zonas.find((obj) => obj.name === nome);
-      return Boolean(props(zona).mapaInterior);
-    }),
-  };
 }
 
-const { total, interiores, moradias } = verificarZonasDaFazenda();
+/**
+ * As zonas de transicao andam AOS PARES: se do Mapa 1 sai uma pro Mapa 2, do
+ * Mapa 2 tem de sair uma de volta pro Mapa 1. Alem disso o ponto de chegada de
+ * cada uma tem de cair num tile livre do mapa de destino e FORA da borda de
+ * volta — senao o jogador quicaria entre os dois mapas sem conseguir sair.
+ */
+function verificarBordas() {
+  const porMapa = new Map(
+    EXTERNOS.map((def) => [def.chave, { def, mapa: lerMapa(def.chave), bordas: [] }]),
+  );
+  for (const entrada of porMapa.values()) {
+    for (const obj of objetosDe(entrada.mapa, 'bordas')) {
+      entrada.bordas.push({ nome: obj.name, ret: retangulo(entrada.mapa, obj), ...props(obj) });
+    }
+  }
+
+  let pares = 0;
+  for (const entrada of porMapa.values()) {
+    for (const borda of entrada.bordas) {
+      const alvo = porMapa.get(borda.destino);
+      if (!alvo) {
+        throw new Error(`${entrada.def.chave}: "${borda.nome}" aponta pro mapa "${borda.destino}", que nao e externo`);
+      }
+      const volta = alvo.bordas.find((b) => b.destino === entrada.def.chave);
+      if (!volta) {
+        throw new Error(`${entrada.def.chave}: "${borda.nome}" nao tem par de volta em "${borda.destino}"`);
+      }
+      const flood = floodFill(alvo.mapa, [alvo.def.spawnTile.x, alvo.def.spawnTile.y]);
+      if (!flood.visitados.has(`${borda.destinoTx},${borda.destinoTy}`)) {
+        throw new Error(
+          `${entrada.def.chave}: "${borda.nome}" larga o jogador em ` +
+            `${borda.destinoTx},${borda.destinoTy} de "${borda.destino}", que nao e alcancavel`,
+        );
+      }
+      const dentroDaVolta =
+        borda.destinoTx >= volta.ret.x &&
+        borda.destinoTx < volta.ret.x + volta.ret.w &&
+        borda.destinoTy >= volta.ret.y &&
+        borda.destinoTy < volta.ret.y + volta.ret.h;
+      if (dentroDaVolta) {
+        throw new Error(
+          `${entrada.def.chave}: "${borda.nome}" chega dentro de "${volta.nome}" — o jogador voltaria na hora`,
+        );
+      }
+      pares++;
+    }
+  }
+  return pares;
+}
+
+const relatoriosExternos = EXTERNOS.map((def) => verificarMapaExterno(def));
+conferirMoradiasDoMapa1(relatoriosExternos.find((r) => r.nome === 'farm'));
+const paresDeBorda = verificarBordas();
+const interiores = relatoriosExternos.flatMap((r) => r.interiores);
 const relatorios = interiores.map((nome) => verificarInterior(nome));
+for (const r of relatoriosExternos) {
+  console.log(
+    `[verificacao] ${r.nome.padEnd(7)} ${String(r.lotes).padStart(2)} lote(s) alcancavel(is), ` +
+      `${r.interiores.length} com interior, ${r.bordas} zona(s) de transicao, ` +
+      `${r.alcancaveis} tiles alcancaveis`,
+  );
+}
 console.log(
-  `[verificacao] ${total}/${total} lotes alcancaveis; ` +
-    `${interiores.length} interiores conferidos (${interiores.join(', ')}); ` +
-    `${moradias.length}/${MORADIAS.length} moradias com cama interativa ` +
-    `(${CASAS.length} casas + ${MISTOS.length} mistos); 2/2 pickups`,
+  `[verificacao] ${paresDeBorda} ligacao(oes) entre mapas conferida(s) nos dois sentidos; ` +
+    `${interiores.length} interiores conferidos (${interiores.join(', ')})`,
 );
 for (const r of relatorios) {
   if (!r.comodos) continue;
   console.log(
-    `  ${r.nome.padEnd(9)} ${String(r.comodos).padStart(2)} comodos ` +
+    `  ${r.nome.padEnd(11)} ${String(r.comodos).padStart(2)} comodos ` +
       `(${r.privados} privado(s), ${r.portasNpc} porta(s) somente-NPC) | ` +
       `jogador alcanca ${String(r.jogador).padStart(3)} tiles, NPC alcanca ${r.npc}`,
   );
@@ -340,4 +496,8 @@ const comPrivado = relatorios.filter((r) => r.privados);
 console.log(
   `[verificacao] area privada CONFIRMADAMENTE inacessivel ao jogador em ` +
     `${comPrivado.length} interior(es): ${comPrivado.map((r) => r.nome).join(', ') || '-'}`,
+);
+console.log(
+  `[verificacao] casa do protagonista: ${EXPANSOES.length} comodo(s) compravel(is) ` +
+    `(${EXPANSOES.map((e) => e.id).join(', ')}), lacrados enquanto nao comprados`,
 );

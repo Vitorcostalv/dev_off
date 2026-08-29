@@ -1,6 +1,7 @@
 import type { EntradaDeLixeira } from './lixeira.ts';
 import type { DadosRelacoes } from './relacoes.ts';
 import type { Slot } from './inventario.ts';
+import type { DadosCasa } from './casa.ts';
 
 const CHAVE = 'meu-jogo:save';
 // 2: o tile passou de 16 pra 32 px, entao x/y gravados na versao 1 apontam
@@ -10,6 +11,10 @@ const CHAVE = 'meu-jogo:save';
 // 4: passa a persistir os pickups removidos do mundo junto com o inventario.
 // 5: entra o dinheiro (em centavos) e o inventario passa a guardar itens do
 //    CATALOGO_ITENS, que a versao 4 nao conhecia.
+// 6: o jogo passou de um mapa externo pra tres, e a casa do protagonista mudou
+//    da `casa_1` (Mapa 1) pra `oficina` (Mapa 2). A chave de mapa gravada na
+//    versao 5 pode ser `casa_1`, que nao existe mais, e as coordenadas gravadas
+//    dentro dela nao querem dizer nada no mapa novo.
 // Subir a versao descarta os saves antigos em vez de restaurar posicao errada.
 //
 // Campo NOVO nao pede versao nova. So se sobe a versao quando o dado gravado
@@ -18,7 +23,7 @@ const CHAVE = 'meu-jogo:save';
 // acrescentado chega como `undefined` no save velho, e cada `restaurar` ja
 // trata isso devolvendo o valor vazio — descartar o save do jogador por causa
 // disso seria pior que carregar sem o historico da lixeira.
-const VERSAO = 5;
+const VERSAO = 6;
 
 export interface DadosSave {
   versao: number;
@@ -41,6 +46,12 @@ export interface DadosSave {
    * aceita o formato antigo (so o array de scores) sem descartar o save.
    */
   relacoes?: DadosRelacoes;
+  /**
+   * Comodos de expansao comprados e mobilia posicionada na casa+oficina. Campo
+   * novo da versao 6; `SistemaCasa.restaurar` aceita ausente e devolve a casa
+   * como ela sai da geracao.
+   */
+  casa?: DadosCasa;
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

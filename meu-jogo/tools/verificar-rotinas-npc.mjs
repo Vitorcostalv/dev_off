@@ -418,7 +418,9 @@ function gradeInterior(nome, quem = 'npc') {
  * casa grande, sair dela deixou de ser um pulo de dois tiles.
  */
 function conferirInterioresDeMoradores() {
-  const casas = ['casa_1', 'casa_2', 'casa_3', 'casa_4', 'casa_5', 'casa_6'];
+  // casa_1 saiu da lista: o lote foi desativado nesta leva e nao tem mais
+  // interior. As cinco restantes sao as casas de NPC.
+  const casas = ['casa_2', 'casa_3', 'casa_4', 'casa_5', 'casa_6'];
   const grades = new Map(casas.map((nome) => [nome, gradeInterior(nome)]));
   const sistema = new SistemaRotinasNpc();
   const andouDentro = new Set();
@@ -442,9 +444,8 @@ function conferirInterioresDeMoradores() {
         ruins.slice(0, 4).join(' | '),
     );
   }
-  // casa_1 nao tem morador com rotina de sair, entao fica de fora da exigencia
   const comRotina = Object.values(NPCS).filter(
-    (def) => casas.includes(def.casa) && def.casa !== 'casa_1' && def.rotina.length > 0,
+    (def) => casas.includes(def.casa) && def.rotina.length > 0,
   );
   for (const def of comRotina) {
     if (!andouDentro.has(def.id)) {

@@ -1,4 +1,5 @@
 import { Carteira } from './dinheiro.ts';
+import { SistemaCasa } from './casa.ts';
 import { Inventario } from './inventario.ts';
 import { Lixeira } from './lixeira.ts';
 import { Relogio } from './relogio.ts';
@@ -11,8 +12,12 @@ import { SistemaRelacoes } from './relacoes.ts';
  * Cenas leem e escrevem daqui; ninguem guarda copia.
  */
 export const estado = {
-  /** chave do mapa em que o player esta */
-  mapa: 'farm',
+  /**
+   * Chave do mapa em que o player esta. Jogo novo comeca no MAPA 2, na porta da
+   * casa+oficina — e onde o protagonista mora desde esta leva. O Mapa 1, com os
+   * 9 NPCs e o comercio, fica a leste; a zona rural, ao sul, depois da ponte.
+   */
+  mapa: 'bairro',
   /** dia absoluto desde o inicio do jogo; 0 = a primeira segunda-feira */
   dia: 0,
   relogio: new Relogio(),
@@ -28,4 +33,6 @@ export const estado = {
   rotinasNpc: new SistemaRotinasNpc(),
   /** relacionamento com cada NPC */
   relacoes: new SistemaRelacoes(),
+  /** comodos comprados e mobilia posicionada na casa+oficina do protagonista */
+  casa: new SistemaCasa(),
 };

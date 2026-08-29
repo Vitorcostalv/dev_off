@@ -488,7 +488,7 @@ const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
   console.log('  conserto: nenhum tabuleiro com peca repetida em 60 dias; pagamento proporcional');
 }
 
-// ---------------------------------------------------- entrega e save v5 --
+// ---------------------------------------------------- entrega e save v6 --
 {
   // a entrega guarda o NPC de destino, e ele TEM de sobreviver ao save: sem
   // isso o bonus de relacao da entrega some ao recarregar
@@ -542,9 +542,9 @@ const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
   conferir(dados !== null, 'carregar devolveu null');
   const voltou = new SistemaRelacoes();
   voltou.restaurar(dados.relacoes);
-  conferir(voltou.getScore('wendel') === 4.5, 'o score do Wendel nao sobreviveu ao save v5');
-  conferir(!voltou.podeConversar('wendel', 7), 'o limite diario nao sobreviveu ao save v5');
-  console.log('  save v5: score, interagidos, limites e NPC da entrega preservados no reload');
+  conferir(voltou.getScore('wendel') === 4.5, 'o score do Wendel nao sobreviveu ao save v6');
+  conferir(!voltou.podeConversar('wendel', 7), 'o limite diario nao sobreviveu ao save v6');
+  console.log('  save v6: score, interagidos, limites e NPC da entrega preservados no reload');
 }
 
 // ------------------------------------------------ entrega ponta a ponta --

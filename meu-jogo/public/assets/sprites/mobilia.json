@@ -1,0 +1,178 @@
+{
+ "vaso_flores": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_6_17",
+  "larguraTiles": 0.923,
+  "alturaTiles": 1.231,
+  "solido": false,
+  "chao": false
+ },
+ "poster_galaxia": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_5_9",
+  "larguraTiles": 1.038,
+  "alturaTiles": 1.904,
+  "solido": false,
+  "chao": false
+ },
+ "quadro_paisagem": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_5_8",
+  "larguraTiles": 1.308,
+  "alturaTiles": 1.365,
+  "solido": false,
+  "chao": false
+ },
+ "planta_alta": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_6_15",
+  "larguraTiles": 0.731,
+  "alturaTiles": 1.904,
+  "solido": false,
+  "chao": false
+ },
+ "relogio_parede": {
+  "atlas": "moveis_mobilia_v1",
+  "frame": "movel_4_9",
+  "larguraTiles": 1.029,
+  "alturaTiles": 1.041,
+  "solido": false,
+  "chao": false
+ },
+ "planta_grande": {
+  "atlas": "moveis_mobilia_v1",
+  "frame": "movel_1_6",
+  "larguraTiles": 1.144,
+  "alturaTiles": 2.186,
+  "solido": false,
+  "chao": false
+ },
+ "tapete_cinza": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_3_10",
+  "larguraTiles": 4.185,
+  "alturaTiles": 1.798,
+  "solido": false,
+  "chao": true
+ },
+ "tapete_creme": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_3_7",
+  "larguraTiles": 3.923,
+  "alturaTiles": 1.7,
+  "solido": false,
+  "chao": true
+ },
+ "lampada_tripe": {
+  "atlas": "moveis_mobilia_v1",
+  "frame": "movel_1_4",
+  "larguraTiles": 0.733,
+  "alturaTiles": 2.25,
+  "solido": false,
+  "chao": false
+ },
+ "violao": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_1_9",
+  "larguraTiles": 0.962,
+  "alturaTiles": 1.885,
+  "solido": false,
+  "chao": false
+ },
+ "criado_mudo": {
+  "atlas": "moveis_quarto",
+  "frame": "movel_0_2",
+  "larguraTiles": 1.086,
+  "alturaTiles": 1.776,
+  "solido": true,
+  "chao": false
+ },
+ "caixa_ferramenta": {
+  "atlas": "moveis_quarto",
+  "frame": "movel_5_0",
+  "larguraTiles": 1.388,
+  "alturaTiles": 0.947,
+  "solido": true,
+  "chao": false
+ },
+ "mesa_centro_madeira": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_3_1",
+  "larguraTiles": 1.904,
+  "alturaTiles": 1.212,
+  "solido": true,
+  "chao": false
+ },
+ "poltrona_creme": {
+  "atlas": "moveis_mobilia_v1",
+  "frame": "movel_1_1",
+  "larguraTiles": 1.761,
+  "alturaTiles": 1.916,
+  "solido": true,
+  "chao": false
+ },
+ "comoda_quarto": {
+  "atlas": "moveis_quarto",
+  "frame": "movel_0_3",
+  "larguraTiles": 1.73,
+  "alturaTiles": 2.191,
+  "solido": true,
+  "chao": false
+ },
+ "escrivaninha": {
+  "atlas": "moveis_quarto",
+  "frame": "movel_2_1",
+  "larguraTiles": 2.546,
+  "alturaTiles": 2.164,
+  "solido": true,
+  "chao": false
+ },
+ "estante_caixas": {
+  "atlas": "moveis_mobilia_v1",
+  "frame": "movel_4_4",
+  "larguraTiles": 1.35,
+  "alturaTiles": 2.199,
+  "solido": true,
+  "chao": false
+ },
+ "armario_pecas": {
+  "atlas": "moveis_cozinha",
+  "frame": "movel_2_0",
+  "larguraTiles": 0.987,
+  "alturaTiles": 2.313,
+  "solido": true,
+  "chao": false
+ },
+ "estante_livros_v2": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_1_14",
+  "larguraTiles": 1.596,
+  "alturaTiles": 2.692,
+  "solido": true,
+  "chao": false
+ },
+ "prateleira_pecas": {
+  "atlas": "moveis_mobilia_v1",
+  "frame": "movel_3_0",
+  "larguraTiles": 1.8,
+  "alturaTiles": 2.726,
+  "solido": true,
+  "chao": false
+ },
+ "bancada_trabalho": {
+  "atlas": "moveis_cozinha",
+  "frame": "movel_1_3",
+  "larguraTiles": 1.627,
+  "alturaTiles": 1.687,
+  "solido": true,
+  "chao": false
+ },
+ "sofa_creme": {
+  "atlas": "moveis_mobilia_v2",
+  "frame": "movel_2_2",
+  "larguraTiles": 2.827,
+  "alturaTiles": 1.712,
+  "solido": true,
+  "chao": false
+ }
+}

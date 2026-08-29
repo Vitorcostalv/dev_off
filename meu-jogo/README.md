@@ -24,8 +24,10 @@ conserto.
 | Setas ou A/D | escolher Sim/Nao na confirmacao |
 | Esc | cancelar confirmacao |
 | Tab | abrir/fechar inventario (e trocar de secao na DevStore) |
-| M | abrir/fechar mapa da cidade |
-| E no computador de casa | ligar o PC (desktop com 7 apps); Esc desliga |
+| M | abrir/fechar o mapa do lugar onde voce esta |
+| E no computador da oficina | ligar o PC (desktop com 7 apps); Esc desliga |
+| E na bancada da oficina | abrir o catalogo de mobilia |
+| Ponteiro + clique | posicionar a peca de mobilia escolhida; Esc desiste |
 | F1 | debug das colisoes |
 | F6 | mostrar/esconder as zonas reservadas (debug) |
 | F7 | avancar uma hora para testar rotinas (debug) |
@@ -44,7 +46,8 @@ src/
     relogio.ts         tempo de jogo e formatacao da hora
     calendario.ts      dias da semana
     inventario.ts      slots, empilhamento, catalogo de itens
-    mapas.ts           registro dos mapas (keys do Phaser + spawn)
+    mapas.ts           registro dos mapas (keys do Phaser + spawn + mapa externo)
+    casa.ts            casa do protagonista: comodos compraveis e catalogo de mobilia
     npcs.ts            catalogo, moradias, sprites, dialogos e rotinas dos NPCs
     trabalhos.ts       quadro de vagas por dia, perguntas e regras de pagamento
     aparelhos.ts       catalogo dos aparelhos do minigame de conserto
@@ -75,8 +78,9 @@ tools/
   imagem.mjs           decoder PNG, deteccao de grade/blob e reducao de tile
   gerar-assets.mjs     monta tileset + folhas/atlas de sprite + todos os tilemaps
 public/assets/
-  tilemaps/            farm.json (externo) + um por interior (casa_1..casa_6,
-                       mercado, academia, bar, farmacia) — todos gerados
+  tilemaps/            3 externos (farm, bairro, rural) + um por interior
+                       (casa_2..casa_6, mercado, academia, bar, farmacia,
+                       oficina, escola, biblioteca) — todos gerados
   tilesets/terrain.png tileset 32x32 montado pelo script (nao edite a mao)
   sprites/             folhas de runtime, folhas de movel geradas, spritesheets
                        do player e os atlas
@@ -96,15 +100,16 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 
 | origem | pasta | usada como | quando |
 | --- | --- | --- | --- |
-| `Grama.png` (3 variantes) | `arte/` | tiles de grama | build |
+| `Grama.png` (3 variantes) | `arte/` | tiles de grama do Mapa 1 | build |
+| `Grama_mapa_2.png` (3x2) | `arte/` | grama do Mapa 2 — so as 2 celulas lisas da linha 0 | build |
+| `Grama_mapa_3.png` (3x2) | `arte/` | grama do Mapa 3 — so a celula lisa da linha 0 | build |
 | `estrada_de_terra.png` (3x3) | `arte/` | autotile de estrada + terra batida | build |
 | `lago_v1.png` (3x3) | `arte/` | 9-slice de agua | build |
 | `Paredes_casa_v1.png` (6x3) | `arte/` | parede das fachadas de casa | build |
 | `Telhados_v1.png` (6x3, coluna 0) | `arte/` | laje de telhado | build |
 | `Portas_v1.png` (4x5, coluna 0) | `arte/` | porta das fachadas | build |
 | `Janelas_v1.png` (7x4) | `arte/` | janela das fachadas | build |
-| `Mecado_academia.png` | `arte/` | fachadas prontas de mercado e academia | build |
-| `farmacia_bar.png` | `arte/` | fachadas prontas de bar e farmacia | build |
+| `Mecado_academia.png`, `farmacia_bar.png` | `arte/` | fachadas PRONTAS — nao sao mais lidas; ficam como referencia de leitura de cada predio | — |
 | `Arvores.png` (3 especies x 6 estagios) | `public/` | atlas `arvores` | runtime |
 | `Flores_v1.png` e `Flores_v2.png` (4 especies x 6 cada) | `public/` | atlas `flores_v1` / `flores_v2` | runtime |
 | `pedras.png` | `public/` | calcamento (build) + atlas `pedras` (runtime) | ambos |
@@ -117,6 +122,10 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `paredes_casa_Internas_v1.png` (7x4 paineis) | `arte/` | parede INTERNA de casa: campo + rodape, 4 variantes de relevo cada | build |
 | `paredes_academia.png`, `Paredes_mercado.png`, `Paredes_farmacia.png`, `Paredes_bar.png` | `arte/` | parede interna de cada ramo de comercio | build |
 | `Portas_v2.png` (faixa de casa) | `arte/` | tiles de porta nos vaos entre comodos | build |
+| `Paredes_escola.png` (5x3) | `arte/` | fachada e parede interna da escola | build |
+| `Paredes_biblioteca.png` (6x3) | `arte/` | fachada e parede interna da biblioteca | build |
+| `PAredes_predio.png` (6x3) | `arte/` | alvenaria neutra: oficina, madeireira e Central Telefonica | build |
+| `Portas_predio.png` (4 linhas) | `arte/` | portas dos predios publicos e da oficina | build |
 | `Pisos_banheiro.png` e `Pisos_cozinha.png` | `arte/` | tiles de piso de interior (madeira, azulejo, mosaico...) | build |
 | `Nootbook_desmontado.png`, `Celular_desmontado.png`, `Consoles_e_controles_desmontados.png` | `public/` | atlas `aparelhos` do minigame de conserto | build |
 | `player_sprites.png`, `Player_andando.png`, `Player_correndo.png` | `public/` | poses do player | runtime |
@@ -124,6 +133,27 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 
 `pedras.png` e o unico caso de folha usada nas duas pontas — por isso continua
 em `public/` mesmo tendo parte consumida em build.
+
+**Arte encontrada e NAO usada nesta leva:**
+
+- `Rios_v1.png` — folha de rio. Nao foi processada: o layout dela e irregular
+  (a projecao de alfa nao acha grade, e os blobs saem em linhas de tamanhos
+  diferentes), entao o rio do Mapa 2 usa o 9-slice de agua de `lago_v1.png`,
+  que ja estava validado. Trocar depois e mexer so em `pintarLago`/`gerarBairro`.
+- `Grama_mapa_4.png` — grama do **Mapa 4 (represa)**, que esta fora do escopo
+  desta leva. A folha fica no repositorio, sem entrada em `FOLHAS`.
+- A **linha 1** de `Grama_mapa_2.png` e `Grama_mapa_3.png` e a versao NOTURNA da
+  linha 0 (mesmo pareamento de `Grama.png` com `Grama_noite.png`). O jogo nao
+  troca tile por horario, entao ela ficou de fora — anotada aqui pra quem for
+  implementar noite saber que a arte ja existe.
+- As celulas com CENARIO desenhado dentro (caminho de pedra na grama do Mapa 2;
+  fardo de feno, cerca e girassol na do Mapa 3) tambem ficaram de fora:
+  ladrilhadas viram carimbo repetido.
+
+**Superficies sem arte dedicada, pintadas proceduralmente** (como o `MATO` e o
+`PISO` ja eram): ponte, muro/cerca, portao, plantacao, cascalho de pedreira e
+piso de quadra. Cada uma tem um pintor curto e comentado em `TILES`; trocar por
+arte dedicada e mexer so ali.
 
 **Folha de movel e reempacotada, nao apontada.** As folhas de movel
 (utensilio de mercado/academia, mobilia v1/v2 e as dedicadas de quarto,
@@ -155,10 +185,12 @@ a corrida usa `Player_correndo.png`, sempre com quatro poses por direcao.
 
 ## Como as pecas conversam
 
-**Uma cena de mundo so.** `FarmScene` desenha qualquer mapa: quem manda e
-`estado.mapa`, resolvido em `game/mapas.ts`. Trocar de mapa e um
-`scene.restart({ mapa, x, y })` — por isso `init()` zera todo o estado mutavel
-da cena (campos de classe com inicializador **nao** rodam de novo no restart).
+**Uma cena de mundo so.** `FarmScene` desenha qualquer mapa — os tres externos
+e todos os interiores: quem manda e `estado.mapa`, resolvido em `game/mapas.ts`.
+Trocar de mapa e um `scene.restart({ mapa, x, y })` — por isso `init()` zera todo
+o estado mutavel da cena (campos de classe com inicializador **nao** rodam de
+novo no restart). Nao ha cena por mapa, e nao deve haver: cada mapa novo e uma
+entrada em `MAPAS` mais um tilemap.
 
 **A UI e uma cena separada** (`UIScene`), rodando em paralelo na resolucao base,
 sem o zoom da camera — por isso o texto fica nitido. Ela concentra *todo* o
@@ -172,6 +204,58 @@ player e congela o relogio.
 **Ordem de subida importa:** o `BootScene` da `launch('UIScene')` antes de
 `start('FarmScene')`, porque a cena de mundo ja fala com a UI dentro do
 `create()`.
+
+## Os tres mapas do mundo
+
+O jogo tem **tres mapas externos**, ligados por zonas de transicao nas bordas:
+
+```
+        Mapa 2                    Mapa 1
+   Bairro da Estacao  <--leste-->  Cidade (farm)
+     (140x110)                      (120x90)
+          |
+        sul (depois da ponte sobre o rio)
+          |
+        Mapa 3
+     Zona Rural (150x120)
+          |
+        sul: RESERVADO pro Mapa 4 (represa) — nao implementado
+```
+
+| mapa | chave | o que tem |
+| --- | --- | --- |
+| Mapa 1 | `farm` | a cidade original: 11 lotes, os 9 NPCs, mercado, academia, bar, farmacia, parque, lago |
+| Mapa 2 | `bairro` | casa+oficina do protagonista, escola, biblioteca, quadra, terreno abandonado, Central Telefonica, 12 lotes residenciais reservados (4 deles num condominio fechado), rio e ponte |
+| Mapa 3 | `rural` | madeireira (loja de expansao), pedreira, duas fazendas, dois lotes de casa reservados |
+
+**Os NPCs vivem so no Mapa 1** (`MAPA_DOS_NPCS`, em `game/mapas.ts`). O motor de
+rotinas nao aprendeu a mover NPC entre mapas: fora do Mapa 1 eles simplesmente
+nao sao desenhados nem viram alvo — o mesmo tratamento que ja existia pro
+jogador estar dentro de um interior.
+
+**Jogo novo comeca no Mapa 2**, na porta da casa+oficina — que e onde o
+protagonista mora desde que a `casa_1` do Mapa 1 foi desativada.
+
+**A `casa_1` continua de pe no Mapa 1, mas fechada.** O lote virou `uso: 'vago'`:
+o predio aparece, a porta nao abre e no lugar dela ha um objeto de exame
+("Local desativado"). Nao ha interior gerado pra ela, e nenhum NPC mora la. E
+espaco reservado pra uso narrativo futuro.
+
+### Camada `bordas`
+
+Camada de **objetos** dos mapas externos. Cada objeto e um retangulo de alguns
+tiles na beira do mapa; encostar nele troca o mapa carregado, com o mesmo fade
+da porta.
+
+| propriedade | o que diz |
+| --- | --- |
+| `destino` | chave do mapa vizinho em `game/mapas.ts` |
+| `destinoTx` / `destinoTy` | onde o jogador cai la, em **tiles** |
+
+As bordas andam **aos pares** e `npm run verificar-mapas` cobra isso: se do
+Mapa 1 sai uma pro Mapa 2, do Mapa 2 tem de sair uma de volta, o ponto de
+chegada tem de ser alcancavel e **nao pode cair dentro da borda de volta** —
+senao o jogador quicaria entre os dois mapas sem conseguir sair.
 
 ## Fluxo do Tiled
 
@@ -206,7 +290,14 @@ Camada de **objetos** chamada `interativos`. A *class* do objeto define o tipo:
 | `placa` | dialogo fixo de teste | — |
 | `npc` | conversa (legado; NPCs novos nascem de `game/npcs.ts`) | `npcId` |
 | `porta` | troca de mapa com fade | `destino` (chave em `game/mapas.ts`), `destinoTx`, `destinoTy` (em **tiles** do mapa de destino) |
-| `cama` | pergunta e dorme | — |
+| `cama` | pergunta e dorme (salva) | — |
+| `computador` | liga o PC dos 7 apps | — |
+| `expansao` | balcao da madeireira: compra de comodo | — |
+| `mobilia` | bancada da oficina: catalogo de mobilia | — |
+
+Um `placa` com a propriedade `aviso` mostra o texto do predio FECHADO daquele
+lote em vez do texto generico (`AVISOS_DE_PREDIO`, na `FarmScene`) — e o que a
+`casa_1` desativada e a Central Telefonica usam.
 
 Qualquer objeto aceita `rotulo` pra trocar o verbo do prompt (a porta de saida
 da casa usa isso pra dizer "Sair" em vez de "Entrar").
@@ -216,8 +307,19 @@ direcao pra onde o player olha (`CONFIG.interacao`, em `game/config.ts`).
 
 ### Camada `caminhos` e o autotile de estrada
 
-A malha viaria esta em `VIAS`, no `gerar-assets.mjs`: cada via e um segmento
-reto declarado pelo **eixo** (`w` ou `h` = 1), com `LARGURA_VIA` de faixa. O
+Ha dois jeitos de declarar via, e os dois caem no mesmo autotile:
+
+- **Mapa 1 (`VIAS`)** — segmentos RETOS, declarados pelo eixo (`w` ou `h` = 1) e
+  alargados perpendicularmente por `LARGURA_VIA`. E o que da o traçado
+  quadriculado da cidade original.
+- **Mapas 2 e 3 (`VIAS_BAIRRO`, `VIAS_RURAL`)** — POLILINHAS: uma lista de
+  pontos ligada por Bresenham, entao o eixo desce em degraus e a rua sai torta
+  de proposito. A faixa sai por **dilatacao quadrada** do eixo (raio 1 = 3
+  tiles); num trecho diagonal nao existe "perpendicular" unica, e a dilatacao
+  fecha o degrau sem deixar buraco.
+
+Nos dois casos o autotile e o mesmo, porque ele so olha a vizinhanca de 4 do
+eixo. O
 desenho sai em duas passadas — a faixa inteira de terra batida, e depois a
 trilha clara so no eixo. Da uma estrada larga com a trilha gasta no meio; a
 arte traz o caminho centralizado no tile, entao duas linhas coladas virariam
@@ -231,13 +333,14 @@ espelho, e as 16 vao assadas no tileset.
 
 Camada de **objetos** chamada `zonas`, sem tile e sem colisao: e a demarcacao
 dos lotes. A *class* diz o tipo (`casa`, `mercado`, `academia`, `parque`, `bar`,
-`farmacia`) e o *name* e o id (`casa_1`..`casa_6`, `mercado`, `academia`,
-`parque`, `bar`, `farmacia`).
+`farmacia`, `oficina`, `escola`, `biblioteca`, `quadra`, `terreno`, `servico`,
+`madeireira`, `pedreira`, `fazenda`) e o *name* e o id do lote. **Nome de lote e
+chave global**: nenhum dos tres mapas repete um.
 
 | propriedade | o que diz |
 | --- | --- |
 | `tipo` | mesmo valor da *class* |
-| `uso` | `moradia`, `comercio`, `misto` (casa+comercio) ou `praca` |
+| `uso` | `moradia`, `comercio`, `misto` (casa+comercio), `praca` ou `vago` |
 | `moradia` | `true` quando o `uso` e `moradia` ou `misto` — alguem pode morar ai |
 | `construida` | `true` = ja tem predio de pe; `false` = lote reservado |
 | `mapaInterior` | chave em `game/mapas.ts` do interior, quando existe |
@@ -249,9 +352,14 @@ lado e o espaco de trabalho do outro. Como tem cama, os dois contam como
 **moradia disponivel** na mesma validacao que impede dois NPCs na mesma casa
 (`MORADIAS` em `game/npcs.ts`, conferida contra o mapa por `verificar-mapas`).
 
-**Os 11 lotes estao construidos.** 10 tem predio e interior (6 casas, mercado,
-academia, bar, farmacia) e vem de `CONSTRUCOES`; o parque e area externa e vem
-de `PRACAS`. Lote de misto tem 10x8 — maior que o de uma casa (8x6), porque o
+`vago` e o lote **sem interior ativo**: ou nunca teve construcao (os lotes
+residenciais reservados do Mapa 2, as areas ambientadas do Mapa 3) ou tem predio
+de pe com a porta fechada (a `casa_1` desativada, a Central Telefonica). Nao
+recebe morador e nao entra em conta nenhuma de moradia.
+
+**No Mapa 1, os 11 lotes estao construidos.** 9 tem predio e interior (5 casas de
+NPC, mercado, academia, bar, farmacia) e vem de `CONSTRUCOES`; o parque e area
+externa e vem de `PRACAS`; a `casa_1` tem predio e nenhum interior. Lote de misto tem 10x8 — maior que o de uma casa (8x6), porque o
 predio tem duas funcoes dentro, e menor que o do mercado (12x8).
 A posicao de cada construcao e **derivada do lote** (`construcaoDe()` centra a
 pegada e encosta no topo), entao mover o lote leva o predio junto — nao ha duas
@@ -266,7 +374,8 @@ No jogo, na `FarmScene`:
 
 - `zonasReservadas` — todos os lotes
 - `zonasLivres` — so os que ainda nao tem construcao (hoje vazio)
-- `zonasDeMoradia` — os lotes onde alguem pode morar (6 casas + bar + farmacia)
+- `zonasDeMoradia` — os lotes onde alguem pode morar (5 casas de NPC + bar +
+  farmacia no Mapa 1; no Mapa 2 e 3 os lotes de moradia estao reservados)
 - `zonaPorId('mercado')` — o lote, com `construida: true` e `mapaInterior: 'mercado'`
 - `portaDaZona('mercado')` — o objeto `porta` que entra nessa construcao
 - **F6** desenha os retangulos; lote construido vem com borda grossa e o nome
@@ -286,8 +395,11 @@ colisao nova.
 As 6 fachadas de casa sao **compostas no gerador** (`comporCasa`): laje de
 telhado repetida no alto com beiral e sombra, parede repetida embaixo, duas
 janelas e a porta centrada no rodape. Cada casa usa uma combinacao diferente de
-`ESTILOS_CASA`. Mercado e academia nao sao compostos: as fachadas ja vem
-montadas em `Mecado_academia.png`, so escaladas pra largura da pegada.
+`ESTILOS_CASA`. Os predios de comercio e os desta leva (oficina, escola,
+biblioteca, madeireira, Central Telefonica) sao compostos por `comporComercio`,
+que ladrilha os paineis da folha do proprio predio em duas fileiras e troca o
+painel do meio pelo letreiro (em cima) e pela porta (embaixo) — ver
+`ESTILOS_COMERCIO`.
 
 Do kit de telhado so a **coluna 0** (a laje) e usada. Cumeeira, chamine, lucarna
 e rufo ficaram de fora: o encaixe delas nao da pra inferir com seguranca a
@@ -407,9 +519,13 @@ tile lado a lado vira uma grade visivel.
   segundos reais**, dia comeca 06:00 ao acordar, jogo novo comeca 07:20.
 - Passar da meia-noite acordado tambem vira o dia.
 - Dia 0 e uma segunda-feira (`game/calendario.ts`).
-- Dormir salva, avanca um dia e reseta a hora. O save v4 (`localStorage`,
-  chave `meu-jogo:save`) guarda dia, hora, mapa, posicao, inventario e pickups coletados, e e
-  carregado no boot. Save de versao diferente ou corrompido e ignorado com
+- Dormir salva, avanca um dia e reseta a hora. O save **v6** (`localStorage`,
+  chave `meu-jogo:save`) guarda dia, hora, **mapa atual e posicao nele**,
+  inventario, pickups coletados, dinheiro, lixeira, trabalhos, relacoes e a
+  **configuracao da casa** (comodos de expansao comprados e mobilia
+  posicionada), e e carregado no boot. A v6 subiu porque o jogo passou de um
+  mapa externo pra tres e a casa do protagonista mudou de lote: a chave de mapa
+  gravada na v5 pode ser `casa_1`, que nao existe mais. Save de versao diferente ou corrompido e ignorado com
   aviso no console, e o jogo comeca do zero.
 
 ## Rotinas de NPC
@@ -527,6 +643,67 @@ varre cada area de `vagar` na definicao, cobra que todo NPC termine o dia dentro
 da propria casa e valida as transicoes pelas portas.
 `npm run processar-sprites-npc` regenera as folhas transparentes e uniformes de
 caminhada/corrida de Edu e Mari.
+
+## Expansao de casa e mobilia
+
+O nucleo mecanico novo. Sao **duas compras diferentes, em dois balcoes
+diferentes**, e as duas passam inteiras por `estado.carteira.gastar()` — ninguem
+escreve saldo direto. A tabela de precos mora em `game/casa.ts` e e ajustavel.
+
+### Comodo, na madeireira (Mapa 3)
+
+A planta da casa+oficina ja nasce com **todos** os comodos construidos no
+tilemap: piso, parede e vao. O que a compra faz e **destapar** o vao, e nao
+construir. E o inverso do que parece natural, e e de proposito: nao ha geometria
+inventada em tempo de jogo, so um tile pra apagar.
+
+Enquanto o comodo nao foi comprado, a `FarmScene` poe um tile de parede no vao
+— antes de ligar a colisao, entao ele barra como qualquer parede. O comodo
+continua existindo do outro lado; ele so nao tem por onde entrar.
+
+A camada de objetos `expansoes` do tilemap e o contrato entre gerador e jogo:
+
+| propriedade | o que diz |
+| --- | --- |
+| `comodo` | nome do comodo na camada `comodos` |
+| `vaoTx` / `vaoTy` | o tile de passagem que o jogo tapa/destapa |
+| `gidParede` | o tile de parede usado pra lacrar |
+
+`npm run verificar-mapas` roda o flood-fill **duas vezes** na casa: com as
+expansoes abertas (o estado do tilemap) e com elas lacradas (o estado de jogo
+novo). A segunda passada prova que lacrar nao ilha nenhum comodo basico, e que
+nenhum comodo compravel e alcancavel sem a compra. O gerador faz a mesma
+conferencia em duplicata antes de escrever o mapa.
+
+### Movel, na bancada da oficina
+
+O jogador escolhe a peca no catalogo, ela vira um **fantasma preso ao ponteiro**
+(verde onde da, vermelho onde nao da) e ele solta com o clique. E o mesmo trio
+`pointerdown`/`pointermove`/`pointerup` do minigame de conserto, sem lib nova.
+
+Uma posicao so vale se as quatro coisas valerem, **conferidas em tempo de
+jogo**:
+
+1. a peca cabe inteira dentro de um comodo que o jogador ja possui;
+2. o ponteiro nao esta longe demais do jogador (`ALCANCE_DE_MOBILIA`);
+3. nenhuma outra peca divide tile com ela — colida ela ou nao (a mesma regra que
+   a conferencia offline aplica na mobilia autoral);
+4. com ela no lugar, **todo comodo possuido continua alcancavel a partir da
+   porta** (flood-fill em runtime). E o que impede entulhar o corredor e se
+   trancar.
+
+Peca de chao (tapete) pula 3 e 4: ela nao tem corpo de colisao, entao pode ficar
+debaixo de qualquer coisa e nao fecha passagem nenhuma.
+
+O dinheiro so sai no clique, e a validade e **reconferida dentro do `cabe()`**
+da transacao — a peca pode ter deixado de caber entre o ultimo movimento do
+ponteiro e o clique.
+
+**As medidas das pecas nao estao no codigo do jogo.** `game/casa.ts` lista id,
+nome, preco e a chave em `MOVEIS_CASA`; o gerador le essa mesma lista, mede a
+peca na propria folha de arte e escreve `assets/sprites/mobilia.json` com atlas,
+frame, largura e altura em tiles. Assim o jogo valida a pegada com o mesmo
+numero que a conferencia de interior usa, e nao ha medida de arte duplicada.
 
 ## Notas
 

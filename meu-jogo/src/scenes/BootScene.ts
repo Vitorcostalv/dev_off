@@ -90,6 +90,11 @@ export class BootScene extends Phaser.Scene {
       'assets/sprites/aparelhos.atlas.json',
     );
 
+    // Medidas das pecas do catalogo de mobilia compravel (atlas, frame e
+    // tamanho em tiles). Sai de tools/gerar-assets.mjs lendo `CATALOGO_MOBILIA`
+    // de src/game/casa.ts — ver o cabecalho de la.
+    this.load.json('mobilia', 'assets/sprites/mobilia.json');
+
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
@@ -136,6 +141,7 @@ export class BootScene extends Phaser.Scene {
     estado.lixeira.restaurar(save.lixeira);
     estado.trabalhos.restaurar(save.trabalhos);
     estado.relacoes.restaurar(save.relacoes);
+    estado.casa.restaurar(save.casa);
     estado.itensColetados = new Set(
       Array.isArray(save.itensColetados)
         ? save.itensColetados.filter((id): id is string => typeof id === 'string')
