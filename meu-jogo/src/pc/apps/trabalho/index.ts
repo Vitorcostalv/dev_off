@@ -325,6 +325,7 @@ export class Trabalho implements AppDoPc {
       morador: vaga.moradorDestino,
       recompensa: vaga.recompensa,
       dia: estado.dia,
+      npcId: vaga.npcDestino,
     };
     this.desenharLista();
     this.avisar(

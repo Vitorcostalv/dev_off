@@ -54,6 +54,8 @@ interface ModeloDeVaga {
   recompensa: number;
   /** so `conserto`: id em APARELHOS */
   aparelho?: string;
+  /** so `codigo`: numero de etapas (perguntas) nesta vaga. 1 = acerto paga cheio; 2-5 = paga proporcional */
+  etapas?: number;
 }
 
 /**
@@ -109,6 +111,7 @@ const MODELOS: readonly ModeloDeVaga[] = [
     cliente: 'Padaria do Ze',
     dificuldade: 'facil',
     recompensa: 7500,
+    etapas: 1,
   },
   {
     id: 'codigo_script',
@@ -118,6 +121,7 @@ const MODELOS: readonly ModeloDeVaga[] = [
     cliente: 'Academia',
     dificuldade: 'media',
     recompensa: 14000,
+    etapas: 2,
   },
   {
     id: 'codigo_caixa',
@@ -127,6 +131,7 @@ const MODELOS: readonly ModeloDeVaga[] = [
     cliente: 'Mercado',
     dificuldade: 'media',
     recompensa: 16000,
+    etapas: 3,
   },
   {
     id: 'codigo_api',
@@ -136,6 +141,7 @@ const MODELOS: readonly ModeloDeVaga[] = [
     cliente: 'Distribuidora',
     dificuldade: 'dificil',
     recompensa: 32000,
+    etapas: 4,
   },
   // --- conserto ---
   {
@@ -186,6 +192,13 @@ export interface Vaga extends ModeloDeVaga {
   destino?: string;
   /** so `entrega`: quem recebe, pro texto da vaga */
   moradorDestino?: string;
+  /** so `entrega`: id do NPC que recebe a entrega (pra bonus de relacao) */
+  npcDestino?: string;
+  /**
+   * `codigo`: numero de etapas. Pode ser diferente do modelo se a vaga foi sorteada
+   * pra ter multiplas etapas. 1 etapa = acerto paga cheio; 2-5 = paga proporcional.
+   */
+  etapas?: number;
 }
 
 /**
@@ -196,11 +209,11 @@ export interface Vaga extends ModeloDeVaga {
  * seria falar sozinho na porta, entao a lista sai dos NPCs, nao de MORADIAS: no
  * dia em que casa_6 ganhar um morador, ela entra aqui sozinha.
  */
-export const DESTINOS_DE_ENTREGA: readonly { mapa: string; morador: string }[] = Object.values(
+export const DESTINOS_DE_ENTREGA: readonly { npcId: string; mapa: string; morador: string }[] = Object.values(
   NPCS,
 )
   .filter((npc) => npc.casa !== 'casa_1') // a casa do proprio jogador nao vale
-  .map((npc) => ({ mapa: npc.casa, morador: npc.nome }));
+  .map((npc) => ({ npcId: npc.id, mapa: npc.casa, morador: npc.nome }));
 
 // ------------------------------------------------------------- sorteio --
 /** Hash inteiro -> [0,1). Mesma avalanche do `hash01Texto` de itens.ts. */
@@ -245,19 +258,44 @@ export function quadroDoDia(dia: number): Vaga[] {
   escolhidas.sort((a, b) => ordem[a.tipo] - ordem[b.tipo] || a.recompensa - b.recompensa);
 
   return escolhidas.map((modelo, i) => {
-    if (modelo.tipo !== 'entrega') return { ...modelo };
-    const d =
-      DESTINOS_DE_ENTREGA[
-        Math.floor(hash01(dia * 97 + i, SEMENTE_QUADRO + 1) * DESTINOS_DE_ENTREGA.length) %
-          DESTINOS_DE_ENTREGA.length
-      ];
-    return { ...modelo, destino: d.mapa, moradorDestino: d.morador };
+    const vaga = { ...modelo };
+    
+    // entrega: sorteia destino
+    if (modelo.tipo === 'entrega') {
+      const d =
+        DESTINOS_DE_ENTREGA[
+          Math.floor(hash01(dia * 97 + i, SEMENTE_QUADRO + 1) * DESTINOS_DE_ENTREGA.length) %
+            DESTINOS_DE_ENTREGA.length
+        ];
+      return { ...vaga, destino: d.mapa, moradorDestino: d.morador, npcDestino: d.npcId };
+    }
+    
+    // codigo: pode randomizar etapas pra vagas mais dificeis/caras
+    if (modelo.tipo === 'codigo') {
+      // Quanto mais cara a vaga, maior a chance de multiplas etapas
+      // Usa o mesmo hash que o sorteio de vagas pra ser deterministica
+      const etapasBase = modelo.etapas ?? 1;
+      if (etapasBase === 1) {
+        // vaga facil fica sempre com 1 etapa
+        return vaga;
+      }
+      // vagas de 2+ etapas: pode ficar com as etapas do modelo ou randomizar
+      // aqui estamos mantendo as etapas do modelo por enquanto
+      // no futuro poderia sortear entre 2-5 baseado em recompensa
+      return vaga;
+    }
+    
+    return vaga;
   });
 }
 
 // --------------------------------------------------- regras de pagamento --
 /**
  * CODIGO — acerto paga cheio, ERRO PAGA ZERO.
+ *
+ * IMPORTANTE: Essa regra SO se aplica a vagas de 1 etapa (vaga.etapas === 1).
+ *
+ * Para vagas com multiplas etapas (2-5), ver pagamentoDeCodigoMultiEtapas().
  *
  * A alternativa (metade por errar) foi descartada com a conta na mao: sao 4
  * alternativas, entao chutar valeria 0,25 x cheio + 0,75 x metade = 62,5% do
@@ -269,7 +307,29 @@ export function quadroDoDia(dia: number): Vaga[] {
  * O custo do erro e o tempo, nao a perda da vaga.
  */
 export function pagamentoDeCodigo(vaga: Vaga, acertou: boolean): number {
+  // Se for multi-etapas, usar a funcao apropriada
+  if ((vaga.etapas ?? 1) > 1) {
+    console.warn('[trabalhos] pagamentoDeCodigo() recebeu vaga multi-etapas; use pagamentoDeCodigoMultiEtapas()');
+    return 0;
+  }
   return acertou ? vaga.recompensa : 0;
+}
+
+/**
+ * CODIGO MULTI-ETAPAS — pagamento PROPORCIONAL aos acertos.
+ *
+ * Aplica SO a vagas com 2-5 etapas. O criterio e parecido ao conserto: quando
+ * a pergunta tem MULTIPLAS etapas, trabalho parcial merece pagamento parcial.
+ * Acertar 3 de 5 perguntas diferentes e mais valor que chutar na mao e estagnar
+ * numa etapa, entao reconhecer o esforco e importante.
+ *
+ * A vaga nao some ao errar: continue respondendo as etapas restantes e receba
+ * o proporcional no final.
+ */
+export function pagamentoDeCodigoMultiEtapas(vaga: Vaga, acertos: number, total: number): number {
+  if (total <= 0) return 0;
+  if (acertos >= total) return vaga.recompensa;
+  return Math.floor((vaga.recompensa * acertos) / total);
 }
 
 /**
@@ -308,6 +368,10 @@ export interface Pergunta {
  * mecanismo do quadro. Repetir a vaga no mesmo dia repete a pergunta; isso e
  * proposital, porque errar e tentar de novo deve exigir ter APRENDIDO, nao
  * esperar cair uma pergunta mais facil.
+ *
+ * Para vagas com multiplas etapas (2-5), nao se pode repetir a mesma pergunta
+ * na mesma vaga — entao o banco foi expandido para ~20+ perguntas, com boa
+ * distribuicao de dificuldade.
  */
 export const PERGUNTAS: readonly Pergunta[] = [
   {
@@ -387,6 +451,84 @@ export const PERGUNTAS: readonly Pergunta[] = [
     correta: 1,
     explicacao: '?? so cai no padrao com null/undefined. || tambem cairia com 0.',
   },
+  // --- perguntas adicionais para vagas multi-etapas ---
+  {
+    codigo: 'const { nome, idade } ___ usuario;',
+    enunciado: 'Qual operador extrai propriedades de um objeto?',
+    opcoes: ['<-', '=', ':', '...'],
+    correta: 1,
+    explicacao: 'A desestruturacao usa = com chaves. : e sintaxe de tipo, ... e spread.',
+  },
+  {
+    codigo: 'const resultado = valor ___ null ? valor : padrao;',
+    enunciado: 'Qual operador implementa a condicao "se for null, use padrao"?',
+    opcoes: ['??', '||', '&&', '?:'],
+    correta: 0,
+    explicacao: '?? e o operador de nullish coalescing. || tambem funciona mas e menos preciso.',
+  },
+  {
+    codigo: 'let x;\nif (valor) {\n  x = valor;\n} else {\n  x = 0;\n}\nlet y = valor ___ 0;',
+    enunciado: 'Qual operador ternario faz a mesma coisa?',
+    opcoes: ['? :', ': ?', '? ?', ': :'],
+    correta: 0,
+    explicacao: 'O operador ternario e condicao ? verdade : falso.',
+  },
+  {
+    codigo: 'const nomes = lista.___(p => p.nome);',
+    enunciado: 'Qual metodo extrai uma propriedade de cada item do array?',
+    opcoes: ['select', 'extract', 'map', 'find'],
+    correta: 2,
+    explicacao: 'map transforma cada item; select e sintaxe de outras linguagens.',
+  },
+  {
+    codigo: 'const existe = itens.___(i => i.id === 5);',
+    enunciado: 'Qual metodo devolve true se ALGUM item passar no teste?',
+    opcoes: ['some', 'any', 'exists', 'includes'],
+    correta: 0,
+    explicacao: 'some devolve boolean. includes procura valor, nao teste; every quer TODOS.',
+  },
+  {
+    codigo: 'const tudoCerto = itens.___(i => i.valido);',
+    enunciado: 'Qual metodo devolve true SO se TODOS os itens passam no teste?',
+    opcoes: ['every', 'all', 'each', 'some'],
+    correta: 0,
+    explicacao: 'every quer todos. some basta um; all nao existe em JS.',
+  },
+  {
+    codigo: 'const texto = "javascript";\nconst subst = texto.___(0, 4);',
+    enunciado: 'Qual metodo pega um pedaco de uma string?',
+    opcoes: ['slice', 'substr', 'substring', 'cut'],
+    correta: 0,
+    explicacao: 'slice(inicio, fim) e o jeito moderno. substr e deprecated.',
+  },
+  {
+    codigo: 'const obj = {};\nobj.___ = "valor";\nconsole.log(obj.chave);',
+    enunciado: 'O que vai no espaco para acessar a propriedade "chave" dinamicamente?',
+    opcoes: ['chave', '"chave"', "'chave'", '[\'chave\']'],
+    correta: 3,
+    explicacao: 'Notacao entre colchetes permite propriedade dinamica.',
+  },
+  {
+    codigo: 'class Animal {\n  ___ mover() { }\n}\nclass Cachorro ___ Animal { }',
+    enunciado: 'Qual palavra herda metodos da classe pai?',
+    opcoes: ['inherits', 'extends', 'super', 'parent'],
+    correta: 1,
+    explicacao: 'extends faz heranca em JS/TS. super chama metodo do pai.',
+  },
+  {
+    codigo: 'const dados = JSON.___(jsonString);',
+    enunciado: 'Qual funcao converte uma string JSON num objeto?',
+    opcoes: ['parse', 'decode', 'read', 'load'],
+    correta: 0,
+    explicacao: 'parse traduz string JSON. stringify faz o inverso.',
+  },
+  {
+    codigo: 'const nomes = ["alice", "bruno"];\nconst maiusculas = nomes.___().map(n => n.toUpperCase());',
+    enunciado: 'Qual metodo faz uma copia do array sem alterar o original?',
+    opcoes: ['copy', 'slice', 'clone', 'dup'],
+    correta: 1,
+    explicacao: 'slice() sem argumentos cria uma copia. assignment apenas copia a referencia.',
+  },
 ];
 
 /** Quantas perguntas cada dificuldade sorteia, da mais facil pra mais dificil. */
@@ -442,6 +584,8 @@ export interface EntregaAtiva {
   recompensa: number;
   /** dia em que foi aceita, so pra mostrar na tela */
   dia: number;
+  /** id do NPC que recebe (pra bonus de relacao) */
+  npcId?: string;
 }
 
 /**

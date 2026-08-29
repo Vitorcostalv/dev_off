@@ -34,6 +34,8 @@ export interface DadosSave {
   lixeira?: EntradaDeLixeira[];
   /** entrega em andamento e vagas ja concluidas; ausente nos saves antigos */
   trabalhos?: unknown;
+  /** relacionamento com NPCs; ausente nos saves gravados antes deste recurso */
+  relacoes?: Array<[string, number]>;
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

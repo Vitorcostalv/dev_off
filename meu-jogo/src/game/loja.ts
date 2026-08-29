@@ -98,6 +98,57 @@ export interface ResultadoCompra {
   total: number;
 }
 
+// --------------------------------------------------------- desconto por relacao --
+/**
+ * Tabela de desconto por nível de relacionamento.
+ *
+ * Os descontos sao aplicados baseado no score do relacionamento com o dono:
+ * - score 0-3.5: sem desconto
+ * - score 4-7.5: 5% de desconto
+ * - score 8-11.5: 10% de desconto
+ * - score 12: 15% de desconto
+ */
+export const DESCONTO_POR_NIVEL: Record<string, number> = {
+  'Estranho': 0,
+  'Conhecido': 0,
+  'Amigo': 0.05,
+  'Namorando': 0.10,
+  'Casamento': 0.15,
+  'Confiança profunda': 0.10, // jaqueline override em nivel 8
+  'Amizade de família': 0.15, // jaqueline override em nivel 12
+};
+
+/**
+ * Calcula o preço com desconto baseado no relacionamento com o dono da loja.
+ *
+ * @param precoBase - preço em centavos
+ * @param npcDono - id do NPC dono da loja (ex: 'jaqueline' para o mercado)
+ * @returns preço final em centavos, com desconto aplicado se houver relação
+ */
+export function precoComDesconto(precoBase: number, npcDono: string | undefined): number {
+  if (!npcDono) return precoBase;
+
+  const nivel = estado.relacoes.getNivel(npcDono);
+  const desconto = DESCONTO_POR_NIVEL[nivel] ?? 0;
+
+  if (desconto === 0) return precoBase;
+
+  // aplica desconto e arredonda pra centavo
+  const precoCom = Math.round(precoBase * (1 - desconto));
+  return precoCom;
+}
+
+/**
+ * Retorna o percentual de desconto ativo para um NPC.
+ * Usado pela UI pra mostrar "Desconto: -5%" ao jogador.
+ *
+ * @returns número entre 0 e 1 (ex: 0.15 para 15%)
+ */
+export function percentualDescontoNpc(npcDono: string): number {
+  const nivel = estado.relacoes.getNivel(npcDono);
+  return DESCONTO_POR_NIVEL[nivel] ?? 0;
+}
+
 /**
  * Janela, em ms, em que a MESMA compra (mesmo item, mesma quantidade) e tratada
  * como disparo duplo e recusada.

@@ -1,37 +1,40 @@
 import type Phaser from 'phaser';
-import { UI } from '../../../game/config.ts';
 import type { DefinicaoAparelho } from '../../../game/aparelhos.ts';
 import { frameDaPeca, frameDoAparelho } from '../../../game/aparelhos.ts';
-import { PC, ajustarIcone, caixa, encurtar, texto } from '../../widgets.ts';
+import { PC, ajustarIcone, caixa, texto } from '../../widgets.ts';
 import type { Retangulo } from '../../widgets.ts';
 import type { Vista } from '../../vista.ts';
 
 /**
- * Minigame de CONSERTAR APARELHO: o aparelho pisca a ordem em que as pecas
- * entram, o jogador repete.
+ * Minigame de CONSERTAR APARELHO: o jogador arrasta pecas da bandeja (tray)
+ * para encaix-las no aparelho.
  *
- * O pagamento e PROPORCIONAL aos passos acertados (ver `pagamentoDeConserto` em
- * game/trabalhos.ts): sao 4 a 7 passos entre 4 botoes, entao chutar a sequencia
- * inteira tem chance de 1/256 no pior caso, e pagar pelo trabalho parcial nao
- * abre brecha pra chute.
+ * Este e um quebra-cabeca de arrastar: o aparelho esta a esquerda, as pecas
+ * disponiveis a direita numa bandeja. O jogador arrasta cada peca para seu
+ * slot correto no aparelho. Encaixes corretos ficam verdes; encaixes errados
+ * retornam a bandeja.
  *
- * ---------------------------------------------------------------------------
- * GANCHO FUTURO — economia de pecas
- * ---------------------------------------------------------------------------
- * As quatro pecas aqui sao SO ilustracao: sao os botoes, e o painel de baixo
- * mostra as que ja foram encaixadas. Nao ha peca no inventario, nao ha peca que
- * falta, nao ha custo de peca. Quando isso entrar (ver o cabecalho de
- * game/aparelhos.ts), o minigame nao muda — o que muda e o aceitar da vaga,
- * que passa a exigir as pecas, e o concluir, que passa a consumi-las.
+ * O pagamento e PROPORCIONAL aos componentes encaixados corretamente
+ * (ver `pagamentoDeConserto` em game/trabalhos.ts).
  */
 
-type Fase = 'espera' | 'mostrando' | 'repetindo' | 'fim';
+type Fase = 'aguardando' | 'jogando' | 'fim';
 
-/** Quanto tempo cada peca fica acesa na demonstracao, e a pausa entre elas. */
-const ACESO = 430;
-const PAUSA = 170;
+// Tamanho e posicionamento dos componentes visuais
+const TAMANHO_PECA = 56;
+const TAMANHO_SLOT = 70;
+const GAP = 8;
 
-const BOTOES = { colunas: 2, largura: 132, altura: 80, gap: 8 };
+interface EstruturaPeca {
+  /** imagem que o jogador arrasta */
+  imagem: Phaser.GameObjects.Image;
+  /** posicao x,y inicial na bandeja */
+  posicaoInicial: { x: number; y: number };
+  /** id da peca */
+  idPeca: string;
+  /** indice na lista de pecas do aparelho */
+  indicePeca: number;
+}
 
 export class SequenciaConserto implements Vista {
   private aparelho: DefinicaoAparelho;
@@ -40,22 +43,22 @@ export class SequenciaConserto implements Vista {
   private aoTerminar: (acertos: number, total: number) => void;
 
   private cena!: Phaser.Scene;
-  private fase: Fase = 'espera';
-  /** indice do proximo passo, tanto na demonstracao quanto na repeticao */
-  private passo = 0;
+  private fase: Fase = 'aguardando';
   private acertos = 0;
-  /** marca de tempo (cena.time.now) do proximo evento da demonstracao */
-  private proximoEm = 0;
-  private aceso: number | null = null;
   private prazoFinal = 0;
 
-  private botoes: {
-    fundo: Phaser.GameObjects.Rectangle;
-    icone: Phaser.GameObjects.Image;
-    rotulo: Phaser.GameObjects.Text;
-  }[] = [];
-  private encaixes: Phaser.GameObjects.Rectangle[] = [];
-  private encaixeIcones: Phaser.GameObjects.Image[] = [];
+  /** slot para peca: usado para validar encaixes */
+  private slotsPorIndice: Map<number, { slot: Phaser.GameObjects.Rectangle; visual: Phaser.GameObjects.Image }> =
+    new Map();
+  /** peca em arrastar */
+  private pecaArrastada: {
+    estrutura: EstruturaPeca;
+    inicialX: number;
+    inicialY: number;
+    pointer: Phaser.Input.Pointer;
+  } | null = null;
+
+  private pecas: EstruturaPeca[] = [];
   private estadoTexto!: Phaser.GameObjects.Text;
   private barra!: Phaser.GameObjects.Rectangle;
   private barraLargura = 0;
@@ -74,11 +77,16 @@ export class SequenciaConserto implements Vista {
 
   montar(cena: Phaser.Scene, raiz: Phaser.GameObjects.Container, area: Retangulo): void {
     this.cena = cena;
+
     const g = cena.add.graphics();
     raiz.add(g);
 
-    // --- o aparelho, a esquerda ---
-    const vitrine = { x: area.x, y: area.y, w: 170, h: 150 };
+    // --- Aparelho a esquerda, foto grande ---
+    const vitrineX = area.x;
+    const vitrineY = area.y;
+    const vitrineLargura = 170;
+    const vitrineAltura = 150;
+    const vitrine = { x: vitrineX, y: vitrineY, w: vitrineLargura, h: vitrineAltura };
     caixa(g, vitrine, 0x0a0d13, PC.borda);
     const foto = cena.add.image(
       vitrine.x + vitrine.w / 2,
@@ -95,224 +103,239 @@ export class SequenciaConserto implements Vista {
       }),
     );
 
-    // --- painel "pecas encaixadas": um quadradinho por passo da sequencia ---
-    const yEncaixes = vitrine.y + vitrine.h + 6;
-    const lado = Math.min(20, Math.floor((vitrine.w - (this.sequencia.length - 1) * 3) / this.sequencia.length));
-    this.encaixes = [];
-    this.encaixeIcones = [];
-    this.sequencia.forEach((_, i) => {
-      const x = vitrine.x + i * (lado + 3);
-      const fundo = cena.add
-        .rectangle(x + lado / 2, yEncaixes + lado / 2, lado, lado, 0x0a0d13)
-        .setStrokeStyle(1, PC.borda);
-      const icone = cena.add.image(x + lado / 2, yEncaixes + lado / 2, 'aparelhos').setVisible(false);
-      raiz.add(fundo);
-      raiz.add(icone);
-      this.encaixes.push(fundo);
-      this.encaixeIcones.push(icone);
+    // --- Criar slots (2 colunas) para as pecas encaixarem ---
+    const xSlots = vitrineX + vitrineLargura + 14;
+    const ySlots = vitrineY;
+    const numColunas = 2;
+    this.sequencia.forEach((_indicePeca, i) => {
+      const col = i % numColunas;
+      const linha = Math.floor(i / numColunas);
+      const xSlot = xSlots + col * (TAMANHO_SLOT + GAP);
+      const ySlot = ySlots + linha * (TAMANHO_SLOT + GAP);
+
+      const slot = cena.add
+        .rectangle(xSlot + TAMANHO_SLOT / 2, ySlot + TAMANHO_SLOT / 2, TAMANHO_SLOT, TAMANHO_SLOT, 0x0a0d13)
+        .setStrokeStyle(2, PC.borda);
+      raiz.add(slot);
+
+      const visual = cena.add
+        .image(xSlot + TAMANHO_SLOT / 2, ySlot + TAMANHO_SLOT / 2, 'aparelhos')
+        .setVisible(false);
+      raiz.add(visual);
+
+      this.slotsPorIndice.set(i, { slot, visual });
     });
 
-    // --- os quatro botoes de peca, a direita ---
-    const x0 = area.x + vitrine.w + 14;
-    this.botoes = this.aparelho.pecas.map((p, i) => {
-      const col = i % BOTOES.colunas;
-      const linha = Math.floor(i / BOTOES.colunas);
-      const x = x0 + col * (BOTOES.largura + BOTOES.gap);
-      const y = area.y + linha * (BOTOES.altura + BOTOES.gap);
+    // --- Bandeja de pecas a direita ---
+    const xBandeja = xSlots;
+    const yBandeja = ySlots + Math.ceil(this.sequencia.length / numColunas) * (TAMANHO_SLOT + GAP) + 8;
 
-      const fundo = cena.add
-        .rectangle(x + BOTOES.largura / 2, y + BOTOES.altura / 2, BOTOES.largura, BOTOES.altura, PC.painelClaro)
-        .setStrokeStyle(1, PC.borda)
-        .setInteractive({ useHandCursor: true });
-      const icone = cena.add.image(
-        x + BOTOES.largura / 2,
-        y + BOTOES.altura / 2 - 6,
-        'aparelhos',
-        frameDaPeca(this.aparelho.id, p.id),
-      );
-      ajustarIcone(icone, 46);
-      const rotulo = cena.add
-        .text(x + BOTOES.largura / 2, y + BOTOES.altura - 14, `${i + 1}. ${encurtar(p.nome, 14)}`, {
-          fontFamily: UI.fonte,
-          fontSize: '9px',
-          color: PC.textoFraco,
-        })
-        .setOrigin(0.5, 0);
-      fundo.on('pointerdown', () => this.apertar(i));
-      raiz.add(fundo);
-      raiz.add(icone);
-      raiz.add(rotulo);
-      return { fundo, icone, rotulo };
+    const panelBandeja = { x: xBandeja, y: yBandeja, w: area.x + area.w - xBandeja, h: 90 };
+    caixa(g, panelBandeja, 0x0a0d13, PC.borda);
+    raiz.add(
+      texto(cena, panelBandeja.x + 6, panelBandeja.y + 4, 'Pecas disponiveis', {
+        fontSize: '9px',
+        color: PC.textoFraco,
+      }),
+    );
+
+    // Arranjar as pecas na bandeja
+    this.pecas = [];
+    const numColBandeja = Math.min(4, this.aparelho.pecas.length);
+    this.aparelho.pecas.forEach((peca, i) => {
+      const col = i % numColBandeja;
+      const linha = Math.floor(i / numColBandeja);
+      const xPeca = panelBandeja.x + 8 + col * (TAMANHO_PECA + 4);
+      const yPeca = panelBandeja.y + 22 + linha * (TAMANHO_PECA + 4);
+
+      const img = cena.add
+        .image(xPeca, yPeca, 'aparelhos', frameDaPeca(this.aparelho.id, peca.id))
+        .setInteractive({ useHandCursor: true, draggable: true });
+      ajustarIcone(img, TAMANHO_PECA - 6);
+      raiz.add(img);
+
+      this.pecas.push({
+        imagem: img,
+        posicaoInicial: { x: xPeca, y: yPeca },
+        idPeca: peca.id,
+        indicePeca: i,
+      });
     });
 
-    // --- estado e barra de tempo ---
-    const yEstado = area.y + 176;
-    this.estadoTexto = texto(cena, x0, yEstado, '', { fontSize: '10px' });
+    // --- Eventos de arrastar ---
+    cena.input.on('dragstart', (_pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.Image) => {
+      const estrutura = this.pecas.find((p) => p.imagem === obj);
+      if (estrutura && this.fase === 'jogando') {
+        this.pecaArrastada = {
+          estrutura,
+          inicialX: obj.x,
+          inicialY: obj.y,
+          pointer: _pointer,
+        };
+        obj.setDepth(1000);
+        obj.setAlpha(0.8);
+      }
+    });
+
+    cena.input.on('drag', (pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.Image) => {
+      if (this.pecaArrastada && obj === this.pecaArrastada.estrutura.imagem) {
+        obj.x = pointer.x;
+        obj.y = pointer.y;
+      }
+    });
+
+    cena.input.on('dragend', (_pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.Image) => {
+      if (!this.pecaArrastada) return;
+      const estrutura = this.pecaArrastada.estrutura;
+
+      // Procurar se o drop foi proximo de um slot
+      let encaixouEmSlot = false;
+      for (const [indiceSlot, { slot }] of this.slotsPorIndice) {
+        // Verificar se a peca esta proxima do slot (distancia < 40)
+        const dx = obj.x - slot.x;
+        const dy = obj.y - slot.y;
+        const distancia = Math.sqrt(dx * dx + dy * dy);
+
+        if (distancia < 40) {
+          // Verificar se a peca encaixa neste slot (o index da peca deve coincidir)
+          const sequenciaEsperada = this.sequencia[indiceSlot];
+          if (estrutura.indicePeca === sequenciaEsperada) {
+            // Encaixe correto!
+            encaixouEmSlot = true;
+            this.encaixarPeca(estrutura, indiceSlot);
+            this.acertos += 1;
+
+            if (this.acertos >= this.sequencia.length) {
+              this.terminarMinigame('Aparelho consertado!');
+            } else {
+              this.estadoTexto.setText(`Encaixando...  ${this.acertos}/${this.sequencia.length} pecas.`);
+            }
+            break;
+          } else {
+            // Tentou encaixar no lugar errado
+            break;
+          }
+        }
+      }
+
+      // Se nao encaixou em lugar nenhum, retornar a bandeja
+      if (!encaixouEmSlot) {
+        obj.x = this.pecaArrastada.inicialX;
+        obj.y = this.pecaArrastada.inicialY;
+      }
+
+      obj.setDepth(0);
+      obj.setAlpha(1);
+      this.pecaArrastada = null;
+    });
+
+    // --- Estado e barra de tempo ---
+    const yEstado = panelBandeja.y + panelBandeja.h + 8;
+    this.estadoTexto = texto(cena, xBandeja, yEstado, '', { fontSize: '10px' });
     raiz.add(this.estadoTexto);
 
-    this.barraLargura = area.x + area.w - x0;
+    this.barraLargura = area.x + area.w - xBandeja;
     const fundoBarra = cena.add
-      .rectangle(x0 + this.barraLargura / 2, yEstado + 20, this.barraLargura, 6, 0x0a0d13)
+      .rectangle(xBandeja + this.barraLargura / 2, yEstado + 20, this.barraLargura, 6, 0x0a0d13)
       .setStrokeStyle(1, PC.borda);
     this.barra = cena.add
-      .rectangle(x0, yEstado + 20, this.barraLargura, 5, 0x8ac47a)
+      .rectangle(xBandeja, yEstado + 20, this.barraLargura, 5, 0x8ac47a)
       .setOrigin(0, 0.5)
       .setVisible(false);
     raiz.add(fundoBarra);
     raiz.add(this.barra);
 
     this.desenharEstado();
+
+    // Usar um evento de update do Phaser para atualizar a cada frame
+    cena.events.on('update', () => this.atualizar());
+  }
+
+  private encaixarPeca(estrutura: EstruturaPeca, indiceSlot: number): void {
+    const { slot, visual } = this.slotsPorIndice.get(indiceSlot)!;
+    const peca = this.aparelho.pecas[estrutura.indicePeca];
+
+    // Mover a imagem da peca para o slot
+    estrutura.imagem.x = slot.x;
+    estrutura.imagem.y = slot.y;
+    estrutura.imagem.setInteractive(false); // Nao pode mais arrastar esta peca
+    estrutura.imagem.setAlpha(0.5); // Indicar que foi colocada
+
+    // Mostrar a peca no slot tambem
+    visual.setTexture('aparelhos', frameDaPeca(this.aparelho.id, peca.id));
+    ajustarIcone(visual, TAMANHO_SLOT - 10);
+    visual.setVisible(true);
+
+    // Mudar a cor do slot para verde
+    slot.setStrokeStyle(2, 0x8ac47a);
   }
 
   atualizar(): void {
-    const agora = this.cena.time.now;
+    if (this.fase !== 'jogando') return;
 
-    if (this.fase === 'mostrando') {
-      if (agora < this.proximoEm) return;
-      if (this.aceso !== null) {
-        this.aceso = null;
-        this.proximoEm = agora + PAUSA;
-        this.pintarBotoes();
-        if (this.passo >= this.sequencia.length) this.comecarRepeticao(agora);
-        return;
-      }
-      if (this.passo >= this.sequencia.length) {
-        this.comecarRepeticao(agora);
-        return;
-      }
-      this.aceso = this.sequencia[this.passo];
-      this.passo += 1;
-      this.proximoEm = agora + ACESO;
-      this.pintarBotoes();
-      this.desenharEstado();
+    const agora = this.cena.time.now;
+    const restante = Math.max(0, this.prazoFinal - agora);
+
+    if (restante <= 0) {
+      this.terminarMinigame('Tempo acabou.');
       return;
     }
 
-    if (this.fase === 'repetindo') {
-      const restante = Math.max(0, this.prazoFinal - agora);
-      this.barra.setScale(restante / this.msTotal, 1);
-      // a barra fica amarela e depois vermelha, pra pressa ser visivel
-      const fracao = restante / this.msTotal;
-      this.barra.setFillStyle(fracao > 0.5 ? 0x8ac47a : fracao > 0.25 ? 0xd6c46a : 0xc47a7a);
-      if (restante <= 0) this.encerrar('O tempo acabou.');
-    }
+    this.barra.setScale(restante / this.msTotal, 1);
+    // Mudar cor conforme o tempo passa
+    const fracao = restante / this.msTotal;
+    this.barra.setFillStyle(fracao > 0.5 ? 0x8ac47a : fracao > 0.25 ? 0xd6c46a : 0xc47a7a);
   }
 
   aoTeclar(evento: KeyboardEvent): boolean {
     const k = evento.key;
-    if (this.fase === 'espera' && (k === 'e' || k === 'E' || k === 'Enter')) {
-      this.comecarDemonstracao();
-      return true;
-    }
-    if (this.fase !== 'repetindo') return false;
-    if (k >= '1' && k <= String(this.aparelho.pecas.length)) {
-      this.apertar(Number(k) - 1);
+    if (this.fase === 'aguardando' && (k === 'e' || k === 'E' || k === 'Enter')) {
+      this.comecar();
       return true;
     }
     return false;
   }
 
-  // ------------------------------------------------------------- fases --
-
-  private comecarDemonstracao(): void {
-    this.fase = 'mostrando';
-    this.passo = 0;
+  private comecar(): void {
+    this.fase = 'jogando';
     this.acertos = 0;
-    this.aceso = null;
-    this.proximoEm = this.cena.time.now + 400;
-    this.barra.setVisible(false);
-    this.desenharEstado();
-  }
-
-  private comecarRepeticao(agora: number): void {
-    this.fase = 'repetindo';
-    this.passo = 0;
-    this.aceso = null;
-    this.prazoFinal = agora + this.msTotal;
+    this.prazoFinal = this.cena.time.now + this.msTotal;
     this.barra.setVisible(true).setScale(1, 1);
-    this.pintarBotoes();
-    this.desenharEstado();
-  }
 
-  private apertar(indice: number): void {
-    if (this.fase !== 'repetindo') {
-      if (this.fase === 'espera') this.comecarDemonstracao();
-      return;
-    }
-    const esperado = this.sequencia[this.passo];
-    // pisca o botao apertado, certo ou errado
-    this.aceso = indice;
-    this.pintarBotoes();
-    this.cena.time.delayedCall(140, () => {
-      if (this.fase === 'repetindo' || this.fase === 'fim') {
-        this.aceso = null;
-        this.pintarBotoes();
-      }
+    // Habilitar interatividade de todas as pecas
+    this.pecas.forEach((p) => {
+      p.imagem.setInteractive({ useHandCursor: true, draggable: true });
     });
 
-    if (indice !== esperado) {
-      this.encerrar(`Peca errada no passo ${this.passo + 1}.`);
-      return;
-    }
-
-    this.marcarEncaixe(this.passo, indice);
-    this.passo += 1;
-    this.acertos += 1;
-    if (this.acertos >= this.sequencia.length) {
-      this.encerrar('Aparelho montado.');
-      return;
-    }
     this.desenharEstado();
   }
 
-  private marcarEncaixe(passo: number, peca: number): void {
-    const icone = this.encaixeIcones[passo];
-    if (!icone) return;
-    icone.setTexture('aparelhos', frameDaPeca(this.aparelho.id, this.aparelho.pecas[peca].id));
-    ajustarIcone(icone, this.encaixes[passo].width - 4);
-    icone.setVisible(true);
-    this.encaixes[passo].setStrokeStyle(1, 0x8ac47a);
-  }
-
-  private encerrar(motivo: string): void {
+  private terminarMinigame(motivo: string): void {
     if (this.fase === 'fim') return;
     this.fase = 'fim';
     this.barra.setVisible(false);
-    this.pintarBotoes();
+
+    // Desligar o evento de update (opcional, pois a cena sera destruida)
+    this.cena.events.off('update', () => this.atualizar());
+
     const completo = this.acertos >= this.sequencia.length;
     this.estadoTexto.setColor(completo ? PC.sucesso : PC.alerta);
-    this.estadoTexto.setText(`${motivo}  ${this.acertos}/${this.sequencia.length} passos.`);
+    this.estadoTexto.setText(`${motivo}  ${this.acertos}/${this.sequencia.length} pecas.`);
+
     this.aoTerminar(this.acertos, this.sequencia.length);
   }
 
-  // ------------------------------------------------------------ desenho --
-
-  private pintarBotoes(): void {
-    this.botoes.forEach((b, i) => {
-      const ligado = this.aceso === i;
-      b.fundo.setFillStyle(ligado ? 0x3f6f8f : PC.painelClaro);
-      b.fundo.setStrokeStyle(1, ligado ? 0xbfe2ff : PC.borda);
-      b.rotulo.setColor(ligado ? PC.texto : PC.textoFraco);
-      b.icone.setAlpha(this.fase === 'mostrando' && !ligado ? 0.45 : 1);
-    });
-  }
-
   private desenharEstado(): void {
-    if (this.fase === 'espera') {
+    if (this.fase === 'aguardando') {
       this.estadoTexto.setColor(PC.textoFraco);
       this.estadoTexto.setText(
-        `${this.sequencia.length} pecas em ordem. [E] comecar — depois repita com [1-4] ou clique.`,
+        `Arraste as ${this.sequencia.length} pecas da bandeja para encaix-las no aparelho. [E] comecar.`,
       );
       return;
     }
-    if (this.fase === 'mostrando') {
-      this.estadoTexto.setColor(PC.destaque);
-      this.estadoTexto.setText(`Memorize a ordem...  ${this.passo}/${this.sequencia.length}`);
-      return;
-    }
-    if (this.fase === 'repetindo') {
+    if (this.fase === 'jogando') {
       this.estadoTexto.setColor(PC.texto);
-      this.estadoTexto.setText(`Sua vez: repita a ordem.  ${this.acertos}/${this.sequencia.length}`);
+      this.estadoTexto.setText(`Arraste as pecas...  ${this.acertos}/${this.sequencia.length} encaixadas.`);
     }
   }
 }

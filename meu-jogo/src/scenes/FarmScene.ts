@@ -446,6 +446,11 @@ export class FarmScene extends Phaser.Scene {
     this.ui.mostrarPrompt(null);
     this.alvo = null;
 
+    // bonus de relacionamento pela entrega bem-sucedida
+    if (entrega.npcId) {
+      estado.relacoes.ganharRelacao(entrega.npcId, 1.0);
+    }
+
     this.ui.iniciarDialogo(
       falasDe(entrega.morador, [
         'Ah, era isso que eu estava esperando!',
@@ -530,6 +535,7 @@ export class FarmScene extends Phaser.Scene {
       dinheiro: estado.carteira.serializar(),
       lixeira: estado.lixeira.serializar(),
       trabalhos: estado.trabalhos.serializar(),
+      relacoes: estado.relacoes.serializar(),
     });
   }
 
