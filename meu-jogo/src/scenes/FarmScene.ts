@@ -5,7 +5,10 @@ import { formatarDinheiro } from '../game/dinheiro';
 import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
 import { lojasDoMapa } from '../game/loja';
-import { buscarMapa } from '../game/mapas';
+import { MAPA_DA_CASA, MAPA_DOS_NPCS, MAPAS, buscarMapa } from '../game/mapas';
+import { CATALOGO_MOBILIA, buscarExpansao, buscarMovelDeLoja } from '../game/casa';
+import type { DefinicaoExpansao } from '../game/casa';
+import type { MedidaDeMovel, MovelPosto } from '../game/casa';
 import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
 import type { DefinicaoNpc } from '../game/npcs';
 import { PONTOS_POR_REACAO, falaJaConversou, falasDoTema, temasDoDia } from '../game/dialogo';
@@ -88,11 +91,36 @@ const TIPOS_VALIDOS: TipoInteragivel[] = [
   'cama',
   'item',
   'computador',
+  'expansao',
+  'mobilia',
 ];
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
   'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
+  'oficina', 'escola', 'biblioteca', 'quadra', 'terreno', 'servico',
+  'madeireira', 'pedreira', 'fazenda',
 ];
-const USOS_ZONA_VALIDOS: UsoZona[] = ['moradia', 'comercio', 'misto', 'praca'];
+const USOS_ZONA_VALIDOS: UsoZona[] = ['moradia', 'comercio', 'misto', 'praca', 'vago'];
+
+/**
+ * Texto de exame dos predios FECHADOS — os que tem fachada de pe e nenhuma
+ * porta que abra. Sao os dois lotes `vago` com construcao: a casinha inicial
+ * desativada nesta leva e a Central Telefonica do Mapa 2.
+ */
+const AVISOS_DE_PREDIO: Record<string, string[]> = {
+  casa_1: [
+    'A porta esta fechada com um cadeado velho.',
+    'Local desativado. Ninguem mora aqui agora.',
+  ],
+  central: [
+    'Central Telefonica Municipal — parece abandonada ha muitos anos.',
+  ],
+};
+
+/**
+ * Quanto o ponteiro pode ficar longe do jogador, em TILES, pra soltar um movel.
+ * Sem isto daria pra mobiliar um comodo do outro lado da casa sem sair do lugar.
+ */
+const ALCANCE_DE_MOBILIA = 6;
 
 export class FarmScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -137,6 +165,37 @@ export class FarmScene extends Phaser.Scene {
    * cima da parede da propria moradia.
    */
   private tilesPrivados = new Set<string>();
+  /**
+   * Zonas de transicao entre mapas externos, da camada de objetos `bordas`, em
+   * PIXELS. Encostar numa delas troca o mapa carregado — ver `atravessarBorda`.
+   * Vazio nos interiores, que se atravessam por porta.
+   */
+  private bordas: BordaDeMapa[] = [];
+  /**
+   * Corpos SOLIDOS dos moveis do mapa atual, em TILES. Sao os mesmos
+   * retangulos que viraram colisor em `criarMoveis`, guardados a parte porque a
+   * validacao de posicao de mobilia (Parte 5) precisa saber onde ja tem movel
+   * antes de criar qualquer coisa.
+   */
+  private corposDeMovel: RetTiles[] = [];
+  /**
+   * PEGADA de todo movel do mapa que nao e peca de chao — inclusive os que nao
+   * colidem (quadro, planta, prateleira). E o que impede o jogador de empilhar
+   * duas pecas no mesmo tile: e a MESMA regra que a conferencia offline aplica
+   * na mobilia autoral (ver `conferirInterior` em tools/gerar-assets.mjs), so
+   * que agora em tempo de jogo.
+   */
+  private pegadasDeMovel: RetTiles[] = [];
+  /** Comodos do interior atual (camada `comodos`), em TILES. */
+  private comodos: ComodoDoMapa[] = [];
+  /** Sprites da mobilia POSTA PELO JOGADOR, na ordem de `estado.casa.moveis`. */
+  private mobiliaDoJogador: Phaser.GameObjects.Image[] = [];
+  /** Peca em posicionamento (modo mobilia); null = fora do modo. */
+  private posicionando: PosicionamentoMobilia | null = null;
+  /** A camada `objetos` do mapa atual — e nela que a colisao mora. */
+  private camadaObjetos: Phaser.Tilemaps.TilemapLayer | null = null;
+  /** Aviso fixo na tela durante o posicionamento de mobilia. */
+  private avisoMobilia: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('FarmScene');
@@ -166,6 +225,14 @@ export class FarmScene extends Phaser.Scene {
     this.overlayZonas = null;
     this.obstaculos = [];
     this.tilesPrivados = new Set();
+    this.bordas = [];
+    this.corposDeMovel = [];
+    this.pegadasDeMovel = [];
+    this.comodos = [];
+    this.mobiliaDoJogador = [];
+    this.posicionando = null;
+    this.camadaObjetos = null;
+    this.avisoMobilia = null;
     this.alvo = null;
   }
 
@@ -237,6 +304,7 @@ export class FarmScene extends Phaser.Scene {
       map.createLayer('caminhos', tileset, 0, 0);
     }
     const objetos = map.createLayer('objetos', tileset, 0, 0);
+    this.camadaObjetos = objetos;
     if (!chao || !objetos) {
       throw new Error(`Camadas chao/objetos nao encontradas em ${def.tilemapKey}`);
     }
@@ -249,6 +317,11 @@ export class FarmScene extends Phaser.Scene {
     // verificar-rotinas) que garantem que a rota so passa por onde o NPC pode.
     // Do lado do jogador, entao, a porta privada e parede e ponto final: andando
     // ou correndo, o collider abaixo barra do mesmo jeito.
+    // A CASA DO PROTAGONISTA nasce com todos os comodos de expansao ja
+    // construidos no tilemap. Aqui, ANTES de ligar a colisao, os que ainda nao
+    // foram comprados sao lacrados com um tile de parede no vao. Comprar um
+    // comodo e o inverso: apagar esse tile (ver `abrirComodoComprado`).
+    this.lacrarExpansoes(map, objetos);
     objetos.setCollisionByProperty({ [PROP_COLIDE]: true });
 
     this.interagiveis = this.lerInterativos(map).filter((item) => {
@@ -258,6 +331,8 @@ export class FarmScene extends Phaser.Scene {
     this.interagiveis.push(...this.lerPontosDeLoja());
     this.zonas = this.lerZonas(map);
     this.tilesPrivados = this.lerComodosPrivados(map);
+    this.bordas = this.lerBordas(map);
+    this.comodos = this.lerComodos(map);
 
     const nasce =
       this.spawn ??
@@ -274,6 +349,7 @@ export class FarmScene extends Phaser.Scene {
     this.criarItensColetaveis();
     this.criarConstrucoes(map);
     this.criarMoveis(map);
+    this.criarMobiliaDoJogador();
     this.criarFlora(map);
 
     this.physics.add.collider(this.player, objetos);
@@ -296,6 +372,20 @@ export class FarmScene extends Phaser.Scene {
     this.teclas = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.teclas &
       Record<string, Phaser.Input.Keyboard.Key>;
     this.correr = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+
+    // Modo de posicionar mobilia: o fantasma segue o ponteiro e solta no clique.
+    // E o mesmo trio pointerdown/pointermove/pointerup do minigame de conserto,
+    // sem lib nenhuma a mais.
+    this.input.on(Phaser.Input.Events.POINTER_MOVE, (p: Phaser.Input.Pointer) =>
+      this.arrastarMobilia(p),
+    );
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) =>
+      this.arrastarMobilia(p),
+    );
+    this.input.on(Phaser.Input.Events.POINTER_UP, (p: Phaser.Input.Pointer) =>
+      this.soltarMobilia(p),
+    );
+    this.input.keyboard!.on('keydown-ESC', () => this.cancelarPosicionamento());
 
     // M abre/fecha o mapa da cidade.
     this.input.keyboard!.on('keydown-M', () => this.alternarMapa());
@@ -351,9 +441,10 @@ export class FarmScene extends Phaser.Scene {
     }
 
     this.atualizarAlvo();
+    if (this.atravessarBordaSeEncostou()) return;
 
-    // com dialogo/menu aberto o player fica parado e o relogio congela
-    if (this.ui.bloqueado || this.transicionando) {
+    // com dialogo/menu aberto — ou com uma peca na mao — o player fica parado
+    if (this.ui.bloqueado || this.transicionando || this.posicionando) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(`idle-${this.direcao}`, true);
       return;
@@ -385,12 +476,10 @@ export class FarmScene extends Phaser.Scene {
 
   /** Chamado pela UIScene quando o jogador aperta E / clica. */
   interagir(): void {
-    if (!this.alvo) return;
+    if (this.posicionando || !this.alvo) return;
     switch (this.alvo.tipo) {
       case 'placa':
-        this.ui.iniciarDialogo(
-          falasDe('Placa', ['Isto e uma placa.', 'Nao tem nada escrito nela ainda.']),
-        );
+        this.examinarPlaca(this.alvo);
         break;
       case 'npc':
         this.falarCom(this.alvo);
@@ -406,6 +495,12 @@ export class FarmScene extends Phaser.Scene {
         break;
       case 'computador':
         this.ui.abrirComputador();
+        break;
+      case 'expansao':
+        this.abrirLojaDeExpansao();
+        break;
+      case 'mobilia':
+        this.abrirCatalogoDeMobilia();
         break;
       case 'porta':
         // a entrega vem antes de atravessar: se a porta e o destino, o E
@@ -547,6 +642,7 @@ export class FarmScene extends Phaser.Scene {
       lixeira: estado.lixeira.serializar(),
       trabalhos: estado.trabalhos.serializar(),
       relacoes: estado.relacoes.serializar(),
+      casa: estado.casa.serializar(),
     });
   }
 
@@ -633,7 +729,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
-    if (estado.mapa === 'farm') return npc.visivel ? { x: npc.x, y: npc.y } : null;
+    if (estado.mapa === MAPA_DOS_NPCS) return npc.visivel ? { x: npc.x, y: npc.y } : null;
     if (npc.dentro !== estado.mapa) return null;
     if (!LOCAIS_CIDADE[npc.dentro]) return null;
     // Dentro de comodo privado ele some da cena: o jogador ve o dono andar ate a
@@ -718,15 +814,26 @@ export class FarmScene extends Phaser.Scene {
       // ter outro movel EM CIMA, e os dois costumam ter a base na mesma linha
       sprite.setDepth(props.chao === true ? y - 1 : y);
 
+      const largura = sprite.displayWidth * MOVEL_CORPO.largura;
+      const altura = sprite.displayHeight * MOVEL_CORPO.altura;
+      const pegada = this.retEmTiles(x, y, largura, altura);
+      if (props.chao !== true) this.pegadasDeMovel.push(pegada);
       if (props.colide === true) {
-        this.corpoNaBase(
-          x,
-          y,
-          sprite.displayWidth * MOVEL_CORPO.largura,
-          sprite.displayHeight * MOVEL_CORPO.altura,
-        );
+        this.corpoNaBase(x, y, largura, altura);
+        this.corposDeMovel.push(pegada);
       }
     }
+  }
+
+  /** O retangulo (em TILES) de um corpo de movel dado em pixels do mundo. */
+  private retEmTiles(x: number, y: number, largura: number, altura: number): RetTiles {
+    const t = this.tamanhoTile;
+    return {
+      x0: (x - largura / 2) / t,
+      x1: (x + largura / 2) / t,
+      y0: (y - altura) / t,
+      y1: y / t,
+    };
   }
 
   // ---------------------------------------------------------------- flora --
@@ -798,6 +905,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private alternarMapa(): void {
+    if (this.posicionando) return;
     this.mapaAberto = !this.mapaAberto;
     if (this.mapaAberto && !this.overlayMapa) this.criarOverlayMapa();
     this.overlayMapa?.setVisible(this.mapaAberto);
@@ -806,11 +914,23 @@ export class FarmScene extends Phaser.Scene {
   }
 
   /** Monta uma representacao leve a partir do farm.json ja carregado. */
+  /**
+   * O mapa EXTERNO em que o jogador esta — ele mesmo, quando ja esta num
+   * externo, ou o mapa a que o interior pertence. E o que o mapa da cidade
+   * desenha: estando dentro do mercado, o util e ver a cidade em volta.
+   */
+  private get mapaExternoAtual(): string {
+    const def = buscarMapa(estado.mapa);
+    return def ? def.mapaExterno : MAPA_DOS_NPCS;
+  }
+
   private criarOverlayMapa(): void {
-    const cache = this.cache.tilemap.get('farm-map') as { data?: MapaTiledCru } | undefined;
+    const chaveExterno = this.mapaExternoAtual;
+    const tilemapKey = MAPAS[chaveExterno]?.tilemapKey ?? '';
+    const cache = this.cache.tilemap.get(tilemapKey) as { data?: MapaTiledCru } | undefined;
     const mapa = cache?.data;
     if (!mapa) {
-      console.warn('[mapa] farm-map nao esta no cache');
+      console.warn(`[mapa] ${tilemapKey} nao esta no cache`);
       this.mapaAberto = false;
       return;
     }
@@ -887,7 +1007,7 @@ export class FarmScene extends Phaser.Scene {
     }
 
     filhos.push(
-      this.add.text(margem, 8, 'Mapa da cidade', {
+      this.add.text(margem, 8, TITULO_DO_MAPA[chaveExterno] ?? 'Mapa', {
         fontFamily: UI.fonte,
         fontSize: UI.tamanhoTitulo,
         color: UI.destaque,
@@ -897,17 +1017,23 @@ export class FarmScene extends Phaser.Scene {
         fontSize: UI.tamanho,
         color: UI.textoFraco,
       }).setOrigin(1, 0).setScrollFactor(0),
-      this.add.text(margem, CONFIG.altura - 13, 'vermelho: voce   amarelo: NPC', {
-        fontFamily: UI.fonte,
-        fontSize: '8px',
-        color: UI.textoFraco,
-      }).setScrollFactor(0),
+      this.add.text(
+        margem,
+        CONFIG.altura - 13,
+        chaveExterno === MAPA_DOS_NPCS ? 'vermelho: voce   amarelo: NPC' : 'vermelho: voce',
+        {
+          fontFamily: UI.fonte,
+          fontSize: '8px',
+          color: UI.textoFraco,
+        },
+      ).setScrollFactor(0),
     );
 
     this.marcadorPlayer = this.add.circle(0, 0, 4, 0xff5b57).setStrokeStyle(1, 0xffffff);
     this.marcadorPlayer.setScrollFactor(0);
     filhos.push(this.marcadorPlayer);
-    this.marcadoresNpc = estado.rotinasNpc.todos.map(() => {
+    // marcador de NPC so existe no mapa em que eles vivem
+    this.marcadoresNpc = (chaveExterno === MAPA_DOS_NPCS ? estado.rotinasNpc.todos : []).map(() => {
       const marcador = this.add.circle(0, 0, 3, 0xffd34e).setStrokeStyle(1, 0x3a2b08);
       marcador.setScrollFactor(0);
       filhos.push(marcador);
@@ -922,9 +1048,9 @@ export class FarmScene extends Phaser.Scene {
 
   private atualizarMarcadoresMapa(): void {
     if (!this.marcadorPlayer) return;
-    const posicaoPlayer = estado.mapa === 'farm'
+    const posicaoPlayer = buscarMapa(estado.mapa)?.externo
       ? { x: this.player.x, y: this.player.y }
-      : this.centroDaZonaNoMapa(estado.mapa);
+      : this.centroDaZonaDoInterior(estado.mapa);
     if (posicaoPlayer) {
       this.marcadorPlayer.setPosition(...this.paraCoordenadaDoMapa(posicaoPlayer.x, posicaoPlayer.y));
       this.marcadorPlayer.setVisible(true);
@@ -949,10 +1075,20 @@ export class FarmScene extends Phaser.Scene {
     ];
   }
 
-  private centroDaZonaNoMapa(id: string): { x: number; y: number } | null {
-    const cache = this.cache.tilemap.get('farm-map') as { data?: MapaTiledCru } | undefined;
+  /**
+   * Onde desenhar o marcador do jogador quando ele esta DENTRO de um predio: no
+   * centro do lote daquele interior, no mapa externo correspondente.
+   */
+  private centroDaZonaDoInterior(chaveInterior: string): { x: number; y: number } | null {
+    const tilemapKey = MAPAS[this.mapaExternoAtual]?.tilemapKey ?? '';
+    const cache = this.cache.tilemap.get(tilemapKey) as { data?: MapaTiledCru } | undefined;
     const zona = cache?.data?.layers
-      .find((l) => l.name === 'zonas')?.objects?.find((obj) => obj.name === id);
+      .find((l) => l.name === 'zonas')
+      ?.objects?.find((obj) =>
+        (obj.properties ?? []).some(
+          (prop) => prop.name === 'mapaInterior' && prop.value === chaveInterior,
+        ),
+      );
     return zona ? { x: zona.x + zona.width / 2, y: zona.y + zona.height / 2 } : null;
   }
 
@@ -1144,6 +1280,16 @@ export class FarmScene extends Phaser.Scene {
    * cima do objeto, a direcao e ignorada.
    */
   private atualizarAlvo(): void {
+    // com uma peca de mobilia na mao o [E] nao interage com nada: o prompt sai
+    // da tela pra nao competir com o aviso do posicionamento
+    if (this.posicionando) {
+      if (this.rotuloDoAlvo !== null) {
+        this.alvo = null;
+        this.rotuloDoAlvo = null;
+        this.ui.mostrarPrompt(null);
+      }
+      return;
+    }
     const { cosseno } = CONFIG.interacao;
     const raio = CONFIG.interacao.raio * this.tamanhoTile;
     const distanciaLivre = CONFIG.interacao.distanciaLivre * this.tamanhoTile;
@@ -1196,6 +1342,486 @@ export class FarmScene extends Phaser.Scene {
       entrega !== null &&
       alvo.props.destino === entrega.destino &&
       estado.inventario.contar(ITEM_ENCOMENDA) > 0
+    );
+  }
+
+  // ------------------------------------------------------ bordas de mapa --
+
+  /**
+   * Zonas de transicao da camada de objetos `bordas` (so os mapas externos a
+   * tem). Cada uma e uma faixa de alguns tiles na beira do mapa; encostar nela
+   * carrega o mapa vizinho e recoloca o jogador no ponto espelhado.
+   */
+  private lerBordas(map: Phaser.Tilemaps.Tilemap): BordaDeMapa[] {
+    const camada = map.getObjectLayer('bordas');
+    if (!camada) return [];
+    const lista: BordaDeMapa[] = [];
+    for (const obj of camada.objects) {
+      const props = lerProps(obj);
+      const destino = String(props.destino ?? '');
+      if (!buscarMapa(destino)) {
+        console.warn(`[borda] "${obj.name}" aponta pra mapa inexistente: ${destino}`);
+        continue;
+      }
+      lista.push({
+        id: obj.name || `borda_${lista.length}`,
+        x: obj.x ?? 0,
+        y: obj.y ?? 0,
+        largura: obj.width ?? 0,
+        altura: obj.height ?? 0,
+        destino,
+        destinoTx: Number(props.destinoTx),
+        destinoTy: Number(props.destinoTy),
+      });
+    }
+    return lista;
+  }
+
+  /**
+   * Troca de mapa quando o jogador pisa numa borda. Devolve true se disparou a
+   * transicao — e ai o `update` para por aqui, como ja fazia no fade da porta.
+   *
+   * O teste e feito com o PE do jogador (a origem do sprite e 0.5,1), que e o
+   * mesmo ponto que a fisica usa: encostar com a cabeca na faixa nao vale.
+   */
+  private atravessarBordaSeEncostou(): boolean {
+    if (this.transicionando || this.bordas.length === 0) return false;
+    const px = this.player.x;
+    const py = this.player.y;
+    for (const b of this.bordas) {
+      if (px < b.x || py < b.y || px >= b.x + b.largura || py >= b.y + b.altura) continue;
+      this.atravessarBorda(b);
+      return true;
+    }
+    return false;
+  }
+
+  /** Mesmo fade da porta; muda so o que dispara. */
+  private atravessarBorda(borda: BordaDeMapa): void {
+    const t = this.tamanhoTile;
+    const destino = buscarMapa(borda.destino);
+    if (!destino) return;
+    const posicao =
+      Number.isFinite(borda.destinoTx) && Number.isFinite(borda.destinoTy)
+        ? { x: (borda.destinoTx + 0.5) * t, y: (borda.destinoTy + 0.5) * t }
+        : { x: (destino.spawnTile.x + 0.5) * t, y: (destino.spawnTile.y + 0.5) * t };
+
+    this.transicionando = true;
+    this.player.setVelocity(0, 0);
+    const cam = this.cameras.main;
+    cam.fadeOut(220, 0, 0, 0);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.restart({ mapa: destino.chave, x: posicao.x, y: posicao.y });
+    });
+  }
+
+  // ------------------------------------------------------------- comodos --
+
+  /** Comodos do interior atual, em tiles. Vazio nos mapas sem a camada. */
+  private lerComodos(map: Phaser.Tilemaps.Tilemap): ComodoDoMapa[] {
+    const camada = map.getObjectLayer('comodos');
+    if (!camada) return [];
+    const t = this.tamanhoTile;
+    return camada.objects.map((obj) => ({
+      nome: obj.name,
+      privado: lerProps(obj).privado === true,
+      ret: {
+        x0: Math.round((obj.x ?? 0) / t),
+        y0: Math.round((obj.y ?? 0) / t),
+        x1: Math.round(((obj.x ?? 0) + (obj.width ?? 0)) / t),
+        y1: Math.round(((obj.y ?? 0) + (obj.height ?? 0)) / t),
+      },
+    }));
+  }
+
+  // ----------------------------------------------------- casa: expansoes --
+
+  /**
+   * Tapa com parede o vao de cada comodo de expansao AINDA NAO COMPRADO.
+   *
+   * Roda antes de `setCollisionByProperty`, entao o tile posto aqui ja entra na
+   * colisao como qualquer parede. O comodo continua existindo do outro lado
+   * (piso, parede, mobilia) — ele so nao tem por onde entrar.
+   */
+  private lacrarExpansoes(
+    map: Phaser.Tilemaps.Tilemap,
+    objetos: Phaser.Tilemaps.TilemapLayer,
+  ): void {
+    const camada = map.getObjectLayer('expansoes');
+    if (!camada) return;
+    for (const obj of camada.objects) {
+      const props = lerProps(obj);
+      const comodo = String(props.comodo ?? obj.name ?? '');
+      if (estado.casa.temComodo(comodo)) continue;
+      const gid = Number(props.gidParede);
+      const tx = Number(props.vaoTx);
+      const ty = Number(props.vaoTy);
+      if (!Number.isFinite(gid) || !Number.isFinite(tx) || !Number.isFinite(ty)) {
+        console.warn(`[expansao] "${comodo}" sem vao/gid declarado — nao da pra lacrar`);
+        continue;
+      }
+      objetos.putTileAt(gid, tx, ty);
+    }
+  }
+
+  /**
+   * Abre fisicamente um comodo recem-comprado, quando o jogador ja esta dentro
+   * da casa. Comprando na madeireira (Mapa 3) isto nao roda — o comodo ja nasce
+   * aberto na proxima vez que a casa for carregada, porque `lacrarExpansoes` le
+   * o estado da compra.
+   */
+  private abrirComodoComprado(id: string): void {
+    if (estado.mapa !== MAPA_DA_CASA || !this.camadaObjetos) return;
+    const camada = this.camadaObjetos.tilemap.getObjectLayer('expansoes');
+    const obj = camada?.objects.find((o) => (lerProps(o).comodo ?? o.name) === id);
+    if (!obj) return;
+    const props = lerProps(obj);
+    this.camadaObjetos.removeTileAt(Number(props.vaoTx), Number(props.vaoTy));
+  }
+
+  /** Balcao da madeireira: a lista de comodos que ainda da pra comprar. */
+  private abrirLojaDeExpansao(): void {
+    const disponiveis = estado.casa.expansoesDisponiveis();
+    if (disponiveis.length === 0) {
+      this.ui.iniciarDialogo(
+        falasDe('Madeireira', [
+          'Sua casa ja esta com todos os comodos que a gente monta.',
+          'Se quiser mobilia, isso e com voce mesmo na bancada.',
+        ]),
+      );
+      return;
+    }
+    this.ui.abrirMenu(
+      `Madeireira — ${estado.carteira.texto}`,
+      disponiveis.map((exp) => ({
+        rotulo: `${exp.nome}  ${formatarDinheiro(exp.preco)}`,
+        aoEscolher: () => this.confirmarExpansao(exp),
+      })),
+    );
+  }
+
+  private confirmarExpansao(exp: DefinicaoExpansao): void {
+    this.ui.iniciarDialogo(falasDe('Madeireira', [exp.descricao]), () => {
+      this.ui.confirmar(`Fechar ${exp.nome} por ${formatarDinheiro(exp.preco)}?`, () =>
+        this.comprarExpansao(exp),
+      );
+    });
+  }
+
+  /**
+   * Compra de comodo. Passa inteira pela carteira: `cabe()` so pergunta se o
+   * comodo ainda esta a venda e `entregar()` so registra — se o saldo nao der,
+   * nada mudou.
+   */
+  private comprarExpansao(exp: DefinicaoExpansao): void {
+    const r = estado.carteira.gastar(exp.preco, {
+      cabe: () => !estado.casa.temComodo(exp.id),
+      entregar: () => estado.casa.liberarComodo(exp.id),
+    });
+    if (!r.ok) {
+      const motivo =
+        r.motivo === 'saldo'
+          ? `Falta dinheiro: ${exp.nome} sai por ${formatarDinheiro(exp.preco)}.`
+          : 'Nao deu pra fechar o servico agora.';
+      this.ui.iniciarDialogo(falasDe('Madeireira', [motivo]));
+      return;
+    }
+    this.abrirComodoComprado(exp.id);
+    this.ui.iniciarDialogo(
+      falasDe('Madeireira', [
+        `Fechado. ${exp.nome} ja esta de pe na sua casa.`,
+        `Saldo: ${estado.carteira.texto}.`,
+      ]),
+    );
+  }
+
+  // ------------------------------------------------------- casa: mobilia --
+
+  /**
+   * As medidas de uma peca do catalogo. Saem de `assets/sprites/mobilia.json`,
+   * escrito pelo gerador a partir da propria folha de arte — o jogo nao guarda
+   * nenhum tamanho de movel a mao.
+   */
+  private medidaDeMovel(id: string): MedidaDeMovel | null {
+    const tabela = this.cache.json.get('mobilia') as Record<string, MedidaDeMovel> | undefined;
+    return tabela?.[id] ?? null;
+  }
+
+  /** Recria os sprites da mobilia que o jogador ja comprou e posicionou. */
+  private criarMobiliaDoJogador(): void {
+    if (estado.mapa !== MAPA_DA_CASA) return;
+    for (const movel of estado.casa.moveis) this.criarUmMovelDoJogador(movel, false);
+  }
+
+  /**
+   * Um sprite de mobilia do jogador. `colisorProprio` distingue as duas
+   * chamadas: no `create` os corpos entram na lista que vai virar UM collider
+   * no fim; ja em jogo (peca recem-comprada) o collider tem de ser criado na
+   * hora, senao a peca so passaria a barrar no proximo carregamento do mapa.
+   */
+  private criarUmMovelDoJogador(movel: MovelPosto, colisorProprio: boolean): void {
+    const medida = this.medidaDeMovel(movel.id);
+    if (!medida) {
+      console.warn(`[mobilia] peca "${movel.id}" nao esta em mobilia.json — ignorada`);
+      return;
+    }
+    if (!this.textures.getFrame(medida.atlas, medida.frame)) {
+      console.warn(`[mobilia] frame "${medida.frame}" nao existe em "${medida.atlas}"`);
+      return;
+    }
+    const t = this.tamanhoTile;
+    const x = (movel.tx + medida.larguraTiles / 2) * t;
+    const y = (movel.ty + 1) * t;
+    const sprite = this.add.image(x, y, medida.atlas, medida.frame).setOrigin(0.5, 1);
+    sprite.setScale((medida.alturaTiles * t) / sprite.height);
+    sprite.setDepth(medida.chao ? y - 1 : y);
+    this.mobiliaDoJogador.push(sprite);
+
+    const largura = sprite.displayWidth * MOVEL_CORPO.largura;
+    const altura = sprite.displayHeight * MOVEL_CORPO.altura;
+    const pegada = this.retEmTiles(x, y, largura, altura);
+    if (!medida.chao) this.pegadasDeMovel.push(pegada);
+    if (!medida.solido) return;
+    const antes = this.obstaculos.length;
+    this.corpoNaBase(x, y, largura, altura);
+    this.corposDeMovel.push(pegada);
+    if (colisorProprio) {
+      const corpo = this.obstaculos[antes];
+      if (corpo) this.physics.add.collider(this.player, corpo);
+    }
+  }
+
+  /** Bancada da oficina: abre o catalogo de pecas a venda. */
+  private abrirCatalogoDeMobilia(): void {
+    this.ui.abrirMenu(
+      `Mobilia — ${estado.carteira.texto}`,
+      CATALOGO_MOBILIA.map((peca) => ({
+        rotulo: `${peca.nome}  ${formatarDinheiro(peca.preco)}`,
+        aoEscolher: () => this.iniciarPosicionamento(peca.id),
+      })),
+    );
+  }
+
+  /**
+   * Entra no modo de posicionar: a peca vira um fantasma preso ao ponteiro,
+   * verde onde da pra soltar e vermelho onde nao da. O dinheiro so sai no
+   * clique, e so se a posicao for valida.
+   */
+  private iniciarPosicionamento(id: string): void {
+    const peca = buscarMovelDeLoja(id);
+    const medida = peca ? this.medidaDeMovel(id) : null;
+    if (!peca || !medida) {
+      console.warn(`[mobilia] peca "${id}" sem definicao — nao da pra posicionar`);
+      return;
+    }
+    const t = this.tamanhoTile;
+    const fantasma = this.add
+      .image(this.player.x, this.player.y, medida.atlas, medida.frame)
+      .setOrigin(0.5, 1)
+      .setAlpha(0.7)
+      .setDepth(DEPTH_OVERLAY - 1);
+    fantasma.setScale((medida.alturaTiles * t) / fantasma.height);
+
+    this.posicionando = { id, medida, fantasma, tx: 0, ty: 0, valido: false };
+    this.avisoMobilia = this.add
+      .text(
+        CONFIG.largura / 2,
+        6,
+        `${peca.nome}  ${formatarDinheiro(peca.preco)}   [clique] poe   [ESC] sai`,
+        { fontFamily: UI.fonte, fontSize: UI.tamanho, color: UI.texto, backgroundColor: '#1a1712' },
+      )
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_OVERLAY + 20);
+    this.ui.mostrarPrompt(null);
+    this.arrastarMobilia(this.input.activePointer);
+  }
+
+  /** pointermove/pointerdown: recoloca o fantasma no tile sob o ponteiro. */
+  private arrastarMobilia(ponteiro: Phaser.Input.Pointer): void {
+    const posicao = this.posicionando;
+    if (!posicao) return;
+    const t = this.tamanhoTile;
+    const mundo = this.cameras.main.getWorldPoint(ponteiro.x, ponteiro.y);
+    const tx = Math.floor(mundo.x / t);
+    const ty = Math.floor(mundo.y / t);
+    posicao.tx = tx;
+    posicao.ty = ty;
+    posicao.valido = this.posicaoDeMovelValida(posicao.medida, tx, ty);
+    posicao.fantasma.setPosition((tx + posicao.medida.larguraTiles / 2) * t, (ty + 1) * t);
+    posicao.fantasma.setTint(posicao.valido ? 0x9de08a : 0xff8f7f);
+  }
+
+  /** pointerup: paga e fixa a peca, se a posicao valer. */
+  private soltarMobilia(ponteiro: Phaser.Input.Pointer): void {
+    const posicao = this.posicionando;
+    if (!posicao) return;
+    this.arrastarMobilia(ponteiro);
+    if (!posicao.valido) {
+      this.avisoMobilia?.setText('Aqui nao da: fora do comodo, em cima de peca ou fechando passagem.');
+      this.avisoMobilia?.setColor(UI.alerta);
+      return;
+    }
+    const peca = buscarMovelDeLoja(posicao.id);
+    if (!peca) return;
+    const posto: MovelPosto = { id: posicao.id, tx: posicao.tx, ty: posicao.ty };
+    const r = estado.carteira.gastar(peca.preco, {
+      // reconfere na hora de pagar: a peca pode ter ficado invalida entre o
+      // ultimo movimento do ponteiro e o clique
+      cabe: () => this.posicaoDeMovelValida(posicao.medida, posto.tx, posto.ty),
+      entregar: () => estado.casa.posicionarMovel(posto),
+    });
+    if (!r.ok) {
+      this.avisoMobilia?.setText(
+        r.motivo === 'saldo'
+          ? `Falta dinheiro: ${peca.nome} custa ${formatarDinheiro(peca.preco)}.`
+          : 'Nao deu pra comprar agora.',
+      );
+      this.avisoMobilia?.setColor(UI.alerta);
+      return;
+    }
+    this.cancelarPosicionamento();
+    this.criarUmMovelDoJogador(posto, true);
+    this.ui.iniciarDialogo(
+      falasDe('Voce', [`${peca.nome} no lugar. Saldo: ${estado.carteira.texto}.`]),
+    );
+  }
+
+  private cancelarPosicionamento(): void {
+    if (!this.posicionando) return;
+    this.posicionando.fantasma.destroy();
+    this.posicionando = null;
+    this.avisoMobilia?.destroy();
+    this.avisoMobilia = null;
+  }
+
+  /** Retangulo de COLISAO de uma peca, em tiles, se ela fosse posta em tx/ty. */
+  private corpoDoMovel(medida: MedidaDeMovel, tx: number, ty: number): RetTiles {
+    const centro = tx + medida.larguraTiles / 2;
+    const largura = medida.larguraTiles * MOVEL_CORPO.largura;
+    const altura = medida.alturaTiles * MOVEL_CORPO.altura;
+    return {
+      x0: centro - largura / 2,
+      x1: centro + largura / 2,
+      y0: ty + 1 - altura,
+      y1: ty + 1,
+    };
+  }
+
+  /** Os comodos da casa que o jogador JA POSSUI (os basicos + os comprados). */
+  private comodosDoJogador(): ComodoDoMapa[] {
+    return this.comodos.filter(
+      (c) => !c.privado && (!buscarExpansao(c.nome) || estado.casa.temComodo(c.nome)),
+    );
+  }
+
+  /**
+   * Uma posicao de mobilia so vale se as quatro coisas valerem:
+   *
+   *  1. a peca cabe INTEIRA dentro de um comodo que o jogador possui;
+   *  2. o ponteiro nao esta longe demais do jogador (`ALCANCE_DE_MOBILIA`);
+   *  3. nenhum tile do corpo dela encosta em parede ou em outro movel;
+   *  4. com ela no lugar, TODO comodo possuido continua alcancavel a partir da
+   *     porta de entrada — e o que impede entulhar o corredor e se trancar.
+   *
+   * Peca de CHAO (tapete) pula 3 e 4: ela nao tem corpo, entao pode ficar
+   * debaixo de qualquer coisa e nao fecha passagem nenhuma.
+   */
+  private posicaoDeMovelValida(medida: MedidaDeMovel, tx: number, ty: number): boolean {
+    const comodos = this.comodosDoJogador();
+    if (comodos.length === 0) return false;
+
+    const corpo = this.corpoDoMovel(medida, tx, ty);
+    const area: RetTiles = medida.chao
+      ? { x0: tx, x1: tx + medida.larguraTiles, y0: ty + 1 - medida.alturaTiles, y1: ty + 1 }
+      : corpo;
+    const dentroDeUm = comodos.some(
+      (c) =>
+        area.x0 >= c.ret.x0 && area.y0 >= c.ret.y0 && area.x1 <= c.ret.x1 && area.y1 <= c.ret.y1,
+    );
+    if (!dentroDeUm) return false;
+
+    const t = this.tamanhoTile;
+    const distancia = Math.hypot(
+      (tx + 0.5) * t - this.player.x,
+      (ty + 0.5) * t - this.player.y,
+    );
+    if (distancia > ALCANCE_DE_MOBILIA * t) return false;
+
+    if (medida.chao) return true;
+
+    // nenhuma outra peca (colida ela ou nao) pode dividir o tile
+    if (this.pegadasDeMovel.some((r) => retangulosSeCruzam(r, corpo))) return false;
+    for (const [x, y] of tilesDoRetangulo(corpo)) {
+      if (this.tileBloqueado(x, y)) return false;
+    }
+    return this.passagemPreservada(corpo, comodos);
+  }
+
+  /** true se o tile e parede/agua — a mesma marca que barra o jogador. */
+  private tileBloqueado(x: number, y: number): boolean {
+    const tile = this.camadaObjetos?.getTileAt(x, y);
+    return tile ? tile.properties?.[PROP_COLIDE] === true : false;
+  }
+
+  /**
+   * Flood-fill a partir do tile de entrada do interior, tratando `extra` como
+   * bloqueado. Devolve true se todo comodo possuido continua com pelo menos um
+   * tile alcancavel — a mesma pergunta que a conferencia offline faz nos mapas
+   * gerados, so que agora em tempo de jogo, porque a mobilia e do jogador.
+   */
+  private passagemPreservada(extra: RetTiles, comodos: ComodoDoMapa[]): boolean {
+    const def = buscarMapa(estado.mapa);
+    if (!def || !this.camadaObjetos) return true;
+    const largura = this.camadaObjetos.tilemap.width;
+    const altura = this.camadaObjetos.tilemap.height;
+
+    const livre = (x: number, y: number): boolean => {
+      if (x < 0 || y < 0 || x >= largura || y >= altura) return false;
+      if (this.tileBloqueado(x, y)) return false;
+      const tile: RetTiles = { x0: x, y0: y, x1: x + 1, y1: y + 1 };
+      if (retangulosSeCruzam(extra, tile)) return false;
+      return !this.corposDeMovel.some((r) => retangulosSeCruzam(r, tile));
+    };
+
+    const inicio: [number, number] = [def.spawnTile.x, def.spawnTile.y];
+    if (!livre(...inicio)) return false;
+    const vistos = new Set([inicio.join(',')]);
+    const fila: [number, number][] = [inicio];
+    for (let i = 0; i < fila.length; i++) {
+      const [x, y] = fila[i];
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as [number, number][]) {
+        const k = `${nx},${ny}`;
+        if (!vistos.has(k) && livre(nx, ny)) {
+          vistos.add(k);
+          fila.push([nx, ny]);
+        }
+      }
+    }
+
+    return comodos.every((c) => {
+      for (let y = c.ret.y0; y < c.ret.y1; y++) {
+        for (let x = c.ret.x0; x < c.ret.x1; x++) if (vistos.has(`${x},${y}`)) return true;
+      }
+      return false;
+    });
+  }
+
+  // ------------------------------------------------------------- exame --
+
+  /**
+   * Placa comum, ou o aviso de um predio FECHADO. O gerador poe um objeto
+   * `placa` com a propriedade `aviso` na frente da porta dos lotes que tem
+   * fachada mas nao tem interior — ver `AVISOS_DE_PREDIO`.
+   */
+  private examinarPlaca(alvo: Interagivel): void {
+    const aviso = AVISOS_DE_PREDIO[String(alvo.props.aviso ?? '')];
+    if (aviso) {
+      this.ui.iniciarDialogo(falasDe('Voce', aviso));
+      return;
+    }
+    this.ui.iniciarDialogo(
+      falasDe('Placa', ['Isto e uma placa.', 'Nao tem nada escrito nela ainda.']),
     );
   }
 
@@ -1297,6 +1923,51 @@ interface ObjetoTiledCru {
   y: number;
   width: number;
   height: number;
+  properties?: { name: string; value: PropObjeto }[];
+}
+
+/** Nome que o mapa da cidade mostra no cabecalho, por mapa externo. */
+const TITULO_DO_MAPA: Record<string, string> = {
+  farm: 'Mapa da cidade',
+  bairro: 'Bairro da Estacao',
+  rural: 'Zona Rural',
+};
+
+/** Retangulo em TILES, com o canto (x0,y0) inclusivo e (x1,y1) exclusivo. */
+interface RetTiles {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** Uma zona de transicao entre mapas externos, ja em pixels do mundo. */
+interface BordaDeMapa {
+  id: string;
+  x: number;
+  y: number;
+  largura: number;
+  altura: number;
+  destino: string;
+  destinoTx: number;
+  destinoTy: number;
+}
+
+/** Um comodo do interior atual, da camada de objetos `comodos`. */
+interface ComodoDoMapa {
+  nome: string;
+  privado: boolean;
+  ret: RetTiles;
+}
+
+/** A peca que o jogador esta arrastando pra posicionar. */
+interface PosicionamentoMobilia {
+  id: string;
+  medida: MedidaDeMovel;
+  fantasma: Phaser.GameObjects.Image;
+  tx: number;
+  ty: number;
+  valido: boolean;
 }
 
 interface CamadaTiledCru {
@@ -1366,4 +2037,18 @@ function lerProps(obj: Phaser.Types.Tilemaps.TiledObject): Record<string, PropOb
   const brutas = obj.properties as { name: string; value: PropObjeto }[] | undefined;
   if (Array.isArray(brutas)) for (const p of brutas) props[p.name] = p.value;
   return props;
+}
+
+/** Tiles cobertos por um retangulo em coordenadas fracionarias de tile. */
+function tilesDoRetangulo(r: RetTiles): [number, number][] {
+  const lista: [number, number][] = [];
+  for (let y = Math.floor(r.y0); y < Math.ceil(r.y1); y++) {
+    for (let x = Math.floor(r.x0); x < Math.ceil(r.x1); x++) lista.push([x, y]);
+  }
+  return lista;
+}
+
+/** Interseccao de retangulos meio-abertos: encostar de lado NAO conta. */
+function retangulosSeCruzam(a: RetTiles, b: RetTiles): boolean {
+  return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 }

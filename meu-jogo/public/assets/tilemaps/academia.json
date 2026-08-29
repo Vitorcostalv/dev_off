@@ -6,7 +6,7 @@
  "tileheight": 32,
  "infinite": false,
  "nextlayerid": 5,
- "nextobjectid": 1066,
+ "nextobjectid": 3033,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -15,222 +15,222 @@
  "layers": [
   {
    "data": [
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147,
-    147
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175,
+    175
    ],
    "height": 12,
    "id": 1,
@@ -244,25 +244,25 @@
   },
   {
    "data": [
-    116,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    117,
-    116,
-    118,
+    128,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    129,
+    128,
+    130,
     0,
     0,
     0,
@@ -279,8 +279,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -297,8 +297,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -315,8 +315,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -333,8 +333,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -351,8 +351,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -369,8 +369,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -387,8 +387,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -405,8 +405,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -423,8 +423,8 @@
     0,
     0,
     0,
-    118,
-    118,
+    130,
+    130,
     0,
     0,
     0,
@@ -441,25 +441,25 @@
     0,
     0,
     0,
-    118,
-    118,
-    118,
-    118,
-    118,
-    118,
-    118,
-    118,
-    118,
-    118,
-    161,
-    118,
-    118,
-    118,
-    118,
-    118,
-    118,
-    118,
-    118
+    130,
+    130,
+    130,
+    130,
+    130,
+    130,
+    130,
+    130,
+    130,
+    130,
+    196,
+    130,
+    130,
+    130,
+    130,
+    130,
+    130,
+    130,
+    130
    ],
    "height": 12,
    "id": 2,
@@ -481,7 +481,7 @@
      "type": "porta",
      "height": 32,
      "width": 32,
-     "id": 1065,
+     "id": 3032,
      "name": "porta_saida",
      "rotation": 0,
      "visible": true,
@@ -528,7 +528,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1050,
+     "id": 3017,
      "name": "movel_academia_0",
      "rotation": 0,
      "visible": true,
@@ -568,7 +568,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1051,
+     "id": 3018,
      "name": "movel_academia_1",
      "rotation": 0,
      "visible": true,
@@ -608,7 +608,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1052,
+     "id": 3019,
      "name": "movel_academia_2",
      "rotation": 0,
      "visible": true,
@@ -648,7 +648,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1053,
+     "id": 3020,
      "name": "movel_academia_3",
      "rotation": 0,
      "visible": true,
@@ -688,7 +688,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1054,
+     "id": 3021,
      "name": "movel_academia_4",
      "rotation": 0,
      "visible": true,
@@ -728,7 +728,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1055,
+     "id": 3022,
      "name": "movel_academia_5",
      "rotation": 0,
      "visible": true,
@@ -768,7 +768,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1056,
+     "id": 3023,
      "name": "movel_academia_6",
      "rotation": 0,
      "visible": true,
@@ -808,7 +808,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1057,
+     "id": 3024,
      "name": "movel_academia_7",
      "rotation": 0,
      "visible": true,
@@ -848,7 +848,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1058,
+     "id": 3025,
      "name": "movel_academia_8",
      "rotation": 0,
      "visible": true,
@@ -888,7 +888,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1059,
+     "id": 3026,
      "name": "movel_academia_9",
      "rotation": 0,
      "visible": true,
@@ -928,7 +928,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1060,
+     "id": 3027,
      "name": "movel_academia_10",
      "rotation": 0,
      "visible": true,
@@ -968,7 +968,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1061,
+     "id": 3028,
      "name": "movel_academia_11",
      "rotation": 0,
      "visible": true,
@@ -1008,7 +1008,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1062,
+     "id": 3029,
      "name": "movel_academia_12",
      "rotation": 0,
      "visible": true,
@@ -1048,7 +1048,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1063,
+     "id": 3030,
      "name": "movel_academia_13",
      "rotation": 0,
      "visible": true,
@@ -1088,7 +1088,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 1064,
+     "id": 3031,
      "name": "movel_academia_14",
      "rotation": 0,
      "visible": true,
@@ -1132,138 +1132,18 @@
  ],
  "tilesets": [
   {
-   "columns": 164,
+   "columns": 197,
    "firstgid": 1,
    "image": "../tilesets/terrain.png",
-   "imagewidth": 5248,
+   "imagewidth": 6304,
    "imageheight": 32,
    "margin": 0,
    "spacing": 0,
    "name": "terrain",
-   "tilecount": 164,
+   "tilecount": 197,
    "tilewidth": 32,
    "tileheight": 32,
    "tiles": [
-    {
-     "id": 48,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 49,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 50,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 51,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 52,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 53,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 54,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 55,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 56,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 57,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 58,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 59,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
     {
      "id": 60,
      "properties": [
@@ -1306,6 +1186,26 @@
     },
     {
      "id": 64,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 65,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 66,
      "properties": [
       {
        "name": "collides",
@@ -1406,26 +1306,6 @@
     },
     {
      "id": 76,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 77,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 78,
      "properties": [
       {
        "name": "collides",
@@ -1955,6 +1835,266 @@
      ]
     },
     {
+     "id": 131,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 132,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 133,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 134,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 135,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 136,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 137,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 138,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 139,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 140,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 141,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 142,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 143,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 144,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 145,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 146,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 147,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 148,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 149,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 150,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 151,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 152,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 153,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 154,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 155,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 156,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
      "id": 157,
      "properties": [
       {
@@ -1975,7 +2115,7 @@
      ]
     },
     {
-     "id": 159,
+     "id": 185,
      "properties": [
       {
        "name": "collides",
@@ -1985,7 +2125,37 @@
      ]
     },
     {
-     "id": 161,
+     "id": 186,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 188,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 194,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 196,
      "properties": [
       {
        "name": "collides",
@@ -1994,26 +2164,6 @@
       },
       {
        "name": "npcAtravessa",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 162,
-     "properties": [
-      {
-       "name": "collides",
-       "type": "bool",
-       "value": true
-      }
-     ]
-    },
-    {
-     "id": 163,
-     "properties": [
-      {
-       "name": "collides",
        "type": "bool",
        "value": true
       }

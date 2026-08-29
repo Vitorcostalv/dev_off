@@ -1086,39 +1086,6 @@ export const TEMAS_POR_NPC: Record<string, readonly TemaDeConversa[]> = {
       ],
     },
   ],
-
-  // ----------------------------------------------------------- MORADOR_1 --
-  // Placeholder sem perfil escrito: dois temas neutros so pra ele nao abrir um
-  // menu vazio. Ganha tabela de verdade quando ganhar personagem.
-  morador_1: [
-    {
-      id: 'clima',
-      rotulo: 'Dia bonito hoje.',
-      reacao: 'neutro',
-      variacoes: [
-        ['E mesmo.', 'Bom pra sair um pouco.'],
-        ['Ta agradavel mesmo.', 'Bom pra caminhar.'],
-      ],
-    },
-    {
-      id: 'cidade',
-      rotulo: 'Faz tempo que voce mora aqui?',
-      reacao: 'neutro',
-      variacoes: [
-        ['Faz um tempo.', 'E tranquilo por aqui.'],
-        ['Um bom tempo ja.', 'Me acostumei.'],
-      ],
-    },
-    {
-      id: 'ajuda',
-      rotulo: 'Precisa de alguma coisa?',
-      reacao: 'neutro',
-      variacoes: [
-        ['Por enquanto nao, obrigado.'],
-        ['Nao, obrigado. Tudo certo por aqui.'],
-      ],
-    },
-  ],
 };
 
 /** Hash inteiro -> [0,1). Mesma avalanche usada pelo quadro de vagas. */

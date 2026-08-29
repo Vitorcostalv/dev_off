@@ -208,8 +208,8 @@ const CORREDOR_SAIDA_MISTO: PontoTile[] = [
 ];
 
 export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
-  // casa_1 e a unica com o salao unico 16x12 do inicio do projeto.
-  casa_1: { frente: { x: 31.5, y: 16.5 }, interior: { x: 8.5, y: 8.5 }, portaInterior: { x: 8.5, y: 10.5 } },
+  // A casa_1 saiu daqui: o protagonista mudou pro Mapa 2 e o lote virou vago
+  // (predio de pe, porta fechada, sem interior).
   // As cinco casas de NPC viraram plantas multi-comodo, cada uma com porta,
   // tamanho e disposicao propria (ver `PLANTAS_CASA` em tools/gerar-assets.mjs).
   // `interior` e o tile em que o morador comeca o dia — sempre na sala, e sempre
@@ -269,8 +269,8 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
 };
 
 /**
- * Lotes onde alguem pode morar, na ordem em que aparecem no mapa. Sao as seis
- * casas puras mais os dois predios MISTOS (casa + comercio no mesmo interior):
+ * Lotes do MAPA 1 onde alguem pode morar, na ordem em que aparecem no mapa.
+ * Sao as cinco casas de NPC mais os dois predios MISTOS (casa + comercio no mesmo interior):
  * o bar e a farmacia tem cama na metade de moradia, entao contam como moradia
  * disponivel exatamente como `casa_2..casa_6`.
  *
@@ -281,7 +281,6 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
  * divergiram.
  */
 export const MORADIAS = [
-  'casa_1',
   'casa_2',
   'casa_3',
   'casa_4',
@@ -294,24 +293,6 @@ export const MORADIAS = [
 export const hora = (horas: number, minutos = 0): number => horas * 60 + minutos;
 
 export const NPCS: Record<string, DefinicaoNpc> = {
-  morador_1: {
-    id: 'morador_1',
-    nome: 'Morador 1',
-    casa: 'casa_1',
-    posicaoInicial: { x: 63.5, y: 48.5 },
-    dentroInicial: null,
-    horaAcordar: hora(7),
-    tint: 0x8fb6ff,
-    sprite: null,
-    dialogoAtual: ['Oi.', 'Tudo certo por aqui.', 'Ate mais.'],
-    rotina: [],
-    rotaCasa: [
-      { x: 60.5, y: 45.5 },
-      { x: 60.5, y: 20.5 },
-      { x: 31.5, y: 20.5 },
-      { x: 31.5, y: 16.5 },
-    ],
-  },
   edu: {
     id: 'edu', nome: 'Edu', casa: 'casa_2',
     posicaoInicial: { x: 14.5, y: 6.5 }, dentroInicial: 'casa_2', horaAcordar: hora(7),

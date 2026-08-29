@@ -199,6 +199,106 @@
     "w": 256,
     "h": 182
    }
+  },
+  "oficina": {
+   "frame": {
+    "x": 1984,
+    "y": 0,
+    "w": 256,
+    "h": 182
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 182
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 182
+   }
+  },
+  "escola": {
+   "frame": {
+    "x": 2240,
+    "y": 0,
+    "w": 320,
+    "h": 214
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 320,
+    "h": 214
+   },
+   "sourceSize": {
+    "w": 320,
+    "h": 214
+   }
+  },
+  "biblioteca": {
+   "frame": {
+    "x": 2560,
+    "y": 0,
+    "w": 320,
+    "h": 214
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 320,
+    "h": 214
+   },
+   "sourceSize": {
+    "w": 320,
+    "h": 214
+   }
+  },
+  "central": {
+   "frame": {
+    "x": 2880,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "madeireira": {
+   "frame": {
+    "x": 3040,
+    "y": 0,
+    "w": 256,
+    "h": 182
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 182
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 182
+   }
   }
  },
  "meta": {
@@ -206,8 +306,8 @@
   "image": "construcoes.png",
   "format": "RGBA8888",
   "size": {
-   "w": 1984,
-   "h": 182
+   "w": 3296,
+   "h": 214
   },
   "scale": "1"
  }
