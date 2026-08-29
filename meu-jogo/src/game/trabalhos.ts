@@ -220,6 +220,10 @@ export const DESTINOS_DE_ENTREGA: readonly { npcId: string; mapa: string; morado
   NPCS,
 )
   .filter((npc) => npc.casa !== 'casa_1') // a casa do proprio jogador nao vale
+  // um destino por PORTA: quem divide teto (Luke com a mae, Vitor com o irmao)
+  // fica de fora, senao o mesmo endereco apareceria duas vezes no quadro com
+  // nomes diferentes e a entrega viraria loteria de qual dos dois atende
+  .filter((npc) => !npc.compartilhaCasa)
   .map((npc) => ({ npcId: npc.id, mapa: npc.casa, morador: npc.nome }));
 
 // ------------------------------------------------------------- sorteio --
@@ -673,6 +677,22 @@ export interface EntregaAtiva {
  */
 export class SistemaTrabalhos {
   entrega: EntregaAtiva | null = null;
+
+  /**
+   * Larga a entrega em andamento sem pagar nada.
+   *
+   * Existe pra o jogador nunca ficar preso: a entrega so e concluida na porta
+   * do destino COM a encomenda em maos, entao uma encomenda perdida (por um
+   * save antigo, por um bug, por qualquer caminho que tire o item) travava o
+   * sistema inteiro — a porta nao completava e o app recusava aceitar outra
+   * vaga. Cancelar nao devolve nada nem marca a vaga como feita: ela volta pro
+   * quadro do dia e pode ser aceita de novo.
+   */
+  cancelarEntrega(): EntregaAtiva | null {
+    const largada = this.entrega;
+    this.entrega = null;
+    return largada;
+  }
   /** chaves `${dia}:${idVaga}` — some sozinho quando o dia vira */
   private feitos = new Set<string>();
 

@@ -286,10 +286,11 @@ export class Trabalho implements AppDoPc {
   }
 
   private verboDaVaga(vaga: Vaga): string {
-    if (vaga.tipo === 'entrega') {
-      return estado.trabalhos.entrega?.idVaga === vaga.id ? 'ja aceita' : 'aceitar';
-    }
-    return 'comecar';
+    if (vaga.tipo !== 'entrega') return 'comecar';
+    const entrega = estado.trabalhos.entrega;
+    const semEncomenda = entrega !== null && estado.inventario.contar(ITEM_ENCOMENDA) === 0;
+    if (entrega?.idVaga === vaga.id) return semEncomenda ? 'pedir segunda via' : 'ja aceita';
+    return semEncomenda ? 'largar a entrega atual' : 'aceitar';
   }
 
   private nomeDoMapa(chave: string | undefined): string {
@@ -318,11 +319,18 @@ export class Trabalho implements AppDoPc {
    * segura da compra: nada pela metade.
    */
   private aceitarEntrega(vaga: Vaga): void {
-    if (estado.trabalhos.entrega) {
-      this.avisar(
-        `Voce ja tem uma entrega em andamento: ${estado.trabalhos.entrega.titulo}.`,
-        PC.alerta,
-      );
+    const emAndamento = estado.trabalhos.entrega;
+    if (emAndamento) {
+      // Beco sem saida que ja existiu: entrega aceita SEM a encomenda em maos.
+      // A porta do destino nao completa nada (ela exige o item) e o app recusava
+      // qualquer vaga nova, entao o sistema de entrega travava pra sempre. Agora
+      // a propria vaga em andamento reemite a encomenda; se nem isso couber, da
+      // pra largar a vaga e aceitar outra depois.
+      if (estado.inventario.contar(ITEM_ENCOMENDA) === 0) {
+        this.reemitirEncomenda(emAndamento.idVaga === vaga.id);
+        return;
+      }
+      this.avisar(`Voce ja tem uma entrega em andamento: ${emAndamento.titulo}.`, PC.alerta);
       return;
     }
     if (!vaga.destino || !vaga.moradorDestino) {
@@ -355,6 +363,49 @@ export class Trabalho implements AppDoPc {
     this.avisar(
       `Encomenda no inventario. Leve ate ${vaga.moradorDestino}` +
         ` (${this.nomeDoMapa(vaga.destino)}) e use a porta.`,
+      PC.sucesso,
+    );
+  }
+
+  /**
+   * Repoe a encomenda de uma entrega ja aceita que ficou sem o item, ou larga a
+   * vaga quando nem repor da. Nunca paga nada: o pagamento continua acontecendo
+   * so na porta do destino.
+   */
+  private reemitirEncomenda(mesmaVaga: boolean): void {
+    const entrega = estado.trabalhos.entrega;
+    if (!entrega) return;
+
+    if (!estado.inventario.cabe(ITEM_ENCOMENDA, 1)) {
+      this.avisar(
+        'Sem espaco pra segunda via da encomenda. Abra espaco no inventario' +
+          ' ou [E] de novo nesta vaga pra largar a entrega.',
+        PC.alerta,
+      );
+      return;
+    }
+
+    if (!mesmaVaga) {
+      // pediu outra vaga com uma entrega orfa em andamento: larga a antiga
+      const largada = estado.trabalhos.cancelarEntrega();
+      this.desenharLista();
+      this.avisar(
+        `Larguei "${largada?.titulo}" — a encomenda nao estava com voce.` +
+          ' A vaga voltou pro quadro; aceite de novo quando quiser.',
+        PC.alerta,
+      );
+      return;
+    }
+
+    if (estado.inventario.adicionar(ITEM_ENCOMENDA, 1) > 0) {
+      console.error('[trabalho] BUG: cabe() aprovou mas a segunda via nao entrou');
+      this.avisar('Nao consegui separar a segunda via. Nada mudou.', PC.alerta);
+      return;
+    }
+    this.desenharLista();
+    this.avisar(
+      `Segunda via da encomenda separada. Leve ate ${entrega.morador}` +
+        ` (${this.nomeDoMapa(entrega.destino)}) e use a porta.`,
       PC.sucesso,
     );
   }
@@ -453,7 +504,7 @@ export class Trabalho implements AppDoPc {
       this.avisar(
         tem
           ? `Entrega em andamento: leve a encomenda ate ${e.morador} (${this.nomeDoMapa(e.destino)}).`
-          : `Entrega em andamento, mas a encomenda nao esta com voce. Sem encomenda nao ha pagamento.`,
+          : `Entrega em andamento sem a encomenda. [E] nesta vaga pede a segunda via.`,
         tem ? PC.destaque : PC.alerta,
       );
       return;

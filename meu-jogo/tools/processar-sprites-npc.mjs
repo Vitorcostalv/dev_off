@@ -362,6 +362,10 @@ normalizar({
 const quatroDeOito = (linha, flipX = false) =>
   [0, 2, 4, 6].map((coluna) => ({ coluna, linha, flipX }));
 
+/** O mesmo pra uma linha de 10 (a folha do Hiago tem dez poses por direcao). */
+const quatroDeDez = (linha, flipX = false) =>
+  [0, 3, 5, 8].map((coluna) => ({ coluna, linha, flipX }));
+
 // Alice: 4x4, na ordem frente / esquerda / direita / costas. A arte ja vem com
 // fundo transparente, entao nao passa pelo removedor de preto.
 normalizar({
@@ -399,4 +403,68 @@ normalizar({
   saida: 'Wendeu_parado_runtime.png',
   linhasOriginais: 4,
   mapa: [poseParada(0, 0), poseParada(0, 3), poseParada(0, 1), poseParada(0, 2)],
+});
+
+// ---------------------------------------------------------------- novos --
+// Luke (filho da Jaqueline), Hiago e Vitor. As tres folhas de caminhada sao
+// 8 colunas x 4 linhas na ordem frente / costas / esquerda / direita, que ja e
+// a ordem de saida — por isso o mapa delas e direto, sem remanejar linha.
+
+// Luke — caminhada 8x4 e pose parada 1x4 (frente / direita / esquerda / costas).
+normalizar({
+  entrada: 'Luke_andando.png',
+  saida: 'Luke_andando_runtime.png',
+  linhasOriginais: 4,
+  colunasOriginais: 8,
+  mapa: [quatroDeOito(0), quatroDeOito(1), quatroDeOito(2), quatroDeOito(3)],
+});
+normalizar({
+  entrada: 'Luke_parado.png',
+  saida: 'Luke_parado_runtime.png',
+  linhasOriginais: 1,
+  colunasOriginais: 4,
+  mapa: [poseParada(0), poseParada(3), poseParada(2), poseParada(1)],
+});
+
+// Hiago — a folha de caminhada dele tem DEZ poses por direcao (as outras tem
+// oito), na ordem frente / costas / direita / esquerda. A de pose parada vem
+// sobre PRETO OPACO e segue frente / esquerda / direita / costas.
+normalizar({
+  entrada: 'Hiago_andando.png',
+  saida: 'Hiago_andando_runtime.png',
+  linhasOriginais: 4,
+  colunasOriginais: 10,
+  mapa: [quatroDeDez(0), quatroDeDez(1), quatroDeDez(3), quatroDeDez(2)],
+});
+normalizar({
+  entrada: 'Hiago_parado.png',
+  saida: 'Hiago_parado_runtime.png',
+  linhasOriginais: 4,
+  removerPreto: true,
+  mapa: [poseParada(0, 0), poseParada(0, 3), poseParada(0, 1), poseParada(0, 2)],
+});
+
+// Vitor — a folha de pose parada tem UMA linha util (7 poses de corpo inteiro)
+// e mais duas de estudo de rosto e de fone, que nao servem de pose. Pedir uma
+// linha de 7 resolve sozinho: o corte pelos MAIORES componentes fica com os
+// sete corpos e descarta cabeca e acessorio, que sao bem menores.
+//
+// As duas poses de perfil da folha olham as duas pro MESMO lado, entao o perfil
+// esquerdo sai espelhando o direito — mesmo caminho ja usado na Leticia e na
+// Mari, que tambem vieram sem um dos lados.
+// a folha de caminhada dele e frente / costas / DIREITA / esquerda, ao contrario
+// da do Luke — por isso as duas ultimas linhas entram trocadas
+normalizar({
+  entrada: 'Vitor_andando.png',
+  saida: 'Vitor_andando_runtime.png',
+  linhasOriginais: 4,
+  colunasOriginais: 8,
+  mapa: [quatroDeOito(0), quatroDeOito(1), quatroDeOito(3), quatroDeOito(2)],
+});
+normalizar({
+  entrada: 'Vitor_parado.png',
+  saida: 'Vitor_parado_runtime.png',
+  linhasOriginais: 1,
+  colunasOriginais: 7,
+  mapa: [poseParada(0), poseParada(3), poseParada(2, 0, true), poseParada(2)],
 });

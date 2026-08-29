@@ -114,6 +114,15 @@ export interface DefinicaoNpc {
   spriteParado?: SpriteNpc | null;
   tint?: number;
   /**
+   * Mora na casa de OUTRO NPC, em vez de ocupar uma moradia propria.
+   *
+   * O Luke divide a casa_4 com a mae (Jaqueline) e o Vitor divide a casa_6 com
+   * o irmao (Hiago). Sem esta marca a validacao de "dois NPCs na mesma casa"
+   * reprovaria os dois, e `MORADIAS_VAGAS` passaria a achar que a cidade tem
+   * menos casa livre do que tem — quem divide teto nao consome vaga.
+   */
+  compartilhaCasa?: boolean;
+  /**
    * Marca o NPC de PRESENCA INTERIOR FIXA (mora onde trabalha). E so um rotulo
    * declarativo — quem move o NPC e a acao `posto_interior`. A validacao no fim
    * do arquivo cobra que os dois andem juntos: com a marca, a rotina tem de usar
@@ -644,14 +653,176 @@ export const NPCS: Record<string, DefinicaoNpc> = {
       { x: 81.5, y: 45.5 }, { x: 81.5, y: 29.5 },
     ],
   },
+  // ------------------------------------------------------------------------
+  // MORADORES QUE DIVIDEM TETO. Nenhum deles ocupa moradia propria (ver
+  // `compartilhaCasa`): o Luke mora com a mae e o Vitor mora com o irmao. Sao
+  // entradas declarativas como as outras — nao ha uma linha de codigo por NPC.
+
+  // Luke, 12 anos, filho da Jaqueline. Sem trabalho e sem horario: sai depois
+  // da mae, roda a avenida de manha e passa a tarde no playground do parque.
+  // As duas areas de `vagar` sao as MESMAS que a Leticia usa, ja aprovadas pelo
+  // verificador de rotinas — area nova exigiria conferir convexidade de novo.
+  luke: {
+    id: 'luke', nome: 'Luke', casa: 'casa_4', compartilhaCasa: true,
+    posicaoInicial: { x: 6.5, y: 15.5 }, dentroInicial: 'casa_4', horaAcordar: hora(9),
+    sprite: {
+      arquivo: 'assets/sprites/Luke_andando_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    },
+    spriteParado: {
+      arquivo: 'assets/sprites/Luke_parado_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
+      },
+    },
+    dialogoAtual: [
+      'Oi! Voce tambem ta de folga hoje?',
+      'Minha mae fica no mercado o dia inteiro, entao eu fico por ai.',
+      'Ja viu o balanco novo do parque? Da pra ir BEM alto.',
+    ],
+    rotina: [
+      { horario: hora(9, 30), tipo: 'sair_construcao', construcao: 'casa_4' },
+      // desce do lote pro anel norte e pega a avenida vertical, o mesmo caminho
+      // que a mae faz pro mercado — ele so nao entra
+      { horario: hora(9, 30), tipo: 'andar_rota', waypoints: [
+        { x: 87.5, y: 20.5 }, { x: 60.5, y: 20.5 }, { x: 60.5, y: 45.5 },
+      ] },
+      { horario: hora(9, 30), tipo: 'vagar', pausaMinSegundos: 3, pausaMaxSegundos: 9,
+        area: { min: { x: 23.5, y: 44.4 }, max: { x: 97.5, y: 46.6 } } },
+      { horario: hora(13), tipo: 'andar_rota', waypoints: [
+        { x: 37.5, y: 45.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 52.5 },
+      ] },
+      // tarde no parque: e a ancora visual do "brincar no parque" — o
+      // playground fica no lado leste do calcamento (ver PECAS_PARQUE)
+      { horario: hora(13), tipo: 'vagar', pausaMinSegundos: 4, pausaMaxSegundos: 14,
+        area: { min: { x: 33.2, y: 52.2 }, max: { x: 42.8, y: 57.8 } },
+        saidaSegura: [
+          { x: 37.5, y: 52.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 45.5 },
+        ] },
+    ],
+    rotaCasa: [
+      { x: 60.5, y: 45.5 }, { x: 60.5, y: 20.5 },
+      { x: 87.5, y: 20.5 }, { x: 87.5, y: 16.5 },
+    ],
+  },
+
+  // Hiago, 26, entregador de bicicleta. Titular da casa_6 — a ultima que estava
+  // vaga. Vive na rua e conhece todo mundo pelo apelido; treina correndo em vez
+  // de academia, o que rende implicancia amigavel com a Mari.
+  hiago: {
+    id: 'hiago', nome: 'Hiago', casa: 'casa_6',
+    posicaoInicial: { x: 16.5, y: 12.5 }, dentroInicial: 'casa_6', horaAcordar: hora(6),
+    sprite: {
+      arquivo: 'assets/sprites/Hiago_andando_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    },
+    spriteParado: {
+      arquivo: 'assets/sprites/Hiago_parado_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
+      },
+    },
+    dialogoAtual: [
+      'Fala! Tudo certo?',
+      'Passo por essa rua umas dez vezes por dia, entao a gente ia se esbarrar de qualquer jeito.',
+      'Se precisar levar alguma coisa pra algum lugar, me chama.',
+    ],
+    rotina: [
+      { horario: hora(7), tipo: 'sair_construcao', construcao: 'casa_6' },
+      // sobe pela coluna que a Leticia ja usa (x=34.5) e cai na avenida
+      { horario: hora(7), tipo: 'andar_rota', waypoints: [
+        { x: 34.5, y: 79.5 }, { x: 34.5, y: 71.5 },
+        { x: 22.5, y: 71.5 }, { x: 22.5, y: 45.5 },
+      ] },
+      { horario: hora(7), tipo: 'vagar', pausaMinSegundos: 2, pausaMaxSegundos: 6,
+        area: { min: { x: 23.5, y: 44.4 }, max: { x: 97.5, y: 46.6 } } },
+    ],
+    rotaCasa: [
+      { x: 22.5, y: 45.5 }, { x: 22.5, y: 71.5 },
+      { x: 34.5, y: 71.5 }, { x: 34.5, y: 79.5 },
+    ],
+  },
+
+  // Vitor, 29, irmao mais velho do Hiago, divide a casa_6 com ele. Trabalha de
+  // noite no bar da Alice e toca nos fins de semana, entao acorda tarde e so
+  // aparece na rua no fim da tarde — e o unico NPC que o jogador quase nunca
+  // encontra de manha.
+  vitor: {
+    id: 'vitor', nome: 'Vitor', casa: 'casa_6', compartilhaCasa: true,
+    posicaoInicial: { x: 15.5, y: 12.5 }, dentroInicial: 'casa_6', horaAcordar: hora(11),
+    sprite: {
+      arquivo: 'assets/sprites/Vitor_andando_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    },
+    spriteParado: {
+      arquivo: 'assets/sprites/Vitor_parado_runtime.png', colunas: 4, linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0] },
+        up: { linha: 1, colunas: [0] },
+        left: { linha: 2, colunas: [0] },
+        right: { linha: 3, colunas: [0] },
+      },
+    },
+    dialogoAtual: [
+      'Opa. Acordei agora, desculpa a cara.',
+      'Trabalho no bar, entao meu dia comeca quando o seu ta acabando.',
+      'Se aparecer la de noite, eu te sirvo alguma coisa.',
+    ],
+    rotina: [
+      { horario: hora(15), tipo: 'sair_construcao', construcao: 'casa_6' },
+      { horario: hora(15), tipo: 'andar_rota', waypoints: [
+        { x: 34.5, y: 79.5 }, { x: 34.5, y: 71.5 },
+        { x: 22.5, y: 71.5 }, { x: 22.5, y: 45.5 },
+      ] },
+      { horario: hora(15), tipo: 'vagar', pausaMinSegundos: 6, pausaMaxSegundos: 16,
+        area: { min: { x: 23.5, y: 44.4 }, max: { x: 97.5, y: 46.6 } } },
+    ],
+    rotaCasa: [
+      { x: 22.5, y: 45.5 }, { x: 22.5, y: 71.5 },
+      { x: 34.5, y: 71.5 }, { x: 34.5, y: 79.5 },
+    ],
+  },
 };
 
+/** So quem OCUPA a moradia entra aqui; quem divide teto (ver `compartilhaCasa`) nao. */
+const TITULARES = Object.values(NPCS).filter((npc) => !npc.compartilhaCasa);
+
 export const MORADORES_POR_CASA = Object.fromEntries(
-  Object.values(NPCS).map((npc) => [npc.casa, npc.id]),
+  TITULARES.map((npc) => [npc.casa, npc.id]),
 ) as Record<string, string>;
 
-if (Object.keys(MORADORES_POR_CASA).length !== Object.keys(NPCS).length) {
-  throw new Error('dois NPCs foram configurados na mesma casa');
+if (Object.keys(MORADORES_POR_CASA).length !== TITULARES.length) {
+  throw new Error('dois NPCs titulares foram configurados na mesma casa');
+}
+
+// quem divide teto tem de dividir com ALGUEM: casa sem titular nao e casa
+// compartilhada, e um NPC morando sozinho numa casa que ele nao ocupa some das
+// contas de moradia sem ninguem perceber
+for (const npc of Object.values(NPCS)) {
+  if (npc.compartilhaCasa && !MORADORES_POR_CASA[npc.casa]) {
+    throw new Error(`"${npc.id}" divide "${npc.casa}", que nao tem morador titular`);
+  }
 }
 
 // Morar em algo que nao e moradia (mercado, academia, parque) nao existe: a

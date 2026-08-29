@@ -68,6 +68,9 @@ const FOLHAS = {
   paredes: { arquivo: 'Paredes_casa_v1.png', cols: 6, rows: 3, limiar: 2 },
   telhados: { arquivo: 'Telhados_v1.png', cols: 6, rows: 3, limiar: 2 },
   portas: { arquivo: 'Portas_v1.png', cols: 4, rows: 5, limiar: 60 },
+  // folha nova, so de porta de COMERCIO (vidro, batente largo, letreiro).
+  // Serve a fachada composta dos quatro lotes de comercio; as casas continuam
+  // na v1, que tem porta residencial.
   janelas: { arquivo: 'Janelas_v1.png', cols: 7, rows: 4, limiar: 12 },
 };
 
@@ -193,43 +196,13 @@ function celulaJusta(chave, c, r) {
   return caixa;
 }
 
-/**
- * Folhas de fachada PRONTA: a arte ja vem montada em elevacao frontal, entao
- * nao ha o que compor — so recortar o maior blob de cada metade da folha.
- *
- * `eixo` diz como a folha esta dividida: 'y' pra duas fachadas empilhadas,
- * 'x' pra duas lado a lado. `nomes` vem na ordem da divisao.
+/*
+ * As folhas de fachada PRONTA (`Mecado_academia.png` e `farmacia_bar.png`) nao
+ * sao mais lidas: os quatro lotes de comercio passaram a ter a fachada COMPOSTA
+ * a partir da folha de parede do proprio ramo, do mesmo jeito que as casas ja
+ * eram montadas (ver `ESTILOS_COMERCIO` e `comporComercio`). A arte continua no
+ * repositorio como referencia de como cada predio deve ler.
  */
-const FOLHAS_FACHADA = {
-  comercio: { arquivo: 'Mecado_academia.png', eixo: 'y', nomes: ['mercado', 'academia'] },
-  servicos: { arquivo: 'farmacia_bar.png', eixo: 'x', nomes: ['bar', 'farmacia'] },
-};
-
-function carregarFachadasProntas(def) {
-  const img = lerPng(caminhoFolha(def.arquivo, false));
-  const todos = blobs(img, 5000);
-  const meio = (def.eixo === 'y' ? img.h : img.w) / 2;
-  const centro = (b) => (def.eixo === 'y' ? b.y + b.h / 2 : b.x + b.w / 2);
-  const caixas = {};
-  def.nomes.forEach((nome, i) => {
-    const c = todos.filter((b) => (i === 0 ? centro(b) < meio : centro(b) >= meio))[0];
-    if (!c) throw new Error(`${def.arquivo}: nao achei a fachada de "${nome}"`);
-    caixas[nome] = c;
-  });
-  return { arquivo: def.arquivo, img, caixas };
-}
-
-const folhasFachada = Object.fromEntries(
-  Object.entries(FOLHAS_FACHADA).map(([k, def]) => [k, carregarFachadasProntas(def)]),
-);
-
-/** Acha a fachada pronta de um lote em qualquer uma das folhas. */
-function fachadaPronta(nome) {
-  for (const folha of Object.values(folhasFachada)) {
-    if (folha.caixas[nome]) return { img: folha.img, caixa: folha.caixas[nome] };
-  }
-  throw new Error(`nenhuma folha de fachada tem "${nome}"`);
-}
 
 /**
  * Folhas de MOVEL: utensilio de comercio e mobilia de casa. Nenhuma delas tem
@@ -308,6 +281,20 @@ const FOLHAS_MOVEIS = {
   // em ~0,64 m. Dai saem a cama de casal (1,6 m), a banheira (1,7 m) e a mesa de
   // jantar com as duas cadeiras (2,2 m) — assim a cama de um quarto e a mesa da
   // cozinha lem do mesmo tamanho quando o jogador anda de um comodo pro outro.
+  // Estruturas de PARQUE. Unica folha de movel que mobilia area EXTERNA: banco,
+  // chafariz, lixeira, poste, brinquedo de playground, quiosque. A regua e a
+  // mesma das folhas de interior (o banco de praca em 2,6 tiles poe o tile em
+  // ~0,64 m, igual ao sofa de `mobilia_v2`), pra o mobiliario do parque nao ler
+  // maior nem menor que o de dentro de casa.
+  parque: {
+    arquivo: 'Estuturas_parque_v1.png',
+    runtime: true,
+    areaMinima: 1500,
+    tolerancia: 55,
+    linhas: 9,
+    referencia: [0, 7], // banco de praca de encosto reto
+    larguraReferencia: 2.6,
+  },
   quarto: {
     arquivo: 'Moveis_quarto.png',
     areaMinima: 1500,
@@ -1379,12 +1366,15 @@ const CONSTRUCOES = {
   casa_4: { pegada: { w: 5, h: 4 }, interior: 'casa_4', estilo: 3 },
   casa_5: { pegada: { w: 5, h: 4 }, interior: 'casa_5', estilo: 4 },
   casa_6: { pegada: { w: 5, h: 4 }, interior: 'casa_6', estilo: 5 },
-  mercado: { pegada: { w: 8, h: 5 }, interior: 'mercado', fachada: 'mercado' },
-  academia: { pegada: { w: 8, h: 5 }, interior: 'academia', fachada: 'academia' },
+  // `comercio` marca o lote cuja fachada e COMPOSTA a partir da folha de parede
+  // do proprio ramo (ver `ESTILOS_COMERCIO`) e cujo interior sai do gerador de
+  // salao, nao do de casa.
+  mercado: { pegada: { w: 8, h: 5 }, interior: 'mercado', comercio: true },
+  academia: { pegada: { w: 8, h: 5 }, interior: 'academia', comercio: true },
   // Mistos: `misto` diz que o interior sai do gerador combinado (cama de um
   // lado, trabalho do outro, tudo no mesmo comodo) em vez do salao puro.
-  bar: { pegada: { w: 8, h: 5 }, interior: 'bar', fachada: 'bar', misto: true },
-  farmacia: { pegada: { w: 8, h: 5 }, interior: 'farmacia', fachada: 'farmacia', misto: true },
+  bar: { pegada: { w: 8, h: 5 }, interior: 'bar', comercio: true, misto: true },
+  farmacia: { pegada: { w: 8, h: 5 }, interior: 'farmacia', comercio: true, misto: true },
 };
 
 /** Lotes que sao area externa: praca, sem predio e sem interior. */
@@ -1417,6 +1407,73 @@ const PRACA = (() => {
     calcada: { x: x + Math.floor(w / 2) - 1, w: 2, y0: faixa.y + faixa.h, y1: y - 1 },
   };
 })();
+
+
+/**
+ * Mobiliario do PARQUE, posicionado a mao no calcamento da praca.
+ *
+ * Nao e sorteado como a flora: praca e coisa DESENHADA, e distribuicao aleatoria
+ * de banco e chafariz sai como entulho. As coordenadas sao LOCAIS a `PRACA`
+ * (0,0 = canto superior esquerdo do calcamento), entao mover a praca leva o
+ * mobiliario junto.
+ *
+ * Duas regras de layout que o codigo abaixo respeita:
+ *
+ * - a CALCADA de ligacao entra pelo meio do lado norte (`PRACA.calcada`, 2 tiles
+ *   de largura). A faixa dela fica vazia de ponta a ponta, senao o jogador
+ *   esbarra num banco logo ao entrar;
+ * - o mobiliario mora SO no calcamento. A vegetacao ja e proibida na praca mais
+ *   1 tile de folga (ver `bloquear` em `gerarMapaExterno`), entao nada aqui
+ *   disputa tile com arvore ou flor.
+ *
+ * O playground fica no canto leste de proposito: e o ponto que o Luke usa como
+ * ancora quando a rotina dele manda "brincar no parque" (ver `npcs.ts`).
+ */
+const PECAS_PARQUE = [
+  // --- lado oeste: agua e estar (colunas 0-3) ---
+  { peca: [2, 7], tx: 1, ty: 3, colide: true }, // chafariz
+  { peca: [0, 7], tx: 0, ty: 5, colide: true }, // banco virado pro chafariz
+  { peca: [2, 1], tx: 0, ty: 1, colide: true }, // lixeira
+  { peca: [0, 1], tx: 3, ty: 1, colide: true }, // poste de luz
+
+  // --- lado leste: playground, a ancora do Luke (colunas 6-9) ---
+  { peca: [3, 0], tx: 6, ty: 3, colide: true }, // torre com escorregador
+  { peca: [3, 1], tx: 6, ty: 5, colide: true }, // balanco
+  { peca: [0, 6], tx: 6, ty: 1, colide: true }, // banco de quem fica olhando
+  { peca: [0, 2], tx: 9, ty: 1, colide: true }, // poste de luz
+];
+
+/** Faixa da calcada de entrada, em coordenadas LOCAIS da praca. */
+function corredorDaPraca() {
+  return { x0: PRACA.calcada.x - PRACA.x, x1: PRACA.calcada.x - PRACA.x + PRACA.calcada.w - 1 };
+}
+
+/**
+ * Os objetos de `moveis` do parque, ja em coordenada de mundo. Devolve lista
+ * vazia se alguma peca cair fora do calcamento — o que e erro de layout, e o
+ * `escreverMapa` reprova alto em vez de deixar banco boiando na grama.
+ */
+function moveisDoParque() {
+  const corredor = corredorDaPraca();
+  const pecas = PECAS_PARQUE.map((p) => {
+    const { w } = tamanhoDeMovel('parque', p.peca, p.escala);
+    const x0 = p.tx;
+    const x1 = p.tx + Math.max(1, Math.round(w)) - 1;
+    if (p.tx < 0 || p.ty < 0 || p.ty >= PRACA.h + 1 || x1 >= PRACA.w) {
+      throw new Error(
+        `peca de parque [${p.peca}] em (${p.tx},${p.ty}) sai do calcamento ${PRACA.w}x${PRACA.h}`,
+      );
+    }
+    if (x0 <= corredor.x1 && x1 >= corredor.x0) {
+      throw new Error(
+        `peca de parque [${p.peca}] em (${p.tx},${p.ty}) tapa a calcada de entrada` +
+          ` (colunas ${corredor.x0}-${corredor.x1})`,
+      );
+    }
+    return { ...p, tx: PRACA.x + p.tx, ty: PRACA.y + p.ty - 1 };
+  });
+  return objetosDeMovel('parque', pecas, 'parque');
+}
 
 /** Todos os tiles calcados da praca (piso + calcada de ligacao). */
 function tilesDaPraca() {
@@ -1545,6 +1602,211 @@ function comporCasa(estilo, larguraPx, alturaPx) {
   return im;
 }
 
+
+
+// ------------------------------------------------- portas de comercio --
+/**
+ * `Portas_v2.png` — a folha de porta de COMERCIO, uma linha por ramo
+ * (farmacia, bar/taverna, academia) e quatro estados por linha (fechada, aberta
+ * pra esquerda, pra direita, escancarada).
+ *
+ * Ela NAO sai por grade como a `Portas_v1`: a folha tem uma coluna de rotulo a
+ * esquerda ("1) PHARMACY", "2) BAR/TAVERN"...) e uma linha de cabecalho em
+ * cima, e a projecao de alfa mistura os dois com a arte. Entao o recorte e por
+ * componente conexo, com um piso de tamanho que descarta rotulo e icone e
+ * deixa passar so as portas.
+ */
+const PORTAS_COMERCIO = { arquivo: 'Portas_v2.png', areaMinima: 20000, larguraMinima: 90, alturaMinima: 120, tolerancia: 70 };
+
+const folhaPortasComercio = (() => {
+  const img = lerPng(caminhoFolha(PORTAS_COMERCIO.arquivo, false));
+  const pecas = blobs(img, PORTAS_COMERCIO.areaMinima).filter(
+    (b) => b.w > PORTAS_COMERCIO.larguraMinima && b.h > PORTAS_COMERCIO.alturaMinima,
+  );
+  const linhas = agruparEmLinhas(pecas, PORTAS_COMERCIO.tolerancia);
+  if (linhas.length < 2) {
+    throw new Error(
+      `${PORTAS_COMERCIO.arquivo}: esperava ao menos 2 linhas de porta, achei ${linhas.length}` +
+        ' — a arte mudou de layout?',
+    );
+  }
+  return { arquivo: PORTAS_COMERCIO.arquivo, img, linhas };
+})();
+
+/** A porta [linha, estado] da folha de comercio. Estado 0 = fechada. */
+function portaDeComercio(linha, estado) {
+  const b = folhaPortasComercio.linhas[linha] ? folhaPortasComercio.linhas[linha][estado] : undefined;
+  if (!b) {
+    const forma = folhaPortasComercio.linhas.map((l) => l.length).join('x');
+    throw new Error(
+      `${folhaPortasComercio.arquivo}: nao existe porta [${linha},${estado}] (linhas: ${forma})`,
+    );
+  }
+  return b;
+}
+
+// ------------------------------------------------- fachada de comercio --
+/**
+ * Fachada de COMERCIO, composta peca a peca — mesmo metodo das casas
+ * (`comporCasa`), com as folhas de parede/porta proprias de cada ramo em vez
+ * da arte de fachada pronta.
+ *
+ * As folhas de comercio ja vem em ELEVACAO FRONTAL: cada painel traz moldura em
+ * cima, campo no meio e (na farmacia e no bar) alicerce de pedra embaixo. Entao
+ * a composicao nao precisa inventar parede — ela LADRILHA os paineis em duas
+ * fileiras e troca o painel do meio pelo letreiro (em cima) e pela porta
+ * (embaixo):
+ *
+ *     [ parede ][ LETREIRO ][ parede ]
+ *     [ parede ][  PORTA   ][ parede ]
+ *
+ * O letreiro e o que mantem cada predio reconhecivel de longe (carrinho no
+ * mercado, halter neon na academia, cruz na farmacia, caneca no bar) — sem ele
+ * os quatro lotes virariam a mesma caixa cinza e a cidade perderia leitura.
+ *
+ * `porta` sai da folha do proprio ramo quando ela tem uma (mercado e academia
+ * trazem porta de vidro no meio da folha); farmacia e bar puxam de
+ * `Portas_v2.png`, que tem uma porta desenhada pra cada um dos dois.
+ */
+const ESTILOS_COMERCIO = {
+  mercado: {
+    painel: 'mercado',
+    parede: [0, 0],
+    letreiro: [1, 0],
+    porta: { painel: 'mercado', peca: [3, 3] },
+    // teto chapado: mercado e academia sao caixa comercial, nao casa de telha
+    telhado: null,
+  },
+  academia: {
+    painel: 'academia',
+    parede: [3, 0],
+    letreiro: [0, 3],
+    porta: { painel: 'academia', peca: [1, 2] },
+    telhado: null,
+  },
+  farmacia: {
+    painel: 'farmacia',
+    parede: [2, 0],
+    letreiro: [0, 0],
+    // a folha da farmacia nao tem porta; a linha 0 de Portas_v2 e a dela
+    porta: { linha: 0, estado: 0 },
+    telhado: 1,
+  },
+  bar: {
+    painel: 'bar',
+    parede: [0, 0],
+    letreiro: [0, 4],
+    // linha 1 de Portas_v2 e a do bar (porta de taverna em arco)
+    porta: { linha: 1, estado: 0 },
+    telhado: 2,
+  },
+};
+
+/** Caixa de um painel [linha, indice] de uma folha de parede de comercio. */
+function caixaDePainel(chave, indices) {
+  const f = folhasPainel[chave];
+  const b = f.linhas[indices[0]] ? f.linhas[indices[0]][indices[1]] : undefined;
+  if (!b) {
+    const forma = f.linhas.map((l) => l.length).join('x');
+    throw new Error(
+      `${f.arquivo}: nao existe painel [${indices[0]},${indices[1]}] (linhas: ${forma})`,
+    );
+  }
+  return b;
+}
+
+/** Cola uma peca de folha qualquer num retangulo do destino, sem deformar. */
+function colarPeca(im, img, caixa, x, y, w, h) {
+  colarRet(im, reduzirPara(img, caixa, w, h), w, h, x, y);
+}
+
+function comporComercio(estilo, larguraPx, alturaPx) {
+  const im = new Img(larguraPx, alturaPx);
+  const folhaParede = folhasPainel[estilo.painel];
+
+  const alturaTelhado = estilo.telhado === null ? 0 : Math.round(alturaPx * 0.26);
+  const alturaCorpo = alturaPx - alturaTelhado;
+  const alturaFileira = Math.round(alturaCorpo / 2);
+
+  // largura da coluna: mantem a proporcao do painel, pra o campo nao esticar
+  const cxParede = caixaDePainel(estilo.painel, estilo.parede);
+  const colunaIdeal = Math.max(1, Math.round(cxParede.w * (alturaFileira / cxParede.h)));
+  // impar, pra sobrar o mesmo numero de colunas de cada lado do letreiro
+  let colunas = Math.max(3, Math.round(larguraPx / colunaIdeal));
+  if (colunas % 2 === 0) colunas += 1;
+  const coluna = Math.ceil(larguraPx / colunas);
+  const meio = Math.floor(colunas / 2);
+
+  for (let fileira = 0; fileira < 2; fileira++) {
+    const y = alturaTelhado + fileira * alturaFileira;
+    const altura = fileira === 0 ? alturaFileira : alturaCorpo - alturaFileira;
+    for (let c = 0; c < colunas; c++) {
+      const x = c * coluna;
+      const w = Math.min(coluna, larguraPx - x);
+      if (w <= 0) continue;
+      colarPeca(im, folhaParede.img, cxParede, x, y, w, altura);
+    }
+  }
+
+  // letreiro na fileira de cima, porta na de baixo — os dois no meio
+  const xMeio = meio * coluna;
+  const larguraMeio = Math.min(coluna, larguraPx - xMeio);
+  colarPeca(
+    im,
+    folhaParede.img,
+    caixaDePainel(estilo.painel, estilo.letreiro),
+    xMeio,
+    alturaTelhado,
+    larguraMeio,
+    alturaFileira,
+  );
+
+  const alturaPorta = alturaCorpo - alturaFileira;
+  const yPorta = alturaTelhado + alturaFileira;
+  if (estilo.porta.painel) {
+    colarPeca(
+      im,
+      folhasPainel[estilo.porta.painel].img,
+      caixaDePainel(estilo.porta.painel, estilo.porta.peca),
+      xMeio,
+      yPorta,
+      larguraMeio,
+      alturaPorta,
+    );
+  } else {
+    // porta de `Portas_v2`: a arte e mais alta que larga, entao ela e encaixada
+    // pela ALTURA e centrada na coluna, com a parede aparecendo dos lados
+    const cx = portaDeComercio(estilo.porta.linha, estilo.porta.estado);
+    const lp = Math.max(1, Math.min(larguraMeio, Math.round(cx.w * (alturaPorta / cx.h))));
+    colarPeca(
+      im,
+      folhaPortasComercio.img,
+      cx,
+      xMeio + Math.round((larguraMeio - lp) / 2),
+      yPorta,
+      lp,
+      alturaPorta,
+    );
+  }
+
+  // telhado, onde o ramo pede: farmacia e bar sao construcao de vila e leem
+  // melhor com telha; mercado e academia ficam com a platibanda do proprio painel
+  if (estilo.telhado !== null) {
+    const cTelhado = celulaJusta('telhados', 0, estilo.telhado);
+    const passo = Math.max(1, Math.round(cTelhado.w * (alturaTelhado / cTelhado.h)));
+    const px = reduzirPara(folhas.telhados.img, cTelhado, passo, alturaTelhado);
+    for (let dx = 0; dx < larguraPx; dx += passo) {
+      colarRet(im, px, passo, alturaTelhado, dx, 0);
+    }
+    const sombra = Math.max(1, Math.round(alturaPx * 0.015));
+    for (let y = alturaTelhado; y < alturaTelhado + sombra; y++) {
+      for (let x = 0; x < larguraPx; x++) im.set(x, y, [38, 26, 20, 170]);
+    }
+  }
+
+  return im;
+}
+
 /**
  * Monta `construcoes.png`: um frame por lote construido, com o nome do lote.
  * O jogo so posiciona o sprite — todo o dimensionamento mora aqui.
@@ -1553,14 +1815,8 @@ function gerarConstrucoes() {
   const pecas = CONSTRUIDAS.map((c) => {
     const larguraPx = c.w * T;
     const alturaPx = Math.round((c.h + SOBRA_TELHADO) * T);
-    if (c.fachada) {
-      // fachada pronta: so escala pra largura da pegada, mantendo a proporcao
-      const { img, caixa } = fachadaPronta(c.fachada);
-      const altura = Math.max(1, Math.round(caixa.h * (larguraPx / caixa.w)));
-      const px = reduzirPara(img, caixa, larguraPx, altura);
-      const im = new Img(larguraPx, altura);
-      colarRet(im, px, larguraPx, altura, 0, 0);
-      return { nome: c.nome, im };
+    if (c.comercio) {
+      return { nome: c.nome, im: comporComercio(ESTILOS_COMERCIO[c.nome], larguraPx, alturaPx) };
     }
     return { nome: c.nome, im: comporCasa(ESTILOS_CASA[c.estilo], larguraPx, alturaPx) };
   });
@@ -2035,6 +2291,9 @@ function gerarFazenda(ts) {
         camadaObjetos('zonas', 5, zonas),
         camadaObjetos('flora', 6, [...arvores, ...pedras, ...flores]),
         camadaObjetos('construcoes', 7, fachadas),
+        // o parque e o unico mobiliario do mapa externo; a cena le esta camada
+        // com o MESMO `criarMoveis` dos interiores
+        camadaObjetos('moveis', 8, moveisDoParque()),
       ],
       ts,
     ),
@@ -4059,7 +4318,7 @@ const fazenda = gerarFazenda(ts);
 escrever(join(ASSETS, 'tilemaps', 'farm.json'), JSON.stringify(fazenda.mapa, null, 1));
 let moveisDeCasa = 0;
 for (const c of CONSTRUIDAS) {
-  if (c.fachada) continue; // comercio e misto tem interior proprio, mais abaixo
+  if (c.comercio) continue; // comercio e misto tem interior proprio, mais abaixo
   // casa_1 e salao unico (sistema proprio do protagonista); as outras cinco sao
   // multi-comodo e saem da planta
   const interior = PLANTAS_CASA[c.nome]

@@ -102,6 +102,33 @@ export const PREFERENCIAS_NPCS: Record<string, PreferenciaNpc> = {
     nao_gosta: [],
   },
 
+  // LUKE (12) — doce e brinquedo. Nao ha brinquedo no catalogo, entao o mais
+  // proximo e o eletronico de jogar; comida "de adulto" ele torce o nariz.
+  luke: {
+    amado: ['picole_chocolate', 'sorvete', 'barra_de_chocolate', 'console_portatil'],
+    gosta: ['cookies', 'rosquinha', 'achocolatado', 'refrigerante', 'muffin', 'controle'],
+    neutro: ['pao_frances', 'maca', 'banana'],
+    nao_gosta: ['alface', 'brocolis', 'cebola', 'salame'],
+  },
+
+  // HIAGO (26) — passa o dia pedalando: bebida, comida rapida e o que ajuda na
+  // rua (power bank, suporte). Eletronico caro e parado ele nao usa.
+  hiago: {
+    amado: ['agua', 'suco_laranja', 'power_bank', 'fone_esportivo'],
+    gosta: ['banana', 'cereal', 'achocolatado', 'pao_frances', 'smartwatch', 'carregador'],
+    neutro: ['arroz', 'feijao', 'macarrao'],
+    nao_gosta: ['tv', 'monitor_27', 'gabinete_pc', 'cadeira_gamer'],
+  },
+
+  // VITOR (29) — musico e garcom noturno: som, fone e cafe. Acordar cedo e o
+  // inimigo, entao o que lembra manha nao agrada.
+  vitor: {
+    amado: ['fone_bluetooth', 'headset', 'microfone', 'caixa_bluetooth'],
+    gosta: ['cafe', 'refrigerante', 'suco_uva', 'cookies', 'radio_boombox', 'pendrive'],
+    neutro: ['pao_frances', 'queijo_prato', 'agua'],
+    nao_gosta: ['cafeteira_expresso', 'relogio_digital'],
+  },
+
   // MORADOR_1 — placeholder sem perfil escrito.
   morador_1: {
     amado: ['cafe', 'pao_frances'],
@@ -164,6 +191,24 @@ const REACOES: Record<string, Record<TierPresente, string>> = {
     gosta: 'Boa, essa eu aceito.',
     neutro: 'Valeu, meu bem.',
     nao_gosta: 'Ta... obrigada. Voce tentou.',
+  },
+  luke: {
+    amado: 'SERIO?! Pra mim?! Valeu, valeu, valeu!',
+    gosta: 'Boa! Obrigado!',
+    neutro: 'Ah. Obrigado.',
+    nao_gosta: 'Eca. Quer dizer... obrigado. Mas eca.',
+  },
+  hiago: {
+    amado: 'Irmao, isso ai salva meu dia. Valeu mesmo!',
+    gosta: 'Boa! Vai direto pra mochila.',
+    neutro: 'Valeu, chefe.',
+    nao_gosta: 'Poxa... eu quase nao paro em casa pra usar isso. Mas valeu.',
+  },
+  vitor: {
+    amado: 'Opa. Opa opa opa. Isso aqui eu vou usar hoje mesmo.',
+    gosta: 'Boa. Obrigado de verdade.',
+    neutro: 'Valeu.',
+    nao_gosta: 'Ah... obrigado. Acho que eu nao sou o publico disso.',
   },
   padrao: {
     amado: 'Nossa, obrigado! Adorei.',

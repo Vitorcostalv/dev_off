@@ -26,7 +26,10 @@ const CHANCE_DE_POSTAR: Record<string, number> = {
   jaqueline: 0.9,
   alice: 0.85,
   mari: 0.8,
+  luke: 0.75,
+  hiago: 0.75,
   leticia: 0.7,
+  vitor: 0.5,
   edu: 0.45,
   wendel: 0.2,
 };
@@ -94,6 +97,38 @@ export const POSTS_POR_NPC: Record<string, readonly string[]> = {
     'Quarta-feira eu fecho das 13h as 14h. Anotem.',
     'Dormir no mesmo horario resolve mais que meio balcao daqui.',
     'Quem deixou o guarda-chuva aqui pode buscar. Esta guardado.',
+  ],
+
+  // 12 anos: frase curta, empolgacao alta, pontuacao demais.
+  luke: [
+    'FUI ALTISSIMO no balanco hoje!!',
+    'Descobri um atalho pro parque. Passa atras do muro. Nao conta.',
+    'Minha mae trouxe bolo do mercado. O dia foi bom.',
+    'Alguem sabe por que o chafariz liga sozinho de manha? EU quero saber.',
+    'Achei uma pedra que parece um coracao. Ta no meu bolso.',
+    'Hoje nao teve escola. MELHOR DIA.',
+    'O Hiago passou de bike e me deu tchau. Ele e maneiro.',
+  ],
+
+  // Vive na rua, fala rapido, otimismo teimoso.
+  hiago: [
+    'Trinta e duas entregas hoje. Recorde do mes.',
+    'Subi a ladeira do bar sem descer da bike. Anota ai.',
+    'Aviso: tem obra na rua de tras. Desviem pela praca.',
+    'Cachorro do numero 40 finalmente parou de correr atras de mim. Vitoria.',
+    'Se voce ta achando que nao da tempo, e porque nao tentou de bike.',
+    'Meu irmao chegou as tres da manha e reclamou do MEU barulho as seis.',
+    'Chuva fina e a melhor de pedalar. Ninguem acredita em mim.',
+  ],
+
+  // Musico noturno: posta tarde, frase seca, ironia leve.
+  vitor: [
+    'Bom dia pra quem esta acordando agora. Ou seja: eu.',
+    'Terminei uma musica hoje. Amanha eu decido se presto.',
+    'O bar fechou tarde. A cidade fica bonita vazia.',
+    'Gente que pede musica e depois nao dança. Explica.',
+    'Meu fone quebrou. Dia ruim, oficialmente.',
+    'Sexta tem gente demais e ninguem escutando. Sabado e melhor.',
   ],
 
   // Sarcastica, direta, le gente. O bar e o posto de observacao dela.

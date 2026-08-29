@@ -8,7 +8,7 @@ import { lojasDoMapa } from '../game/loja';
 import { buscarMapa } from '../game/mapas';
 import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
 import type { DefinicaoNpc } from '../game/npcs';
-import { PONTOS_POR_REACAO, falaJaConversou, temasDoDia } from '../game/dialogo';
+import { PONTOS_POR_REACAO, falaJaConversou, falasDoTema, temasDoDia } from '../game/dialogo';
 import type { TemaDeConversa } from '../game/dialogo';
 import { PONTOS_POR_TIER_PRESENTE, calcularTierPresente, reacaoPresente } from '../game/presentes';
 import { CONFIG_TEMPO } from '../game/relogio';
@@ -127,6 +127,8 @@ export class FarmScene extends Phaser.Scene {
   private tamanhoTile = 32;
   /** de onde o player entrou neste mapa; null = usa o spawn padrao */
   private spawn: { x: number; y: number } | null = null;
+  /** ultimo verbo mostrado no prompt; ver `atualizarAlvo` */
+  private rotuloDoAlvo: string | null = null;
   /**
    * Tiles dos comodos marcados `privado` na camada `comodos` do mapa atual,
    * como "tx,ty". Sao os comodos atras de uma porta somente-NPC: o jogador nunca
@@ -440,7 +442,7 @@ export class FarmScene extends Phaser.Scene {
       // jogador nao perder o trabalho junto com o pagamento
       estado.inventario.adicionar(ITEM_ENCOMENDA, 1);
       this.ui.iniciarDialogo(
-        falasDe(entrega.morador, ['Nao consigo pagar agora. Volta depois.']),
+        falasDe(entrega.morador, ['Nao consigo pagar agora. Volta depois.'], entrega.npcId),
       );
       return true;
     }
@@ -449,6 +451,7 @@ export class FarmScene extends Phaser.Scene {
     estado.trabalhos.entrega = null;
     this.ui.mostrarPrompt(null);
     this.alvo = null;
+    this.rotuloDoAlvo = null;
 
     // bonus de relacionamento pela entrega bem-sucedida
     if (entrega.npcId) {
@@ -456,10 +459,14 @@ export class FarmScene extends Phaser.Scene {
     }
 
     this.ui.iniciarDialogo(
-      falasDe(entrega.morador, [
-        'Ah, era isso que eu estava esperando!',
-        `Aqui, ${formatarDinheiro(entrega.recompensa)} pelo trabalho.`,
-      ]),
+      falasDe(
+        entrega.morador,
+        [
+          'Ah, era isso que eu estava esperando!',
+          `Aqui, ${formatarDinheiro(entrega.recompensa)} pelo trabalho.`,
+        ],
+        entrega.npcId,
+      ),
     );
     return true;
   }
@@ -1023,7 +1030,9 @@ export class FarmScene extends Phaser.Scene {
     // basta ABORDAR pra o NPC entrar na aba Relacionamento do Navegador: uma
     // conversa que rendeu 0 ponto ainda foi uma conversa
     estado.relacoes.registrarInteracao(def.id);
-    this.ui.iniciarDialogo(falasDe(def.nome, def.dialogoAtual), () => this.abrirMenuDeConversa(def));
+    this.ui.iniciarDialogo(falasDe(def.nome, def.dialogoAtual, def.id), () =>
+      this.abrirMenuDeConversa(def),
+    );
   }
 
   private abrirMenuDeConversa(def: DefinicaoNpc): void {
@@ -1034,7 +1043,7 @@ export class FarmScene extends Phaser.Scene {
     }));
     opcoes.push({ rotulo: 'Dar um presente...', aoEscolher: () => this.abrirMenuDePresente(def) });
     if (opcoes.length === 1) return; // NPC sem tema: so a fala de abertura
-    this.ui.abrirMenu(`Falar com ${def.nome}`, opcoes);
+    this.ui.abrirMenu(`Falar com ${def.nome}`, opcoes, undefined, def.id);
   }
 
   /**
@@ -1057,8 +1066,10 @@ export class FarmScene extends Phaser.Scene {
       falas.push(falaJaConversou(def.id));
     }
 
-    falas.push(...tema.falas);
-    this.ui.iniciarDialogo(falasDe(def.nome, falas), () => this.abrirMenuDeConversa(def));
+    // a resposta VARIA a cada conversa (ver `falasDoTema`): o mesmo tema nao
+    // devolve o mesmo texto duas vezes seguidas
+    falas.push(...falasDoTema(def.id, tema, estado.dia));
+    this.ui.iniciarDialogo(falasDe(def.nome, falas, def.id), () => this.abrirMenuDeConversa(def));
   }
 
   /** Lista o inventario pra escolher o presente. Item vazio nao entra. */
@@ -1073,12 +1084,17 @@ export class FarmScene extends Phaser.Scene {
 
     if (opcoes.length === 0) {
       this.ui.iniciarDialogo(
-        falasDe(def.nome, ['Voce nao esta com nada pra me dar.']),
+        falasDe(def.nome, ['Voce nao esta com nada pra me dar.'], def.id),
         () => this.abrirMenuDeConversa(def),
       );
       return;
     }
-    this.ui.abrirMenu(`Dar o que pra ${def.nome}?`, opcoes, () => this.abrirMenuDeConversa(def));
+    this.ui.abrirMenu(
+      `Dar o que pra ${def.nome}?`,
+      opcoes,
+      () => this.abrirMenuDeConversa(def),
+      def.id,
+    );
   }
 
   /**
@@ -1093,7 +1109,7 @@ export class FarmScene extends Phaser.Scene {
     const slot = estado.inventario.slots[indice];
     if (!slot || slot.id !== itemId || estado.inventario.removerDoSlot(indice, 1) < 1) {
       this.ui.iniciarDialogo(
-        falasDe(def.nome, ['...voce ia me dar alguma coisa?']),
+        falasDe(def.nome, ['...voce ia me dar alguma coisa?'], def.id),
         () => this.abrirMenuDeConversa(def),
       );
       return;
@@ -1112,7 +1128,10 @@ export class FarmScene extends Phaser.Scene {
     }
 
     this.ui.iniciarDialogo(
-      [{ nome: 'Voce', texto: `Voce deu ${nomeItem} para ${def.nome}.` }, ...falasDe(def.nome, falas)],
+      [
+        { nome: 'Voce', texto: `Voce deu ${nomeItem} para ${def.nome}.` },
+        ...falasDe(def.nome, falas, def.id),
+      ],
       () => this.abrirMenuDeConversa(def),
     );
   }
@@ -1149,9 +1168,15 @@ export class FarmScene extends Phaser.Scene {
       melhorDist = dist;
     }
 
-    if (melhor !== this.alvo) {
+    // O ROTULO E RECALCULADO SEMPRE, nao so quando o alvo muda: "Entregar" x
+    // "Entrar" depende do estado da entrega e do inventario, que mudam sem o
+    // alvo sair de baixo do jogador. Comparar so a referencia deixava o prompt
+    // preso no verbo antigo enquanto o jogador estava parado na porta.
+    const rotulo = melhor ? this.rotuloDe(melhor) : null;
+    if (melhor !== this.alvo || rotulo !== this.rotuloDoAlvo) {
       this.alvo = melhor;
-      this.ui.mostrarPrompt(melhor ? this.rotuloDe(melhor) : null);
+      this.rotuloDoAlvo = rotulo;
+      this.ui.mostrarPrompt(rotulo);
     }
   }
 

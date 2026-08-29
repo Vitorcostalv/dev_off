@@ -17,7 +17,7 @@ globalThis.localStorage = {
 const [
   { SistemaRelacoes, nivelDeScore, rotuloRelacao },
   { PREFERENCIAS_NPCS, calcularTierPresente, reacaoPresente },
-  { TEMAS_POR_NPC, PONTOS_POR_REACAO, temasDoDia },
+  { TEMAS_POR_NPC, PONTOS_POR_REACAO, esquecerVariacoes, falasDoTema, temasDoDia },
   { POSTS_POR_NPC, feedAte, postDoDia },
   { CATALOGO_ITENS },
   {
@@ -27,6 +27,7 @@ const [
     etapasDeCodigo,
     fatiaDeDificuldade,
     pagamentoDeVagaDeCodigo,
+    DESTINOS_DE_ENTREGA,
     pagamentoDeConserto,
     pecasDoConserto,
     perguntasDaVaga,
@@ -62,7 +63,14 @@ function conferir(condicao, mensagem) {
   }
 }
 
-const NPCS_COM_PERFIL = ['edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice'];
+// Os adultos com perfil escrito: 5 a 8 temas cada.
+const NPCS_COM_PERFIL = [
+  'edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice', 'hiago', 'vitor',
+];
+// O Luke tem 12 anos e conversa menos: 3 a 4 temas bastam. Fica numa faixa
+// propria pra a conferencia nao cobrar dele o repertorio de um adulto.
+const NPCS_CRIANCA = ['luke'];
+const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
 
 // ------------------------------------------------------------- score --
 {
@@ -167,7 +175,7 @@ const NPCS_COM_PERFIL = ['edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice
     const todos = [...prefs.amado, ...prefs.gosta, ...(prefs.neutro ?? []), ...prefs.nao_gosta];
     conferir(new Set(todos).size === todos.length, `${npcId} tem o mesmo item em dois tiers`);
   }
-  for (const npcId of NPCS_COM_PERFIL) {
+  for (const npcId of TODOS_COM_PERFIL) {
     conferir(PREFERENCIAS_NPCS[npcId], `${npcId} esta sem tabela de presente`);
     conferir(PREFERENCIAS_NPCS[npcId].amado.length > 0, `${npcId} nao tem nenhum presente amado`);
     for (const tier of ['amado', 'gosta', 'neutro', 'nao_gosta']) {
@@ -188,16 +196,36 @@ const NPCS_COM_PERFIL = ['edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice
 
 // ------------------------------------------------------------- temas --
 {
-  for (const npcId of NPCS_COM_PERFIL) {
+  for (const npcId of TODOS_COM_PERFIL) {
+    const crianca = NPCS_CRIANCA.includes(npcId);
+    const [minimo, maximo] = crianca ? [3, 4] : [5, 8];
     const temas = TEMAS_POR_NPC[npcId] ?? [];
-    conferir(temas.length >= 5, `${npcId} tem ${temas.length} temas; o combinado e 5 a 8`);
-    conferir(temas.length <= 8, `${npcId} tem ${temas.length} temas; o combinado e 5 a 8`);
+    conferir(
+      temas.length >= minimo && temas.length <= maximo,
+      `${npcId} tem ${temas.length} temas; o combinado e ${minimo} a ${maximo}`,
+    );
     conferir(new Set(temas.map((t) => t.id)).size === temas.length, `${npcId} tem tema com id repetido`);
     conferir(temas.some((t) => t.reacao === 'gosta'), `${npcId} nao tem nenhum tema que ele gosta`);
     conferir(temas.some((t) => t.reacao === 'nao_gosta'), `${npcId} nao tem nenhum tema que ele evita`);
     for (const tema of temas) {
-      conferir(tema.falas.length > 0, `tema "${tema.id}" de ${npcId} esta sem resposta`);
       conferir(tema.rotulo.length > 0, `tema "${tema.id}" de ${npcId} esta sem rotulo`);
+      // 2 a 3 variacoes por tema: e o que impede a mesma escolha devolver
+      // sempre o mesmo texto
+      conferir(
+        tema.variacoes.length >= 2 && tema.variacoes.length <= 3,
+        `tema "${tema.id}" de ${npcId} tem ${tema.variacoes.length} variacoes; o combinado e 2 ou 3`,
+      );
+      for (const variacao of tema.variacoes) {
+        conferir(variacao.length > 0, `variacao vazia no tema "${tema.id}" de ${npcId}`);
+        for (const fala of variacao) {
+          conferir(typeof fala === 'string' && fala.length > 0, `fala vazia em "${tema.id}" de ${npcId}`);
+        }
+      }
+      const textos = tema.variacoes.map((v) => v.join('|'));
+      conferir(
+        new Set(textos).size === textos.length,
+        `tema "${tema.id}" de ${npcId} tem duas variacoes identicas`,
+      );
     }
 
     // o menu do dia: 3 a 4 temas, deterministico, com as duas polaridades
@@ -219,12 +247,34 @@ const NPCS_COM_PERFIL = ['edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice
   conferir(PONTOS_POR_REACAO.gosta === 0.5, 'tema que agrada devia valer +0,5');
   conferir(PONTOS_POR_REACAO.neutro === 0, 'tema neutro devia valer 0');
   conferir(PONTOS_POR_REACAO.nao_gosta === -1, 'tema que desagrada devia valer -1,0');
-  console.log(`  temas: ${NPCS_COM_PERFIL.length} NPCs com 5-8 temas e menu diario deterministico`);
+
+  // a variacao nunca repete a anterior do mesmo par NPC+tema
+  for (const npcId of TODOS_COM_PERFIL) {
+    for (const tema of TEMAS_POR_NPC[npcId] ?? []) {
+      esquecerVariacoes();
+      let anterior = null;
+      for (let dia = 0; dia < 25; dia++) {
+        const falas = falasDoTema(npcId, tema, dia).join('|');
+        conferir(
+          falas !== anterior,
+          `${npcId}/${tema.id} repetiu a mesma variacao duas vezes seguidas (dia ${dia})`,
+        );
+        conferir(
+          tema.variacoes.some((v) => v.join('|') === falas),
+          `${npcId}/${tema.id} devolveu texto que nao esta nas variacoes`,
+        );
+        anterior = falas;
+      }
+    }
+  }
+  console.log(
+    `  temas: ${TODOS_COM_PERFIL.length} NPCs com tema, 2-3 variacoes por tema e sem repetir a anterior`,
+  );
 }
 
 // -------------------------------------------------------------- blog --
 {
-  for (const npcId of NPCS_COM_PERFIL) {
+  for (const npcId of TODOS_COM_PERFIL) {
     const pool = POSTS_POR_NPC[npcId] ?? [];
     conferir(pool.length >= 6, `${npcId} tem ${pool.length} posts; o combinado e 6 a 10`);
     conferir(pool.length <= 10, `${npcId} tem ${pool.length} posts; o combinado e 6 a 10`);
@@ -497,9 +547,85 @@ const NPCS_COM_PERFIL = ['edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice
   console.log('  save v5: score, interagidos, limites e NPC da entrega preservados no reload');
 }
 
+// ------------------------------------------------ entrega ponta a ponta --
+// Regressao do beco sem saida: a entrega so completa na porta do destino COM a
+// encomenda em maos, entao qualquer caminho que tire o item do inventario
+// travava o sistema inteiro (a porta nao completava e o app recusava outra
+// vaga). Estas conferencias cobrem o fluxo todo fora do navegador.
+{
+  const fs = await import('node:fs');
+  const { SistemaTrabalhos, ITEM_ENCOMENDA } = await import('../src/game/trabalhos.ts');
+  const { ITENS, Inventario } = await import('../src/game/inventario.ts');
+
+  // 1) todo destino de entrega tem porta no mapa externo apontando pra ele.
+  //    E o que quebraria se as portas mudassem de estrutura/posicao.
+  const farm = JSON.parse(fs.readFileSync(new URL('../public/assets/tilemaps/farm.json', import.meta.url), 'utf8'));
+  const camada = farm.layers.find((l) => l.name === 'interativos');
+  conferir(camada, 'o mapa farm perdeu a camada "interativos"');
+  const portas = camada.objects
+    .filter((o) => (o.type || o.class) === 'porta')
+    .map((o) => ({
+      nome: o.name,
+      destino: (o.properties || []).find((p) => p.name === 'destino')?.value,
+      tx: (o.properties || []).find((p) => p.name === 'destinoTx')?.value,
+      ty: (o.properties || []).find((p) => p.name === 'destinoTy')?.value,
+    }));
+  for (const d of DESTINOS_DE_ENTREGA) {
+    const porta = portas.find((p) => p.destino === d.mapa);
+    conferir(porta, `nao ha porta no farm apontando pra "${d.mapa}" (destino de entrega de ${d.npcId})`);
+    conferir(
+      Number.isInteger(porta.tx) && Number.isInteger(porta.ty),
+      `a porta "${porta.nome}" esta sem ponto de chegada`,
+    );
+  }
+
+  // 2) a encomenda existe no registro do inventario e e item de MISSAO —
+  //    sem a marca, o descarte no painel a joga fora e trava a entrega
+  const enc = ITENS[ITEM_ENCOMENDA];
+  conferir(enc, 'o item de encomenda sumiu do registro do inventario');
+  conferir(enc.deMissao === true, 'a encomenda precisa ser item de missao pra nao poder ser descartada');
+
+  // 3) aceitar poe a encomenda no inventario e registra a entrega
+  const inv = new Inventario();
+  conferir(inv.cabe(ITEM_ENCOMENDA, 1), 'a encomenda nao cabe num inventario vazio');
+  conferir(inv.adicionar(ITEM_ENCOMENDA, 1) === 0, 'a encomenda nao entrou no inventario');
+  conferir(inv.contar(ITEM_ENCOMENDA) === 1, 'a encomenda nao esta contando no inventario');
+
+  // 4) a regra da porta: so completa com a entrega ativa, o destino batendo E a
+  //    encomenda em maos. E a mesma condicao de `FarmScene.ehPortaDeEntrega`.
+  const ehPortaDeEntrega = (destinoDaPorta, entrega, temEncomenda) =>
+    entrega !== null && destinoDaPorta === entrega.destino && temEncomenda;
+  const alvo = DESTINOS_DE_ENTREGA[0];
+  const entrega = { idVaga: 'v', titulo: 't', destino: alvo.mapa, morador: alvo.morador, recompensa: 1000, dia: 0, npcId: alvo.npcId };
+  conferir(ehPortaDeEntrega(alvo.mapa, entrega, true), 'a porta certa com encomenda devia completar');
+  conferir(!ehPortaDeEntrega('farm', entrega, true), 'a porta de saida nao pode completar entrega');
+  conferir(!ehPortaDeEntrega(alvo.mapa, entrega, false), 'sem encomenda a porta nao pode completar');
+  conferir(!ehPortaDeEntrega(alvo.mapa, null, true), 'sem entrega ativa a porta nao completa');
+
+  // 5) a saida do beco sem saida: cancelar larga a vaga sem pagar nem marcar
+  const t = new SistemaTrabalhos();
+  t.entrega = { ...entrega };
+  const largada = t.cancelarEntrega();
+  conferir(largada?.idVaga === 'v', 'cancelarEntrega devia devolver a entrega largada');
+  conferir(t.entrega === null, 'cancelarEntrega devia limpar a entrega');
+  conferir(!t.concluida(0, 'v'), 'cancelar NAO pode marcar a vaga como concluida');
+
+  // 6) e a entrega (com o NPC de destino) sobrevive ao save
+  const t2 = new SistemaTrabalhos();
+  t2.entrega = { ...entrega };
+  const t3 = new SistemaTrabalhos();
+  t3.restaurar(JSON.parse(JSON.stringify(t2.serializar())));
+  conferir(t3.entrega?.destino === alvo.mapa, 'o destino da entrega nao sobreviveu ao save');
+  conferir(t3.entrega?.npcId === alvo.npcId, 'o NPC da entrega nao sobreviveu ao save');
+
+  console.log(
+    `  entrega: ${DESTINOS_DE_ENTREGA.length} destinos com porta no farm; encomenda protegida e vaga recuperavel`,
+  );
+}
+
 // -------------------------------------------- cobertura: todo NPC tem tudo --
 {
-  for (const npcId of NPCS_COM_PERFIL) {
+  for (const npcId of TODOS_COM_PERFIL) {
     conferir(NPCS[npcId], `${npcId} nao existe em NPCS`);
     conferir(TEMAS_POR_NPC[npcId], `${npcId} esta sem temas de conversa`);
     conferir(PREFERENCIAS_NPCS[npcId], `${npcId} esta sem preferencia de presente`);

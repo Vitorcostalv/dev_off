@@ -18,7 +18,17 @@ import {
 import type { PontoDeLoja } from '../game/loja';
 import type { Fala, MundoJogavel } from '../game/tipos';
 
-const CAIXA = { x: 8, y: 188, w: CONFIG.largura - 16, h: 74 };
+/**
+ * Caixa de dialogo. Subiu de 74 pra 82 px de altura e ganhou a coluna do
+ * RETRATO a esquerda; o texto passou de 10 pra 12 px. O relato era de
+ * dificuldade de leitura: em 480x270 escalado, 10 px de monoespacada com fundo
+ * a 88% de opacidade fica no limite do legivel quando o cenario por tras e
+ * claro (grama ao meio-dia, piso de loja).
+ */
+const CAIXA = { x: 8, y: 180, w: CONFIG.largura - 16, h: 82 };
+
+/** Coluna do retrato dentro da caixa de dialogo. */
+const RETRATO = { lado: 58, margem: 7 };
 const CONFIRMA = { w: 248, h: 64 };
 const INV = {
   colunas: 5,
@@ -81,6 +91,8 @@ export class UIScene extends Phaser.Scene {
   private dialogo!: Phaser.GameObjects.Container;
   private dialogoNome!: Phaser.GameObjects.Text;
   private dialogoTexto!: Phaser.GameObjects.Text;
+  private dialogoRetrato!: Phaser.GameObjects.Image;
+  private dialogoMolduraRetrato!: Phaser.GameObjects.Graphics;
   private falas: Fala[] = [];
   private indiceFala = 0;
   private aoFimDoDialogo: (() => void) | null = null;
@@ -338,35 +350,49 @@ export class UIScene extends Phaser.Scene {
 
   private desenharFala(): void {
     const fala = this.falas[this.indiceFala];
+    // o retrato vem ANTES do texto: e ele que decide de onde o texto comeca e
+    // que largura ele tem pra quebrar
+    this.desenharRetrato(fala.npcId);
     this.dialogoNome.setText(fala.nome);
     this.dialogoTexto.setText(fala.texto);
   }
 
   private criarCaixaDeDialogo(): Phaser.GameObjects.Container {
     const fundo = this.add.graphics();
-    fundo.fillStyle(UI.fundo, UI.fundoAlfa);
+    // opaco de verdade (era 88%): o que atrapalhava a leitura era o cenario
+    // claro vazando por tras das letras
+    fundo.fillStyle(UI.fundo, 0.97);
     fundo.fillRect(CAIXA.x, CAIXA.y, CAIXA.w, CAIXA.h);
     fundo.lineStyle(1, UI.borda, 1);
     fundo.strokeRect(CAIXA.x + 0.5, CAIXA.y + 0.5, CAIXA.w - 1, CAIXA.h - 1);
 
-    this.dialogoNome = this.add.text(CAIXA.x + 8, CAIXA.y + 7, '', {
+    // moldura do retrato, sempre desenhada; o que aparece dentro dela muda
+    this.dialogoMolduraRetrato = this.add.graphics();
+    const r = this.caixaDoRetrato();
+    this.dialogoMolduraRetrato.fillStyle(0x0d0b08, 1);
+    this.dialogoMolduraRetrato.fillRect(r.x, r.y, r.w, r.h);
+    this.dialogoMolduraRetrato.lineStyle(1, UI.borda, 1);
+    this.dialogoMolduraRetrato.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+
+    this.dialogoRetrato = this.add.image(r.x + r.w / 2, r.y + r.h, '').setOrigin(0.5, 1);
+
+    this.dialogoNome = this.add.text(0, CAIXA.y + 8, '', {
       fontFamily: UI.fonte,
-      fontSize: UI.tamanhoTitulo,
+      fontSize: '13px',
       color: UI.destaque,
     });
 
-    this.dialogoTexto = this.add.text(CAIXA.x + 8, CAIXA.y + 24, '', {
+    this.dialogoTexto = this.add.text(0, CAIXA.y + 28, '', {
       fontFamily: UI.fonte,
-      fontSize: UI.tamanho,
+      fontSize: '12px',
       color: UI.texto,
-      wordWrap: { width: CAIXA.w - 16 },
-      lineSpacing: 3,
+      lineSpacing: 4,
     });
 
     const seta = this.add
-      .text(CAIXA.x + CAIXA.w - 8, CAIXA.y + CAIXA.h - 6, '[E]', {
+      .text(CAIXA.x + CAIXA.w - 8, CAIXA.y + CAIXA.h - 5, '[E]', {
         fontFamily: UI.fonte,
-        fontSize: UI.tamanho,
+        fontSize: '11px',
         color: UI.textoFraco,
       })
       .setOrigin(1, 1);
@@ -374,9 +400,65 @@ export class UIScene extends Phaser.Scene {
     this.tweens.add({ targets: seta, alpha: 0.25, duration: 600, yoyo: true, repeat: -1 });
 
     return this.add
-      .container(0, 0, [fundo, this.dialogoNome, this.dialogoTexto, seta])
+      .container(0, 0, [
+        fundo,
+        this.dialogoMolduraRetrato,
+        this.dialogoRetrato,
+        this.dialogoNome,
+        this.dialogoTexto,
+        seta,
+      ])
       .setDepth(100)
       .setVisible(false);
+  }
+
+  /** Onde a moldura do retrato fica dentro da caixa de dialogo. */
+  private caixaDoRetrato(): { x: number; y: number; w: number; h: number } {
+    return {
+      x: CAIXA.x + RETRATO.margem,
+      y: CAIXA.y + RETRATO.margem,
+      w: RETRATO.lado,
+      h: CAIXA.h - RETRATO.margem * 2,
+    };
+  }
+
+  /**
+   * O RETRATO do NPC que esta falando.
+   *
+   * Nao ha arte de retrato dedicada: o rosto sai do primeiro quadro da folha de
+   * POSE PARADA olhando pra frente (`down-0` da textura `npc-<id>-parado`), o
+   * mesmo recorte que o BootScene ja registra pro idle. Isso mantem o retrato
+   * automaticamente igual ao boneco que anda pela cidade — e um NPC novo ganha
+   * retrato sem passo nenhum a mais.
+   *
+   * A imagem e ampliada pra encher a moldura, com `NEAREST` preservado pelo
+   * `pixelArt` do jogo, entao ela cresce em bloco em vez de borrar.
+   */
+  private desenharRetrato(npcId: string | undefined): void {
+    const chaves = npcId ? [`npc-${npcId}-parado`, `npc-${npcId}-sprites`] : [];
+    const chave = chaves.find((k) => this.textures.exists(k) && this.textures.get(k).has('down-0'));
+
+    const r = this.caixaDoRetrato();
+    this.dialogoMolduraRetrato.setVisible(Boolean(chave));
+    this.dialogoRetrato.setVisible(Boolean(chave));
+
+    if (chave) {
+      this.dialogoRetrato.setTexture(chave, 'down-0');
+      // encaixa pela dimensao mais apertada e nunca passa da moldura
+      const escala = Math.min(
+        (r.w - 6) / this.dialogoRetrato.width,
+        (r.h - 6) / this.dialogoRetrato.height,
+      );
+      this.dialogoRetrato.setScale(escala);
+      this.dialogoRetrato.setPosition(r.x + r.w / 2, r.y + r.h - 3);
+    }
+
+    // sem retrato (placa, item, aviso) o texto usa a largura toda da caixa
+    const xTexto = chave ? r.x + r.w + 9 : CAIXA.x + 9;
+    const largura = CAIXA.x + CAIXA.w - 9 - xTexto;
+    this.dialogoNome.setX(xTexto);
+    this.dialogoTexto.setX(xTexto);
+    this.dialogoTexto.setWordWrapWidth(largura);
   }
 
   // --------------------------------------------------------- confirmacao --
@@ -504,10 +586,24 @@ export class UIScene extends Phaser.Scene {
    * com quem esta falando enquanto decide. Enquanto ele esta aberto, `bloqueado`
    * segura o movimento do player, do mesmo jeito que o dialogo ja fazia.
    */
-  abrirMenu(titulo: string, opcoes: OpcaoDeMenu[], aoCancelar?: () => void): void {
+  abrirMenu(
+    titulo: string,
+    opcoes: OpcaoDeMenu[],
+    aoCancelar?: () => void,
+    npcId?: string,
+  ): void {
     if (opcoes.length === 0) {
       aoCancelar?.();
       return;
+    }
+    // o menu de tema/presente tambem e "tela com fala de um NPC": manter o
+    // retrato aberto por baixo dele e o que evita o jogador escolher assunto
+    // sem ver mais com quem esta falando
+    if (npcId) {
+      this.desenharRetrato(npcId);
+      this.dialogoNome.setText(titulo);
+      this.dialogoTexto.setText('');
+      this.dialogo.setVisible(true);
     }
     this.menuOpcoes = opcoes;
     this.menuCursor = 0;
@@ -523,6 +619,9 @@ export class UIScene extends Phaser.Scene {
     this.menu.setVisible(false);
     this.menuOpcoes = [];
     this.menuAoCancelar = null;
+    // a caixa so foi aberta pra segurar o retrato; sem falas dentro dela, ela
+    // sai junto com o menu
+    if (this.falas.length === 0) this.dialogo.setVisible(false);
     this.desenharPrompt();
   }
 
@@ -689,6 +788,12 @@ export class UIScene extends Phaser.Scene {
     const alvo = this.slotSelecionado;
     if (!alvo) {
       this.avisar('Selecione um item primeiro.');
+      return;
+    }
+    // item de missao nao se joga fora: descartar a encomenda deixava a entrega
+    // aceita pra sempre, sem porta que a conclua e sem poder aceitar outra
+    if (alvo.def.deMissao) {
+      this.avisar(`${alvo.def.nome} e de um trabalho aceito — nao da pra jogar fora.`, UI.alerta);
       return;
     }
     this.confirmar(`Descartar ${alvo.def.nome} x${alvo.qtd}?`, () => {

@@ -242,12 +242,16 @@ for (const def of Object.values(NPCS)) {
   }
 }
 
-// uma moradia por morador — a validacao de npcs.ts ja explode na carga, aqui e
-// so pra a conferencia dizer com quantos lotes ela contou. `MORADIAS` inclui os
-// predios MISTOS (bar e farmacia): eles tem cama, entao contam como moradia
-// disponivel igual as seis casas.
-const casas = new Set(Object.values(NPCS).map((def) => def.casa));
-if (casas.size !== Object.keys(NPCS).length) throw new Error('dois NPCs na mesma casa');
+// uma moradia por morador TITULAR — a validacao de npcs.ts ja explode na carga,
+// aqui e so pra a conferencia dizer com quantos lotes ela contou. `MORADIAS`
+// inclui os predios MISTOS (bar e farmacia): eles tem cama, entao contam como
+// moradia disponivel igual as seis casas.
+//
+// Quem divide teto (`compartilhaCasa`: o Luke com a mae, o Vitor com o irmao)
+// fica de fora da conta: dois moradores na mesma casa e o esperado ali.
+const titulares = Object.values(NPCS).filter((def) => !def.compartilhaCasa);
+const casas = new Set(titulares.map((def) => def.casa));
+if (casas.size !== titulares.length) throw new Error('dois NPCs titulares na mesma casa');
 for (const casa of casas) {
   if (!LOCAIS_CIDADE[casa]) throw new Error(`casa "${casa}" nao existe em LOCAIS_CIDADE`);
   if (!MORADIAS.includes(casa)) throw new Error(`"${casa}" nao e moradia disponivel`);
