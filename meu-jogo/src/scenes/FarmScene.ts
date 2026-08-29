@@ -7,6 +7,10 @@ import { ITENS } from '../game/inventario';
 import { lojasDoMapa } from '../game/loja';
 import { buscarMapa } from '../game/mapas';
 import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
+import type { DefinicaoNpc } from '../game/npcs';
+import { PONTOS_POR_REACAO, falaJaConversou, falasDoTema, temasDoDia } from '../game/dialogo';
+import type { TemaDeConversa } from '../game/dialogo';
+import { PONTOS_POR_TIER_PRESENTE, calcularTierPresente, reacaoPresente } from '../game/presentes';
 import { CONFIG_TEMPO } from '../game/relogio';
 import { ITEM_ENCOMENDA } from '../game/trabalhos';
 import type { EstadoNpc } from '../game/rotinasNpc';
@@ -123,6 +127,8 @@ export class FarmScene extends Phaser.Scene {
   private tamanhoTile = 32;
   /** de onde o player entrou neste mapa; null = usa o spawn padrao */
   private spawn: { x: number; y: number } | null = null;
+  /** ultimo verbo mostrado no prompt; ver `atualizarAlvo` */
+  private rotuloDoAlvo: string | null = null;
   /**
    * Tiles dos comodos marcados `privado` na camada `comodos` do mapa atual,
    * como "tx,ty". Sao os comodos atras de uma porta somente-NPC: o jogador nunca
@@ -436,7 +442,7 @@ export class FarmScene extends Phaser.Scene {
       // jogador nao perder o trabalho junto com o pagamento
       estado.inventario.adicionar(ITEM_ENCOMENDA, 1);
       this.ui.iniciarDialogo(
-        falasDe(entrega.morador, ['Nao consigo pagar agora. Volta depois.']),
+        falasDe(entrega.morador, ['Nao consigo pagar agora. Volta depois.'], entrega.npcId),
       );
       return true;
     }
@@ -445,12 +451,22 @@ export class FarmScene extends Phaser.Scene {
     estado.trabalhos.entrega = null;
     this.ui.mostrarPrompt(null);
     this.alvo = null;
+    this.rotuloDoAlvo = null;
+
+    // bonus de relacionamento pela entrega bem-sucedida
+    if (entrega.npcId) {
+      estado.relacoes.ganharRelacao(entrega.npcId, 1.0);
+    }
 
     this.ui.iniciarDialogo(
-      falasDe(entrega.morador, [
-        'Ah, era isso que eu estava esperando!',
-        `Aqui, ${formatarDinheiro(entrega.recompensa)} pelo trabalho.`,
-      ]),
+      falasDe(
+        entrega.morador,
+        [
+          'Ah, era isso que eu estava esperando!',
+          `Aqui, ${formatarDinheiro(entrega.recompensa)} pelo trabalho.`,
+        ],
+        entrega.npcId,
+      ),
     );
     return true;
   }
@@ -530,6 +546,7 @@ export class FarmScene extends Phaser.Scene {
       dinheiro: estado.carteira.serializar(),
       lixeira: estado.lixeira.serializar(),
       trabalhos: estado.trabalhos.serializar(),
+      relacoes: estado.relacoes.serializar(),
     });
   }
 
@@ -1000,10 +1017,123 @@ export class FarmScene extends Phaser.Scene {
       .setOffset(sprite.width * 0.33, sprite.height * 0.8);
   }
 
+  /**
+   * Conversa com um NPC.
+   *
+   * A fala de abertura dele continua sendo a primeira coisa que aparece; quando
+   * ela termina, abre o menu de escolha (temas do dia + dar presente). Sem tema
+   * cadastrado, o NPC fica so com a fala de abertura, como era antes.
+   */
   private falarCom(alvo: Interagivel): void {
     const def = buscarNpc(alvo.props.npcId);
     if (!def) return;
-    this.ui.iniciarDialogo(falasDe(def.nome, def.dialogoAtual));
+    // basta ABORDAR pra o NPC entrar na aba Relacionamento do Navegador: uma
+    // conversa que rendeu 0 ponto ainda foi uma conversa
+    estado.relacoes.registrarInteracao(def.id);
+    this.ui.iniciarDialogo(falasDe(def.nome, def.dialogoAtual, def.id), () =>
+      this.abrirMenuDeConversa(def),
+    );
+  }
+
+  private abrirMenuDeConversa(def: DefinicaoNpc): void {
+    const temas = temasDoDia(def.id, estado.dia);
+    const opcoes = temas.map((tema) => ({
+      rotulo: tema.rotulo,
+      aoEscolher: () => this.conversarSobre(def, tema),
+    }));
+    opcoes.push({ rotulo: 'Dar um presente...', aoEscolher: () => this.abrirMenuDePresente(def) });
+    if (opcoes.length === 1) return; // NPC sem tema: so a fala de abertura
+    this.ui.abrirMenu(`Falar com ${def.nome}`, opcoes, undefined, def.id);
+  }
+
+  /**
+   * Aplica um tema de conversa.
+   *
+   * LIMITE DIARIO: so a PRIMEIRA conversa do dia com cada NPC pontua. Depois
+   * dela a resposta do tema continua aparecendo — o texto e conteudo, nao
+   * recompensa — mas o numero nao se mexe. E o que impede farmar relacionamento
+   * apertando E em looping.
+   */
+  private conversarSobre(def: DefinicaoNpc, tema: TemaDeConversa): void {
+    const pontua = estado.relacoes.podeConversar(def.id, estado.dia);
+    const falas: string[] = [];
+
+    if (pontua) {
+      estado.relacoes.registrarConversa(def.id, estado.dia);
+      const pontos = PONTOS_POR_REACAO[tema.reacao];
+      if (pontos !== 0) estado.relacoes.ganharRelacao(def.id, pontos);
+    } else {
+      falas.push(falaJaConversou(def.id));
+    }
+
+    // a resposta VARIA a cada conversa (ver `falasDoTema`): o mesmo tema nao
+    // devolve o mesmo texto duas vezes seguidas
+    falas.push(...falasDoTema(def.id, tema, estado.dia));
+    this.ui.iniciarDialogo(falasDe(def.nome, falas, def.id), () => this.abrirMenuDeConversa(def));
+  }
+
+  /** Lista o inventario pra escolher o presente. Item vazio nao entra. */
+  private abrirMenuDePresente(def: DefinicaoNpc): void {
+    const opcoes = estado.inventario.slots
+      .map((slot, indice) => ({ slot, indice }))
+      .filter((s): s is { slot: { id: string; qtd: number }; indice: number } => s.slot !== null)
+      .map(({ slot, indice }) => ({
+        rotulo: `${ITENS[slot.id]?.nome ?? slot.id}  x${slot.qtd}`,
+        aoEscolher: () => this.presentear(def, indice, slot.id),
+      }));
+
+    if (opcoes.length === 0) {
+      this.ui.iniciarDialogo(
+        falasDe(def.nome, ['Voce nao esta com nada pra me dar.'], def.id),
+        () => this.abrirMenuDeConversa(def),
+      );
+      return;
+    }
+    this.ui.abrirMenu(
+      `Dar o que pra ${def.nome}?`,
+      opcoes,
+      () => this.abrirMenuDeConversa(def),
+      def.id,
+    );
+  }
+
+  /**
+   * Entrega um presente.
+   *
+   * O item SEMPRE e consumido; o que o limite diario corta e a pontuacao. A
+   * ordem e a mesma da compra: tira o item primeiro e so pontua se ele saiu
+   * mesmo — sem isso, um slot que mudou entre abrir o menu e escolher renderia
+   * ponto por um presente que nunca foi dado.
+   */
+  private presentear(def: DefinicaoNpc, indice: number, itemId: string): void {
+    const slot = estado.inventario.slots[indice];
+    if (!slot || slot.id !== itemId || estado.inventario.removerDoSlot(indice, 1) < 1) {
+      this.ui.iniciarDialogo(
+        falasDe(def.nome, ['...voce ia me dar alguma coisa?'], def.id),
+        () => this.abrirMenuDeConversa(def),
+      );
+      return;
+    }
+
+    const tier = calcularTierPresente(def.id, itemId);
+    const nomeItem = ITENS[itemId]?.nome ?? itemId;
+    const falas = [reacaoPresente(def.id, tier)];
+
+    if (estado.relacoes.podePresentear(def.id, estado.dia)) {
+      estado.relacoes.registrarPresente(def.id, estado.dia);
+      const pontos = PONTOS_POR_TIER_PRESENTE[tier];
+      if (pontos !== 0) estado.relacoes.ganharRelacao(def.id, pontos);
+    } else {
+      falas.push('Voce ja tinha me dado uma coisa hoje. Guarda o resto pra voce.');
+    }
+
+    this.ui.iniciarDialogo(
+      [
+        { nome: 'Voce', texto: `Voce deu ${nomeItem} para ${def.nome}.` },
+        ...falasDe(def.nome, falas, def.id),
+      ],
+      () => this.abrirMenuDeConversa(def),
+    );
   }
 
   // ------------------------------------------------------------ interacao --
@@ -1038,9 +1168,15 @@ export class FarmScene extends Phaser.Scene {
       melhorDist = dist;
     }
 
-    if (melhor !== this.alvo) {
+    // O ROTULO E RECALCULADO SEMPRE, nao so quando o alvo muda: "Entregar" x
+    // "Entrar" depende do estado da entrega e do inventario, que mudam sem o
+    // alvo sair de baixo do jogador. Comparar so a referencia deixava o prompt
+    // preso no verbo antigo enquanto o jogador estava parado na porta.
+    const rotulo = melhor ? this.rotuloDe(melhor) : null;
+    if (melhor !== this.alvo || rotulo !== this.rotuloDoAlvo) {
       this.alvo = melhor;
-      this.ui.mostrarPrompt(melhor ? this.rotuloDe(melhor) : null);
+      this.rotuloDoAlvo = rotulo;
+      this.ui.mostrarPrompt(rotulo);
     }
   }
 

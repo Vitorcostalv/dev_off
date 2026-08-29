@@ -13,6 +13,7 @@
     "processar-sprites-npc": "node tools/processar-sprites-npc.mjs",
     "verificar-rotinas": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-rotinas-npc.mjs",
     "gerar-itens": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-itens.mjs",
+    "verificar-relacoes": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-relacoes.mjs",
     "verificar-economia": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-economia.mjs",
     "gerar-aparelhos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-aparelhos.mjs"
   },

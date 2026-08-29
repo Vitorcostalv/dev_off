@@ -1,4 +1,5 @@
 import type { EntradaDeLixeira } from './lixeira.ts';
+import type { DadosRelacoes } from './relacoes.ts';
 import type { Slot } from './inventario.ts';
 
 const CHAVE = 'meu-jogo:save';
@@ -34,6 +35,12 @@ export interface DadosSave {
   lixeira?: EntradaDeLixeira[];
   /** entrega em andamento e vagas ja concluidas; ausente nos saves antigos */
   trabalhos?: unknown;
+  /**
+   * relacionamento com NPCs: score, quem ja foi abordado e as travas de limite
+   * diario. Ausente nos saves gravados antes deste recurso; `restaurar` tambem
+   * aceita o formato antigo (so o array de scores) sem descartar o save.
+   */
+  relacoes?: DadosRelacoes;
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

@@ -39,6 +39,18 @@ export interface DefinicaoItem {
   categoria?: CategoriaItem;
   /** preco de compra em CENTAVOS; ausente = fora de venda */
   preco?: number;
+  /**
+   * Item de MISSAO: entra e sai por regra de jogo, nunca pela vontade do
+   * jogador. A UI recusa descartar um destes.
+   *
+   * Existe por causa de um beco sem saida real: a encomenda da vaga de entrega
+   * podia ser descartada como qualquer item, e ai a entrega ficava aceita PARA
+   * SEMPRE — a porta do destino nao completava nada (sem encomenda no
+   * inventario) e o app recusava aceitar outra ("ja tem uma em andamento").
+   * Ver tambem `SistemaTrabalhos.cancelarEntrega`, que e a saida quando a
+   * encomenda some por outro caminho.
+   */
+  deMissao?: boolean;
 }
 
 /**
@@ -79,6 +91,7 @@ const ITENS_DE_MISSAO: Record<string, DefinicaoItem> = {
     tipo: 'outro',
     // uma por vez: a vaga de entrega e uma so (ver SistemaTrabalhos)
     maxPilha: 1,
+    deMissao: true,
   },
 };
 

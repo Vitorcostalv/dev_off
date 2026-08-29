@@ -81,9 +81,18 @@ export interface MundoJogavel {
 export interface Fala {
   nome: string;
   texto: string;
+  /**
+   * Id do NPC que fala, quando ha um. E o que liga a fala ao RETRATO na caixa
+   * de dialogo (ver `UIScene.desenharRetrato`): o retrato sai da folha de pose
+   * parada do proprio NPC, entao nao ha arte nova por personagem.
+   *
+   * Fica opcional porque nem toda fala tem dono — placa, item e aviso de
+   * sistema falam sem rosto, e ai a caixa usa a largura toda pro texto.
+   */
+  npcId?: string;
 }
 
 /** Atalho: varias falas seguidas do mesmo personagem. */
-export function falasDe(nome: string, linhas: string[]): Fala[] {
-  return linhas.map((texto) => ({ nome, texto }));
+export function falasDe(nome: string, linhas: string[], npcId?: string): Fala[] {
+  return linhas.map((texto) => ({ nome, texto, npcId }));
 }

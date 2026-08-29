@@ -20,6 +20,8 @@ export const FOLHAS_DE_MOVEL = [
   // comodo (sofa, poltrona, tapete, quadro, planta)
   'mobilia_v1',
   'mobilia_v2',
+  // externo: mobiliario do parque (banco, chafariz, playground)
+  'parque',
   // residencial DEDICADO por comodo
   'quarto',
   'cozinha',

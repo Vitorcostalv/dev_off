@@ -4,6 +4,7 @@ import { Lixeira } from './lixeira.ts';
 import { Relogio } from './relogio.ts';
 import { SistemaRotinasNpc } from './rotinasNpc.ts';
 import { SistemaTrabalhos } from './trabalhos.ts';
+import { SistemaRelacoes } from './relacoes.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
@@ -25,4 +26,6 @@ export const estado = {
   /** vagas aceitas/concluidas do app Trabalho */
   trabalhos: new SistemaTrabalhos(),
   rotinasNpc: new SistemaRotinasNpc(),
+  /** relacionamento com cada NPC */
+  relacoes: new SistemaRelacoes(),
 };

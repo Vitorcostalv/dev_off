@@ -18,4 +18,11 @@ export interface Vista {
   atualizar?(): void;
   /** true se consumiu a tecla */
   aoTeclar?(evento: KeyboardEvent): boolean;
+  /**
+   * Desfaz o que a vista registrou FORA de `raiz`: listener de input da cena,
+   * timer, tween solto. Destruir os filhos de `raiz` nao alcanca nada disso, e
+   * um listener de arraste que sobrevive ao fechamento continua respondendo em
+   * cima de objetos ja destruidos. Quem troca de vista tem de chamar isto.
+   */
+  aoFechar?(): void;
 }

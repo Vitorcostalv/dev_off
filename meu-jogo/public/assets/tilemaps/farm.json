@@ -5,8 +5,8 @@
  "tilewidth": 32,
  "tileheight": 32,
  "infinite": false,
- "nextlayerid": 8,
- "nextobjectid": 807,
+ "nextlayerid": 9,
+ "nextobjectid": 815,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -53815,6 +53815,338 @@
        "name": "frame",
        "type": "string",
        "value": "farmacia"
+      }
+     ]
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "draworder": "topdown",
+   "id": 8,
+   "name": "moveis",
+   "objects": [
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 807,
+     "name": "movel_parque_0",
+     "rotation": 0,
+     "visible": true,
+     "x": 1129,
+     "y": 1760,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_parque"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_7"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.368
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 808,
+     "name": "movel_parque_1",
+     "rotation": 0,
+     "visible": true,
+     "x": 1098,
+     "y": 1824,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_parque"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_7"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.621
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 809,
+     "name": "movel_parque_2",
+     "rotation": 0,
+     "visible": true,
+     "x": 1071,
+     "y": 1696,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_parque"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_1"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.442
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 810,
+     "name": "movel_parque_3",
+     "rotation": 0,
+     "visible": true,
+     "x": 1165,
+     "y": 1696,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_parque"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_1"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 3.704
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 811,
+     "name": "movel_parque_4",
+     "rotation": 0,
+     "visible": true,
+     "x": 1294,
+     "y": 1760,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_parque"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 4.577
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 812,
+     "name": "movel_parque_5",
+     "rotation": 0,
+     "visible": true,
+     "x": 1316,
+     "y": 1824,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_parque"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_1"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 3.045
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 813,
+     "name": "movel_parque_6",
+     "rotation": 0,
+     "visible": true,
+     "x": 1278,
+     "y": 1696,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_parque"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_6"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.336
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 814,
+     "name": "movel_parque_7",
+     "rotation": 0,
+     "visible": true,
+     "x": 1357,
+     "y": 1696,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_parque"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_2"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 3.526
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
       }
      ]
     }
