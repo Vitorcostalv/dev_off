@@ -1698,6 +1698,18 @@ const CONSTRUCOES_BAIRRO = {
   // `fechada` = predio de pe SEM interior: a porta nao abre, e no lugar dela o
   // mapa poe um objeto de exame com o texto fixo da Central Telefonica.
   central: { pegada: { w: 5, h: 4 }, comercio: true, fechada: true },
+  // Residencias dos 20 moradores do bairro. Ainda nao ha interiores proprios:
+  // a porta fica fechada para o jogador, mas a casa existe fisicamente e a
+  // familia usa a frente do lote na rotina. b8/c3/c4 seguem vazios de proposito.
+  casa_b1: { pegada: { w: 5, h: 4 }, estilo: 0, moradiaNpc: true },
+  casa_b2: { pegada: { w: 5, h: 4 }, estilo: 1, moradiaNpc: true },
+  casa_b3: { pegada: { w: 5, h: 4 }, estilo: 2, moradiaNpc: true },
+  casa_b4: { pegada: { w: 5, h: 4 }, estilo: 3, moradiaNpc: true },
+  casa_b5: { pegada: { w: 5, h: 4 }, estilo: 4, moradiaNpc: true },
+  casa_b6: { pegada: { w: 5, h: 4 }, estilo: 5, moradiaNpc: true },
+  casa_b7: { pegada: { w: 5, h: 4 }, estilo: 0, moradiaNpc: true },
+  casa_c1: { pegada: { w: 5, h: 4 }, estilo: 2, moradiaNpc: true },
+  casa_c2: { pegada: { w: 5, h: 4 }, estilo: 3, moradiaNpc: true },
 };
 
 // ----------------------------------------------------- Mapa 3 — Zona Rural --
@@ -1748,6 +1760,9 @@ const CONSTRUCOES_RURAL = {
   // da porta. Foi o caminho mais direto pra ligar a loja de expansao (Parte 5)
   // sem gerar mais um tilemap so pra um balcao.
   madeireira: { pegada: { w: 8, h: 5 }, comercio: true, balcao: true },
+  // Uma casa para a familia de Joao/Neide/Priscila e outra para Bruno.
+  casa_rural_1: { pegada: { w: 6, h: 4 }, estilo: 1, moradiaNpc: true },
+  casa_rural_2: { pegada: { w: 6, h: 4 }, estilo: 4, moradiaNpc: true },
 };
 
 // -------------------------------------------------------- registro global --
@@ -2961,7 +2976,7 @@ function predionosDoMapa(chave, obj) {
       // quem responde ao [E] e a loja de expansao de casa
       obj.set(c.portaX, c.portaY, GID.PORTA);
       interativos.push(objeto(`balcao_${c.nome}`, 'expansao', c.portaX, c.portaY, {}));
-    } else {
+    } else if (!c.moradiaNpc) {
       interativos.push(
         objeto(`aviso_${c.nome}`, 'placa', c.portaX, c.portaY + 1, { aviso: c.nome }),
       );

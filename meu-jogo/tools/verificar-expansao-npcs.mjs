@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Carteira } from '../src/game/dinheiro.ts';
@@ -17,6 +17,28 @@ ok(MISSOES_NPC.length === 6, 'precisa haver seis missoes pessoais');
 ok(new Set(MISSOES_NPC.map((m) => m.worldEvent)).size === 6, 'flags de missao precisam ser unicas');
 ok(MISSOES_NPC.every((m) => m.recompensa > 32000), 'toda missao deve pagar mais que uma vaga comum');
 ok((MISSOES_NPC.find((m) => m.npcId === 'wendel')?.requisitoRelacao ?? 0) > Math.max(...MISSOES_NPC.filter((m) => m.npcId !== 'wendel').map((m) => m.requisitoRelacao)), 'Wendel precisa do maior requisito');
+
+const casasPorMapa = (mapa) => {
+  const tilemap = JSON.parse(readFileSync(join(raiz, 'public', 'assets', 'tilemaps', `${mapa}.json`), 'utf8'));
+  const zonas = tilemap.layers.find((camada) => camada.name === 'zonas')?.objects ?? [];
+  return new Map(zonas
+    .filter((zona) => zona.class === 'casa')
+    .map((zona) => [
+      zona.name,
+      Object.fromEntries((zona.properties ?? []).map((prop) => [prop.name, prop.value])).construida === true,
+    ]));
+};
+const casasBairro = casasPorMapa('bairro');
+const casasRurais = casasPorMapa('rural');
+for (const id of ['casa_b1', 'casa_b2', 'casa_b3', 'casa_b4', 'casa_b5', 'casa_b6', 'casa_b7', 'casa_c1', 'casa_c2']) {
+  ok(casasBairro.get(id) === true, `${id}: residencia ocupada nao foi construida`);
+}
+for (const id of ['casa_b8', 'casa_c3', 'casa_c4']) {
+  ok(casasBairro.get(id) === false, `${id}: lote reservado deveria continuar vazio`);
+}
+for (const id of ['casa_rural_1', 'casa_rural_2']) {
+  ok(casasRurais.get(id) === true, `${id}: residencia rural nao foi construida`);
+}
 
 for (const morador of Object.values(MORADORES)) {
   ok(morador.personalidade.qualidades.length >= 3 && morador.personalidade.defeitos.length >= 2, `${morador.id}: personalidade rasa`);

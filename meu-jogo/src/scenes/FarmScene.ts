@@ -43,7 +43,7 @@ import type { UIScene } from './UIScene';
  * o campo de visao fica fixo em tiles, entao mudar o tamanho do tile no
  * gerador nao muda o que o jogador ve — so a densidade de pixel da arte.
  */
-const TILES_VISIVEIS_X = 15;
+const TILES_VISIVEIS_X = 18;
 /** Altura do player em TILES (fica 1,5 tile, como antes). */
 const ALTURA_PERSONAGEM_TILES = 1.5;
 // Hitbox do player, em px do RECORTE (o frame tem 200x320), nao do mundo:
@@ -177,7 +177,7 @@ export class FarmScene extends Phaser.Scene {
   private mapaAberto = false;
   private overlayMapa: Phaser.GameObjects.Container | null = null;
   private marcadorPlayer: Phaser.GameObjects.Arc | null = null;
-  private marcadoresNpc: Phaser.GameObjects.Arc[] = [];
+  private marcadoresNpc: MarcadorNpcMapa[] = [];
   private transformMapa = { x: 0, y: 0, escala: 1 };
   /**
    * Tamanho do tile lido do proprio tilemap. Escala do player, da flora, zoom
@@ -1334,7 +1334,7 @@ export class FarmScene extends Phaser.Scene {
       this.add.text(
         margem,
         CONFIG.altura - 13,
-        chaveExterno === MAPA_DOS_NPCS ? 'vermelho: voce   amarelo: NPC' : 'vermelho: voce',
+        'vermelho: voce   retrato: NPC',
         {
           fontFamily: UI.fonte,
           fontSize: '8px',
@@ -1346,12 +1346,28 @@ export class FarmScene extends Phaser.Scene {
     this.marcadorPlayer = this.add.circle(0, 0, 4, 0xff5b57).setStrokeStyle(1, 0xffffff);
     this.marcadorPlayer.setScrollFactor(0);
     filhos.push(this.marcadorPlayer);
-    // marcador de NPC so existe no mapa em que eles vivem
-    this.marcadoresNpc = (chaveExterno === MAPA_DOS_NPCS ? estado.rotinasNpc.todos : []).map(() => {
-      const marcador = this.add.circle(0, 0, 3, 0xffd34e).setStrokeStyle(1, 0x3a2b08);
-      marcador.setScrollFactor(0);
+    // Um retrato corporal substitui o ponto amarelo. Todos os 33 perfis ganham
+    // marcador; `atualizarMarcadoresMapa` mostra apenas quem esta neste mapa.
+    const idsNpc = [...new Set([
+      ...estado.rotinasNpc.todos.map((npc) => npc.id),
+      ...Object.keys(MORADORES),
+    ])];
+    this.marcadoresNpc = idsNpc.map((npcId) => {
+      const perfil = buscarNpc(npcId);
+      const chaveTextura = perfil?.spriteParado
+        ? `npc-${npcId}-parado`
+        : perfil?.sprite
+          ? `npc-${npcId}-sprites`
+          : 'player-idle-sprites';
+      const fundoRetrato = this.add.circle(0, 0, 7, 0xfff4d0, 0.96)
+        .setStrokeStyle(1, 0x3a2b08)
+        .setScrollFactor(0);
+      const retrato = this.add.image(0, 5, chaveTextura, 'down-0')
+        .setDisplaySize(10, 13)
+        .setScrollFactor(0);
+      const marcador = this.add.container(0, 0, [fundoRetrato, retrato]).setScrollFactor(0);
       filhos.push(marcador);
-      return marcador;
+      return { npcId, marcador };
     });
 
     this.overlayMapa = this.add
@@ -1370,16 +1386,25 @@ export class FarmScene extends Phaser.Scene {
       this.marcadorPlayer.setVisible(true);
     } else this.marcadorPlayer.setVisible(false);
 
-    this.marcadoresNpc.forEach((marcador, i) => {
-      const npc = estado.rotinasNpc.todos[i];
-      marcador.setVisible(Boolean(npc?.visivel));
-      if (npc?.visivel) {
-        marcador.setPosition(...this.paraCoordenadaDoMapa(
-          npc.x * this.tamanhoTile,
-          npc.y * this.tamanhoTile,
-        ));
-      }
+    this.marcadoresNpc.forEach(({ npcId, marcador }) => {
+      const posicao = this.posicaoNpcNoMapaAberto(npcId);
+      marcador.setVisible(posicao !== null);
+      if (posicao) marcador.setPosition(...this.paraCoordenadaDoMapa(posicao.x, posicao.y));
     });
+  }
+
+  /** Posicao externa de qualquer NPC, mesmo se o jogador estiver num interior. */
+  private posicaoNpcNoMapaAberto(npcId: string): { x: number; y: number } | null {
+    const original = estado.rotinasNpc.porId(npcId);
+    if (original) {
+      if (this.mapaExternoAtual !== MAPA_DOS_NPCS || !original.visivel) return null;
+      return { x: original.x * this.tamanhoTile, y: original.y * this.tamanhoTile };
+    }
+    const morador = MORADORES[npcId];
+    if (!morador) return null;
+    const atividade = atividadeAtual(morador, estado.dia, estado.relogio.minutos);
+    if (!atividade || atividade.mapa !== this.mapaExternoAtual) return null;
+    return { x: atividade.x * this.tamanhoTile, y: atividade.y * this.tamanhoTile };
   }
 
   private paraCoordenadaDoMapa(x: number, y: number): [number, number] {
@@ -2433,6 +2458,12 @@ interface NpcVisual {
   sprite: Phaser.Physics.Arcade.Sprite;
   interagivel: Interagivel;
   animacao: string;
+}
+
+/** Retrato de um NPC exibido sobre o mapa aberto. */
+interface MarcadorNpcMapa {
+  npcId: string;
+  marcador: Phaser.GameObjects.Container;
 }
 
 interface ReceitaFlora {
