@@ -8,6 +8,7 @@ import { SistemaMissoesNpc, MISSOES_NPC } from '../src/game/missoesNpc.ts';
 import { MORADORES, CRIANCAS, atividadeAtual } from '../src/game/moradores.ts';
 import { ITENS } from '../src/game/inventario.ts';
 import { SistemaEncontrosNpc, jogadorOuveEncontro } from '../src/game/encontrosNpc.ts';
+import { atividadeComEmprego, PROJETOS_CIDADE, SistemaCidade } from '../src/game/cidade.ts';
 
 const raiz = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const ok = (condicao, mensagem) => { if (!condicao) throw new Error(mensagem); };
@@ -17,6 +18,28 @@ ok(MISSOES_NPC.length === 6, 'precisa haver seis missoes pessoais');
 ok(new Set(MISSOES_NPC.map((m) => m.worldEvent)).size === 6, 'flags de missao precisam ser unicas');
 ok(MISSOES_NPC.every((m) => m.recompensa > 32000), 'toda missao deve pagar mais que uma vaga comum');
 ok((MISSOES_NPC.find((m) => m.npcId === 'wendel')?.requisitoRelacao ?? 0) > Math.max(...MISSOES_NPC.filter((m) => m.npcId !== 'wendel').map((m) => m.requisitoRelacao)), 'Wendel precisa do maior requisito');
+ok(Object.keys(PROJETOS_CIDADE).length === 4, 'precisa haver quatro projetos urbanos');
+ok(Object.values(PROJETOS_CIDADE).every((p) => p.mapa === 'bairro'), 'projeto urbano saiu do bairro/encostou na represa');
+
+const atlasConstrucoes = JSON.parse(readFileSync(join(raiz, 'public', 'assets', 'sprites', 'construcoes.atlas.json'), 'utf8'));
+for (const projeto of Object.values(PROJETOS_CIDADE)) {
+  ok(Boolean(atlasConstrucoes.frames[projeto.quadro]), `${projeto.id}: fachada nao entrou no atlas`);
+  ok(projeto.candidatos.every((id) => Boolean(MORADORES[id])), `${projeto.id}: candidato inexistente`);
+}
+for (const folha of ['cafeteria', 'hospital', 'padaria', 'ponto_de_onibus']) {
+  ok(existsSync(join(raiz, 'public', 'assets', 'sprites', `moveis_${folha}.png`)), `${folha}: PNG processado ausente`);
+  ok(existsSync(join(raiz, 'public', 'assets', 'sprites', `moveis_${folha}.atlas.json`)), `${folha}: atlas processado ausente`);
+}
+
+const cidade = new SistemaCidade();
+ok(!cidade.atribuir('cafeteria', 'lucia'), 'atribuiu antes de construir');
+ok(cidade.construir('cafeteria') && cidade.atribuir('cafeteria', 'lucia'), 'fluxo construir/atribuir falhou');
+ok(cidade.construir('hospital') && !cidade.atribuir('hospital', 'lucia'), 'aceitou profissional incompativel');
+const turno = atividadeComEmprego(cidade, MORADORES.lucia, 0, 10 * 60, atividadeAtual(MORADORES.lucia, 0, 10 * 60));
+ok(turno?.atividade === PROJETOS_CIDADE.cafeteria.atividade, 'emprego construido nao substituiu agenda util');
+const cidadeRestaurada = new SistemaCidade();
+cidadeRestaurada.restaurar(cidade.serializar());
+ok(cidadeRestaurada.construido('cafeteria') && cidadeRestaurada.funcionario('cafeteria') === 'lucia', 'save da cidade nao restaurou');
 
 const casasPorMapa = (mapa) => {
   const tilemap = JSON.parse(readFileSync(join(raiz, 'public', 'assets', 'tilemaps', `${mapa}.json`), 'utf8'));
@@ -88,4 +111,4 @@ ok(pausados.length === 2 && Boolean(encontros.ativo), 'encontro forcado nao inic
 ok(jogadorOuveEncontro(3), 'jogador perto deveria ver o balao');
 ok(!jogadorOuveEncontro(30) && Boolean(encontros.ativo), 'jogador longe alterou a simulacao');
 
-console.log(`[expansao] OK: ${Object.keys(MORADORES).length} moradores, 6 missoes, 2 fluxos completos e encontro perto/longe.`);
+console.log(`[expansao] OK: ${Object.keys(MORADORES).length} moradores, 4 obras com atribuicao, 6 missoes, 2 fluxos completos e encontro perto/longe.`);

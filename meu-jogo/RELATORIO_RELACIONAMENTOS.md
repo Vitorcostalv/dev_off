@@ -279,8 +279,17 @@ O score com o protagonista vai de -12 a 12 para todos. Criancas, casados e perso
 - casa_c2: Tulio.
 - casa_rural_1: Joao, Neide, Priscila.
 - casa_rural_2: Bruno.
-- Casas preservadas vazias: casa_b8, casa_c3, casa_c4.
-- Terreno preservado para expansao: terreno_baldio.
+- Lotes inicialmente vazios e agora construiveis: casa_b8, casa_c3, casa_c4.
+- Terreno construivel: terreno_baldio.
+
+## Projetos construiveis e vinculos profissionais
+
+As atribuicoes abaixo sao escolhas do jogador e ficam persistidas no save. Um NPC empregado passa a cumprir o turno do projeto nos dias uteis, das 08:00 as 17:00.
+
+- **Cafeteria da Estacao** (terreno_baldio): candidatos Lucia, Samanta, Tulio; atividade: turno na cafeteria.
+- **Posto de Saude** (casa_c3): candidatos Rafael, Priscila, Professora Ilda; atividade: atendimento no posto de saude.
+- **Padaria do Bairro** (casa_b8): candidatos Davi, Neide, Joao; atividade: turno na padaria.
+- **Ponto de Onibus** (casa_c4): candidatos Julia, Matheus, Tulio; atividade: operacao da linha de onibus.
 
 ## Missoes e efeito no relacionamento
 

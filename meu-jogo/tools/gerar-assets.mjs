@@ -12,6 +12,7 @@ import { Img, colar, colarRet, hash01, ruido } from './png.mjs';
 import { PROP_COLIDE, PROP_PORTA_NPC } from '../src/game/colisao.ts';
 import { FOLHAS_DE_MOVEL } from '../src/game/moveis.ts';
 import { CATALOGO_MOBILIA } from '../src/game/casa.ts';
+import { PROJETOS_CIDADE } from '../src/game/cidade.ts';
 import {
   agruparEmLinhas,
   blobs,
@@ -276,6 +277,22 @@ const FOLHAS_MOVEIS = {
     linhas: 7,
     referencia: [1, 0], // balcao do bar
     larguraReferencia: 3,
+  },
+  cafeteria: {
+    arquivo: 'Moveis_cafeteria.png', areaMinima: 900, tolerancia: 55, linhas: 7,
+    referencia: [0, 0], larguraReferencia: 3.2,
+  },
+  hospital: {
+    arquivo: 'Moveis_hospital.png', areaMinima: 900, tolerancia: 55, linhas: 7,
+    referencia: [1, 0], larguraReferencia: 2.8,
+  },
+  padaria: {
+    arquivo: 'Moveis_padaria.png', areaMinima: 900, tolerancia: 55, linhas: 6,
+    referencia: [0, 0], larguraReferencia: 3,
+  },
+  ponto_de_onibus: {
+    arquivo: 'Moveis_ponto_de_onibus.png', areaMinima: 900, tolerancia: 55, linhas: 8,
+    referencia: [0, 0], larguraReferencia: 4.5,
   },
 
   // Folhas DEDICADAS por comodo. Sao elas que aposentaram o placeholder: ate
@@ -2350,12 +2367,68 @@ function comporComercio(estilo, larguraPx, alturaPx) {
   return im;
 }
 
+/** Recortes das folhas novas usados nas fachadas dos projetos construiveis. */
+const ARTE_PROJETOS = {
+  cafeteria: {
+    arquivo: 'Paredes_cafeteria.png', fundo: 30,
+    parede: { x: 24, y: 24, w: 210, h: 190 },
+    letreiro: { x: 24, y: 235, w: 280, h: 170 },
+    porta: { x: 24, y: 620, w: 220, h: 215 },
+  },
+  hospital: {
+    arquivo: 'Paredes_hospital.png', fundo: 30,
+    parede: { x: 15, y: 10, w: 205, h: 175 },
+    letreiro: { x: 870, y: 195, w: 175, h: 190 },
+    porta: { x: 645, y: 195, w: 210, h: 190 },
+  },
+  padaria: {
+    arquivo: 'Paredes_padaria.png', fundo: 30,
+    parede: { x: 25, y: 10, w: 210, h: 190 },
+    letreiro: { x: 25, y: 240, w: 260, h: 155 },
+    porta: { x: 25, y: 640, w: 175, h: 205 },
+  },
+  ponto_onibus: {
+    arquivo: 'Moveis_ponto_de_onibus.png',
+    peca: { x: 25, y: 40, w: 430, h: 275 },
+  },
+};
+
+function comporProjetoCidade(id, larguraPx, alturaPx) {
+  const def = ARTE_PROJETOS[id];
+  const original = lerPng(caminhoFolha(def.arquivo, false));
+  const fonte = def.fundo ? removerFundo(original, def.fundo) : original;
+  const im = new Img(larguraPx, alturaPx);
+  if (def.peca) {
+    const margem = Math.round(larguraPx * 0.04);
+    colarPeca(im, fonte, def.peca, margem, margem, larguraPx - margem * 2, alturaPx - margem);
+    return im;
+  }
+
+  const topo = Math.round(alturaPx * 0.12);
+  const corpo = alturaPx - topo;
+  const coluna = Math.max(1, Math.round(larguraPx / 3));
+  for (let x = 0; x < larguraPx; x += coluna) {
+    colarPeca(im, fonte, def.parede, x, topo, Math.min(coluna, larguraPx - x), corpo);
+  }
+  const larguraLetreiro = Math.round(larguraPx * 0.52);
+  const alturaLetreiro = Math.round(alturaPx * 0.3);
+  colarPeca(im, fonte, def.letreiro, Math.round((larguraPx - larguraLetreiro) / 2), 0, larguraLetreiro, alturaLetreiro);
+  const alturaPorta = Math.round(alturaPx * 0.52);
+  const larguraPorta = Math.round(alturaPorta * (def.porta.w / def.porta.h));
+  colarPeca(
+    im, fonte, def.porta,
+    Math.round((larguraPx - larguraPorta) / 2), alturaPx - alturaPorta,
+    larguraPorta, alturaPorta,
+  );
+  return im;
+}
+
 /**
  * Monta `construcoes.png`: um frame por lote construido, com o nome do lote.
  * O jogo so posiciona o sprite — todo o dimensionamento mora aqui.
  */
 function gerarConstrucoes() {
-  const pecas = CONSTRUIDAS.map((c) => {
+  const pecasFixas = CONSTRUIDAS.map((c) => {
     const larguraPx = c.w * T;
     const alturaPx = Math.round((c.h + SOBRA_TELHADO) * T);
     if (c.comercio) {
@@ -2363,6 +2436,15 @@ function gerarConstrucoes() {
     }
     return { nome: c.nome, im: comporCasa(ESTILOS_CASA[c.estilo], larguraPx, alturaPx) };
   });
+  const pecasProjetos = Object.values(PROJETOS_CIDADE).map((projeto) => ({
+    nome: projeto.quadro,
+    im: comporProjetoCidade(
+      projeto.id,
+      projeto.pegada.w * T,
+      Math.round((projeto.pegada.h + SOBRA_TELHADO) * T),
+    ),
+  }));
+  const pecas = [...pecasFixas, ...pecasProjetos];
 
   const largura = pecas.reduce((s, p) => s + p.im.w, 0);
   const altura = Math.max(...pecas.map((p) => p.im.h));

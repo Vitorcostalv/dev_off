@@ -519,6 +519,86 @@
     "w": 192,
     "h": 150
    }
+  },
+  "projeto_cafeteria": {
+   "frame": {
+    "x": 5120,
+    "y": 0,
+    "w": 224,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 224,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 224,
+    "h": 150
+   }
+  },
+  "projeto_hospital": {
+   "frame": {
+    "x": 5344,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 150
+   }
+  },
+  "projeto_padaria": {
+   "frame": {
+    "x": 5536,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 150
+   }
+  },
+  "projeto_ponto_onibus": {
+   "frame": {
+    "x": 5728,
+    "y": 0,
+    "w": 160,
+    "h": 86
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 86
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 86
+   }
   }
  },
  "meta": {
@@ -526,7 +606,7 @@
   "image": "construcoes.png",
   "format": "RGBA8888",
   "size": {
-   "w": 5120,
+   "w": 5888,
    "h": 214
   },
   "scale": "1"

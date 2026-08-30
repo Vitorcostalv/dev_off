@@ -5,6 +5,7 @@ import { MORADORES, CASAS_OCUPADAS, CASAS_VAZIAS, TERRENO_FUTURO } from '../src/
 import { NPCS } from '../src/game/npcs.ts';
 import { MISSOES_NPC } from '../src/game/missoesNpc.ts';
 import { ENCONTROS_NPC } from '../src/game/encontrosNpc.ts';
+import { PROJETOS_CIDADE } from '../src/game/cidade.ts';
 
 const raiz = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const linhas = [];
@@ -45,8 +46,15 @@ const porCasa = Object.values(MORADORES).reduce((mapa, m) => {
 }, {});
 add('## Ocupacao residencial', '');
 for (const casa of CASAS_OCUPADAS) add(`- ${casa}: ${porCasa[casa].join(', ')}.`);
-add(`- Casas preservadas vazias: ${CASAS_VAZIAS.join(', ')}.`,
-  `- Terreno preservado para expansao: ${TERRENO_FUTURO}.`, '');
+add(`- Lotes inicialmente vazios e agora construiveis: ${CASAS_VAZIAS.join(', ')}.`,
+  `- Terreno construivel: ${TERRENO_FUTURO}.`, '');
+
+add('## Projetos construiveis e vinculos profissionais', '',
+  'As atribuicoes abaixo sao escolhas do jogador e ficam persistidas no save. Um NPC empregado passa a cumprir o turno do projeto nos dias uteis, das 08:00 as 17:00.', '');
+for (const projeto of Object.values(PROJETOS_CIDADE)) {
+  add(`- **${projeto.nome}** (${projeto.lote}): candidatos ${projeto.candidatos.map((id) => MORADORES[id].nome).join(', ')}; atividade: ${projeto.atividade}.`);
+}
+add('');
 
 add('## Missoes e efeito no relacionamento', '');
 for (const m of MISSOES_NPC) {

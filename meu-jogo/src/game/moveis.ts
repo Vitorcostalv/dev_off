@@ -16,6 +16,11 @@ export const FOLHAS_DE_MOVEL = [
   'mercado',
   'academia',
   'farmacia_bar',
+  // novos servicos construiveis do Bairro da Estacao
+  'cafeteria',
+  'hospital',
+  'padaria',
+  'ponto_de_onibus',
   // residencial generico: sala, decoracao e as pecas que servem em qualquer
   // comodo (sofa, poltrona, tapete, quadro, planta)
   'mobilia_v1',

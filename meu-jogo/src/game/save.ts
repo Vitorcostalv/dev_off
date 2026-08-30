@@ -4,6 +4,7 @@ import type { Slot } from './inventario.ts';
 import type { DadosCasa } from './casa.ts';
 import type { DadosWorldEvents } from './worldEvents.ts';
 import type { DadosMissoesNpc } from './missoesNpc.ts';
+import type { DadosCidade } from './cidade.ts';
 
 const CHAVE = 'meu-jogo:save';
 // 2: o tile passou de 16 pra 32 px, entao x/y gravados na versao 1 apontam
@@ -58,6 +59,8 @@ export interface DadosSave {
   worldEvents?: DadosWorldEvents;
   /** estados disponivel/em andamento/concluida das missoes pessoais */
   missoesNpc?: DadosMissoesNpc;
+  /** projetos urbanos construidos e seus trabalhadores; ausente em saves antigos */
+  cidade?: DadosCidade;
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

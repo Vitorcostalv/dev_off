@@ -9,6 +9,7 @@ import { SistemaRelacoes } from './relacoes.ts';
 import { SistemaWorldEvents } from './worldEvents.ts';
 import { SistemaMissoesNpc } from './missoesNpc.ts';
 import { SistemaEncontrosNpc } from './encontrosNpc.ts';
+import { SistemaCidade } from './cidade.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
@@ -43,4 +44,6 @@ export const estado = {
   /** questlines pessoais dos seis NPCs principais */
   missoesNpc: new SistemaMissoesNpc(),
   encontrosNpc: new SistemaEncontrosNpc(),
+  /** predios construidos pelo jogador e trabalhadores atribuidos no bairro */
+  cidade: new SistemaCidade(),
 };

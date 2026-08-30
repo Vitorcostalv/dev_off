@@ -35,6 +35,7 @@ export const ROTULOS: Record<TipoInteragivel, string> = {
   computador: 'Usar',
   expansao: 'Ampliar casa',
   mobilia: 'Mobiliar',
+  obra: 'Gerenciar obra',
 };
 
 /** Cor da demarcacao de cada tipo de zona reservada (overlay de debug, F6). */
