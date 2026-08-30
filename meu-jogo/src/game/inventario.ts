@@ -94,6 +94,8 @@ const ITENS_DE_MISSAO: Record<string, DefinicaoItem> = {
     maxPilha: 1,
     deMissao: true,
   },
+  notebook_edu: { id:'notebook_edu', nome:'Notebook do Edu', icone:0x424c58, descricao:'Um notebook dentro de uma mochila preta. Ha um adesivo com o nome Edu.', tipo:'eletronico', maxPilha:1, deMissao:true },
+  camera_leticia: { id:'camera_leticia', nome:'Camera antiga da Leticia', icone:0x6b5748, descricao:'Camera analogica antiga, protegida num estojo gasto.', tipo:'eletronico', maxPilha:1, deMissao:true },
 };
 
 /** Cor de fundo do slot por categoria, so pra o icone nao flutuar no vazio. */

@@ -31,6 +31,27 @@ const FALAS_CONDICIONAIS: readonly FalaCondicional[] = [
       alice: 'Entao voce conserta coisas de verdade. Eu tinha apostado que era so pose de oficina.',
     },
   },
+  {
+    id: 'reacao_missao_caixa_jaqueline',
+    flag: 'missaoJaquelineCaixaConcluida',
+    npcs: {
+      jaqueline: 'Olha... o caixa ficou melhor que antes. Nao espalha que eu fiquei impressionada. Quer dizer, pode espalhar um pouquinho.',
+    },
+  },
+  {
+    id: 'reacao_missao_hd_wendel',
+    flag: 'missaoWendelHdConcluida',
+    npcs: {
+      wendel: 'Voce recuperou. Certo... obrigado. Eu vou guardar no lugar certo.',
+    },
+  },
+  {
+    id: 'reacao_missao_vitrola_alice',
+    flag: 'missaoAliceVitrolaConcluida',
+    npcs: {
+      alice: 'A vitrola voltou a tocar. Wendel vai fingir que nao sentiu falta; eu conheco aquele movel de farmacia.',
+    },
+  },
 ];
 
 export class SistemaWorldEvents {

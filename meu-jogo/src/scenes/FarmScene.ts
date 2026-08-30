@@ -11,7 +11,9 @@ import { requisitosDoMovel } from '../game/casa';
 import type { DefinicaoExpansao, RequisitoMaterial } from '../game/casa';
 import type { MedidaDeMovel, MovelPosto } from '../game/casa';
 import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
-import type { DefinicaoNpc } from '../game/npcs';
+import type { PerfilNpc } from '../game/npcs';
+import { atividadeAtual, buscarMorador, MORADORES } from '../game/moradores';
+import type { Morador } from '../game/moradores';
 import { PONTOS_POR_REACAO, falaJaConversou, falasDoTema, temasDoDia } from '../game/dialogo';
 import type { TemaDeConversa } from '../game/dialogo';
 import { PONTOS_POR_TIER_PRESENTE, calcularTierPresente, reacaoPresente } from '../game/presentes';
@@ -22,6 +24,9 @@ import { apagar, salvar } from '../game/save';
 import { USOS_DE_MORADIA, falasDe } from '../game/tipos';
 import { avisosDaSemana, segredosDoMapa } from '../game/ambientacao';
 import type { SegredoDoMapa } from '../game/ambientacao';
+import { PONTOS_ITENS_MISSAO } from '../game/missoesNpc';
+import type { MissaoNpc } from '../game/missoesNpc';
+import { jogadorOuveEncontro } from '../game/encontrosNpc';
 import type {
   Direcao,
   Interagivel,
@@ -154,6 +159,7 @@ export class FarmScene extends Phaser.Scene {
   private interagiveis: Interagivel[] = [];
   private alvo: Interagivel | null = null;
   private npcs: NpcVisual[] = [];
+  private balaoEncontro: Phaser.GameObjects.Text | null = null;
   private figurantesAmbientais: FiguranteAmbiental[] = [];
   private luzesNoturnas: Phaser.GameObjects.Graphics[] = [];
   private luzBiblioteca: Phaser.GameObjects.Graphics | null = null;
@@ -377,6 +383,7 @@ export class FarmScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
 
     this.criarNpcs();
+    this.criarNovosMoradores();
     this.criarFigurantesAmbientais();
     this.criarItensColetaveis();
     this.criarConstrucoes(map);
@@ -464,8 +471,12 @@ export class FarmScene extends Phaser.Scene {
     if (!this.ui.bloqueado && !this.transicionando) {
       estado.dia += estado.relogio.avancar(delta);
       estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, delta);
+      const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos);
+      if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, 5800);
       this.sincronizarNpcs();
     }
+
+    this.atualizarBalaoEncontro();
 
     this.atualizarFigurantesAmbientais();
     this.atualizarPortasEIluminacao();
@@ -696,6 +707,7 @@ export class FarmScene extends Phaser.Scene {
       relacoes: estado.relacoes.serializar(),
       casa: estado.casa.serializar(),
       worldEvents: estado.worldEvents.serializar(),
+      missoesNpc: estado.missoesNpc.serializar(),
     });
   }
 
@@ -943,7 +955,7 @@ export class FarmScene extends Phaser.Scene {
       const sprite = this.physics.add.sprite(alvo.x, alvo.y, textura, 'down-0');
       this.configurarNpc(sprite);
       sprite.setImmovable(true);
-      if (def.tint !== undefined) sprite.setTint(def.tint);
+      if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
       sprite.anims.play(`${def.sprite ? `npc-${def.id}-` : ''}idle-down`);
       this.interagiveis.push(alvo);
       this.npcs.push({ estado: estadoNpc, sprite, interagivel: alvo, animacao: def.sprite ? `npc-${def.id}-` : '' });
@@ -951,10 +963,40 @@ export class FarmScene extends Phaser.Scene {
     this.sincronizarNpcs();
   }
 
+  /** Os moradores dos Mapas 2/3 usam agenda declarativa entre mapas externos. */
+  private criarNovosMoradores(): void {
+    for (const morador of Object.values(MORADORES)) {
+      const alvo: Interagivel = {
+        id: `npc_${morador.id}`, tipo: 'npc', rotulo: ROTULOS.npc,
+        x: 0, y: 0, props: { npcId: morador.id },
+      };
+      const sprite = this.physics.add.sprite(0, 0, `npc-${morador.id}-sprites`, 'down-0');
+      this.configurarNpc(sprite);
+      sprite.setImmovable(true);
+      sprite.anims.play(`npc-${morador.id}-idle-down`);
+      this.interagiveis.push(alvo);
+      this.npcs.push({ morador, sprite, interagivel: alvo, animacao: `npc-${morador.id}-` });
+    }
+    this.sincronizarNpcs();
+  }
+
   private sincronizarNpcs(): void {
     for (const npc of this.npcs) {
-      const { estado: atual, sprite, interagivel } = npc;
-      const posicao = this.posicaoNpcNoMapa(atual);
+      const { sprite, interagivel } = npc;
+      const atividade = npc.morador
+        ? atividadeAtual(npc.morador, estado.dia, estado.relogio.minutos)
+        : null;
+      const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
+      const apareceMorador = Boolean(atividade && externoAtual === atividade.mapa && estado.mapa === externoAtual);
+      const semente = npc.morador
+        ? [...npc.morador.id].reduce((n, c) => n + c.charCodeAt(0), 0)
+        : 0;
+      const fase = (estado.relogio.minutos + semente) / 7;
+      const posicao = npc.morador
+        ? (apareceMorador && atividade
+            ? { x: atividade.x + Math.sin(fase) * 0.45, y: atividade.y }
+            : null)
+        : this.posicaoNpcNoMapa(npc.estado!);
       const visivel = posicao !== null;
       sprite.setVisible(visivel).setActive(visivel);
       if (sprite.body) sprite.body.enable = visivel;
@@ -964,8 +1006,40 @@ export class FarmScene extends Phaser.Scene {
       sprite.setPosition(x, y).setDepth(y);
       interagivel.x = x;
       interagivel.y = y;
-      sprite.anims.play(`${npc.animacao}${atual.movendo ? 'walk' : 'idle'}-${atual.direcao}`, true);
+      const movendo = npc.morador ? true : npc.estado!.movendo;
+      const direcao = npc.morador
+        ? (Math.cos(fase) >= 0 ? 'right' : 'left')
+        : npc.estado!.direcao;
+      sprite.anims.play(`${npc.animacao}${movendo ? 'walk' : 'idle'}-${direcao}`, true);
     }
+  }
+
+  /** O encontro sempre simula; so a camada visual depende da proximidade. */
+  private atualizarBalaoEncontro(): void {
+    const ativo = estado.encontrosNpc.ativo;
+    const fala = ativo?.definicao.falas[ativo.indiceFala];
+    const visual = fala ? this.npcs.find((n) => n.interagivel.props.npcId === fala.npcId) : null;
+    const perto = Boolean(
+      visual?.sprite.visible &&
+      jogadorOuveEncontro(
+        Phaser.Math.Distance.Between(this.player.x, this.player.y, visual.sprite.x, visual.sprite.y) / this.tamanhoTile,
+      ),
+    );
+    if (!fala || !visual || !perto) {
+      this.balaoEncontro?.destroy();
+      this.balaoEncontro = null;
+      return;
+    }
+    if (!this.balaoEncontro) {
+      this.balaoEncontro = this.add.text(visual.sprite.x, visual.sprite.y - this.tamanhoTile * 1.8, '', {
+        fontFamily:UI.fonte, fontSize:'10px', color:'#18202c', backgroundColor:'#fff8dc',
+        padding:{x:6,y:4}, wordWrap:{width:180}, align:'center',
+      }).setOrigin(0.5,1).setDepth(DEPTH_OVERLAY + 20);
+    }
+    this.balaoEncontro.setText(fala.texto).setPosition(
+      visual.sprite.x,
+      visual.sprite.y - this.tamanhoTile * 1.8,
+    );
   }
 
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
@@ -1413,15 +1487,93 @@ export class FarmScene extends Phaser.Scene {
     );
   }
 
-  private abrirMenuDeConversa(def: DefinicaoNpc): void {
+  private abrirMenuDeConversa(def: PerfilNpc): void {
     const temas = temasDoDia(def.id, estado.dia);
     const opcoes = temas.map((tema) => ({
       rotulo: tema.rotulo,
       aoEscolher: () => this.conversarSobre(def, tema),
     }));
+    const morador = buscarMorador(def.id);
+    if (morador) {
+      opcoes.push({ rotulo: 'Perguntar sobre o dia', aoEscolher: () => this.conversarComMorador(morador) });
+    }
+    const missao = estado.missoesNpc.porNpc(def.id);
+    if (missao) this.acrescentarOpcaoMissao(opcoes, def, missao);
     opcoes.push({ rotulo: 'Dar um presente...', aoEscolher: () => this.abrirMenuDePresente(def) });
     if (opcoes.length === 1) return; // NPC sem tema: so a fala de abertura
     this.ui.abrirMenu(`Falar com ${def.nome}`, opcoes, undefined, def.id);
+  }
+
+  private acrescentarOpcaoMissao(
+    opcoes: { rotulo: string; aoEscolher: () => void }[],
+    def: PerfilNpc,
+    missao: MissaoNpc,
+  ): void {
+    const situacao = estado.missoesNpc.estado(missao.id);
+    if (situacao === 'concluida') return;
+    if (situacao === 'disponivel') {
+      if (estado.relacoes.getScore(def.id) < missao.requisitoRelacao) return;
+      opcoes.unshift({ rotulo: `Missao: ${missao.titulo}`, aoEscolher: () => this.iniciarMissao(def, missao) });
+      return;
+    }
+    const podeEntregar = this.podeEntregarMissao(missao);
+    opcoes.unshift({
+      rotulo: podeEntregar ? `Entregar: ${missao.titulo}` : `Sobre: ${missao.titulo}`,
+      aoEscolher: () => podeEntregar ? this.concluirEntregaMissao(def, missao) : this.statusMissao(def, missao),
+    });
+  }
+
+  private iniciarMissao(def: PerfilNpc, missao: MissaoNpc): void {
+    if (!estado.missoesNpc.iniciar(missao.id)) return;
+    this.ui.iniciarDialogo(falasDe(def.nome, [...missao.falaInicio, missao.descricao], def.id));
+  }
+
+  private podeEntregarMissao(missao: MissaoNpc): boolean {
+    if (missao.tipo === 'conserto' || !missao.itemId || estado.inventario.contar(missao.itemId) < 1) return false;
+    if (missao.localEntrega === 'academia') return estado.mapa === 'academia';
+    if (missao.localEntrega === 'praca') {
+      const tx = this.player.x / this.tamanhoTile;
+      const ty = this.player.y / this.tamanhoTile;
+      return estado.mapa === 'farm' && tx >= 31 && tx <= 45 && ty >= 50 && ty <= 61;
+    }
+    return true;
+  }
+
+  private statusMissao(def: PerfilNpc, missao: MissaoNpc): void {
+    const texto = missao.tipo === 'conserto'
+      ? 'A ordem esta ativa no app Trabalho do seu computador.'
+      : missao.itemId && estado.inventario.contar(missao.itemId) > 0
+        ? `Voce esta com o item, mas precisa fazer a entrega em ${missao.localEntrega ?? 'qualquer lugar'}.`
+        : missao.descricao;
+    this.ui.iniciarDialogo(falasDe(def.nome, [texto], def.id), () => this.abrirMenuDeConversa(def));
+  }
+
+  private concluirEntregaMissao(def: PerfilNpc, missao: MissaoNpc): void {
+    if (!missao.itemId || !this.podeEntregarMissao(missao)) return;
+    if (estado.inventario.remover(missao.itemId, 1) !== 1) return;
+    const concluida = estado.missoesNpc.concluirComRecompensas(missao.id, estado);
+    if (!concluida) {
+      estado.inventario.adicionar(missao.itemId, 1);
+      return;
+    }
+    this.ui.iniciarDialogo(falasDe(def.nome, [
+      ...missao.falaConclusao,
+      `Recompensa: ${formatarDinheiro(missao.recompensa)} e +${missao.bonusRelacao} de relacao.`,
+    ], def.id));
+  }
+
+  private conversarComMorador(morador: Morador): void {
+    const pontua = estado.relacoes.podeConversar(morador.id, estado.dia);
+    if (pontua) {
+      estado.relacoes.registrarConversa(morador.id, estado.dia);
+      estado.relacoes.ganharRelacao(morador.id, 0.5);
+    }
+    const atividade = atividadeAtual(morador, estado.dia, estado.relogio.minutos);
+    const texto = atividade
+      ? `Agora eu estou em: ${atividade.atividade}. ${morador.dialogoAtual[estado.dia % morador.dialogoAtual.length]}`
+      : morador.dialogoAtual[estado.dia % morador.dialogoAtual.length];
+    const falas = pontua ? [texto] : ['A gente ja conversou bastante hoje.', texto];
+    this.ui.iniciarDialogo(falasDe(morador.nome, falas, morador.id), () => this.abrirMenuDeConversa(morador));
   }
 
   /**
@@ -1432,7 +1584,7 @@ export class FarmScene extends Phaser.Scene {
    * recompensa — mas o numero nao se mexe. E o que impede farmar relacionamento
    * apertando E em looping.
    */
-  private conversarSobre(def: DefinicaoNpc, tema: TemaDeConversa): void {
+  private conversarSobre(def: PerfilNpc, tema: TemaDeConversa): void {
     const pontua = estado.relacoes.podeConversar(def.id, estado.dia);
     const falas: string[] = [];
 
@@ -1451,7 +1603,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   /** Lista o inventario pra escolher o presente. Item vazio nao entra. */
-  private abrirMenuDePresente(def: DefinicaoNpc): void {
+  private abrirMenuDePresente(def: PerfilNpc): void {
     const opcoes = estado.inventario.slots
       .map((slot, indice) => ({ slot, indice }))
       .filter((s): s is { slot: { id: string; qtd: number }; indice: number } => s.slot !== null)
@@ -1483,7 +1635,7 @@ export class FarmScene extends Phaser.Scene {
    * mesmo — sem isso, um slot que mudou entre abrir o menu e escolher renderia
    * ponto por um presente que nunca foi dado.
    */
-  private presentear(def: DefinicaoNpc, indice: number, itemId: string): void {
+  private presentear(def: PerfilNpc, indice: number, itemId: string): void {
     const slot = estado.inventario.slots[indice];
     if (!slot || slot.id !== itemId || estado.inventario.removerDoSlot(indice, 1) < 1) {
       this.ui.iniciarDialogo(
@@ -2098,6 +2250,10 @@ export class FarmScene extends Phaser.Scene {
    * fachada mas nao tem interior — ver `AVISOS_DE_PREDIO`.
    */
   private examinarPlaca(alvo: Interagivel): void {
+    if (typeof alvo.props.missaoItemId === 'string') {
+      this.coletarItemDeMissao(String(alvo.props.missaoItemId));
+      return;
+    }
     if (alvo.props.ambientacao === 'quadro') {
       const avisos = avisosDaSemana(estado.dia);
       this.ui.iniciarDialogo([
@@ -2120,6 +2276,27 @@ export class FarmScene extends Phaser.Scene {
     this.ui.iniciarDialogo(
       falasDe('Placa', ['Isto e uma placa.', 'Nao tem nada escrito nela ainda.']),
     );
+  }
+
+  private coletarItemDeMissao(missaoId: string): void {
+    const ponto = PONTOS_ITENS_MISSAO.find((p) => p.missaoId === missaoId);
+    if (!ponto || estado.missoesNpc.estado(missaoId) !== 'em_andamento') {
+      this.ui.iniciarDialogo(falasDe('Voce', ['Nao ha nada importante aqui agora.']));
+      return;
+    }
+    if (estado.inventario.contar(ponto.itemId) > 0) {
+      this.ui.iniciarDialogo(falasDe('Voce', ['Voce ja recolheu este item.']));
+      return;
+    }
+    if (!estado.inventario.cabe(ponto.itemId, 1)) {
+      this.ui.iniciarDialogo(falasDe('Inventario', ['Seu inventario esta cheio.']));
+      return;
+    }
+    estado.inventario.adicionar(ponto.itemId, 1);
+    this.ui.iniciarDialogo([
+      { nome:ponto.titulo, texto:'Ha algo guardado aqui.' },
+      { nome:'Encontrado', texto:ITENS[ponto.itemId]?.nome ?? ponto.itemId },
+    ]);
   }
 
   private examinarSegredo(segredo: SegredoDoMapa): void {
@@ -2163,6 +2340,13 @@ export class FarmScene extends Phaser.Scene {
         id: segredo.id, tipo: 'placa', rotulo: 'Examinar',
         x: (segredo.tile.x + 0.5) * t, y: (segredo.tile.y + 0.5) * t,
         props: { segredoId: segredo.id },
+      });
+    }
+    for (const ponto of PONTOS_ITENS_MISSAO.filter((p) => p.mapa === estado.mapa)) {
+      pontos.push({
+        id:`ponto_${ponto.missaoId}`, tipo:'placa', rotulo:'Examinar',
+        x:(ponto.tile.x + 0.5) * t, y:(ponto.tile.y + 0.5) * t,
+        props:{ missaoItemId:ponto.missaoId },
       });
     }
     return pontos;
@@ -2244,7 +2428,8 @@ export class FarmScene extends Phaser.Scene {
 
 /** O que a cena precisa saber pra montar um sprite da camada `flora`. */
 interface NpcVisual {
-  estado: EstadoNpc;
+  estado?: EstadoNpc;
+  morador?: Morador;
   sprite: Phaser.Physics.Arcade.Sprite;
   interagivel: Interagivel;
   animacao: string;

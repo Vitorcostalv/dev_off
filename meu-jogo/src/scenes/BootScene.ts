@@ -4,6 +4,7 @@ import { MAPAS, buscarMapa } from '../game/mapas';
 import { FOLHAS_DE_MOVEL } from '../game/moveis';
 import type { SpriteNpc } from '../game/npcs';
 import { NPCS } from '../game/npcs';
+import { MORADORES } from '../game/moradores';
 import { carregar } from '../game/save';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
@@ -98,7 +99,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
-    for (const npc of Object.values(NPCS)) {
+    for (const npc of [...Object.values(NPCS), ...Object.values(MORADORES)]) {
       if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
       if (npc.spriteParado) this.load.image(`npc-${npc.id}-parado`, npc.spriteParado.arquivo);
     }
@@ -143,6 +144,7 @@ export class BootScene extends Phaser.Scene {
     estado.relacoes.restaurar(save.relacoes);
     estado.casa.restaurar(save.casa);
     estado.worldEvents.restaurar(save.worldEvents);
+    estado.missoesNpc.restaurar(save.missoesNpc);
     estado.itensColetados = new Set(
       Array.isArray(save.itensColetados)
         ? save.itensColetados.filter((id): id is string => typeof id === 'string')
@@ -215,7 +217,7 @@ export class BootScene extends Phaser.Scene {
 
   /** Recortes e animacoes sao inteiramente descritos pela entrada do NPC. */
   private criarSpritesNpcs(): void {
-    for (const npc of Object.values(NPCS)) {
+    for (const npc of [...Object.values(NPCS), ...Object.values(MORADORES)]) {
       if (!npc.sprite) continue;
       const andando = this.recortarFolhaNpc(`npc-${npc.id}-sprites`, npc.sprite);
       // Sem folha de parado, o idle cai no 1o frame da caminhada — que e uma
