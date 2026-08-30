@@ -7,7 +7,7 @@ import type { CategoriaItem } from './itens.ts';
  * vem (prateleira do mercado x prateleira de eletronico) e decide a faixa de
  * preco; tipo e o que ele FAZ na mao do jogador.
  */
-export type TipoItem = 'componente' | 'consumivel' | 'eletronico' | 'ferramenta' | 'outro';
+export type TipoItem = 'componente' | 'consumivel' | 'eletronico' | 'ferramenta' | 'material' | 'outro';
 
 /** Ordem em que `Inventario.organizar()` agrupa os tipos. */
 export const ORDEM_DE_TIPO: readonly TipoItem[] = [
@@ -15,6 +15,7 @@ export const ORDEM_DE_TIPO: readonly TipoItem[] = [
   'eletronico',
   'componente',
   'ferramenta',
+  'material',
   'outro',
 ];
 
@@ -99,6 +100,7 @@ const ITENS_DE_MISSAO: Record<string, DefinicaoItem> = {
 const COR_DE_CATEGORIA: Record<CategoriaItem, number> = {
   normal: 0x9ad27f,
   eletronico: 0x7fa8d9,
+  material: 0xa79d8c,
 };
 
 /**
@@ -116,12 +118,12 @@ export const ITENS: Record<string, DefinicaoItem> = (() => {
     registro[item.id] = {
       id: item.id,
       nome: item.nome,
-      icone: COR_DE_CATEGORIA[item.categoria],
       descricao: item.descricao,
-      // comida e bebida se usam; o resto e eletronico
-      tipo: item.categoria === 'normal' ? 'consumivel' : 'eletronico',
+      // comida e bebida se usam; materiais e eletronicos mantem tipo proprio
+      tipo: item.categoria === 'normal' ? 'consumivel' : item.categoria === 'material' ? 'material' : 'eletronico',
       maxPilha: item.maxPilha,
       frame: item.frame,
+      icone: item.icone ?? COR_DE_CATEGORIA[item.categoria],
       categoria: item.categoria,
       preco: item.preco,
     };

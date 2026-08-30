@@ -487,6 +487,9 @@ export class Trabalho implements AppDoPc {
       return;
     }
     estado.trabalhos.marcarConcluida(estado.dia, vaga.id);
+    if (vaga.tipo === 'conserto') {
+      estado.worldEvents.definir('protagonistaConsertouAlgo', true);
+    }
     this.avisar(`${motivo}: recebeu ${formatarDinheiro(centavos)}. [Esc] volta ao quadro.`, PC.sucesso);
   }
 

@@ -45,6 +45,8 @@ export interface PontoDeLoja {
    * as duas; um ponto futuro (a farmacia, por exemplo) pode vender so uma.
    */
   categorias: readonly CategoriaItem[];
+  /** Quando presente, restringe o ponto a estes produtos dentro das categorias. */
+  itemIds?: readonly string[];
   /**
    * Dono do ponto, quando ha um NPC atras do balcao. E o que liga o preco ao
    * relacionamento (ver `precoComDesconto`). Ponto SEM dono — a DevStore, que e
@@ -69,6 +71,16 @@ export const PONTOS_DE_LOJA: readonly PontoDeLoja[] = [
     // venderem, basta declarar o ponto com `npcDono` e o desconto ja vale.
     npcDono: 'jaqueline',
   },
+  {
+    id: 'loja_madeireira', mapa: 'rural', tile: { x: 115, y: 34 },
+    nome: 'Madeireira', rotulo: 'Comprar material', categorias: ['material'],
+    itemIds: ['madeira', 'concreto'],
+  },
+  {
+    id: 'loja_pedreira', mapa: 'rural', tile: { x: 118, y: 83 },
+    nome: 'Pedreira', rotulo: 'Comprar material', categorias: ['material'],
+    itemIds: ['pedra', 'concreto'],
+  },
 ];
 
 /** Os pontos de loja de um mapa (vazio na maioria deles). */
@@ -82,7 +94,10 @@ export function buscarLoja(id: string): PontoDeLoja | undefined {
 
 /** O que um ponto vende, na ordem das categorias declaradas nele. */
 export function itensDaLoja(ponto: PontoDeLoja): DefinicaoItemLoja[] {
-  return ponto.categorias.flatMap((cat) => CATALOGO_ITENS.filter((i) => i.categoria === cat));
+  const permitidos = ponto.itemIds ? new Set(ponto.itemIds) : null;
+  return ponto.categorias.flatMap((cat) =>
+    CATALOGO_ITENS.filter((i) => i.categoria === cat && (!permitidos || permitidos.has(i.id))),
+  );
 }
 
 // --------------------------------------------------------------- compra --

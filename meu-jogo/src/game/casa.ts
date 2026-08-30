@@ -31,6 +31,12 @@ export interface DefinicaoExpansao {
   /** preco em CENTAVOS */
   preco: number;
   descricao: string;
+  materiais: readonly RequisitoMaterial[];
+}
+
+export interface RequisitoMaterial {
+  itemId: 'madeira' | 'pedra' | 'concreto';
+  quantidade: number;
 }
 
 /**
@@ -48,18 +54,21 @@ export const EXPANSOES: readonly DefinicaoExpansao[] = [
     id: 'deposito',
     nome: 'Deposito',
     preco: 80_000,
+    materiais: [{ itemId: 'madeira', quantidade: 20 }, { itemId: 'pedra', quantidade: 12 }],
     descricao: 'Um comodo pequeno atras da sala, pra guardar o que nao cabe na oficina.',
   },
   {
     id: 'estudio',
     nome: 'Estudio',
     preco: 160_000,
+    materiais: [{ itemId: 'madeira', quantidade: 35 }, { itemId: 'concreto', quantidade: 15 }],
     descricao: 'Sala extra ligada a oficina, com piso de madeira.',
   },
   {
     id: 'garagem',
     nome: 'Garagem',
     preco: 280_000,
+    materiais: [{ itemId: 'pedra', quantidade: 50 }, { itemId: 'concreto', quantidade: 30 }],
     descricao: 'O maior dos tres, no fundo da faixa leste. Piso de concreto.',
   },
 ];
@@ -122,6 +131,21 @@ export const CATALOGO_MOBILIA: readonly DefinicaoMovelLoja[] = [
 
 export function buscarMovelDeLoja(id: unknown): DefinicaoMovelLoja | null {
   return typeof id === 'string' ? (CATALOGO_MOBILIA.find((m) => m.id === id) ?? null) : null;
+}
+
+/**
+ * Toda peca exige material. A quantidade acompanha o preco e evita duplicar
+ * uma coluna longa no catalogo; itens leves usam madeira, os mais pesados
+ * acrescentam pedra ou concreto.
+ */
+export function requisitosDoMovel(movel: DefinicaoMovelLoja): RequisitoMaterial[] {
+  const madeira = Math.max(1, Math.ceil(movel.preco / 10_000));
+  const extras: RequisitoMaterial[] = movel.preco >= 20_000
+    ? [{ itemId: 'concreto', quantidade: Math.max(1, Math.floor(movel.preco / 20_000)) }]
+    : movel.preco >= 9_000
+      ? [{ itemId: 'pedra', quantidade: 1 }]
+      : [];
+  return [{ itemId: 'madeira', quantidade: madeira }, ...extras];
 }
 
 /** As medidas de uma peca, como o gerador as escreveu em `mobilia.json`. */

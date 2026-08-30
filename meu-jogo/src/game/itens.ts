@@ -20,7 +20,7 @@
  * frame errado em silencio).
  */
 
-export type CategoriaItem = 'normal' | 'eletronico';
+export type CategoriaItem = 'normal' | 'eletronico' | 'material';
 
 /** Qual folha de arte guarda a peca do icone. */
 export type FolhaDeItem = 'mercado' | 'eletronicos';
@@ -33,10 +33,13 @@ export interface DefinicaoItemLoja {
   nome: string;
   descricao: string;
   categoria: CategoriaItem;
-  folha: FolhaDeItem;
-  peca: readonly [number, number];
+  /** Materiais sem arte usam icone de cor e nao entram no atlas gerado. */
+  folha?: FolhaDeItem;
+  peca?: readonly [number, number];
   /** nome do frame no atlas `itens` */
-  frame: string;
+  frame?: string;
+  /** cor do placeholder quando nao ha frame */
+  icone?: number;
   /** quantos cabem num slot do inventario */
   maxPilha: number;
   /** preco de compra em CENTAVOS (ver `precoDe`) */
@@ -141,6 +144,7 @@ export const FAIXA_DE_PRECO: Record<CategoriaItem, readonly [number, number]> = 
     Math.min(...SECOES_ELETRONICO.map((s) => s.faixa[0])),
     Math.max(...SECOES_ELETRONICO.map((s) => s.faixa[1])),
   ],
+  material: [400, 1_200],
 };
 
 /**
@@ -156,6 +160,9 @@ export const PRECO_MANUAL: Record<string, number> = {
   // o halo da vitrine: a descricao dele promete "um preco absurdo", entao ele e
   // fixado no teto da secao em vez de cair onde o hash quiser
   smartphone_top: 199000, // R$ 1.990,00
+  madeira: 400,
+  pedra: 600,
+  concreto: 1_000,
 };
 
 /** Hash de texto -> [0,1). Deterministico, mesma avalanche do `hash01`. */
@@ -468,7 +475,24 @@ const ELETRONICOS: readonly Entrada[] = SECOES_ELETRONICO.flatMap(
 const PILHA_PADRAO: Record<CategoriaItem, number> = {
   normal: 20,
   eletronico: 5,
+  material: 99,
 };
+
+/** Precos fixos em centavos: material bruto nao varia por dia nem por loja. */
+export const MATERIAIS: readonly DefinicaoItemLoja[] = [
+  {
+    id: 'madeira', nome: 'Madeira', descricao: 'Tabuas secas para obra e mobilia.',
+    categoria: 'material', maxPilha: 99, preco: precoDe('madeira', 'material'), icone: 0xa8733f,
+  },
+  {
+    id: 'pedra', nome: 'Pedra', descricao: 'Pedra bruta separada por tamanho.',
+    categoria: 'material', maxPilha: 99, preco: precoDe('pedra', 'material'), icone: 0x8b8b82,
+  },
+  {
+    id: 'concreto', nome: 'Concreto', descricao: 'Mistura pronta para base e acabamento.',
+    categoria: 'material', maxPilha: 99, preco: precoDe('concreto', 'material'), icone: 0xb3b0a7,
+  },
+];
 
 function montar(
   entradas: readonly Entrada[],
@@ -497,6 +521,7 @@ export const CATALOGO_ITENS: readonly DefinicaoItemLoja[] = (() => {
   const lista = [
     ...montar(MERCADO, 'normal', 'mercado'),
     ...montar(ELETRONICOS, 'eletronico', 'eletronicos'),
+    ...MATERIAIS,
   ];
   // id repetido daria dois itens diferentes com o mesmo frame e o mesmo slot de
   // inventario — melhor errar alto na carga do que descobrir jogando

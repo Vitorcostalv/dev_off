@@ -212,7 +212,8 @@ function escrever(caminho, conteudo) {
 }
 
 // ------------------------------------------------------------------ saida --
-const { im, celulas } = empacotar(CATALOGO_ITENS);
+const ITENS_COM_ARTE = CATALOGO_ITENS.filter((item) => item.folha && item.peca && item.frame);
+const { im, celulas } = empacotar(ITENS_COM_ARTE);
 
 const frames = {};
 for (const c of celulas) {
@@ -262,7 +263,8 @@ for (const f of Object.values(folhas)) {
   );
 }
 console.log(
-  `pronto. ${CATALOGO_ITENS.length} itens no atlas (${im.w}x${im.h} px) | ` +
+  `pronto. ${ITENS_COM_ARTE.length} itens no atlas + ${CATALOGO_ITENS.length - ITENS_COM_ARTE.length} sem arte ` +
+    `(${im.w}x${im.h} px) | ` +
     `normal: ${porCategoria('normal').length} de ${faixa('normal')} | ` +
     `eletronico: ${porCategoria('eletronico').length} de ${faixa('eletronico')}`,
 );

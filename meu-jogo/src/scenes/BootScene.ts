@@ -142,6 +142,7 @@ export class BootScene extends Phaser.Scene {
     estado.trabalhos.restaurar(save.trabalhos);
     estado.relacoes.restaurar(save.relacoes);
     estado.casa.restaurar(save.casa);
+    estado.worldEvents.restaurar(save.worldEvents);
     estado.itensColetados = new Set(
       Array.isArray(save.itensColetados)
         ? save.itensColetados.filter((id): id is string => typeof id === 'string')

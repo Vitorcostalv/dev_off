@@ -2,6 +2,7 @@ import type { EntradaDeLixeira } from './lixeira.ts';
 import type { DadosRelacoes } from './relacoes.ts';
 import type { Slot } from './inventario.ts';
 import type { DadosCasa } from './casa.ts';
+import type { DadosWorldEvents } from './worldEvents.ts';
 
 const CHAVE = 'meu-jogo:save';
 // 2: o tile passou de 16 pra 32 px, entao x/y gravados na versao 1 apontam
@@ -52,6 +53,8 @@ export interface DadosSave {
    * como ela sai da geracao.
    */
   casa?: DadosCasa;
+  /** flags genericas e falas condicionais ja vistas */
+  worldEvents?: DadosWorldEvents;
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

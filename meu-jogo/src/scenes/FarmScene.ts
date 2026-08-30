@@ -7,7 +7,8 @@ import { ITENS } from '../game/inventario';
 import { lojasDoMapa } from '../game/loja';
 import { MAPA_DA_CASA, MAPA_DOS_NPCS, MAPAS, buscarMapa } from '../game/mapas';
 import { CATALOGO_MOBILIA, buscarExpansao, buscarMovelDeLoja } from '../game/casa';
-import type { DefinicaoExpansao } from '../game/casa';
+import { requisitosDoMovel } from '../game/casa';
+import type { DefinicaoExpansao, RequisitoMaterial } from '../game/casa';
 import type { MedidaDeMovel, MovelPosto } from '../game/casa';
 import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
 import type { DefinicaoNpc } from '../game/npcs';
@@ -19,6 +20,8 @@ import { ITEM_ENCOMENDA } from '../game/trabalhos';
 import type { EstadoNpc } from '../game/rotinasNpc';
 import { apagar, salvar } from '../game/save';
 import { USOS_DE_MORADIA, falasDe } from '../game/tipos';
+import { avisosDaSemana, segredosDoMapa } from '../game/ambientacao';
+import type { SegredoDoMapa } from '../game/ambientacao';
 import type {
   Direcao,
   Interagivel,
@@ -73,6 +76,25 @@ const PEDRA_CORPO = { largura: 0.78, altura: 0.34 };
 const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
 /** Overlay de debug: acima de qualquer sprite ordenado por y. */
 const DEPTH_OVERLAY = 100000;
+
+const HORARIOS_PORTAS: Record<string, { nome: string; abre: number; fecha: number }> = {
+  mercado: { nome: 'Mercado', abre: 8 * 60, fecha: 18 * 60 },
+  academia: { nome: 'Academia', abre: 6 * 60, fecha: 22 * 60 },
+  farmacia: { nome: 'Farmacia', abre: 8 * 60, fecha: 18 * 60 },
+  bar: { nome: 'Bar', abre: 12 * 60, fecha: 22 * 60 },
+  escola: { nome: 'Escola', abre: 8 * 60, fecha: 17 * 60 + 30 },
+  biblioteca: { nome: 'Biblioteca', abre: 9 * 60, fecha: 19 * 60 },
+};
+
+interface FiguranteAmbiental {
+  id: string;
+  tipo: 'adulto' | 'crianca' | 'jovem' | 'idoso';
+  inicio: { x: number; y: number };
+  fim: { x: number; y: number };
+  janela: { inicio: number; fim: number };
+  seed: number;
+  conta: Phaser.GameObjects.Container;
+}
 
 const VETOR: Record<Direcao, { x: number; y: number }> = {
   up: { x: 0, y: -1 },
@@ -132,6 +154,10 @@ export class FarmScene extends Phaser.Scene {
   private interagiveis: Interagivel[] = [];
   private alvo: Interagivel | null = null;
   private npcs: NpcVisual[] = [];
+  private figurantesAmbientais: FiguranteAmbiental[] = [];
+  private luzesNoturnas: Phaser.GameObjects.Graphics[] = [];
+  private luzBiblioteca: Phaser.GameObjects.Graphics | null = null;
+  private indicadoresPorta = new Map<string, Phaser.GameObjects.Text>();
   private visuaisDeItens = new Map<string, Phaser.GameObjects.Rectangle>();
   /** areas reservadas pros predios da proxima etapa; sem colisao */
   private zonas: ZonaReservada[] = [];
@@ -220,6 +246,10 @@ export class FarmScene extends Phaser.Scene {
     this.marcadoresNpc = [];
     this.interagiveis = [];
     this.npcs = [];
+    this.figurantesAmbientais = [];
+    this.luzesNoturnas = [];
+    this.luzBiblioteca = null;
+    this.indicadoresPorta.clear();
     this.visuaisDeItens.clear();
     this.zonas = [];
     this.overlayZonas = null;
@@ -329,6 +359,7 @@ export class FarmScene extends Phaser.Scene {
       return item.tipo !== 'item' || !estado.itensColetados.has(item.id);
     });
     this.interagiveis.push(...this.lerPontosDeLoja());
+    this.interagiveis.push(...this.lerPontosDeAmbientacao());
     this.zonas = this.lerZonas(map);
     this.tilesPrivados = this.lerComodosPrivados(map);
     this.bordas = this.lerBordas(map);
@@ -346,8 +377,11 @@ export class FarmScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
 
     this.criarNpcs();
+    this.criarFigurantesAmbientais();
     this.criarItensColetaveis();
     this.criarConstrucoes(map);
+    this.criarLuzesNoturnas();
+    this.atualizarPortasEIluminacao();
     this.criarMoveis(map);
     this.criarMobiliaDoJogador();
     this.criarFlora(map);
@@ -433,6 +467,10 @@ export class FarmScene extends Phaser.Scene {
       this.sincronizarNpcs();
     }
 
+    this.atualizarFigurantesAmbientais();
+    this.atualizarPortasEIluminacao();
+    this.atualizarLuzesNoturnas();
+
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(`idle-${this.direcao}`, true);
@@ -503,6 +541,10 @@ export class FarmScene extends Phaser.Scene {
         this.abrirCatalogoDeMobilia();
         break;
       case 'porta':
+        if (!this.portaAbertaAgora(this.alvo)) {
+          this.feedbackPortaFechada(this.alvo);
+          return;
+        }
         // a entrega vem antes de atravessar: se a porta e o destino, o E
         // entrega em vez de entrar. O proximo E entra normalmente.
         if (!this.entregarNaPorta(this.alvo)) this.atravessarPorta(this.alvo);
@@ -619,14 +661,24 @@ export class FarmScene extends Phaser.Scene {
    */
   private lerPontosDeLoja(): Interagivel[] {
     const t = this.tamanhoTile;
-    return lojasDoMapa(estado.mapa).map((ponto) => ({
-      id: ponto.id,
-      tipo: 'loja' as const,
-      rotulo: ponto.rotulo,
-      x: (ponto.tile.x + 0.5) * t,
-      y: (ponto.tile.y + 0.5) * t,
-      props: { loja: ponto.id },
-    }));
+    return lojasDoMapa(estado.mapa).map((ponto) => {
+      const x = (ponto.tile.x + 0.5) * t;
+      const y = (ponto.tile.y + 0.5) * t;
+      if (ponto.id === 'loja_pedreira') {
+        this.add.rectangle(x, y, t * 1.5, t * 0.65, 0x6f716d)
+          .setStrokeStyle(2, 0xc9c4b8)
+          .setDepth(y)
+          .setName('balcao_pedreira_visual');
+      }
+      return {
+        id: ponto.id,
+        tipo: 'loja' as const,
+        rotulo: ponto.rotulo,
+        x,
+        y,
+        props: { loja: ponto.id },
+      };
+    });
   }
 
   private salvarJogo(): boolean {
@@ -643,6 +695,7 @@ export class FarmScene extends Phaser.Scene {
       trabalhos: estado.trabalhos.serializar(),
       relacoes: estado.relacoes.serializar(),
       casa: estado.casa.serializar(),
+      worldEvents: estado.worldEvents.serializar(),
     });
   }
 
@@ -683,7 +736,194 @@ export class FarmScene extends Phaser.Scene {
     this.ui.iniciarDialogo(falasDe('Item', [`Voce pegou ${def.nome} x${quantidade}.`]));
   }
 
-  // ----------------------------------------------------------------- npcs --
+  // ------------------------------------------------------ figurantes ambientais --
+
+  private criarFigurantesAmbientais(): void {
+    this.figurantesAmbientais = [];
+    const mapa = buscarMapa(estado.mapa);
+    if (!mapa?.externo) return;
+
+    const rotas: Record<
+      string,
+      Array<{
+        id: string;
+        tipo: FiguranteAmbiental['tipo'];
+        inicio: { x: number; y: number };
+        fim: { x: number; y: number };
+        janela: { inicio: number; fim: number };
+        seed: number;
+      }>
+    > = {
+      farm: [
+        { id: 'farm_almoco_1', tipo: 'adulto', inicio: { x: 60, y: 45 }, fim: { x: 69.5, y: 54 }, janela: { inicio: 11 * 60 + 30, fim: 13 * 60 + 30 }, seed: 0 },
+        { id: 'farm_almoco_2', tipo: 'idoso', inicio: { x: 49, y: 55 }, fim: { x: 65, y: 54 }, janela: { inicio: 11 * 60 + 30, fim: 13 * 60 + 30 }, seed: 1 },
+        { id: 'farm_almoco_3', tipo: 'jovem', inicio: { x: 83, y: 44 }, fim: { x: 72, y: 54 }, janela: { inicio: 11 * 60 + 30, fim: 13 * 60 + 30 }, seed: 2 },
+        { id: 'farm_almoco_4', tipo: 'adulto', inicio: { x: 54, y: 62 }, fim: { x: 40, y: 55 }, janela: { inicio: 11 * 60 + 30, fim: 13 * 60 + 30 }, seed: 3 },
+        { id: 'farm_noite_1', tipo: 'adulto', inicio: { x: 57, y: 58 }, fim: { x: 80.5, y: 28 }, janela: { inicio: 19 * 60, fim: 22 * 60 }, seed: 0 },
+        { id: 'farm_noite_2', tipo: 'jovem', inicio: { x: 42, y: 57 }, fim: { x: 78, y: 30 }, janela: { inicio: 19 * 60, fim: 22 * 60 }, seed: 1 },
+        { id: 'farm_noite_3', tipo: 'idoso', inicio: { x: 60, y: 48 }, fim: { x: 38, y: 55 }, janela: { inicio: 19 * 60, fim: 22 * 60 }, seed: 2 },
+        { id: 'farm_noite_4', tipo: 'adulto', inicio: { x: 91, y: 45 }, fim: { x: 82, y: 29 }, janela: { inicio: 19 * 60, fim: 22 * 60 }, seed: 3 },
+      ],
+      bairro: [
+        { id: 'bairro_escola_1', tipo: 'crianca', inicio: { x: 18, y: 49 }, fim: { x: 37.5, y: 47 }, janela: { inicio: 7 * 60, fim: 8 * 60 }, seed: 0 },
+        { id: 'bairro_escola_2', tipo: 'adulto', inicio: { x: 18, y: 57 }, fim: { x: 37, y: 47 }, janela: { inicio: 7 * 60, fim: 8 * 60 }, seed: 1 },
+        { id: 'bairro_escola_3', tipo: 'crianca', inicio: { x: 58, y: 72 }, fim: { x: 39, y: 47 }, janela: { inicio: 7 * 60, fim: 8 * 60 }, seed: 2 },
+        { id: 'bairro_escola_4', tipo: 'crianca', inicio: { x: 100, y: 36 }, fim: { x: 39, y: 47 }, janela: { inicio: 7 * 60, fim: 8 * 60 }, seed: 3 },
+        { id: 'bairro_volta_1', tipo: 'crianca', inicio: { x: 37.5, y: 47 }, fim: { x: 18, y: 49 }, janela: { inicio: 17 * 60, fim: 18 * 60 + 30 }, seed: 0 },
+        { id: 'bairro_volta_2', tipo: 'adulto', inicio: { x: 37, y: 47 }, fim: { x: 18, y: 57 }, janela: { inicio: 17 * 60, fim: 18 * 60 + 30 }, seed: 1 },
+        { id: 'bairro_volta_3', tipo: 'crianca', inicio: { x: 39, y: 47 }, fim: { x: 58, y: 72 }, janela: { inicio: 17 * 60, fim: 18 * 60 + 30 }, seed: 2 },
+        { id: 'bairro_volta_4', tipo: 'adulto', inicio: { x: 39, y: 47 }, fim: { x: 100, y: 36 }, janela: { inicio: 17 * 60, fim: 18 * 60 + 30 }, seed: 3 },
+      ],
+      rural: [],
+    };
+    const lista = rotas[mapa.chave] ?? [];
+
+    for (const rota of lista) {
+      // Em dois de cada tres dias, exatamente um dos quatro slots da janela
+      // descansa; no terceiro aparecem os quatro. Sempre ficam 3-4 simultaneos.
+      if (estado.dia % 3 !== 0 && (estado.dia + rota.seed) % 4 === 0) continue;
+      const corpo = this.add.container(rota.inicio.x * this.tamanhoTile, rota.inicio.y * this.tamanhoTile);
+      const cabeca = this.add.circle(0, -11, 7, rota.tipo === 'crianca' ? 0xf3d5a8 : 0xe7b98b)
+        .setDepth(1);
+      const tronco = this.add.rectangle(0, 2, rota.tipo === 'crianca' ? 10 : 14, rota.tipo === 'adulto' || rota.tipo === 'idoso' ? 18 : 16, rota.tipo === 'jovem' ? 0x5a8bd6 : rota.tipo === 'crianca' ? 0xeb7b51 : 0x7e8f5f)
+        .setOrigin(0.5, 0.5)
+        .setDepth(1);
+      const pernas = this.add.rectangle(0, 18, 12, 12, rota.tipo === 'crianca' ? 0x5e4254 : 0x433a3a)
+        .setOrigin(0.5, 0.5)
+        .setDepth(1);
+      corpo.add([cabeca, tronco, pernas]);
+      corpo.setDepth(rota.inicio.y * this.tamanhoTile);
+      corpo.setVisible(false);
+      this.figurantesAmbientais.push({ ...rota, conta: corpo });
+    }
+  }
+
+  private atualizarFigurantesAmbientais(): void {
+    if (!buscarMapa(estado.mapa)?.externo) {
+      for (const figurante of this.figurantesAmbientais) figurante.conta.setVisible(false);
+      return;
+    }
+
+    const minutos = estado.relogio.minutos;
+    for (const figurante of this.figurantesAmbientais) {
+      const dentroDaJanela = minutos >= figurante.janela.inicio && minutos < figurante.janela.fim;
+      if (!dentroDaJanela) {
+        figurante.conta.setVisible(false);
+        continue;
+      }
+
+      const duracao = figurante.janela.fim - figurante.janela.inicio;
+      const progresso = (minutos - figurante.janela.inicio) / duracao;
+      // Anda durante 75% da janela, espera um pouco na chegada e entao some
+      // pela porta/borda. A rota fica deterministica pelo dia e pelo slot.
+      if (progresso >= 0.92) {
+        figurante.conta.setVisible(false);
+        continue;
+      }
+      const passo = Math.min(1, progresso / 0.75);
+      const x = Phaser.Math.Linear(figurante.inicio.x, figurante.fim.x, passo) * this.tamanhoTile;
+      const y = Phaser.Math.Linear(figurante.inicio.y, figurante.fim.y, passo) * this.tamanhoTile;
+      figurante.conta.setPosition(x, y).setVisible(true).setDepth(y);
+    }
+  }
+
+  private estahNoturno(minutos = estado.relogio.minutos): boolean {
+    const m = ((minutos % (24 * 60)) + 24 * 60) % (24 * 60);
+    return m >= 18 * 60 || m < 6 * 60;
+  }
+
+  private portaAbertaAgora(porta: Interagivel): boolean {
+    const destino = String(porta.props.destino ?? '');
+    const horario = HORARIOS_PORTAS[destino];
+    if (!horario) return true;
+    const m = estado.relogio.minutos;
+    return m >= horario.abre && m < horario.fecha;
+  }
+
+  private feedbackPortaFechada(porta: Interagivel): void {
+    const destino = String(porta.props.destino ?? '');
+    const horario = HORARIOS_PORTAS[destino];
+    const nome = horario?.nome ?? 'Local';
+    const abre = horario ? `${String(Math.floor(horario.abre / 60)).padStart(2, '0')}:${String(horario.abre % 60).padStart(2, '0')}` : 'mais tarde';
+    this.ui.iniciarDialogo(
+      falasDe('Porta', [`${nome} fechado. Abre as ${abre}.`]),
+    );
+  }
+
+  private atualizarPortasEIluminacao(): void {
+    const mapa = buscarMapa(estado.mapa);
+    for (const porta of this.interagiveis) {
+      if (porta.tipo !== 'porta') continue;
+      const destino = String(porta.props.destino ?? '');
+      const horario = HORARIOS_PORTAS[destino];
+      const texto = this.indicadoresPorta.get(porta.id) ?? this.add.text(porta.x, porta.y - 22, '', {
+        fontFamily: UI.fonte,
+        fontSize: '10px',
+        color: '#f7f1cc',
+        backgroundColor: '#1a1712',
+        padding: { x: 4, y: 2 },
+      }).setScrollFactor(1).setDepth(DEPTH_OVERLAY + 5);
+      this.indicadoresPorta.set(porta.id, texto);
+      if (!horario) {
+        texto.setVisible(false);
+        continue;
+      }
+      const aberto = this.portaAbertaAgora(porta);
+      texto
+        .setVisible(mapa?.externo ?? false)
+        .setPosition(porta.x, porta.y - 24)
+        .setText(aberto ? 'ABERTO' : 'FECHADO')
+        .setColor(aberto ? '#baf0b8' : '#ffb5a9')
+        .setBackgroundColor(aberto ? '#1d3a2a' : '#3a1f1a');
+    }
+  }
+
+  private criarLuzesNoturnas(): void {
+    this.luzesNoturnas.forEach((luz) => luz.destroy());
+    this.luzesNoturnas = [];
+
+    const pontos = {
+      farm: [
+        { x: 25, y: 40, r: 42 }, { x: 52, y: 32, r: 48 }, { x: 81, y: 28, r: 44 }, { x: 54, y: 60, r: 52 },
+        { x: 70, y: 54, r: 48 }, { x: 85, y: 54, r: 50 }, { x: 15, y: 73, r: 40 },
+      ],
+      bairro: [
+        { x: 32, y: 26, r: 44 }, { x: 68, y: 30, r: 46 }, { x: 92, y: 44, r: 46 }, { x: 66, y: 59, r: 52 },
+        { x: 100, y: 58, r: 46 },
+      ],
+      rural: [
+        { x: 28, y: 26, r: 40 }, { x: 54, y: 22, r: 38 }, { x: 70, y: 35, r: 42 }, { x: 50, y: 54, r: 48 },
+        { x: 78, y: 60, r: 44 },
+      ],
+    } as const;
+
+    const luzes = pontos[estado.mapa as keyof typeof pontos] ?? [];
+    for (const ponto of luzes) {
+      const grafico = this.add.graphics();
+      grafico.fillStyle(0xffe3a3, 0.22);
+      grafico.fillCircle(ponto.x * this.tamanhoTile, ponto.y * this.tamanhoTile, ponto.r);
+      grafico.setDepth(DEPTH_OVERLAY + 2);
+      grafico.setVisible(false);
+      this.luzesNoturnas.push(grafico);
+    }
+
+    if (estado.mapa === 'biblioteca') {
+      this.luzBiblioteca = this.add.graphics();
+      this.luzBiblioteca.fillStyle(0xffe8a2, 0.18);
+      this.luzBiblioteca.fillRect(11.5 * this.tamanhoTile, 8 * this.tamanhoTile, 8 * this.tamanhoTile, 6 * this.tamanhoTile);
+      this.luzBiblioteca.setDepth(DEPTH_OVERLAY + 10);
+      this.luzBiblioteca.setVisible(false);
+    }
+  }
+
+  private atualizarLuzesNoturnas(): void {
+    const ativa = this.estahNoturno();
+    for (const luz of this.luzesNoturnas) luz.setVisible(ativa);
+    if (this.luzBiblioteca) {
+      const minutos = estado.relogio.minutos;
+      this.luzBiblioteca.setVisible(minutos >= 9 * 60 && minutos < 19 * 60);
+    }
+  }
 
   /** Um sprite estatico por objeto `npc` do mapa. Nao anda ainda — so existe. */
   private criarNpcs(): void {
@@ -1166,7 +1406,9 @@ export class FarmScene extends Phaser.Scene {
     // basta ABORDAR pra o NPC entrar na aba Relacionamento do Navegador: uma
     // conversa que rendeu 0 ponto ainda foi uma conversa
     estado.relacoes.registrarInteracao(def.id);
-    this.ui.iniciarDialogo(falasDe(def.nome, def.dialogoAtual, def.id), () =>
+    const condicional = estado.worldEvents.consumirFala(def.id);
+    const abertura = condicional ? [condicional.texto, ...def.dialogoAtual] : def.dialogoAtual;
+    this.ui.iniciarDialogo(falasDe(def.nome, abertura, def.id), () =>
       this.abrirMenuDeConversa(def),
     );
   }
@@ -1436,6 +1678,28 @@ export class FarmScene extends Phaser.Scene {
 
   // ----------------------------------------------------- casa: expansoes --
 
+  private textoMateriais(requisitos: readonly RequisitoMaterial[]): string {
+    return requisitos.map((r) => `${ITENS[r.itemId]?.nome ?? r.itemId} x${r.quantidade}`).join(', ');
+  }
+
+  private materiaisFaltando(requisitos: readonly RequisitoMaterial[]): string[] {
+    return requisitos.flatMap((r) => {
+      const tem = estado.inventario.contar(r.itemId);
+      return tem >= r.quantidade
+        ? []
+        : [`${ITENS[r.itemId]?.nome ?? r.itemId} ${tem}/${r.quantidade}`];
+    });
+  }
+
+  private consumirMateriais(requisitos: readonly RequisitoMaterial[]): void {
+    for (const requisito of requisitos) {
+      const removidos = estado.inventario.remover(requisito.itemId, requisito.quantidade);
+      if (removidos !== requisito.quantidade) {
+        console.error(`[casa] BUG: requisito conferido mudou durante a transacao (${requisito.itemId})`);
+      }
+    }
+  }
+
   /**
    * Tapa com parede o vao de cada comodo de expansao AINDA NAO COMPRADO.
    *
@@ -1494,7 +1758,7 @@ export class FarmScene extends Phaser.Scene {
     this.ui.abrirMenu(
       `Madeireira — ${estado.carteira.texto}`,
       disponiveis.map((exp) => ({
-        rotulo: `${exp.nome}  ${formatarDinheiro(exp.preco)}`,
+        rotulo: `${exp.nome}  ${formatarDinheiro(exp.preco)} + ${this.textoMateriais(exp.materiais)}`,
         aoEscolher: () => this.confirmarExpansao(exp),
       })),
     );
@@ -1502,7 +1766,7 @@ export class FarmScene extends Phaser.Scene {
 
   private confirmarExpansao(exp: DefinicaoExpansao): void {
     this.ui.iniciarDialogo(falasDe('Madeireira', [exp.descricao]), () => {
-      this.ui.confirmar(`Fechar ${exp.nome} por ${formatarDinheiro(exp.preco)}?`, () =>
+      this.ui.confirmar(`Fechar ${exp.nome} por ${formatarDinheiro(exp.preco)} + ${this.textoMateriais(exp.materiais)}?`, () =>
         this.comprarExpansao(exp),
       );
     });
@@ -1514,9 +1778,17 @@ export class FarmScene extends Phaser.Scene {
    * nada mudou.
    */
   private comprarExpansao(exp: DefinicaoExpansao): void {
+    const faltas = this.materiaisFaltando(exp.materiais);
+    if (faltas.length > 0) {
+      this.ui.iniciarDialogo(falasDe('Madeireira', [`Faltam materiais: ${faltas.join(', ')}. Nada foi consumido.`]));
+      return;
+    }
     const r = estado.carteira.gastar(exp.preco, {
-      cabe: () => !estado.casa.temComodo(exp.id),
-      entregar: () => estado.casa.liberarComodo(exp.id),
+      cabe: () => !estado.casa.temComodo(exp.id) && this.materiaisFaltando(exp.materiais).length === 0,
+      entregar: () => {
+        this.consumirMateriais(exp.materiais);
+        estado.casa.liberarComodo(exp.id);
+      },
     });
     if (!r.ok) {
       const motivo =
@@ -1596,7 +1868,7 @@ export class FarmScene extends Phaser.Scene {
     this.ui.abrirMenu(
       `Mobilia — ${estado.carteira.texto}`,
       CATALOGO_MOBILIA.map((peca) => ({
-        rotulo: `${peca.nome}  ${formatarDinheiro(peca.preco)}`,
+        rotulo: `${peca.nome}  ${formatarDinheiro(peca.preco)} + ${this.textoMateriais(requisitosDoMovel(peca))}`,
         aoEscolher: () => this.iniciarPosicionamento(peca.id),
       })),
     );
@@ -1615,6 +1887,7 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
     const t = this.tamanhoTile;
+    const requisitos = requisitosDoMovel(peca);
     const fantasma = this.add
       .image(this.player.x, this.player.y, medida.atlas, medida.frame)
       .setOrigin(0.5, 1)
@@ -1627,7 +1900,7 @@ export class FarmScene extends Phaser.Scene {
       .text(
         CONFIG.largura / 2,
         6,
-        `${peca.nome}  ${formatarDinheiro(peca.preco)}   [clique] poe   [ESC] sai`,
+        `${peca.nome}  ${formatarDinheiro(peca.preco)} + ${this.textoMateriais(requisitos)}   [clique] poe   [ESC] sai`,
         { fontFamily: UI.fonte, fontSize: UI.tamanho, color: UI.texto, backgroundColor: '#1a1712' },
       )
       .setOrigin(0.5, 0)
@@ -1665,11 +1938,21 @@ export class FarmScene extends Phaser.Scene {
     const peca = buscarMovelDeLoja(posicao.id);
     if (!peca) return;
     const posto: MovelPosto = { id: posicao.id, tx: posicao.tx, ty: posicao.ty };
+    const requisitos = requisitosDoMovel(peca);
+    const faltas = this.materiaisFaltando(requisitos);
+    if (faltas.length > 0) {
+      this.avisoMobilia?.setText(`Faltam materiais: ${faltas.join(', ')}. Nada foi consumido.`);
+      this.avisoMobilia?.setColor(UI.alerta);
+      return;
+    }
     const r = estado.carteira.gastar(peca.preco, {
       // reconfere na hora de pagar: a peca pode ter ficado invalida entre o
       // ultimo movimento do ponteiro e o clique
-      cabe: () => this.posicaoDeMovelValida(posicao.medida, posto.tx, posto.ty),
-      entregar: () => estado.casa.posicionarMovel(posto),
+      cabe: () => this.posicaoDeMovelValida(posicao.medida, posto.tx, posto.ty) && this.materiaisFaltando(requisitos).length === 0,
+      entregar: () => {
+        this.consumirMateriais(requisitos);
+        estado.casa.posicionarMovel(posto);
+      },
     });
     if (!r.ok) {
       this.avisoMobilia?.setText(
@@ -1815,6 +2098,20 @@ export class FarmScene extends Phaser.Scene {
    * fachada mas nao tem interior — ver `AVISOS_DE_PREDIO`.
    */
   private examinarPlaca(alvo: Interagivel): void {
+    if (alvo.props.ambientacao === 'quadro') {
+      const avisos = avisosDaSemana(estado.dia);
+      this.ui.iniciarDialogo([
+        { nome: 'Quadro de avisos', texto: `Avisos da semana ${Math.floor(estado.dia / 7) + 1}:` },
+        ...avisos.map((texto, i) => ({ nome: `Aviso ${i + 1}`, texto })),
+        { nome: 'Quadro de avisos', texto: 'Estes recados ainda sao apenas informativos; o app Trabalho nao os aceita.' },
+      ]);
+      return;
+    }
+    if (typeof alvo.props.segredoId === 'string') {
+      const segredo = segredosDoMapa(estado.mapa).find((s) => s.id === alvo.props.segredoId);
+      if (segredo) this.examinarSegredo(segredo);
+      return;
+    }
     const aviso = AVISOS_DE_PREDIO[String(alvo.props.aviso ?? '')];
     if (aviso) {
       this.ui.iniciarDialogo(falasDe('Voce', aviso));
@@ -1823,6 +2120,52 @@ export class FarmScene extends Phaser.Scene {
     this.ui.iniciarDialogo(
       falasDe('Placa', ['Isto e uma placa.', 'Nao tem nada escrito nela ainda.']),
     );
+  }
+
+  private examinarSegredo(segredo: SegredoDoMapa): void {
+    const falas = [{ nome: segredo.titulo, texto: segredo.texto }];
+    const recompensa = segredo.recompensa;
+    if (recompensa && !estado.worldEvents.ativa(recompensa.flag)) {
+      if (!estado.inventario.cabe(recompensa.itemId, recompensa.quantidade)) {
+        falas.push({ nome: 'Inventario', texto: 'Parece haver algo aqui, mas seu inventario esta cheio.' });
+      } else {
+        estado.inventario.adicionar(recompensa.itemId, recompensa.quantidade);
+        estado.worldEvents.definir(recompensa.flag, true);
+        falas.push({
+          nome: 'Encontrado',
+          texto: `${ITENS[recompensa.itemId]?.nome ?? recompensa.itemId} x${recompensa.quantidade}.`,
+        });
+      }
+    }
+    this.ui.iniciarDialogo(falas);
+  }
+
+  /** Pontos invisiveis: o jogador descobre chegando perto, sem marcador no mapa. */
+  private lerPontosDeAmbientacao(): Interagivel[] {
+    const t = this.tamanhoTile;
+    const pontos: Interagivel[] = [];
+    if (estado.mapa === 'farm') {
+      const x = 38.5 * t;
+      const y = 55.5 * t;
+      const placa = this.add.rectangle(x, y - t * 0.35, t * 1.15, t * 0.72, 0x6f4a2d)
+        .setStrokeStyle(2, 0xd4b07a)
+        .setDepth(y);
+      const pe = this.add.rectangle(x, y + t * 0.22, t * 0.14, t * 0.55, 0x49301f).setDepth(y - 1);
+      placa.setName('quadro_avisos_visual');
+      pe.setName('quadro_avisos_pe');
+      pontos.push({
+        id: 'quadro_avisos_praca', tipo: 'placa', rotulo: 'Ler avisos',
+        x, y, props: { ambientacao: 'quadro' },
+      });
+    }
+    for (const segredo of segredosDoMapa(estado.mapa)) {
+      pontos.push({
+        id: segredo.id, tipo: 'placa', rotulo: 'Examinar',
+        x: (segredo.tile.x + 0.5) * t, y: (segredo.tile.y + 0.5) * t,
+        props: { segredoId: segredo.id },
+      });
+    }
+    return pontos;
   }
 
   /** Converte a camada de objetos `interativos` do Tiled em dados do jogo. */

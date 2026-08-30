@@ -15,6 +15,7 @@
     "gerar-itens": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-itens.mjs",
     "verificar-relacoes": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-relacoes.mjs",
     "verificar-economia": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-economia.mjs",
+    "verificar-ambientacao": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-ambientacao.mjs",
     "gerar-aparelhos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-aparelhos.mjs"
   },
   "devDependencies": {
