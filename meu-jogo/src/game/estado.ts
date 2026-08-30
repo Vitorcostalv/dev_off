@@ -6,6 +6,10 @@ import { Relogio } from './relogio.ts';
 import { SistemaRotinasNpc } from './rotinasNpc.ts';
 import { SistemaTrabalhos } from './trabalhos.ts';
 import { SistemaRelacoes } from './relacoes.ts';
+import { SistemaWorldEvents } from './worldEvents.ts';
+import { SistemaMissoesNpc } from './missoesNpc.ts';
+import { SistemaEncontrosNpc } from './encontrosNpc.ts';
+import { SistemaCidade } from './cidade.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
@@ -35,4 +39,11 @@ export const estado = {
   relacoes: new SistemaRelacoes(),
   /** comodos comprados e mobilia posicionada na casa+oficina do protagonista */
   casa: new SistemaCasa(),
+  /** flags e falas unicas que registram consequencias no mundo */
+  worldEvents: new SistemaWorldEvents(),
+  /** questlines pessoais dos seis NPCs principais */
+  missoesNpc: new SistemaMissoesNpc(),
+  encontrosNpc: new SistemaEncontrosNpc(),
+  /** predios construidos pelo jogador e trabalhadores atribuidos no bairro */
+  cidade: new SistemaCidade(),
 };

@@ -12,7 +12,9 @@ export type TipoInteragivel =
   /** balcao da madeireira: abre a loja de EXPANSAO DE COMODO da casa */
   | 'expansao'
   /** bancada da oficina: abre o catalogo de MOBILIA da casa */
-  | 'mobilia';
+  | 'mobilia'
+  /** placa de projeto urbano: construir predio e atribuir trabalhador */
+  | 'obra';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
 export type TipoZona =

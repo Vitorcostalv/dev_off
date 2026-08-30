@@ -42,6 +42,7 @@ interface RuntimeNpc {
 export class SistemaRotinasNpc {
   private runtimes = new Map<string, RuntimeNpc>();
   private diaAtual: number | null = null;
+  private pausas = new Map<string, number>();
 
   constructor() {
     for (const def of Object.values(NPCS)) this.runtimes.set(def.id, this.criarRuntime(def));
@@ -62,8 +63,18 @@ export class SistemaRotinasNpc {
     }
     for (const runtime of this.runtimes.values()) {
       runtime.estado.acordado = minutos >= runtime.def.horaAcordar;
+      const pausa = this.pausas.get(runtime.def.id) ?? 0;
+      if (pausa > 0) {
+        runtime.estado.movendo = false;
+        this.pausas.set(runtime.def.id, Math.max(0, pausa - deltaMs));
+        continue;
+      }
       this.atualizarNpc(runtime, minutos, deltaMs / 1000);
     }
+  }
+
+  pausarParaEncontro(ids: readonly string[], milissegundos: number): void {
+    for (const id of ids) if (this.runtimes.has(id)) this.pausas.set(id, Math.max(0, milissegundos));
   }
 
   private criarRuntime(def: DefinicaoNpc): RuntimeNpc {

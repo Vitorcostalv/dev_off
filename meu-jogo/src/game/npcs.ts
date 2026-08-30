@@ -1,5 +1,7 @@
 import { DIA_DA_SEMANA } from './calendario.ts';
 import type { IndiceDiaDaSemana } from './calendario.ts';
+import { MORADORES } from './moradores.ts';
+import type { Morador } from './moradores.ts';
 
 export interface PontoTile {
   x: number;
@@ -864,6 +866,8 @@ export const NPCS_DE_PRESENCA_INTERIOR: readonly string[] = Object.values(NPCS)
   .filter((def) => def.presencaInteriorFixa)
   .map((def) => def.id);
 
-export function buscarNpc(id: unknown): DefinicaoNpc | null {
-  return typeof id === 'string' ? (NPCS[id] ?? null) : null;
+export type PerfilNpc = DefinicaoNpc | Morador;
+
+export function buscarNpc(id: unknown): PerfilNpc | null {
+  return typeof id === 'string' ? (NPCS[id] ?? MORADORES[id] ?? null) : null;
 }

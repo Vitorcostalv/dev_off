@@ -7,10 +7,13 @@ import { ITENS } from '../game/inventario';
 import { lojasDoMapa } from '../game/loja';
 import { MAPA_DA_CASA, MAPA_DOS_NPCS, MAPAS, buscarMapa } from '../game/mapas';
 import { CATALOGO_MOBILIA, buscarExpansao, buscarMovelDeLoja } from '../game/casa';
-import type { DefinicaoExpansao } from '../game/casa';
+import { requisitosDoMovel } from '../game/casa';
+import type { DefinicaoExpansao, RequisitoMaterial } from '../game/casa';
 import type { MedidaDeMovel, MovelPosto } from '../game/casa';
 import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
-import type { DefinicaoNpc } from '../game/npcs';
+import type { PerfilNpc } from '../game/npcs';
+import { atividadeAtual, buscarMorador, MORADORES } from '../game/moradores';
+import type { Morador } from '../game/moradores';
 import { PONTOS_POR_REACAO, falaJaConversou, falasDoTema, temasDoDia } from '../game/dialogo';
 import type { TemaDeConversa } from '../game/dialogo';
 import { PONTOS_POR_TIER_PRESENTE, calcularTierPresente, reacaoPresente } from '../game/presentes';
@@ -19,6 +22,13 @@ import { ITEM_ENCOMENDA } from '../game/trabalhos';
 import type { EstadoNpc } from '../game/rotinasNpc';
 import { apagar, salvar } from '../game/save';
 import { USOS_DE_MORADIA, falasDe } from '../game/tipos';
+import { avisosDaSemana, segredosDoMapa } from '../game/ambientacao';
+import type { SegredoDoMapa } from '../game/ambientacao';
+import { PONTOS_ITENS_MISSAO } from '../game/missoesNpc';
+import type { MissaoNpc } from '../game/missoesNpc';
+import { jogadorOuveEncontro } from '../game/encontrosNpc';
+import { atividadeComEmprego, PROJETOS_CIDADE } from '../game/cidade';
+import type { IdProjetoCidade, ProjetoCidade } from '../game/cidade';
 import type {
   Direcao,
   Interagivel,
@@ -35,7 +45,7 @@ import type { UIScene } from './UIScene';
  * o campo de visao fica fixo em tiles, entao mudar o tamanho do tile no
  * gerador nao muda o que o jogador ve — so a densidade de pixel da arte.
  */
-const TILES_VISIVEIS_X = 15;
+const TILES_VISIVEIS_X = 18;
 /** Altura do player em TILES (fica 1,5 tile, como antes). */
 const ALTURA_PERSONAGEM_TILES = 1.5;
 // Hitbox do player, em px do RECORTE (o frame tem 200x320), nao do mundo:
@@ -74,6 +84,25 @@ const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
 /** Overlay de debug: acima de qualquer sprite ordenado por y. */
 const DEPTH_OVERLAY = 100000;
 
+const HORARIOS_PORTAS: Record<string, { nome: string; abre: number; fecha: number }> = {
+  mercado: { nome: 'Mercado', abre: 8 * 60, fecha: 18 * 60 },
+  academia: { nome: 'Academia', abre: 6 * 60, fecha: 22 * 60 },
+  farmacia: { nome: 'Farmacia', abre: 8 * 60, fecha: 18 * 60 },
+  bar: { nome: 'Bar', abre: 12 * 60, fecha: 22 * 60 },
+  escola: { nome: 'Escola', abre: 8 * 60, fecha: 17 * 60 + 30 },
+  biblioteca: { nome: 'Biblioteca', abre: 9 * 60, fecha: 19 * 60 },
+};
+
+interface FiguranteAmbiental {
+  id: string;
+  tipo: 'adulto' | 'crianca' | 'jovem' | 'idoso';
+  inicio: { x: number; y: number };
+  fim: { x: number; y: number };
+  janela: { inicio: number; fim: number };
+  seed: number;
+  conta: Phaser.GameObjects.Container;
+}
+
 const VETOR: Record<Direcao, { x: number; y: number }> = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
@@ -93,6 +122,7 @@ const TIPOS_VALIDOS: TipoInteragivel[] = [
   'computador',
   'expansao',
   'mobilia',
+  'obra',
 ];
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
   'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
@@ -132,9 +162,16 @@ export class FarmScene extends Phaser.Scene {
   private interagiveis: Interagivel[] = [];
   private alvo: Interagivel | null = null;
   private npcs: NpcVisual[] = [];
+  private balaoEncontro: Phaser.GameObjects.Text | null = null;
+  private figurantesAmbientais: FiguranteAmbiental[] = [];
+  private luzesNoturnas: Phaser.GameObjects.Graphics[] = [];
+  private luzBiblioteca: Phaser.GameObjects.Graphics | null = null;
+  private indicadoresPorta = new Map<string, Phaser.GameObjects.Text>();
   private visuaisDeItens = new Map<string, Phaser.GameObjects.Rectangle>();
   /** areas reservadas pros predios da proxima etapa; sem colisao */
   private zonas: ZonaReservada[] = [];
+  /** fachadas/placas dos projetos construiveis do bairro */
+  private visuaisDeObra: Phaser.GameObjects.GameObject[] = [];
   /** demarcacao das zonas na tela (F6); null = escondida */
   private overlayZonas: Phaser.GameObjects.Container | null = null;
   /** caixas de colisao dos obstaculos (a copa fica livre, pra andar atras) */
@@ -145,7 +182,7 @@ export class FarmScene extends Phaser.Scene {
   private mapaAberto = false;
   private overlayMapa: Phaser.GameObjects.Container | null = null;
   private marcadorPlayer: Phaser.GameObjects.Arc | null = null;
-  private marcadoresNpc: Phaser.GameObjects.Arc[] = [];
+  private marcadoresNpc: MarcadorNpcMapa[] = [];
   private transformMapa = { x: 0, y: 0, escala: 1 };
   /**
    * Tamanho do tile lido do proprio tilemap. Escala do player, da flora, zoom
@@ -196,6 +233,8 @@ export class FarmScene extends Phaser.Scene {
   private camadaObjetos: Phaser.Tilemaps.TilemapLayer | null = null;
   /** Aviso fixo na tela durante o posicionamento de mobilia. */
   private avisoMobilia: Phaser.GameObjects.Text | null = null;
+  /** relogio local dos passos/pausas dos moradores novos */
+  private tempoMovimentoMoradores = 0;
 
   constructor() {
     super('FarmScene');
@@ -220,8 +259,13 @@ export class FarmScene extends Phaser.Scene {
     this.marcadoresNpc = [];
     this.interagiveis = [];
     this.npcs = [];
+    this.figurantesAmbientais = [];
+    this.luzesNoturnas = [];
+    this.luzBiblioteca = null;
+    this.indicadoresPorta.clear();
     this.visuaisDeItens.clear();
     this.zonas = [];
+    this.visuaisDeObra = [];
     this.overlayZonas = null;
     this.obstaculos = [];
     this.tilesPrivados = new Set();
@@ -233,6 +277,7 @@ export class FarmScene extends Phaser.Scene {
     this.posicionando = null;
     this.camadaObjetos = null;
     this.avisoMobilia = null;
+    this.tempoMovimentoMoradores = 0;
     this.alvo = null;
   }
 
@@ -329,7 +374,9 @@ export class FarmScene extends Phaser.Scene {
       return item.tipo !== 'item' || !estado.itensColetados.has(item.id);
     });
     this.interagiveis.push(...this.lerPontosDeLoja());
+    this.interagiveis.push(...this.lerPontosDeAmbientacao());
     this.zonas = this.lerZonas(map);
+    this.limparLotesDosProjetos();
     this.tilesPrivados = this.lerComodosPrivados(map);
     this.bordas = this.lerBordas(map);
     this.comodos = this.lerComodos(map);
@@ -345,14 +392,26 @@ export class FarmScene extends Phaser.Scene {
     // hitbox menor que o sprite, so os pes -> parece melhor em top-down
     this.player.setCollideWorldBounds(true);
 
-    this.criarNpcs();
+    this.criarFigurantesAmbientais();
     this.criarItensColetaveis();
     this.criarConstrucoes(map);
+    this.criarProjetosCidade();
+    this.criarLuzesNoturnas();
+    this.atualizarPortasEIluminacao();
     this.criarMoveis(map);
     this.criarMobiliaDoJogador();
     this.criarFlora(map);
+    // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
+    // predios, moveis, arvores e pedras do mapa carregado.
+    this.criarNpcs();
+    this.criarNovosMoradores();
 
     this.physics.add.collider(this.player, objetos);
+    const moradoresMoveis = this.npcs.filter((npc) => npc.morador).map((npc) => npc.sprite);
+    if (moradoresMoveis.length > 0) {
+      this.physics.add.collider(moradoresMoveis, objetos);
+      if (this.obstaculos.length > 0) this.physics.add.collider(moradoresMoveis, this.obstaculos);
+    }
     if (this.npcs.length > 0) {
       this.physics.add.collider(this.player, this.npcs.map((npc) => npc.sprite));
     }
@@ -430,8 +489,16 @@ export class FarmScene extends Phaser.Scene {
     if (!this.ui.bloqueado && !this.transicionando) {
       estado.dia += estado.relogio.avancar(delta);
       estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, delta);
-      this.sincronizarNpcs();
+      const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos);
+      if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, 5800);
+      this.sincronizarNpcs(delta);
     }
+
+    this.atualizarBalaoEncontro();
+
+    this.atualizarFigurantesAmbientais();
+    this.atualizarPortasEIluminacao();
+    this.atualizarLuzesNoturnas();
 
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
@@ -502,7 +569,14 @@ export class FarmScene extends Phaser.Scene {
       case 'mobilia':
         this.abrirCatalogoDeMobilia();
         break;
+      case 'obra':
+        this.abrirProjetoCidade(this.alvo);
+        break;
       case 'porta':
+        if (!this.portaAbertaAgora(this.alvo)) {
+          this.feedbackPortaFechada(this.alvo);
+          return;
+        }
         // a entrega vem antes de atravessar: se a porta e o destino, o E
         // entrega em vez de entrar. O proximo E entra normalmente.
         if (!this.entregarNaPorta(this.alvo)) this.atravessarPorta(this.alvo);
@@ -619,14 +693,24 @@ export class FarmScene extends Phaser.Scene {
    */
   private lerPontosDeLoja(): Interagivel[] {
     const t = this.tamanhoTile;
-    return lojasDoMapa(estado.mapa).map((ponto) => ({
-      id: ponto.id,
-      tipo: 'loja' as const,
-      rotulo: ponto.rotulo,
-      x: (ponto.tile.x + 0.5) * t,
-      y: (ponto.tile.y + 0.5) * t,
-      props: { loja: ponto.id },
-    }));
+    return lojasDoMapa(estado.mapa).map((ponto) => {
+      const x = (ponto.tile.x + 0.5) * t;
+      const y = (ponto.tile.y + 0.5) * t;
+      if (ponto.id === 'loja_pedreira') {
+        this.add.rectangle(x, y, t * 1.5, t * 0.65, 0x6f716d)
+          .setStrokeStyle(2, 0xc9c4b8)
+          .setDepth(y)
+          .setName('balcao_pedreira_visual');
+      }
+      return {
+        id: ponto.id,
+        tipo: 'loja' as const,
+        rotulo: ponto.rotulo,
+        x,
+        y,
+        props: { loja: ponto.id },
+      };
+    });
   }
 
   private salvarJogo(): boolean {
@@ -643,6 +727,9 @@ export class FarmScene extends Phaser.Scene {
       trabalhos: estado.trabalhos.serializar(),
       relacoes: estado.relacoes.serializar(),
       casa: estado.casa.serializar(),
+      worldEvents: estado.worldEvents.serializar(),
+      missoesNpc: estado.missoesNpc.serializar(),
+      cidade: estado.cidade.serializar(),
     });
   }
 
@@ -683,7 +770,194 @@ export class FarmScene extends Phaser.Scene {
     this.ui.iniciarDialogo(falasDe('Item', [`Voce pegou ${def.nome} x${quantidade}.`]));
   }
 
-  // ----------------------------------------------------------------- npcs --
+  // ------------------------------------------------------ figurantes ambientais --
+
+  private criarFigurantesAmbientais(): void {
+    this.figurantesAmbientais = [];
+    const mapa = buscarMapa(estado.mapa);
+    if (!mapa?.externo) return;
+
+    const rotas: Record<
+      string,
+      Array<{
+        id: string;
+        tipo: FiguranteAmbiental['tipo'];
+        inicio: { x: number; y: number };
+        fim: { x: number; y: number };
+        janela: { inicio: number; fim: number };
+        seed: number;
+      }>
+    > = {
+      farm: [
+        { id: 'farm_almoco_1', tipo: 'adulto', inicio: { x: 60, y: 45 }, fim: { x: 69.5, y: 54 }, janela: { inicio: 11 * 60 + 30, fim: 13 * 60 + 30 }, seed: 0 },
+        { id: 'farm_almoco_2', tipo: 'idoso', inicio: { x: 49, y: 55 }, fim: { x: 65, y: 54 }, janela: { inicio: 11 * 60 + 30, fim: 13 * 60 + 30 }, seed: 1 },
+        { id: 'farm_almoco_3', tipo: 'jovem', inicio: { x: 83, y: 44 }, fim: { x: 72, y: 54 }, janela: { inicio: 11 * 60 + 30, fim: 13 * 60 + 30 }, seed: 2 },
+        { id: 'farm_almoco_4', tipo: 'adulto', inicio: { x: 54, y: 62 }, fim: { x: 40, y: 55 }, janela: { inicio: 11 * 60 + 30, fim: 13 * 60 + 30 }, seed: 3 },
+        { id: 'farm_noite_1', tipo: 'adulto', inicio: { x: 57, y: 58 }, fim: { x: 80.5, y: 28 }, janela: { inicio: 19 * 60, fim: 22 * 60 }, seed: 0 },
+        { id: 'farm_noite_2', tipo: 'jovem', inicio: { x: 42, y: 57 }, fim: { x: 78, y: 30 }, janela: { inicio: 19 * 60, fim: 22 * 60 }, seed: 1 },
+        { id: 'farm_noite_3', tipo: 'idoso', inicio: { x: 60, y: 48 }, fim: { x: 38, y: 55 }, janela: { inicio: 19 * 60, fim: 22 * 60 }, seed: 2 },
+        { id: 'farm_noite_4', tipo: 'adulto', inicio: { x: 91, y: 45 }, fim: { x: 82, y: 29 }, janela: { inicio: 19 * 60, fim: 22 * 60 }, seed: 3 },
+      ],
+      bairro: [
+        { id: 'bairro_escola_1', tipo: 'crianca', inicio: { x: 18, y: 49 }, fim: { x: 37.5, y: 47 }, janela: { inicio: 7 * 60, fim: 8 * 60 }, seed: 0 },
+        { id: 'bairro_escola_2', tipo: 'adulto', inicio: { x: 18, y: 57 }, fim: { x: 37, y: 47 }, janela: { inicio: 7 * 60, fim: 8 * 60 }, seed: 1 },
+        { id: 'bairro_escola_3', tipo: 'crianca', inicio: { x: 58, y: 72 }, fim: { x: 39, y: 47 }, janela: { inicio: 7 * 60, fim: 8 * 60 }, seed: 2 },
+        { id: 'bairro_escola_4', tipo: 'crianca', inicio: { x: 100, y: 36 }, fim: { x: 39, y: 47 }, janela: { inicio: 7 * 60, fim: 8 * 60 }, seed: 3 },
+        { id: 'bairro_volta_1', tipo: 'crianca', inicio: { x: 37.5, y: 47 }, fim: { x: 18, y: 49 }, janela: { inicio: 17 * 60, fim: 18 * 60 + 30 }, seed: 0 },
+        { id: 'bairro_volta_2', tipo: 'adulto', inicio: { x: 37, y: 47 }, fim: { x: 18, y: 57 }, janela: { inicio: 17 * 60, fim: 18 * 60 + 30 }, seed: 1 },
+        { id: 'bairro_volta_3', tipo: 'crianca', inicio: { x: 39, y: 47 }, fim: { x: 58, y: 72 }, janela: { inicio: 17 * 60, fim: 18 * 60 + 30 }, seed: 2 },
+        { id: 'bairro_volta_4', tipo: 'adulto', inicio: { x: 39, y: 47 }, fim: { x: 100, y: 36 }, janela: { inicio: 17 * 60, fim: 18 * 60 + 30 }, seed: 3 },
+      ],
+      rural: [],
+    };
+    const lista = rotas[mapa.chave] ?? [];
+
+    for (const rota of lista) {
+      // Em dois de cada tres dias, exatamente um dos quatro slots da janela
+      // descansa; no terceiro aparecem os quatro. Sempre ficam 3-4 simultaneos.
+      if (estado.dia % 3 !== 0 && (estado.dia + rota.seed) % 4 === 0) continue;
+      const corpo = this.add.container(rota.inicio.x * this.tamanhoTile, rota.inicio.y * this.tamanhoTile);
+      const cabeca = this.add.circle(0, -11, 7, rota.tipo === 'crianca' ? 0xf3d5a8 : 0xe7b98b)
+        .setDepth(1);
+      const tronco = this.add.rectangle(0, 2, rota.tipo === 'crianca' ? 10 : 14, rota.tipo === 'adulto' || rota.tipo === 'idoso' ? 18 : 16, rota.tipo === 'jovem' ? 0x5a8bd6 : rota.tipo === 'crianca' ? 0xeb7b51 : 0x7e8f5f)
+        .setOrigin(0.5, 0.5)
+        .setDepth(1);
+      const pernas = this.add.rectangle(0, 18, 12, 12, rota.tipo === 'crianca' ? 0x5e4254 : 0x433a3a)
+        .setOrigin(0.5, 0.5)
+        .setDepth(1);
+      corpo.add([cabeca, tronco, pernas]);
+      corpo.setDepth(rota.inicio.y * this.tamanhoTile);
+      corpo.setVisible(false);
+      this.figurantesAmbientais.push({ ...rota, conta: corpo });
+    }
+  }
+
+  private atualizarFigurantesAmbientais(): void {
+    if (!buscarMapa(estado.mapa)?.externo) {
+      for (const figurante of this.figurantesAmbientais) figurante.conta.setVisible(false);
+      return;
+    }
+
+    const minutos = estado.relogio.minutos;
+    for (const figurante of this.figurantesAmbientais) {
+      const dentroDaJanela = minutos >= figurante.janela.inicio && minutos < figurante.janela.fim;
+      if (!dentroDaJanela) {
+        figurante.conta.setVisible(false);
+        continue;
+      }
+
+      const duracao = figurante.janela.fim - figurante.janela.inicio;
+      const progresso = (minutos - figurante.janela.inicio) / duracao;
+      // Anda durante 75% da janela, espera um pouco na chegada e entao some
+      // pela porta/borda. A rota fica deterministica pelo dia e pelo slot.
+      if (progresso >= 0.92) {
+        figurante.conta.setVisible(false);
+        continue;
+      }
+      const passo = Math.min(1, progresso / 0.75);
+      const x = Phaser.Math.Linear(figurante.inicio.x, figurante.fim.x, passo) * this.tamanhoTile;
+      const y = Phaser.Math.Linear(figurante.inicio.y, figurante.fim.y, passo) * this.tamanhoTile;
+      figurante.conta.setPosition(x, y).setVisible(true).setDepth(y);
+    }
+  }
+
+  private estahNoturno(minutos = estado.relogio.minutos): boolean {
+    const m = ((minutos % (24 * 60)) + 24 * 60) % (24 * 60);
+    return m >= 18 * 60 || m < 6 * 60;
+  }
+
+  private portaAbertaAgora(porta: Interagivel): boolean {
+    const destino = String(porta.props.destino ?? '');
+    const horario = HORARIOS_PORTAS[destino];
+    if (!horario) return true;
+    const m = estado.relogio.minutos;
+    return m >= horario.abre && m < horario.fecha;
+  }
+
+  private feedbackPortaFechada(porta: Interagivel): void {
+    const destino = String(porta.props.destino ?? '');
+    const horario = HORARIOS_PORTAS[destino];
+    const nome = horario?.nome ?? 'Local';
+    const abre = horario ? `${String(Math.floor(horario.abre / 60)).padStart(2, '0')}:${String(horario.abre % 60).padStart(2, '0')}` : 'mais tarde';
+    this.ui.iniciarDialogo(
+      falasDe('Porta', [`${nome} fechado. Abre as ${abre}.`]),
+    );
+  }
+
+  private atualizarPortasEIluminacao(): void {
+    const mapa = buscarMapa(estado.mapa);
+    for (const porta of this.interagiveis) {
+      if (porta.tipo !== 'porta') continue;
+      const destino = String(porta.props.destino ?? '');
+      const horario = HORARIOS_PORTAS[destino];
+      const texto = this.indicadoresPorta.get(porta.id) ?? this.add.text(porta.x, porta.y - 22, '', {
+        fontFamily: UI.fonte,
+        fontSize: '10px',
+        color: '#f7f1cc',
+        backgroundColor: '#1a1712',
+        padding: { x: 4, y: 2 },
+      }).setScrollFactor(1).setDepth(DEPTH_OVERLAY + 5);
+      this.indicadoresPorta.set(porta.id, texto);
+      if (!horario) {
+        texto.setVisible(false);
+        continue;
+      }
+      const aberto = this.portaAbertaAgora(porta);
+      texto
+        .setVisible(mapa?.externo ?? false)
+        .setPosition(porta.x, porta.y - 24)
+        .setText(aberto ? 'ABERTO' : 'FECHADO')
+        .setColor(aberto ? '#baf0b8' : '#ffb5a9')
+        .setBackgroundColor(aberto ? '#1d3a2a' : '#3a1f1a');
+    }
+  }
+
+  private criarLuzesNoturnas(): void {
+    this.luzesNoturnas.forEach((luz) => luz.destroy());
+    this.luzesNoturnas = [];
+
+    const pontos = {
+      farm: [
+        { x: 25, y: 40, r: 42 }, { x: 52, y: 32, r: 48 }, { x: 81, y: 28, r: 44 }, { x: 54, y: 60, r: 52 },
+        { x: 70, y: 54, r: 48 }, { x: 85, y: 54, r: 50 }, { x: 15, y: 73, r: 40 },
+      ],
+      bairro: [
+        { x: 32, y: 26, r: 44 }, { x: 68, y: 30, r: 46 }, { x: 92, y: 44, r: 46 }, { x: 66, y: 59, r: 52 },
+        { x: 100, y: 58, r: 46 },
+      ],
+      rural: [
+        { x: 28, y: 26, r: 40 }, { x: 54, y: 22, r: 38 }, { x: 70, y: 35, r: 42 }, { x: 50, y: 54, r: 48 },
+        { x: 78, y: 60, r: 44 },
+      ],
+    } as const;
+
+    const luzes = pontos[estado.mapa as keyof typeof pontos] ?? [];
+    for (const ponto of luzes) {
+      const grafico = this.add.graphics();
+      grafico.fillStyle(0xffe3a3, 0.22);
+      grafico.fillCircle(ponto.x * this.tamanhoTile, ponto.y * this.tamanhoTile, ponto.r);
+      grafico.setDepth(DEPTH_OVERLAY + 2);
+      grafico.setVisible(false);
+      this.luzesNoturnas.push(grafico);
+    }
+
+    if (estado.mapa === 'biblioteca') {
+      this.luzBiblioteca = this.add.graphics();
+      this.luzBiblioteca.fillStyle(0xffe8a2, 0.18);
+      this.luzBiblioteca.fillRect(11.5 * this.tamanhoTile, 8 * this.tamanhoTile, 8 * this.tamanhoTile, 6 * this.tamanhoTile);
+      this.luzBiblioteca.setDepth(DEPTH_OVERLAY + 10);
+      this.luzBiblioteca.setVisible(false);
+    }
+  }
+
+  private atualizarLuzesNoturnas(): void {
+    const ativa = this.estahNoturno();
+    for (const luz of this.luzesNoturnas) luz.setVisible(ativa);
+    if (this.luzBiblioteca) {
+      const minutos = estado.relogio.minutos;
+      this.luzBiblioteca.setVisible(minutos >= 9 * 60 && minutos < 19 * 60);
+    }
+  }
 
   /** Um sprite estatico por objeto `npc` do mapa. Nao anda ainda — so existe. */
   private criarNpcs(): void {
@@ -703,7 +977,7 @@ export class FarmScene extends Phaser.Scene {
       const sprite = this.physics.add.sprite(alvo.x, alvo.y, textura, 'down-0');
       this.configurarNpc(sprite);
       sprite.setImmovable(true);
-      if (def.tint !== undefined) sprite.setTint(def.tint);
+      if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
       sprite.anims.play(`${def.sprite ? `npc-${def.id}-` : ''}idle-down`);
       this.interagiveis.push(alvo);
       this.npcs.push({ estado: estadoNpc, sprite, interagivel: alvo, animacao: def.sprite ? `npc-${def.id}-` : '' });
@@ -711,10 +985,34 @@ export class FarmScene extends Phaser.Scene {
     this.sincronizarNpcs();
   }
 
-  private sincronizarNpcs(): void {
+  /** Os moradores dos Mapas 2/3 usam agenda declarativa entre mapas externos. */
+  private criarNovosMoradores(): void {
+    for (const morador of Object.values(MORADORES)) {
+      const alvo: Interagivel = {
+        id: `npc_${morador.id}`, tipo: 'npc', rotulo: ROTULOS.npc,
+        x: 0, y: 0, props: { npcId: morador.id },
+      };
+      const sprite = this.physics.add.sprite(0, 0, `npc-${morador.id}-sprites`, 'down-0');
+      this.configurarNpc(sprite);
+      sprite.setImmovable(true);
+      sprite.anims.play(`npc-${morador.id}-idle-down`);
+      this.interagiveis.push(alvo);
+      this.npcs.push({ morador, sprite, interagivel: alvo, animacao: `npc-${morador.id}-` });
+    }
+    this.sincronizarNpcs();
+  }
+
+  private sincronizarNpcs(delta = 0): void {
+    this.tempoMovimentoMoradores += Math.max(0, delta);
     for (const npc of this.npcs) {
-      const { estado: atual, sprite, interagivel } = npc;
-      const posicao = this.posicaoNpcNoMapa(atual);
+      const { sprite, interagivel } = npc;
+      if (npc.morador) {
+        this.sincronizarMorador(npc);
+        continue;
+      }
+      const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
+      void externoAtual;
+      const posicao = this.posicaoNpcNoMapa(npc.estado!);
       const visivel = posicao !== null;
       sprite.setVisible(visivel).setActive(visivel);
       if (sprite.body) sprite.body.enable = visivel;
@@ -724,8 +1022,194 @@ export class FarmScene extends Phaser.Scene {
       sprite.setPosition(x, y).setDepth(y);
       interagivel.x = x;
       interagivel.y = y;
-      sprite.anims.play(`${npc.animacao}${atual.movendo ? 'walk' : 'idle'}-${atual.direcao}`, true);
+      const movendo = npc.estado!.movendo;
+      const direcao = npc.estado!.direcao;
+      sprite.anims.play(`${npc.animacao}${movendo ? 'walk' : 'idle'}-${direcao}`, true);
     }
+  }
+
+  /** Movimento local real dos moradores dos Mapas 2/3, sem teleporte por frame. */
+  private sincronizarMorador(npc: NpcVisual): void {
+    const morador = npc.morador!;
+    const padrao = atividadeAtual(morador, estado.dia, estado.relogio.minutos);
+    const atividade = atividadeComEmprego(estado.cidade, morador, estado.dia, estado.relogio.minutos, padrao);
+    const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
+    const visivel = Boolean(atividade && estado.mapa === externoAtual && atividade.mapa === externoAtual);
+    const { sprite, interagivel } = npc;
+    sprite.setVisible(visivel).setActive(visivel);
+    if (sprite.body) sprite.body.enable = visivel;
+    if (!visivel || !atividade) {
+      sprite.setVelocity(0, 0);
+      npc.atividadeChave = undefined;
+      return;
+    }
+
+    const chave = `${estado.dia}:${atividade.inicio}:${atividade.fim}:${atividade.mapa}:${atividade.x}:${atividade.y}`;
+    if (npc.atividadeChave !== chave || !npc.ancoraMorador) {
+      const inicial = this.posicaoInicialSegura(morador, atividade);
+      npc.atividadeChave = chave;
+      npc.ancoraMorador = { x: inicial.x * this.tamanhoTile, y: inicial.y * this.tamanhoTile };
+      npc.alvoMorador = null;
+      npc.proximaDecisao = this.tempoMovimentoMoradores + 450;
+      npc.passoMorador = 0;
+      npc.direcaoMorador = 'down';
+      sprite.setPosition(npc.ancoraMorador.x, npc.ancoraMorador.y).setVelocity(0, 0);
+    }
+
+    // Uma folha so de poses paradas nunca deve deslizar pelo chao. Esses NPCs
+    // continuam mudando de compromisso pela agenda, mas permanecem no posto
+    // escolhido enquanto aquela atividade estiver ativa.
+    if (morador.movimento === 'parado') {
+      sprite.setVelocity(0, 0).setDepth(sprite.y);
+      npc.alvoMorador = null;
+      interagivel.x = sprite.x;
+      interagivel.y = sprite.y;
+      sprite.anims.play(`${npc.animacao}idle-${npc.direcaoMorador ?? 'down'}`, true);
+      return;
+    }
+
+    // Nao troca o destino no meio do passo. A versao anterior decidia a cada
+    // ~1 s, antes de percorrer um tile, e a sucessao de vetores fazia os NPCs
+    // descreverem circulos em volta da ancora.
+    if (!npc.alvoMorador && this.tempoMovimentoMoradores >= (npc.proximaDecisao ?? 0)) {
+      npc.alvoMorador = this.proximoPassoDoMorador(npc);
+      npc.passoMorador = (npc.passoMorador ?? 0) + 1;
+      if (!npc.alvoMorador) npc.proximaDecisao = this.tempoMovimentoMoradores + 600;
+    }
+
+    let movendo = false;
+    const alvo = npc.alvoMorador;
+    if (alvo) {
+      const distancia = Phaser.Math.Distance.Between(sprite.x, sprite.y, alvo.x, alvo.y);
+      if (distancia <= 2.5) {
+        sprite.setPosition(alvo.x, alvo.y).setVelocity(0, 0);
+        npc.alvoMorador = null;
+        const variacao = (this.sementeMorador(morador.id) + (npc.passoMorador ?? 0) * 137) % 2200;
+        npc.proximaDecisao = this.tempoMovimentoMoradores + 1800 + variacao;
+      } else {
+        const velocidade = this.tamanhoTile * 0.78;
+        const dx = alvo.x - sprite.x;
+        const dy = alvo.y - sprite.y;
+        const vetor = new Phaser.Math.Vector2(dx, dy).normalize().scale(velocidade);
+        sprite.setVelocity(vetor.x, vetor.y);
+        npc.direcaoMorador = Math.abs(dx) >= Math.abs(dy)
+          ? (dx >= 0 ? 'right' : 'left')
+          : (dy >= 0 ? 'down' : 'up');
+        movendo = true;
+      }
+    } else sprite.setVelocity(0, 0);
+
+    sprite.setDepth(sprite.y);
+    interagivel.x = sprite.x;
+    interagivel.y = sprite.y;
+    sprite.anims.play(`${npc.animacao}${movendo ? 'walk' : 'idle'}-${npc.direcaoMorador ?? 'down'}`, true);
+  }
+
+  private sementeMorador(id: string): number {
+    return [...id].reduce((n, c) => Math.imul(n, 31) + c.charCodeAt(0), 17) >>> 0;
+  }
+
+  /** Separa quem compartilha casa/trabalho e procura o tile caminhavel mais proximo. */
+  private posicaoInicialSegura(morador: Morador, atividade: NonNullable<ReturnType<typeof atividadeAtual>>): { x: number; y: number } {
+    const iguais = Object.values(MORADORES)
+      .filter((outro) => {
+        const atual = atividadeComEmprego(
+          estado.cidade,
+          outro,
+          estado.dia,
+          estado.relogio.minutos,
+          atividadeAtual(outro, estado.dia, estado.relogio.minutos),
+        );
+        return atual?.mapa === atividade.mapa && atual.x === atividade.x && atual.y === atividade.y;
+      })
+      .map((outro) => outro.id)
+      .sort();
+    const indice = Math.max(0, iguais.indexOf(morador.id));
+    const preferencias = [
+      [0, 0], [-1, 0], [1, 0], [0, 1], [0, -1],
+      [-2, 0], [2, 0], [-1, 1], [1, 1], [-1, -1], [1, -1],
+    ];
+    const inicio = preferencias[indice % preferencias.length];
+    const candidatos = [inicio, ...preferencias.filter((p) => p !== inicio)];
+    for (let raio = 0; raio <= 5; raio++) {
+      for (const [ox, oy] of candidatos) {
+        const x = Math.round(atividade.x + ox + (raio > 0 ? Math.sign(ox || 1) * raio : 0));
+        const y = Math.round(atividade.y + oy);
+        if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y)) return { x, y };
+      }
+    }
+    console.warn(`[moradores] ${morador.id}: nenhum tile livre perto de ${atividade.x},${atividade.y}`);
+    return { x: atividade.x, y: atividade.y };
+  }
+
+  /** Um passo cardinal mantem a reta inteira em tiles livres e evita cortar paredes. */
+  private proximoPassoDoMorador(npc: NpcVisual): { x: number; y: number } | null {
+    const ancora = npc.ancoraMorador!;
+    const t = this.tamanhoTile;
+    const atualX = Math.round(npc.sprite.x / t);
+    const atualY = Math.round(npc.sprite.y / t);
+    const base = this.sementeMorador(npc.morador!.id) + (npc.passoMorador ?? 0);
+    const passos = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+    for (let i = 0; i < passos.length; i++) {
+      const [dx, dy] = passos[(base + i) % passos.length];
+      const x = atualX + dx;
+      const y = atualY + dy;
+      if (Math.abs(x * t - ancora.x) > t * 2.1 || Math.abs(y * t - ancora.y) > t * 2.1) continue;
+      if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y, npc)) {
+        return { x: x * t, y: y * t };
+      }
+    }
+    return null;
+  }
+
+  /** Impede dois moradores de ocuparem ou escolherem o mesmo tile. */
+  private tileReservadoPorMorador(tx: number, ty: number, ignorar?: NpcVisual): boolean {
+    const t = this.tamanhoTile;
+    return this.npcs.some((outro) => {
+      if (outro === ignorar || !outro.morador || !outro.sprite.visible || !outro.atividadeChave) return false;
+      const atualX = Math.round(outro.sprite.x / t);
+      const atualY = Math.round(outro.sprite.y / t);
+      if (atualX === tx && atualY === ty) return true;
+      const alvo = outro.alvoMorador;
+      return Boolean(alvo && Math.round(alvo.x / t) === tx && Math.round(alvo.y / t) === ty);
+    });
+  }
+
+  private tileLivreParaMorador(tx: number, ty: number): boolean {
+    const camada = this.camadaObjetos;
+    if (!camada || tx < 1 || ty < 1 || tx >= camada.tilemap.width - 1 || ty >= camada.tilemap.height - 1) return false;
+    if (camada.getTileAt(tx, ty)?.collides) return false;
+    const x = tx * this.tamanhoTile;
+    const y = ty * this.tamanhoTile;
+    return !this.obstaculos.some((zona) => zona.getBounds().contains(x, y - this.tamanhoTile * 0.15));
+  }
+
+  /** O encontro sempre simula; so a camada visual depende da proximidade. */
+  private atualizarBalaoEncontro(): void {
+    const ativo = estado.encontrosNpc.ativo;
+    const fala = ativo?.definicao.falas[ativo.indiceFala];
+    const visual = fala ? this.npcs.find((n) => n.interagivel.props.npcId === fala.npcId) : null;
+    const perto = Boolean(
+      visual?.sprite.visible &&
+      jogadorOuveEncontro(
+        Phaser.Math.Distance.Between(this.player.x, this.player.y, visual.sprite.x, visual.sprite.y) / this.tamanhoTile,
+      ),
+    );
+    if (!fala || !visual || !perto) {
+      this.balaoEncontro?.destroy();
+      this.balaoEncontro = null;
+      return;
+    }
+    if (!this.balaoEncontro) {
+      this.balaoEncontro = this.add.text(visual.sprite.x, visual.sprite.y - this.tamanhoTile * 1.8, '', {
+        fontFamily:UI.fonte, fontSize:'10px', color:'#18202c', backgroundColor:'#fff8dc',
+        padding:{x:6,y:4}, wordWrap:{width:180}, align:'center',
+      }).setOrigin(0.5,1).setDepth(DEPTH_OVERLAY + 20);
+    }
+    this.balaoEncontro.setText(fala.texto).setPosition(
+      visual.sprite.x,
+      visual.sprite.y - this.tamanhoTile * 1.8,
+    );
   }
 
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
@@ -784,6 +1268,135 @@ export class FarmScene extends Phaser.Scene {
       const y = obj.y ?? 0;
       this.add.image(x, y, 'construcoes', quadro).setOrigin(0.5, 1).setDepth(y);
     }
+  }
+
+  /** Mostra os quatro projetos urbanos, construidos ou ainda como placa de obra. */
+  private criarProjetosCidade(): void {
+    if (estado.mapa !== 'bairro') return;
+    const t = this.tamanhoTile;
+    for (const projeto of Object.values(PROJETOS_CIDADE)) {
+      const zona = this.zonaPorId(projeto.lote);
+      if (!zona) {
+        console.warn(`[cidade] lote "${projeto.lote}" nao existe no bairro`);
+        continue;
+      }
+      const construido = estado.cidade.construido(projeto.id);
+      const x = zona.centro.x;
+      const topo = zona.y + t;
+      const base = topo + projeto.pegada.h * t;
+      if (construido) {
+        const fachada = this.add.image(x, base, 'construcoes', projeto.quadro)
+          .setOrigin(0.5, 1)
+          .setDepth(base);
+        this.visuaisDeObra.push(fachada);
+        this.corpoNaBase(x, base, projeto.pegada.w * t, projeto.pegada.h * t);
+        zona.construida = true;
+      } else {
+        const placa = this.add.rectangle(
+          projeto.posto.x * t,
+          projeto.posto.y * t,
+          t * 1.4,
+          t * 0.8,
+          0xd9b56d,
+        ).setStrokeStyle(2, 0x563b20).setDepth(projeto.posto.y * t);
+        const texto = this.add.text(placa.x, placa.y, 'OBRA', {
+          fontFamily: UI.fonte, fontSize: '8px', color: '#37210f', align: 'center',
+        }).setOrigin(0.5).setDepth(placa.depth + 1);
+        this.visuaisDeObra.push(placa, texto);
+      }
+      this.interagiveis.push({
+        id: `obra_${projeto.id}`,
+        tipo: 'obra',
+        rotulo: construido ? 'Gerenciar' : 'Construir',
+        x: projeto.posto.x * t,
+        y: projeto.posto.y * t,
+        props: { projetoId: projeto.id },
+      });
+    }
+  }
+
+  /** Retira cerca/entulho antigo quando um projeto passa a ocupar o lote. */
+  private limparLotesDosProjetos(): void {
+    if (estado.mapa !== 'bairro' || !this.camadaObjetos) return;
+    const t = this.tamanhoTile;
+    for (const projeto of Object.values(PROJETOS_CIDADE)) {
+      if (!estado.cidade.construido(projeto.id)) continue;
+      const zona = this.zonaPorId(projeto.lote);
+      if (!zona) continue;
+      const x0 = Math.floor(zona.x / t);
+      const y0 = Math.floor(zona.y / t);
+      const x1 = Math.ceil((zona.x + zona.largura) / t);
+      const y1 = Math.ceil((zona.y + zona.altura) / t);
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) this.camadaObjetos.removeTileAt(x, y);
+      }
+    }
+  }
+
+  private abrirProjetoCidade(alvo: Interagivel): void {
+    const id = String(alvo.props.projetoId) as IdProjetoCidade;
+    const projeto = PROJETOS_CIDADE[id];
+    if (!projeto) return;
+    if (!estado.cidade.construido(id)) {
+      this.ui.confirmar(
+        `Construir ${projeto.nome} por ${formatarDinheiro(projeto.custo)}?`,
+        () => this.construirProjetoCidade(projeto),
+      );
+      return;
+    }
+    this.abrirAtribuicaoDeFuncionario(projeto);
+  }
+
+  private construirProjetoCidade(projeto: ProjetoCidade): void {
+    const r = estado.carteira.gastar(projeto.custo, {
+      cabe: () => !estado.cidade.construido(projeto.id),
+      entregar: () => { estado.cidade.construir(projeto.id); },
+    });
+    if (!r.ok) {
+      this.ui.iniciarDialogo(falasDe('Prefeitura', [
+        r.motivo === 'saldo'
+          ? `Falta dinheiro. O projeto custa ${formatarDinheiro(projeto.custo)}.`
+          : 'Nao foi possivel iniciar a obra agora.',
+      ]));
+      return;
+    }
+    this.ui.iniciarDialogo(falasDe('Prefeitura', [
+      `${projeto.nome} foi construido.`,
+      'Use a placa em frente para atribuir um trabalhador.',
+    ]), () => this.scene.restart({ mapa: estado.mapa, x: this.player.x, y: this.player.y }));
+  }
+
+  private abrirAtribuicaoDeFuncionario(projeto: ProjetoCidade): void {
+    const atual = estado.cidade.funcionario(projeto.id);
+    const candidatos = projeto.candidatos.filter((id) => {
+      const outro = estado.cidade.projetoDoFuncionario(id);
+      return !outro || outro.id === projeto.id;
+    });
+    const opcoes = candidatos.map((id) => {
+      const morador = MORADORES[id];
+      return {
+        rotulo: `${atual === id ? '[atual] ' : ''}${morador?.nome ?? id} — ${morador?.profissao ?? 'morador'}`,
+        aoEscolher: () => this.atribuirFuncionario(projeto, id),
+      };
+    });
+    if (opcoes.length === 0) {
+      this.ui.iniciarDialogo(falasDe('Prefeitura', ['Nao ha trabalhador compativel disponivel agora.']));
+      return;
+    }
+    this.ui.abrirMenu(`${projeto.nome} — escolher responsavel`, opcoes);
+  }
+
+  private atribuirFuncionario(projeto: ProjetoCidade, npcId: string): void {
+    const morador = MORADORES[npcId];
+    if (!morador || !estado.cidade.atribuir(projeto.id, npcId)) {
+      this.ui.iniciarDialogo(falasDe('Prefeitura', ['Essa atribuicao nao esta disponivel.']));
+      return;
+    }
+    this.sincronizarNpcs();
+    this.ui.iniciarDialogo(falasDe('Prefeitura', [
+      `${morador.nome} agora e responsavel por ${projeto.nome}.`,
+      'Nos dias uteis, o turno acontece das 08:00 as 17:00.',
+    ], morador.id));
   }
 
   /**
@@ -849,6 +1462,7 @@ export class FarmScene extends Phaser.Scene {
     if (!camada) return;
 
     for (const obj of camada.objects) {
+      if (this.floraDentroDeProjetoConstruido(obj.x ?? 0, obj.y ?? 0)) continue;
       const classe = obj.type || (obj as { class?: string }).class || '';
       const props = lerProps(obj);
       const receita = receitaDeFlora(classe, props);
@@ -885,6 +1499,18 @@ export class FarmScene extends Phaser.Scene {
         );
       }
     }
+  }
+
+  private floraDentroDeProjetoConstruido(x: number, y: number): boolean {
+    if (estado.mapa !== 'bairro') return false;
+    return Object.values(PROJETOS_CIDADE).some((projeto) => {
+      if (!estado.cidade.construido(projeto.id)) return false;
+      const zona = this.zonaPorId(projeto.lote);
+      return Boolean(
+        zona && x >= zona.x && x <= zona.x + zona.largura &&
+        y >= zona.y && y <= zona.y + zona.altura,
+      );
+    });
   }
 
   /** Caixa estatica de colisao encostada na base de um sprite de flora. */
@@ -1020,7 +1646,7 @@ export class FarmScene extends Phaser.Scene {
       this.add.text(
         margem,
         CONFIG.altura - 13,
-        chaveExterno === MAPA_DOS_NPCS ? 'vermelho: voce   amarelo: NPC' : 'vermelho: voce',
+        'vermelho: voce   retrato: NPC',
         {
           fontFamily: UI.fonte,
           fontSize: '8px',
@@ -1032,12 +1658,28 @@ export class FarmScene extends Phaser.Scene {
     this.marcadorPlayer = this.add.circle(0, 0, 4, 0xff5b57).setStrokeStyle(1, 0xffffff);
     this.marcadorPlayer.setScrollFactor(0);
     filhos.push(this.marcadorPlayer);
-    // marcador de NPC so existe no mapa em que eles vivem
-    this.marcadoresNpc = (chaveExterno === MAPA_DOS_NPCS ? estado.rotinasNpc.todos : []).map(() => {
-      const marcador = this.add.circle(0, 0, 3, 0xffd34e).setStrokeStyle(1, 0x3a2b08);
-      marcador.setScrollFactor(0);
+    // Um retrato corporal substitui o ponto amarelo. Todos os 33 perfis ganham
+    // marcador; `atualizarMarcadoresMapa` mostra apenas quem esta neste mapa.
+    const idsNpc = [...new Set([
+      ...estado.rotinasNpc.todos.map((npc) => npc.id),
+      ...Object.keys(MORADORES),
+    ])];
+    this.marcadoresNpc = idsNpc.map((npcId) => {
+      const perfil = buscarNpc(npcId);
+      const chaveTextura = perfil?.spriteParado
+        ? `npc-${npcId}-parado`
+        : perfil?.sprite
+          ? `npc-${npcId}-sprites`
+          : 'player-idle-sprites';
+      const fundoRetrato = this.add.circle(0, 0, 7, 0xfff4d0, 0.96)
+        .setStrokeStyle(1, 0x3a2b08)
+        .setScrollFactor(0);
+      const retrato = this.add.image(0, 5, chaveTextura, 'down-0')
+        .setDisplaySize(10, 13)
+        .setScrollFactor(0);
+      const marcador = this.add.container(0, 0, [fundoRetrato, retrato]).setScrollFactor(0);
       filhos.push(marcador);
-      return marcador;
+      return { npcId, marcador };
     });
 
     this.overlayMapa = this.add
@@ -1056,16 +1698,31 @@ export class FarmScene extends Phaser.Scene {
       this.marcadorPlayer.setVisible(true);
     } else this.marcadorPlayer.setVisible(false);
 
-    this.marcadoresNpc.forEach((marcador, i) => {
-      const npc = estado.rotinasNpc.todos[i];
-      marcador.setVisible(Boolean(npc?.visivel));
-      if (npc?.visivel) {
-        marcador.setPosition(...this.paraCoordenadaDoMapa(
-          npc.x * this.tamanhoTile,
-          npc.y * this.tamanhoTile,
-        ));
-      }
+    this.marcadoresNpc.forEach(({ npcId, marcador }) => {
+      const posicao = this.posicaoNpcNoMapaAberto(npcId);
+      marcador.setVisible(posicao !== null);
+      if (posicao) marcador.setPosition(...this.paraCoordenadaDoMapa(posicao.x, posicao.y));
     });
+  }
+
+  /** Posicao externa de qualquer NPC, mesmo se o jogador estiver num interior. */
+  private posicaoNpcNoMapaAberto(npcId: string): { x: number; y: number } | null {
+    const original = estado.rotinasNpc.porId(npcId);
+    if (original) {
+      if (this.mapaExternoAtual !== MAPA_DOS_NPCS || !original.visivel) return null;
+      return { x: original.x * this.tamanhoTile, y: original.y * this.tamanhoTile };
+    }
+    const morador = MORADORES[npcId];
+    if (!morador) return null;
+    const atividade = atividadeComEmprego(
+      estado.cidade,
+      morador,
+      estado.dia,
+      estado.relogio.minutos,
+      atividadeAtual(morador, estado.dia, estado.relogio.minutos),
+    );
+    if (!atividade || atividade.mapa !== this.mapaExternoAtual) return null;
+    return { x: atividade.x * this.tamanhoTile, y: atividade.y * this.tamanhoTile };
   }
 
   private paraCoordenadaDoMapa(x: number, y: number): [number, number] {
@@ -1166,20 +1823,106 @@ export class FarmScene extends Phaser.Scene {
     // basta ABORDAR pra o NPC entrar na aba Relacionamento do Navegador: uma
     // conversa que rendeu 0 ponto ainda foi uma conversa
     estado.relacoes.registrarInteracao(def.id);
-    this.ui.iniciarDialogo(falasDe(def.nome, def.dialogoAtual, def.id), () =>
+    const condicional = estado.worldEvents.consumirFala(def.id);
+    const abertura = condicional ? [condicional.texto, ...def.dialogoAtual] : def.dialogoAtual;
+    this.ui.iniciarDialogo(falasDe(def.nome, abertura, def.id), () =>
       this.abrirMenuDeConversa(def),
     );
   }
 
-  private abrirMenuDeConversa(def: DefinicaoNpc): void {
+  private abrirMenuDeConversa(def: PerfilNpc): void {
     const temas = temasDoDia(def.id, estado.dia);
     const opcoes = temas.map((tema) => ({
       rotulo: tema.rotulo,
       aoEscolher: () => this.conversarSobre(def, tema),
     }));
+    const morador = buscarMorador(def.id);
+    if (morador) {
+      opcoes.push({ rotulo: 'Perguntar sobre o dia', aoEscolher: () => this.conversarComMorador(morador) });
+    }
+    const missao = estado.missoesNpc.porNpc(def.id);
+    if (missao) this.acrescentarOpcaoMissao(opcoes, def, missao);
     opcoes.push({ rotulo: 'Dar um presente...', aoEscolher: () => this.abrirMenuDePresente(def) });
     if (opcoes.length === 1) return; // NPC sem tema: so a fala de abertura
     this.ui.abrirMenu(`Falar com ${def.nome}`, opcoes, undefined, def.id);
+  }
+
+  private acrescentarOpcaoMissao(
+    opcoes: { rotulo: string; aoEscolher: () => void }[],
+    def: PerfilNpc,
+    missao: MissaoNpc,
+  ): void {
+    const situacao = estado.missoesNpc.estado(missao.id);
+    if (situacao === 'concluida') return;
+    if (situacao === 'disponivel') {
+      if (estado.relacoes.getScore(def.id) < missao.requisitoRelacao) return;
+      opcoes.unshift({ rotulo: `Missao: ${missao.titulo}`, aoEscolher: () => this.iniciarMissao(def, missao) });
+      return;
+    }
+    const podeEntregar = this.podeEntregarMissao(missao);
+    opcoes.unshift({
+      rotulo: podeEntregar ? `Entregar: ${missao.titulo}` : `Sobre: ${missao.titulo}`,
+      aoEscolher: () => podeEntregar ? this.concluirEntregaMissao(def, missao) : this.statusMissao(def, missao),
+    });
+  }
+
+  private iniciarMissao(def: PerfilNpc, missao: MissaoNpc): void {
+    if (!estado.missoesNpc.iniciar(missao.id)) return;
+    this.ui.iniciarDialogo(falasDe(def.nome, [...missao.falaInicio, missao.descricao], def.id));
+  }
+
+  private podeEntregarMissao(missao: MissaoNpc): boolean {
+    if (missao.tipo === 'conserto' || !missao.itemId || estado.inventario.contar(missao.itemId) < 1) return false;
+    if (missao.localEntrega === 'academia') return estado.mapa === 'academia';
+    if (missao.localEntrega === 'praca') {
+      const tx = this.player.x / this.tamanhoTile;
+      const ty = this.player.y / this.tamanhoTile;
+      return estado.mapa === 'farm' && tx >= 31 && tx <= 45 && ty >= 50 && ty <= 61;
+    }
+    return true;
+  }
+
+  private statusMissao(def: PerfilNpc, missao: MissaoNpc): void {
+    const texto = missao.tipo === 'conserto'
+      ? 'A ordem esta ativa no app Trabalho do seu computador.'
+      : missao.itemId && estado.inventario.contar(missao.itemId) > 0
+        ? `Voce esta com o item, mas precisa fazer a entrega em ${missao.localEntrega ?? 'qualquer lugar'}.`
+        : missao.descricao;
+    this.ui.iniciarDialogo(falasDe(def.nome, [texto], def.id), () => this.abrirMenuDeConversa(def));
+  }
+
+  private concluirEntregaMissao(def: PerfilNpc, missao: MissaoNpc): void {
+    if (!missao.itemId || !this.podeEntregarMissao(missao)) return;
+    if (estado.inventario.remover(missao.itemId, 1) !== 1) return;
+    const concluida = estado.missoesNpc.concluirComRecompensas(missao.id, estado);
+    if (!concluida) {
+      estado.inventario.adicionar(missao.itemId, 1);
+      return;
+    }
+    this.ui.iniciarDialogo(falasDe(def.nome, [
+      ...missao.falaConclusao,
+      `Recompensa: ${formatarDinheiro(missao.recompensa)} e +${missao.bonusRelacao} de relacao.`,
+    ], def.id));
+  }
+
+  private conversarComMorador(morador: Morador): void {
+    const pontua = estado.relacoes.podeConversar(morador.id, estado.dia);
+    if (pontua) {
+      estado.relacoes.registrarConversa(morador.id, estado.dia);
+      estado.relacoes.ganharRelacao(morador.id, 0.5);
+    }
+    const atividade = atividadeComEmprego(
+      estado.cidade,
+      morador,
+      estado.dia,
+      estado.relogio.minutos,
+      atividadeAtual(morador, estado.dia, estado.relogio.minutos),
+    );
+    const texto = atividade
+      ? `Agora eu estou em: ${atividade.atividade}. ${morador.dialogoAtual[estado.dia % morador.dialogoAtual.length]}`
+      : morador.dialogoAtual[estado.dia % morador.dialogoAtual.length];
+    const falas = pontua ? [texto] : ['A gente ja conversou bastante hoje.', texto];
+    this.ui.iniciarDialogo(falasDe(morador.nome, falas, morador.id), () => this.abrirMenuDeConversa(morador));
   }
 
   /**
@@ -1190,7 +1933,7 @@ export class FarmScene extends Phaser.Scene {
    * recompensa — mas o numero nao se mexe. E o que impede farmar relacionamento
    * apertando E em looping.
    */
-  private conversarSobre(def: DefinicaoNpc, tema: TemaDeConversa): void {
+  private conversarSobre(def: PerfilNpc, tema: TemaDeConversa): void {
     const pontua = estado.relacoes.podeConversar(def.id, estado.dia);
     const falas: string[] = [];
 
@@ -1209,7 +1952,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   /** Lista o inventario pra escolher o presente. Item vazio nao entra. */
-  private abrirMenuDePresente(def: DefinicaoNpc): void {
+  private abrirMenuDePresente(def: PerfilNpc): void {
     const opcoes = estado.inventario.slots
       .map((slot, indice) => ({ slot, indice }))
       .filter((s): s is { slot: { id: string; qtd: number }; indice: number } => s.slot !== null)
@@ -1241,7 +1984,7 @@ export class FarmScene extends Phaser.Scene {
    * mesmo — sem isso, um slot que mudou entre abrir o menu e escolher renderia
    * ponto por um presente que nunca foi dado.
    */
-  private presentear(def: DefinicaoNpc, indice: number, itemId: string): void {
+  private presentear(def: PerfilNpc, indice: number, itemId: string): void {
     const slot = estado.inventario.slots[indice];
     if (!slot || slot.id !== itemId || estado.inventario.removerDoSlot(indice, 1) < 1) {
       this.ui.iniciarDialogo(
@@ -1436,6 +2179,28 @@ export class FarmScene extends Phaser.Scene {
 
   // ----------------------------------------------------- casa: expansoes --
 
+  private textoMateriais(requisitos: readonly RequisitoMaterial[]): string {
+    return requisitos.map((r) => `${ITENS[r.itemId]?.nome ?? r.itemId} x${r.quantidade}`).join(', ');
+  }
+
+  private materiaisFaltando(requisitos: readonly RequisitoMaterial[]): string[] {
+    return requisitos.flatMap((r) => {
+      const tem = estado.inventario.contar(r.itemId);
+      return tem >= r.quantidade
+        ? []
+        : [`${ITENS[r.itemId]?.nome ?? r.itemId} ${tem}/${r.quantidade}`];
+    });
+  }
+
+  private consumirMateriais(requisitos: readonly RequisitoMaterial[]): void {
+    for (const requisito of requisitos) {
+      const removidos = estado.inventario.remover(requisito.itemId, requisito.quantidade);
+      if (removidos !== requisito.quantidade) {
+        console.error(`[casa] BUG: requisito conferido mudou durante a transacao (${requisito.itemId})`);
+      }
+    }
+  }
+
   /**
    * Tapa com parede o vao de cada comodo de expansao AINDA NAO COMPRADO.
    *
@@ -1494,7 +2259,7 @@ export class FarmScene extends Phaser.Scene {
     this.ui.abrirMenu(
       `Madeireira — ${estado.carteira.texto}`,
       disponiveis.map((exp) => ({
-        rotulo: `${exp.nome}  ${formatarDinheiro(exp.preco)}`,
+        rotulo: `${exp.nome}  ${formatarDinheiro(exp.preco)} + ${this.textoMateriais(exp.materiais)}`,
         aoEscolher: () => this.confirmarExpansao(exp),
       })),
     );
@@ -1502,7 +2267,7 @@ export class FarmScene extends Phaser.Scene {
 
   private confirmarExpansao(exp: DefinicaoExpansao): void {
     this.ui.iniciarDialogo(falasDe('Madeireira', [exp.descricao]), () => {
-      this.ui.confirmar(`Fechar ${exp.nome} por ${formatarDinheiro(exp.preco)}?`, () =>
+      this.ui.confirmar(`Fechar ${exp.nome} por ${formatarDinheiro(exp.preco)} + ${this.textoMateriais(exp.materiais)}?`, () =>
         this.comprarExpansao(exp),
       );
     });
@@ -1514,9 +2279,17 @@ export class FarmScene extends Phaser.Scene {
    * nada mudou.
    */
   private comprarExpansao(exp: DefinicaoExpansao): void {
+    const faltas = this.materiaisFaltando(exp.materiais);
+    if (faltas.length > 0) {
+      this.ui.iniciarDialogo(falasDe('Madeireira', [`Faltam materiais: ${faltas.join(', ')}. Nada foi consumido.`]));
+      return;
+    }
     const r = estado.carteira.gastar(exp.preco, {
-      cabe: () => !estado.casa.temComodo(exp.id),
-      entregar: () => estado.casa.liberarComodo(exp.id),
+      cabe: () => !estado.casa.temComodo(exp.id) && this.materiaisFaltando(exp.materiais).length === 0,
+      entregar: () => {
+        this.consumirMateriais(exp.materiais);
+        estado.casa.liberarComodo(exp.id);
+      },
     });
     if (!r.ok) {
       const motivo =
@@ -1596,7 +2369,7 @@ export class FarmScene extends Phaser.Scene {
     this.ui.abrirMenu(
       `Mobilia — ${estado.carteira.texto}`,
       CATALOGO_MOBILIA.map((peca) => ({
-        rotulo: `${peca.nome}  ${formatarDinheiro(peca.preco)}`,
+        rotulo: `${peca.nome}  ${formatarDinheiro(peca.preco)} + ${this.textoMateriais(requisitosDoMovel(peca))}`,
         aoEscolher: () => this.iniciarPosicionamento(peca.id),
       })),
     );
@@ -1615,6 +2388,7 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
     const t = this.tamanhoTile;
+    const requisitos = requisitosDoMovel(peca);
     const fantasma = this.add
       .image(this.player.x, this.player.y, medida.atlas, medida.frame)
       .setOrigin(0.5, 1)
@@ -1627,7 +2401,7 @@ export class FarmScene extends Phaser.Scene {
       .text(
         CONFIG.largura / 2,
         6,
-        `${peca.nome}  ${formatarDinheiro(peca.preco)}   [clique] poe   [ESC] sai`,
+        `${peca.nome}  ${formatarDinheiro(peca.preco)} + ${this.textoMateriais(requisitos)}   [clique] poe   [ESC] sai`,
         { fontFamily: UI.fonte, fontSize: UI.tamanho, color: UI.texto, backgroundColor: '#1a1712' },
       )
       .setOrigin(0.5, 0)
@@ -1665,11 +2439,21 @@ export class FarmScene extends Phaser.Scene {
     const peca = buscarMovelDeLoja(posicao.id);
     if (!peca) return;
     const posto: MovelPosto = { id: posicao.id, tx: posicao.tx, ty: posicao.ty };
+    const requisitos = requisitosDoMovel(peca);
+    const faltas = this.materiaisFaltando(requisitos);
+    if (faltas.length > 0) {
+      this.avisoMobilia?.setText(`Faltam materiais: ${faltas.join(', ')}. Nada foi consumido.`);
+      this.avisoMobilia?.setColor(UI.alerta);
+      return;
+    }
     const r = estado.carteira.gastar(peca.preco, {
       // reconfere na hora de pagar: a peca pode ter ficado invalida entre o
       // ultimo movimento do ponteiro e o clique
-      cabe: () => this.posicaoDeMovelValida(posicao.medida, posto.tx, posto.ty),
-      entregar: () => estado.casa.posicionarMovel(posto),
+      cabe: () => this.posicaoDeMovelValida(posicao.medida, posto.tx, posto.ty) && this.materiaisFaltando(requisitos).length === 0,
+      entregar: () => {
+        this.consumirMateriais(requisitos);
+        estado.casa.posicionarMovel(posto);
+      },
     });
     if (!r.ok) {
       this.avisoMobilia?.setText(
@@ -1815,6 +2599,24 @@ export class FarmScene extends Phaser.Scene {
    * fachada mas nao tem interior — ver `AVISOS_DE_PREDIO`.
    */
   private examinarPlaca(alvo: Interagivel): void {
+    if (typeof alvo.props.missaoItemId === 'string') {
+      this.coletarItemDeMissao(String(alvo.props.missaoItemId));
+      return;
+    }
+    if (alvo.props.ambientacao === 'quadro') {
+      const avisos = avisosDaSemana(estado.dia);
+      this.ui.iniciarDialogo([
+        { nome: 'Quadro de avisos', texto: `Avisos da semana ${Math.floor(estado.dia / 7) + 1}:` },
+        ...avisos.map((texto, i) => ({ nome: `Aviso ${i + 1}`, texto })),
+        { nome: 'Quadro de avisos', texto: 'Estes recados ainda sao apenas informativos; o app Trabalho nao os aceita.' },
+      ]);
+      return;
+    }
+    if (typeof alvo.props.segredoId === 'string') {
+      const segredo = segredosDoMapa(estado.mapa).find((s) => s.id === alvo.props.segredoId);
+      if (segredo) this.examinarSegredo(segredo);
+      return;
+    }
     const aviso = AVISOS_DE_PREDIO[String(alvo.props.aviso ?? '')];
     if (aviso) {
       this.ui.iniciarDialogo(falasDe('Voce', aviso));
@@ -1823,6 +2625,80 @@ export class FarmScene extends Phaser.Scene {
     this.ui.iniciarDialogo(
       falasDe('Placa', ['Isto e uma placa.', 'Nao tem nada escrito nela ainda.']),
     );
+  }
+
+  private coletarItemDeMissao(missaoId: string): void {
+    const ponto = PONTOS_ITENS_MISSAO.find((p) => p.missaoId === missaoId);
+    if (!ponto || estado.missoesNpc.estado(missaoId) !== 'em_andamento') {
+      this.ui.iniciarDialogo(falasDe('Voce', ['Nao ha nada importante aqui agora.']));
+      return;
+    }
+    if (estado.inventario.contar(ponto.itemId) > 0) {
+      this.ui.iniciarDialogo(falasDe('Voce', ['Voce ja recolheu este item.']));
+      return;
+    }
+    if (!estado.inventario.cabe(ponto.itemId, 1)) {
+      this.ui.iniciarDialogo(falasDe('Inventario', ['Seu inventario esta cheio.']));
+      return;
+    }
+    estado.inventario.adicionar(ponto.itemId, 1);
+    this.ui.iniciarDialogo([
+      { nome:ponto.titulo, texto:'Ha algo guardado aqui.' },
+      { nome:'Encontrado', texto:ITENS[ponto.itemId]?.nome ?? ponto.itemId },
+    ]);
+  }
+
+  private examinarSegredo(segredo: SegredoDoMapa): void {
+    const falas = [{ nome: segredo.titulo, texto: segredo.texto }];
+    const recompensa = segredo.recompensa;
+    if (recompensa && !estado.worldEvents.ativa(recompensa.flag)) {
+      if (!estado.inventario.cabe(recompensa.itemId, recompensa.quantidade)) {
+        falas.push({ nome: 'Inventario', texto: 'Parece haver algo aqui, mas seu inventario esta cheio.' });
+      } else {
+        estado.inventario.adicionar(recompensa.itemId, recompensa.quantidade);
+        estado.worldEvents.definir(recompensa.flag, true);
+        falas.push({
+          nome: 'Encontrado',
+          texto: `${ITENS[recompensa.itemId]?.nome ?? recompensa.itemId} x${recompensa.quantidade}.`,
+        });
+      }
+    }
+    this.ui.iniciarDialogo(falas);
+  }
+
+  /** Pontos invisiveis: o jogador descobre chegando perto, sem marcador no mapa. */
+  private lerPontosDeAmbientacao(): Interagivel[] {
+    const t = this.tamanhoTile;
+    const pontos: Interagivel[] = [];
+    if (estado.mapa === 'farm') {
+      const x = 38.5 * t;
+      const y = 55.5 * t;
+      const placa = this.add.rectangle(x, y - t * 0.35, t * 1.15, t * 0.72, 0x6f4a2d)
+        .setStrokeStyle(2, 0xd4b07a)
+        .setDepth(y);
+      const pe = this.add.rectangle(x, y + t * 0.22, t * 0.14, t * 0.55, 0x49301f).setDepth(y - 1);
+      placa.setName('quadro_avisos_visual');
+      pe.setName('quadro_avisos_pe');
+      pontos.push({
+        id: 'quadro_avisos_praca', tipo: 'placa', rotulo: 'Ler avisos',
+        x, y, props: { ambientacao: 'quadro' },
+      });
+    }
+    for (const segredo of segredosDoMapa(estado.mapa)) {
+      pontos.push({
+        id: segredo.id, tipo: 'placa', rotulo: 'Examinar',
+        x: (segredo.tile.x + 0.5) * t, y: (segredo.tile.y + 0.5) * t,
+        props: { segredoId: segredo.id },
+      });
+    }
+    for (const ponto of PONTOS_ITENS_MISSAO.filter((p) => p.mapa === estado.mapa)) {
+      pontos.push({
+        id:`ponto_${ponto.missaoId}`, tipo:'placa', rotulo:'Examinar',
+        x:(ponto.tile.x + 0.5) * t, y:(ponto.tile.y + 0.5) * t,
+        props:{ missaoItemId:ponto.missaoId },
+      });
+    }
+    return pontos;
   }
 
   /** Converte a camada de objetos `interativos` do Tiled em dados do jogo. */
@@ -1901,10 +2777,23 @@ export class FarmScene extends Phaser.Scene {
 
 /** O que a cena precisa saber pra montar um sprite da camada `flora`. */
 interface NpcVisual {
-  estado: EstadoNpc;
+  estado?: EstadoNpc;
+  morador?: Morador;
   sprite: Phaser.Physics.Arcade.Sprite;
   interagivel: Interagivel;
   animacao: string;
+  atividadeChave?: string;
+  ancoraMorador?: { x: number; y: number };
+  alvoMorador?: { x: number; y: number } | null;
+  proximaDecisao?: number;
+  passoMorador?: number;
+  direcaoMorador?: Direcao;
+}
+
+/** Retrato de um NPC exibido sobre o mapa aberto. */
+interface MarcadorNpcMapa {
+  npcId: string;
+  marcador: Phaser.GameObjects.Container;
 }
 
 interface ReceitaFlora {

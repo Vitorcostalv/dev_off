@@ -191,6 +191,8 @@ const MODELOS: readonly ModeloDeVaga[] = [
 
 /** Uma vaga do quadro de hoje: o modelo mais o que foi sorteado pro dia. */
 export interface Vaga extends ModeloDeVaga {
+  /** Conserto narrativo iniciado em dialogo; nao pertence ao quadro diario. */
+  missaoNpcId?: string;
   /** so `entrega`: chave do mapa de destino */
   destino?: string;
   /** so `entrega`: quem recebe, pro texto da vaga */

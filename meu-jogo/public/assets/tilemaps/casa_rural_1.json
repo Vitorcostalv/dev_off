@@ -1,0 +1,3007 @@
+{
+ "compressionlevel": -1,
+ "width": 22,
+ "height": 16,
+ "tilewidth": 32,
+ "tileheight": 32,
+ "infinite": false,
+ "nextlayerid": 6,
+ "nextobjectid": 3289,
+ "orientation": "orthogonal",
+ "renderorder": "right-down",
+ "tiledversion": "1.11.0",
+ "type": "map",
+ "version": "1.10",
+ "layers": [
+  {
+   "data": [
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    178,
+    178,
+    178,
+    178,
+    178,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    178,
+    178,
+    178,
+    178,
+    178,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    178,
+    178,
+    178,
+    178,
+    178,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    178,
+    178,
+    178,
+    178,
+    178,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    178,
+    178,
+    178,
+    178,
+    178,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    178,
+    178,
+    178,
+    178,
+    178,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    178,
+    178,
+    178,
+    178,
+    178,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    184,
+    184,
+    184,
+    184,
+    184,
+    184,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    184,
+    184,
+    184,
+    184,
+    184,
+    184,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    184,
+    184,
+    184,
+    184,
+    184,
+    184,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    184,
+    184,
+    184,
+    184,
+    184,
+    184,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    184,
+    184,
+    184,
+    184,
+    184,
+    184,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172,
+    172
+   ],
+   "height": 16,
+   "id": 1,
+   "name": "chao",
+   "opacity": 1,
+   "type": "tilelayer",
+   "visible": true,
+   "width": 22,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "data": [
+    108,
+    108,
+    108,
+    108,
+    108,
+    108,
+    108,
+    108,
+    108,
+    120,
+    120,
+    120,
+    120,
+    120,
+    108,
+    108,
+    108,
+    108,
+    108,
+    108,
+    108,
+    108,
+    110,
+    111,
+    111,
+    111,
+    111,
+    111,
+    111,
+    111,
+    110,
+    123,
+    123,
+    123,
+    123,
+    123,
+    110,
+    111,
+    111,
+    111,
+    111,
+    111,
+    111,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    186,
+    0,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    187,
+    0,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    168,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    120,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    0,
+    0,
+    0,
+    0,
+    0,
+    122,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    110,
+    122,
+    122,
+    166,
+    122,
+    122,
+    110,
+    119,
+    119,
+    119,
+    119,
+    119,
+    119,
+    110,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    110,
+    111,
+    111,
+    167,
+    111,
+    111,
+    118,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    118,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    118,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    118,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    165,
+    0,
+    0,
+    0,
+    0,
+    0,
+    162,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    118,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    108,
+    0,
+    0,
+    0,
+    0,
+    0,
+    116,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    118,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    110,
+    0,
+    0,
+    0,
+    0,
+    0,
+    118,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    118,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    110,
+    196,
+    110,
+    110,
+    110,
+    118,
+    118,
+    118,
+    118,
+    118,
+    118,
+    110
+   ],
+   "height": 16,
+   "id": 2,
+   "name": "objetos",
+   "opacity": 1,
+   "type": "tilelayer",
+   "visible": true,
+   "width": 22,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "draworder": "topdown",
+   "id": 3,
+   "name": "interativos",
+   "objects": [
+    {
+     "class": "porta",
+     "type": "porta",
+     "height": 32,
+     "width": 32,
+     "id": 3256,
+     "name": "porta_saida",
+     "rotation": 0,
+     "visible": true,
+     "x": 352,
+     "y": 480,
+     "properties": [
+      {
+       "name": "destino",
+       "type": "string",
+       "value": "rural"
+      },
+      {
+       "name": "destinoTx",
+       "type": "int",
+       "value": 57
+      },
+      {
+       "name": "destinoTy",
+       "type": "int",
+       "value": 70
+      },
+      {
+       "name": "rotulo",
+       "type": "string",
+       "value": "Sair"
+      }
+     ]
+    },
+    {
+     "class": "cama",
+     "type": "cama",
+     "height": 32,
+     "width": 32,
+     "id": 3257,
+     "name": "cama_casa_rural_1",
+     "rotation": 0,
+     "visible": true,
+     "x": 608,
+     "y": 96,
+     "properties": []
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "draworder": "topdown",
+   "id": 4,
+   "name": "moveis",
+   "objects": [
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3263,
+     "name": "movel_casa_rural_1_0",
+     "rotation": 0,
+     "visible": true,
+     "x": 591,
+     "y": 128,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_quarto"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_2"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.776
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3264,
+     "name": "movel_casa_rural_1_1",
+     "rotation": 0,
+     "visible": true,
+     "x": 520,
+     "y": 256,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_quarto"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_4"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.493
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3265,
+     "name": "movel_casa_rural_1_2",
+     "rotation": 0,
+     "visible": true,
+     "x": 661,
+     "y": 224,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_quarto"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_7_3"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.572
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3266,
+     "name": "movel_casa_rural_1_3",
+     "rotation": 0,
+     "visible": true,
+     "x": 650,
+     "y": 256,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_quarto"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.947
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3267,
+     "name": "movel_casa_rural_1_4",
+     "rotation": 0,
+     "visible": true,
+     "x": 572,
+     "y": 224,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_quarto"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_2"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.901
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3268,
+     "name": "movel_casa_rural_1_5",
+     "rotation": 0,
+     "visible": true,
+     "x": 655,
+     "y": 416,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_banheiro"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.971
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3269,
+     "name": "movel_casa_rural_1_6",
+     "rotation": 0,
+     "visible": true,
+     "x": 579,
+     "y": 352,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_banheiro"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_4"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.163
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3270,
+     "name": "movel_casa_rural_1_7",
+     "rotation": 0,
+     "visible": true,
+     "x": 637,
+     "y": 480,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_banheiro"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 3.226
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3271,
+     "name": "movel_casa_rural_1_8",
+     "rotation": 0,
+     "visible": true,
+     "x": 576,
+     "y": 416,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_banheiro"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_5"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.237
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3272,
+     "name": "movel_casa_rural_1_9",
+     "rotation": 0,
+     "visible": true,
+     "x": 522,
+     "y": 352,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_banheiro"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_3"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.233
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3273,
+     "name": "movel_casa_rural_1_10",
+     "rotation": 0,
+     "visible": true,
+     "x": 428,
+     "y": 128,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_1_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.413
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3274,
+     "name": "movel_casa_rural_1_11",
+     "rotation": 0,
+     "visible": true,
+     "x": 359,
+     "y": 128,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_1_1"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.36
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3275,
+     "name": "movel_casa_rural_1_12",
+     "rotation": 0,
+     "visible": true,
+     "x": 323,
+     "y": 192,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_1_2"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.92
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3276,
+     "name": "movel_casa_rural_1_13",
+     "rotation": 0,
+     "visible": true,
+     "x": 413,
+     "y": 256,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.467
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3277,
+     "name": "movel_casa_rural_1_14",
+     "rotation": 0,
+     "visible": true,
+     "x": 304,
+     "y": 288,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.313
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3278,
+     "name": "movel_casa_rural_1_15",
+     "rotation": 0,
+     "visible": true,
+     "x": 310,
+     "y": 224,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_7_6"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.62
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3279,
+     "name": "movel_casa_rural_1_16",
+     "rotation": 0,
+     "visible": true,
+     "x": 426,
+     "y": 192,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_5"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.013
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3280,
+     "name": "movel_casa_rural_1_17",
+     "rotation": 0,
+     "visible": true,
+     "x": 414,
+     "y": 384,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v1"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_10"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.697
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3281,
+     "name": "movel_casa_rural_1_18",
+     "rotation": 0,
+     "visible": true,
+     "x": 300,
+     "y": 480,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_6"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.212
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3282,
+     "name": "movel_casa_rural_1_19",
+     "rotation": 0,
+     "visible": true,
+     "x": 179,
+     "y": 160,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_1"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.788
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3283,
+     "name": "movel_casa_rural_1_20",
+     "rotation": 0,
+     "visible": true,
+     "x": 196,
+     "y": 224,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.231
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3284,
+     "name": "movel_casa_rural_1_21",
+     "rotation": 0,
+     "visible": true,
+     "x": 161,
+     "y": 256,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_7"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.7
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3285,
+     "name": "movel_casa_rural_1_22",
+     "rotation": 0,
+     "visible": true,
+     "x": 190,
+     "y": 320,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_eletronicos"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_5"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.635
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3286,
+     "name": "movel_casa_rural_1_23",
+     "rotation": 0,
+     "visible": true,
+     "x": 74,
+     "y": 160,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v1"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_4"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.199
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3287,
+     "name": "movel_casa_rural_1_24",
+     "rotation": 0,
+     "visible": true,
+     "x": 244,
+     "y": 480,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_6_15"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.904
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 3288,
+     "name": "movel_casa_rural_1_25",
+     "rotation": 0,
+     "visible": true,
+     "x": 143,
+     "y": 96,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v2"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_12"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.135
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "draworder": "topdown",
+   "id": 5,
+   "name": "comodos",
+   "objects": [
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 192,
+     "width": 192,
+     "id": 3258,
+     "name": "quarto",
+     "rotation": 0,
+     "visible": true,
+     "x": 480,
+     "y": 64,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 160,
+     "width": 192,
+     "id": 3259,
+     "name": "banheiro",
+     "rotation": 0,
+     "visible": true,
+     "x": 480,
+     "y": 320,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 224,
+     "width": 160,
+     "id": 3260,
+     "name": "cozinha",
+     "rotation": 0,
+     "visible": true,
+     "x": 288,
+     "y": 64,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 128,
+     "width": 160,
+     "id": 3261,
+     "name": "hall",
+     "rotation": 0,
+     "visible": true,
+     "x": 288,
+     "y": 352,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "comodo",
+     "type": "comodo",
+     "height": 416,
+     "width": 224,
+     "id": 3262,
+     "name": "sala",
+     "rotation": 0,
+     "visible": true,
+     "x": 32,
+     "y": 64,
+     "properties": [
+      {
+       "name": "privado",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  }
+ ],
+ "tilesets": [
+  {
+   "columns": 197,
+   "firstgid": 1,
+   "image": "../tilesets/terrain.png",
+   "imagewidth": 6304,
+   "imageheight": 32,
+   "margin": 0,
+   "spacing": 0,
+   "name": "terrain",
+   "tilecount": 197,
+   "tilewidth": 32,
+   "tileheight": 32,
+   "tiles": [
+    {
+     "id": 60,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 61,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 62,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 63,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 64,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 65,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 66,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 67,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 68,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 69,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 70,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 71,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 72,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 73,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 74,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 75,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 76,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 79,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 80,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 81,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 82,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 83,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 84,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 85,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 86,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 87,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 88,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 89,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 90,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 91,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 92,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 93,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 94,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 95,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 96,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 97,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 98,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 99,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 100,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 101,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 102,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 103,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 104,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 105,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 106,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 107,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 108,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 109,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 110,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 111,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 112,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 113,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 114,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 115,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 116,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 117,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 118,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 119,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 120,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 121,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 122,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 123,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 124,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 125,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 126,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 127,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 128,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 129,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 130,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 131,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 132,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 133,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 134,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 135,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 136,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 137,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 138,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 139,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 140,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 141,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 142,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 143,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 144,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 145,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 146,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 147,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 148,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 149,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 150,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 151,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 152,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 153,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 154,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 155,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 156,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 157,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 158,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 185,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 186,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 188,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 194,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 196,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "npcAtravessa",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

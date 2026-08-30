@@ -280,9 +280,189 @@
     "h": 150
    }
   },
-  "madeireira": {
+  "casa_b1": {
    "frame": {
     "x": 3040,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_b2": {
+   "frame": {
+    "x": 3200,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_b3": {
+   "frame": {
+    "x": 3360,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_b4": {
+   "frame": {
+    "x": 3520,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_b5": {
+   "frame": {
+    "x": 3680,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_b6": {
+   "frame": {
+    "x": 3840,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_b7": {
+   "frame": {
+    "x": 4000,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_c1": {
+   "frame": {
+    "x": 4160,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "casa_c2": {
+   "frame": {
+    "x": 4320,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 150
+   }
+  },
+  "madeireira": {
+   "frame": {
+    "x": 4480,
     "y": 0,
     "w": 256,
     "h": 182
@@ -299,6 +479,126 @@
     "w": 256,
     "h": 182
    }
+  },
+  "casa_rural_1": {
+   "frame": {
+    "x": 4736,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 150
+   }
+  },
+  "casa_rural_2": {
+   "frame": {
+    "x": 4928,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 150
+   }
+  },
+  "projeto_cafeteria": {
+   "frame": {
+    "x": 5120,
+    "y": 0,
+    "w": 224,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 224,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 224,
+    "h": 150
+   }
+  },
+  "projeto_hospital": {
+   "frame": {
+    "x": 5344,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 150
+   }
+  },
+  "projeto_padaria": {
+   "frame": {
+    "x": 5536,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 150
+   }
+  },
+  "projeto_ponto_onibus": {
+   "frame": {
+    "x": 5728,
+    "y": 0,
+    "w": 160,
+    "h": 86
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 86
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 86
+   }
   }
  },
  "meta": {
@@ -306,7 +606,7 @@
   "image": "construcoes.png",
   "format": "RGBA8888",
   "size": {
-   "w": 3296,
+   "w": 5888,
    "h": 214
   },
   "scale": "1"

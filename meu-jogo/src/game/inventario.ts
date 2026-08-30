@@ -7,7 +7,7 @@ import type { CategoriaItem } from './itens.ts';
  * vem (prateleira do mercado x prateleira de eletronico) e decide a faixa de
  * preco; tipo e o que ele FAZ na mao do jogador.
  */
-export type TipoItem = 'componente' | 'consumivel' | 'eletronico' | 'ferramenta' | 'outro';
+export type TipoItem = 'componente' | 'consumivel' | 'eletronico' | 'ferramenta' | 'material' | 'outro';
 
 /** Ordem em que `Inventario.organizar()` agrupa os tipos. */
 export const ORDEM_DE_TIPO: readonly TipoItem[] = [
@@ -15,6 +15,7 @@ export const ORDEM_DE_TIPO: readonly TipoItem[] = [
   'eletronico',
   'componente',
   'ferramenta',
+  'material',
   'outro',
 ];
 
@@ -93,12 +94,15 @@ const ITENS_DE_MISSAO: Record<string, DefinicaoItem> = {
     maxPilha: 1,
     deMissao: true,
   },
+  notebook_edu: { id:'notebook_edu', nome:'Notebook do Edu', icone:0x424c58, descricao:'Um notebook dentro de uma mochila preta. Ha um adesivo com o nome Edu.', tipo:'eletronico', maxPilha:1, deMissao:true },
+  camera_leticia: { id:'camera_leticia', nome:'Camera antiga da Leticia', icone:0x6b5748, descricao:'Camera analogica antiga, protegida num estojo gasto.', tipo:'eletronico', maxPilha:1, deMissao:true },
 };
 
 /** Cor de fundo do slot por categoria, so pra o icone nao flutuar no vazio. */
 const COR_DE_CATEGORIA: Record<CategoriaItem, number> = {
   normal: 0x9ad27f,
   eletronico: 0x7fa8d9,
+  material: 0xa79d8c,
 };
 
 /**
@@ -116,12 +120,12 @@ export const ITENS: Record<string, DefinicaoItem> = (() => {
     registro[item.id] = {
       id: item.id,
       nome: item.nome,
-      icone: COR_DE_CATEGORIA[item.categoria],
       descricao: item.descricao,
-      // comida e bebida se usam; o resto e eletronico
-      tipo: item.categoria === 'normal' ? 'consumivel' : 'eletronico',
+      // comida e bebida se usam; materiais e eletronicos mantem tipo proprio
+      tipo: item.categoria === 'normal' ? 'consumivel' : item.categoria === 'material' ? 'material' : 'eletronico',
       maxPilha: item.maxPilha,
       frame: item.frame,
+      icone: item.icone ?? COR_DE_CATEGORIA[item.categoria],
       categoria: item.categoria,
       preco: item.preco,
     };

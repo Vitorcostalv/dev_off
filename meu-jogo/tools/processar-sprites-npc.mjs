@@ -177,6 +177,57 @@ function componentes(img, totalLinhas, colunas, separarEmpilhados = false) {
   return grade;
 }
 
+/**
+ * Corta uma folha pela grade declarada. Algumas artes novas tem halos opacos
+ * que ligam duas poses vizinhas e confundem a deteccao por componentes.
+ */
+function celulasFixas(img, linhas, colunas, limites = {}) {
+  const inicioX = Math.floor((limites.x0 ?? 0) * img.w);
+  const fimX = Math.floor((limites.x1 ?? 1) * img.w);
+  const inicioY = Math.floor((limites.y0 ?? 0) * img.h);
+  const fimY = Math.floor((limites.y1 ?? 1) * img.h);
+  const largura = fimX - inicioX;
+  const altura = fimY - inicioY;
+  const cortesX = limites.cortesX?.map((p) => inicioX + Math.floor(p * largura));
+  const cortesY = limites.cortesY?.map((p) => inicioY + Math.floor(p * altura));
+  return Array.from({ length: linhas }, (_, linhaAtual) =>
+    Array.from({ length: colunas }, (_, colunaAtual) => {
+      const gradeX0 = cortesX?.[colunaAtual] ?? inicioX + Math.floor((colunaAtual * largura) / colunas);
+      const gradeX1 = cortesX?.[colunaAtual + 1] ?? inicioX + Math.floor(((colunaAtual + 1) * largura) / colunas);
+      const gradeY0 = cortesY?.[linhaAtual] ?? inicioY + Math.floor((linhaAtual * altura) / linhas);
+      const gradeY1 = cortesY?.[linhaAtual + 1] ?? inicioY + Math.floor(((linhaAtual + 1) * altura) / linhas);
+      const margemX = Math.floor((gradeX1 - gradeX0) * (limites.sobreposicaoX ?? 0));
+      const proporcaoTopo = limites.sobreposicaoTopoLinhas?.[linhaAtual]
+        ?? limites.sobreposicaoY ?? 0;
+      const proporcaoBase = limites.sobreposicaoBaseLinhas?.[linhaAtual]
+        ?? limites.sobreposicaoY ?? 0;
+      const margemTopo = Math.floor((gradeY1 - gradeY0) * proporcaoTopo);
+      const margemBase = Math.floor((gradeY1 - gradeY0) * proporcaoBase);
+      const x0 = Math.max(inicioX, gradeX0 - margemX);
+      const x1 = Math.min(fimX, gradeX1 + margemX);
+      const y0 = Math.max(inicioY, gradeY0 - margemTopo);
+      const y1 = Math.min(fimY, gradeY1 + margemBase);
+      const recorte = new Img(x1 - x0, y1 - y0);
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const p = (y * img.w + x) * 4;
+        const rgba = img.px.slice(p, p + 4);
+        if (rgba[3] <= 8) rgba[3] = 0;
+        recorte.set(x - x0, y - y0, rgba);
+      }
+      if (limites.maiorComponente) {
+        try {
+          return { img: componentes(recorte, 1, 1)[0][0].img };
+        } catch {
+          // Algumas poses muito escuras desaparecem no limiar de componentes;
+          // nesse caso conservamos a celula da grade em vez de abortar a folha.
+          return { img: recorte };
+        }
+      }
+      return { img: recorte };
+    }),
+  );
+}
+
 /** Gera uma grade uniforme: cada frame contem exatamente uma pose. */
 function normalizar({
   entrada,
@@ -187,10 +238,14 @@ function normalizar({
   removerPreto = false,
   limiarPreto = 8,
   separarEmpilhados = false,
+  gradeFixa = false,
+  limitesGrade,
 }) {
   const lida = lerPng(join(DIR, entrada));
   const origem = removerPreto ? removerFundoPreto(lida, limiarPreto) : lida;
-  const grade = componentes(origem, linhasOriginais, colunasOriginais, separarEmpilhados);
+  const grade = gradeFixa
+    ? celulasFixas(origem, linhasOriginais, colunasOriginais, limitesGrade)
+    : componentes(origem, linhasOriginais, colunasOriginais, separarEmpilhados);
   const frames = mapa.flat().map(({ coluna, linha, flipX = false }) => ({
     img: grade[linha][coluna].img,
     flipX,
@@ -468,3 +523,137 @@ normalizar({
   colunasOriginais: 7,
   mapa: [poseParada(0), poseParada(3), poseParada(2, 0, true), poseParada(2)],
 });
+
+// ----------------------------------------------------- novos moradores --
+// As folhas novas seguem tres formatos recorrentes. Centralizar os formatos
+// aqui evita copiar 48 blocos quase identicos e deixa simples substituir uma
+// pose parada por caminhada verdadeira depois, sem mudar o cadastro do NPC.
+const mapaQuatroDirecoes = [linha(0), linha(3), linha(1), linha(2)];
+const mapaParadoQuatroDirecoes = [poseParada(0, 0), poseParada(0, 3), poseParada(0, 1), poseParada(0, 2)];
+
+function novoComFolhas4x4(
+  id, andando, parado, removerPreto = false, gradeFixa = false, separarEmpilhados = false,
+  limitesPersonalizados = {},
+) {
+  const limitesGrade = gradeFixa
+    ? { maiorComponente: true, ...limitesPersonalizados }
+    : undefined;
+  normalizar({
+    entrada: andando, saida: `${id}_andando_runtime.png`, linhasOriginais: 4,
+    mapa: mapaQuatroDirecoes, removerPreto, limiarPreto: 24, gradeFixa, limitesGrade,
+    separarEmpilhados,
+  });
+  normalizar({
+    entrada: parado, saida: `${id}_parado_runtime.png`, linhasOriginais: 4,
+    mapa: mapaParadoQuatroDirecoes, removerPreto, limiarPreto: 24, gradeFixa, limitesGrade,
+    separarEmpilhados,
+  });
+}
+
+function novoComCaminhada8x4(id, andando, parado, paradoUmaLinha = false) {
+  normalizar({
+    entrada: andando, saida: `${id}_andando_runtime.png`, linhasOriginais: 4,
+    colunasOriginais: 8,
+    mapa: [quatroDeOito(0), quatroDeOito(3), quatroDeOito(1), quatroDeOito(2)],
+    removerPreto: true, limiarPreto: 24,
+  });
+  normalizar({
+    entrada: parado, saida: `${id}_parado_runtime.png`,
+    linhasOriginais: paradoUmaLinha ? 1 : 4,
+    colunasOriginais: 4,
+    mapa: paradoUmaLinha
+      ? [poseParada(0), poseParada(3), poseParada(1), poseParada(2)]
+      : mapaParadoQuatroDirecoes,
+    removerPreto: true, limiarPreto: 24,
+  });
+}
+
+/** Caminhada 4x4 acompanhada por quatro poses paradas em uma unica linha. */
+function novoComCaminhada4x4EParado1x4(id, andando, parado) {
+  normalizar({
+    entrada: andando, saida: `${id}_andando_runtime.png`, linhasOriginais: 4,
+    colunasOriginais: 4, mapa: mapaQuatroDirecoes,
+    removerPreto: true, limiarPreto: 24,
+  });
+  normalizar({
+    entrada: parado, saida: `${id}_parado_runtime.png`, linhasOriginais: 1,
+    colunasOriginais: 4,
+    mapa: [poseParada(0), poseParada(3), poseParada(1), poseParada(2)],
+    removerPreto: true, limiarPreto: 24,
+  });
+}
+
+/** Sem caminhada propria: usa as quatro direcoes paradas nos dois runtimes. */
+function novoSoParado4x4(id, entrada, gradeFixa = false) {
+  for (const sufixo of ['andando', 'parado']) {
+    normalizar({
+      entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
+      mapa: mapaQuatroDirecoes, removerPreto: true, limiarPreto: 24, gradeFixa,
+    });
+  }
+}
+
+/** Uma unica folha 4x4 fornece caminhada e idle; detecta poses fora da grade. */
+function novoSoFolha4x4(id, entrada, gradeFixa = false, limitesGrade, mapa = mapaQuatroDirecoes) {
+  for (const sufixo of ['andando', 'parado']) {
+    normalizar({
+      entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
+      colunasOriginais: 4, mapa,
+      removerPreto: true, limiarPreto: 24, gradeFixa, limitesGrade,
+    });
+  }
+}
+
+/** Criancas em folha vertical 1x4: frente, perfil E, perfil D, costas. */
+function novoVertical1x4(id, entrada, limitesGrade = { maiorComponente: true }) {
+  const mapa = [poseParada(0, 0), poseParada(0, 3), poseParada(0, 1), poseParada(0, 2)];
+  for (const sufixo of ['andando', 'parado']) {
+    normalizar({
+      entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
+      colunasOriginais: 1, mapa, removerPreto: true, limiarPreto: 48, gradeFixa: true,
+      limitesGrade,
+    });
+  }
+}
+
+novoVertical1x4('arthur', 'Arthur_parado.png', {
+  cortesY: [0, 0.285, 0.53, 0.78, 1], maiorComponente: true,
+});
+novoSoParado4x4('bruno', 'Bruno_parado_madeireira.png');
+novoComFolhas4x4('caio', 'caio_andando.png', 'Caio_parado.png', true, true);
+novoVertical1x4('cecilia', 'Cecilia_parada.png');
+novoComFolhas4x4('clara', 'Clara_andando.png', 'Clara_parada_bibliotecaria.png', false, true, false, {
+  cortesY: [0, 0.258, 0.5, 0.748, 1],
+});
+novoSoParado4x4('davi', 'Davi_parado.png');
+novoVertical1x4('helena', 'Helena_parada.png');
+novoComCaminhada8x4('joao', 'João_andando.png', 'João_parado.png');
+// A folha "Julia_parada" retrata outra personagem e contem uma pose gigante
+// solta. A propria caminhada fornece os quatro idles coerentes com a Julia.
+novoSoFolha4x4('julia', 'Julia_andando.png', true, {
+  x1: 0.77, maiorComponente: true,
+});
+novoComCaminhada4x4EParado1x4('lucas', 'Lucas_andando.png', 'lucas_parado.png');
+novoSoParado4x4('lucia', 'Lucia_parada.png');
+novoSoParado4x4('livia', 'Lívia diretora.png');
+novoVertical1x4('manuela', 'Manuela_parada.png');
+// A folha do Matheus e uma grade 4x4 regular, mas radio, bolsa e bone soltos
+// formam componentes separados. O corte por componentes confundia esses
+// acessorios com personagens inteiros e produzia frames sem cabeca/corpo.
+novoSoParado4x4('matheus', 'Matheus_parado.png', true);
+novoComCaminhada8x4('neide', 'Neide_andando.png', 'Neide_parada.png');
+novoSoParado4x4('priscila', 'Priscila.png');
+novoSoFolha4x4('ilda', 'Professora_ilda.png', false);
+novoSoParado4x4('rafael', 'Rafael_parado.png', true);
+novoVertical1x4('ravi', 'Ravi_parado.png');
+novoSoFolha4x4('roberto', 'Roberto_parado.png', true, {
+  x0: 0.235, x1: 0.77, cortesY: [0, 0.278, 0.53, 0.77, 1], maiorComponente: true,
+});
+novoSoFolha4x4('samanta', 'Samanda_andando.png', true, {
+  x0: 0.05, x1: 0.72, cortesY: [0, 0.27, 0.49, 0.74, 1], maiorComponente: true,
+}, [linha(0), linha(3), [2, 3, 2, 3].map((coluna) => ({ coluna, linha: 1 })), linha(2)]);
+novoComFolhas4x4('suzan', 'Suzan_andando.png', 'Suzan_parada.png', false, true, false, {
+  cortesY: [0, 0.26, 0.495, 0.72, 1],
+});
+novoSoParado4x4('tulio', 'Tulio_parado.png');
+novoSoParado4x4('rita', 'Vó_rita_parada.png');

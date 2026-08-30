@@ -135,12 +135,19 @@ export const PREFERENCIAS_NPCS: Record<string, PreferenciaNpc> = {
  * — cai em `neutro`: o presente e aceito, consome o item e nao rende ponto.
  */
 export function calcularTierPresente(npcId: string, itemId: string): TierPresente {
+  // Importacao tardia evitada de proposito: os novos moradores registram suas
+  // preferencias abaixo, depois que o modulo deles termina de carregar.
   const prefs = PREFERENCIAS_NPCS[npcId];
   if (!prefs) return 'neutro';
   if (prefs.amado.includes(itemId)) return 'amado';
   if (prefs.gosta.includes(itemId)) return 'gosta';
   if (prefs.nao_gosta.includes(itemId)) return 'nao_gosta';
   return 'neutro';
+}
+
+/** Permite que registros externos usem o mesmo motor sem duplicar a tabela. */
+export function registrarPreferenciasNpc(npcId: string, preferencias: PreferenciaNpc): void {
+  if (npcId && !PREFERENCIAS_NPCS[npcId]) PREFERENCIAS_NPCS[npcId] = preferencias;
 }
 
 /**

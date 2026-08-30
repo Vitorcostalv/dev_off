@@ -128,7 +128,7 @@ export class UIScene extends Phaser.Scene {
   /** o catalogo do ponto aberto, ja filtrado pela categoria escolhida */
   private lojaItens: DefinicaoItemLoja[] = [];
   /** null = sem filtro; senao, so a categoria escolhida */
-  private lojaFiltro: 'normal' | 'eletronico' | null = null;
+  private lojaFiltro: CategoriaItem | null = null;
   private lojaCursor = 0;
   /** primeiro item visivel — e o que faz a lista rolar */
   private lojaTopo = 0;
@@ -138,6 +138,7 @@ export class UIScene extends Phaser.Scene {
   private lojaLinhas: {
     fundo: Phaser.GameObjects.Rectangle;
     icone: Phaser.GameObjects.Image;
+    iconeCor: Phaser.GameObjects.Rectangle;
     nome: Phaser.GameObjects.Text;
     preco: Phaser.GameObjects.Text;
   }[] = [];
@@ -1137,8 +1138,11 @@ export class UIScene extends Phaser.Scene {
 
   private desenharLoja(): void {
     if (!this.lojaPonto) return;
-    const filtro =
-      this.lojaFiltro === null ? 'tudo' : this.lojaFiltro === 'normal' ? 'mercado' : 'eletronico';
+    const filtro = this.lojaFiltro === null
+      ? 'tudo'
+      : this.lojaFiltro === 'normal'
+        ? 'mercado'
+        : this.lojaFiltro === 'material' ? 'materiais' : 'eletronico';
     const descontoTitulo = percentualDescontoNpc(this.lojaPonto.npcDono);
     this.lojaTitulo.setText(
       `${this.lojaPonto.nome} - ${filtro}` +
@@ -1151,13 +1155,18 @@ export class UIScene extends Phaser.Scene {
       const ativo = this.lojaTopo + i === this.lojaCursor;
       linha.fundo.setVisible(Boolean(item));
       linha.fundo.setFillStyle(ativo ? 0x3a3226 : 0x000000, ativo ? 1 : 0.25);
-      linha.icone.setVisible(Boolean(item));
+      linha.icone.setVisible(Boolean(item?.frame));
+      linha.iconeCor.setVisible(Boolean(item && !item.frame));
       linha.nome.setVisible(Boolean(item));
       linha.preco.setVisible(Boolean(item));
       if (!item) return;
 
-      linha.icone.setFrame(item.frame);
-      ajustarIcone(linha.icone, ICONE.loja);
+      if (item.frame) {
+        linha.icone.setFrame(item.frame);
+        ajustarIcone(linha.icone, ICONE.loja);
+      } else {
+        linha.iconeCor.setFillStyle(item.icone ?? 0xa79d8c, 1);
+      }
       const tem = estado.inventario.contar(item.id);
       linha.nome.setColor(ativo ? UI.destaque : UI.texto);
       linha.nome.setText(tem > 0 ? `${item.nome}  (tem ${tem})` : item.nome);
@@ -1286,6 +1295,10 @@ export class UIScene extends Phaser.Scene {
       const icone = this.add
         .image(x + LOJA.margem + 12, ly + LOJA.alturaLinha / 2 - 1, 'itens')
         .setVisible(false);
+      const iconeCor = this.add
+        .rectangle(x + LOJA.margem + 12, ly + LOJA.alturaLinha / 2 - 1, 12, 12, 0xa79d8c)
+        .setStrokeStyle(1, 0xf4ead2, 0.8)
+        .setVisible(false);
       const nome = this.add.text(x + LOJA.margem + 26, ly + 4, '', {
         fontFamily: UI.fonte,
         fontSize: UI.tamanho,
@@ -1299,8 +1312,8 @@ export class UIScene extends Phaser.Scene {
         })
         .setOrigin(1, 0);
 
-      this.lojaLinhas.push({ fundo: alvo, icone, nome, preco });
-      filhos.push(alvo, icone, nome, preco);
+      this.lojaLinhas.push({ fundo: alvo, icone, iconeCor, nome, preco });
+      filhos.push(alvo, icone, iconeCor, nome, preco);
     }
 
     const dx = divisa + 8;

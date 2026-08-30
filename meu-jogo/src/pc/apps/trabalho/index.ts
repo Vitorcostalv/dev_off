@@ -150,7 +150,7 @@ export class Trabalho implements AppDoPc {
 
   private abrirLista(): void {
     this.limparRaiz();
-    this.vagas = quadroDoDia(estado.dia);
+    this.vagas = [...estado.missoesNpc.vagasDeConserto(), ...quadroDoDia(estado.dia)];
     this.cursor = Math.min(this.cursor, Math.max(0, this.vagas.length - 1));
 
     const cena = this.cena;
@@ -224,7 +224,7 @@ export class Trabalho implements AppDoPc {
     this.linhas.forEach((linha, i) => {
       const vaga = this.vagas[i];
       const ativo = i === this.cursor;
-      const feita = estado.trabalhos.concluida(estado.dia, vaga.id);
+      const feita = this.vagaConcluida(vaga);
       const emAndamento = estado.trabalhos.entrega?.idVaga === vaga.id;
 
       linha.fundo.setFillStyle(ativo ? 0x2f3c52 : PC.painelClaro);
@@ -247,7 +247,7 @@ export class Trabalho implements AppDoPc {
       this.detalhe.setText('Nenhuma vaga hoje.');
       return;
     }
-    const feita = estado.trabalhos.concluida(estado.dia, vaga.id);
+    const feita = this.vagaConcluida(vaga);
     const linhas = [
       vaga.titulo,
       '',
@@ -302,7 +302,7 @@ export class Trabalho implements AppDoPc {
   private acionarVaga(): void {
     const vaga = this.vagas[this.cursor];
     if (!vaga) return;
-    if (estado.trabalhos.concluida(estado.dia, vaga.id)) {
+    if (this.vagaConcluida(vaga)) {
       this.avisar('Essa vaga ja foi concluida hoje.', PC.alerta);
       return;
     }
@@ -471,6 +471,10 @@ export class Trabalho implements AppDoPc {
   }
 
   private pagarConserto(vaga: Vaga, acertos: number, total: number): void {
+    if (vaga.missaoNpcId && acertos < total) {
+      this.avisar(`${acertos}/${total} pecas: missao pessoal exige o conserto completo. Pode tentar novamente.`, PC.alerta);
+      return;
+    }
     const valor = pagamentoDeConserto(vaga, acertos, total);
     if (valor <= 0) {
       this.avisar('Nenhuma peca encaixada. Nao paga nada — a vaga continua no quadro. [Esc] volta.', PC.alerta);
@@ -481,13 +485,30 @@ export class Trabalho implements AppDoPc {
 
   /** A unica porta de credito do app. */
   private creditar(vaga: Vaga, centavos: number, motivo: string): void {
-    const r = estado.carteira.ganhar(centavos);
-    if (!r.ok) {
-      this.avisar('Nao foi possivel receber agora. A vaga continua no quadro.', PC.alerta);
-      return;
+    if (vaga.missaoNpcId) {
+      const missao = estado.missoesNpc.concluirComRecompensas(vaga.missaoNpcId, estado);
+      if (!missao) {
+        this.avisar('Esta missao nao esta mais ativa; nenhum pagamento duplicado foi feito.', PC.alerta);
+        return;
+      }
+    } else {
+      const r = estado.carteira.ganhar(centavos);
+      if (!r.ok) {
+        this.avisar('Nao foi possivel receber agora. A vaga continua no quadro.', PC.alerta);
+        return;
+      }
+      estado.trabalhos.marcarConcluida(estado.dia, vaga.id);
     }
-    estado.trabalhos.marcarConcluida(estado.dia, vaga.id);
+    if (vaga.tipo === 'conserto') {
+      estado.worldEvents.definir('protagonistaConsertouAlgo', true);
+    }
     this.avisar(`${motivo}: recebeu ${formatarDinheiro(centavos)}. [Esc] volta ao quadro.`, PC.sucesso);
+  }
+
+  private vagaConcluida(vaga: Vaga): boolean {
+    return vaga.missaoNpcId
+      ? estado.missoesNpc.estado(vaga.missaoNpcId) === 'concluida'
+      : estado.trabalhos.concluida(estado.dia, vaga.id);
   }
 
   // ------------------------------------------------------------ status --

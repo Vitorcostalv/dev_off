@@ -104,6 +104,22 @@ export const MAPAS: Record<string, DefinicaoMapa> = {
   oficina: mapa('oficina', { x: 12, y: 20 }, 'bairro'),
   escola: mapa('escola', { x: 12, y: 14 }, 'bairro'), // 24x16, hall + 3 salas
   biblioteca: mapa('biblioteca', { x: 11, y: 13 }, 'bairro'), // 22x15, acervo + leitura
+
+  // Casas ocupadas do Bairro da Estacao. As entradas acompanham a porta e a
+  // geometria individual geradas em `PLANTAS_CASA`.
+  casa_b1: mapa('casa_b1', { x: 11, y: 16 }, 'bairro'),
+  casa_b2: mapa('casa_b2', { x: 10, y: 16 }, 'bairro'),
+  casa_b3: mapa('casa_b3', { x: 5, y: 18 }, 'bairro'),
+  casa_b4: mapa('casa_b4', { x: 14, y: 16 }, 'bairro'),
+  casa_b5: mapa('casa_b5', { x: 10, y: 14 }, 'bairro'),
+  casa_b6: mapa('casa_b6', { x: 10, y: 16 }, 'bairro'),
+  casa_b7: mapa('casa_b7', { x: 11, y: 16 }, 'bairro'),
+  casa_c1: mapa('casa_c1', { x: 16, y: 18 }, 'bairro'),
+  casa_c2: mapa('casa_c2', { x: 5, y: 16 }, 'bairro'),
+
+  // Moradias da Zona Rural.
+  casa_rural_1: mapa('casa_rural_1', { x: 11, y: 14 }, 'rural'),
+  casa_rural_2: mapa('casa_rural_2', { x: 11, y: 16 }, 'rural'),
 };
 
 export function buscarMapa(chave: unknown): DefinicaoMapa | null {

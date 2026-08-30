@@ -327,7 +327,7 @@ export class DevStore implements AppDoPc {
       const ativo = indice === this.cursor;
       cartao.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
       cartao.fundo.setFillStyle(ativo ? 0x2f3c52 : PC.painelClaro);
-      cartao.icone.setFrame(item.frame);
+      cartao.icone.setFrame(item.frame!);
       ajustarIcone(cartao.icone, 34);
       const tem = estado.inventario.contar(item.id);
       cartao.nome.setText(tem > 0 ? `${item.nome} (${tem})` : item.nome);
@@ -425,7 +425,7 @@ export class DevStore implements AppDoPc {
   private desenharProduto(): void {
     const item = this.produto;
     if (!item) return;
-    this.cardIcone.setFrame(item.frame);
+    this.cardIcone.setFrame(item.frame!);
     ajustarIcone(this.cardIcone, 72);
     this.cardNome.setText(item.nome);
     const secao = SECOES_ELETRONICO.find((s) => s.id === item.secao);

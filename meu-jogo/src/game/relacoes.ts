@@ -57,6 +57,13 @@ const OVERRIDES_ROTULO: Record<string, Partial<Record<NivelRelacao, RotuloRelaca
   },
 };
 
+/** Casados, criancas e moradores sem rota romantica usam vinculo social. */
+const SEM_ROMANCE = new Set([
+  'jaqueline', 'luke',
+  'livia', 'matheus', 'cecilia', 'helena', 'arthur', 'rita', 'roberto', 'ilda',
+  'ravi', 'manuela', 'rafael', 'suzan', 'joao', 'neide',
+]);
+
 /**
  * Converte um score num nivel.
  * - < 0: Estranho
@@ -76,6 +83,10 @@ export function nivelDeScore(score: number): NivelRelacao {
 /** O nivel com o override do NPC aplicado, se houver. */
 export function rotuloRelacao(npcId: string, score: number): RotuloRelacao {
   const nivel = nivelDeScore(score);
+  if (SEM_ROMANCE.has(npcId)) {
+    if (nivel === 'Namorando') return 'Confianca profunda';
+    if (nivel === 'Casamento') return 'Amizade de familia';
+  }
   return OVERRIDES_ROTULO[npcId]?.[nivel] ?? nivel;
 }
 
