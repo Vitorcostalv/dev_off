@@ -1051,14 +1051,30 @@ export class FarmScene extends Phaser.Scene {
       npc.ancoraMorador = { x: inicial.x * this.tamanhoTile, y: inicial.y * this.tamanhoTile };
       npc.alvoMorador = null;
       npc.proximaDecisao = this.tempoMovimentoMoradores + 450;
+      npc.passoMorador = 0;
       npc.direcaoMorador = 'down';
       sprite.setPosition(npc.ancoraMorador.x, npc.ancoraMorador.y).setVelocity(0, 0);
     }
 
-    if (this.tempoMovimentoMoradores >= (npc.proximaDecisao ?? 0)) {
+    // Uma folha so de poses paradas nunca deve deslizar pelo chao. Esses NPCs
+    // continuam mudando de compromisso pela agenda, mas permanecem no posto
+    // escolhido enquanto aquela atividade estiver ativa.
+    if (morador.movimento === 'parado') {
+      sprite.setVelocity(0, 0).setDepth(sprite.y);
+      npc.alvoMorador = null;
+      interagivel.x = sprite.x;
+      interagivel.y = sprite.y;
+      sprite.anims.play(`${npc.animacao}idle-${npc.direcaoMorador ?? 'down'}`, true);
+      return;
+    }
+
+    // Nao troca o destino no meio do passo. A versao anterior decidia a cada
+    // ~1 s, antes de percorrer um tile, e a sucessao de vetores fazia os NPCs
+    // descreverem circulos em volta da ancora.
+    if (!npc.alvoMorador && this.tempoMovimentoMoradores >= (npc.proximaDecisao ?? 0)) {
       npc.alvoMorador = this.proximoPassoDoMorador(npc);
-      const semente = this.sementeMorador(morador.id);
-      npc.proximaDecisao = this.tempoMovimentoMoradores + 900 + (semente % 5) * 170;
+      npc.passoMorador = (npc.passoMorador ?? 0) + 1;
+      if (!npc.alvoMorador) npc.proximaDecisao = this.tempoMovimentoMoradores + 600;
     }
 
     let movendo = false;
@@ -1068,6 +1084,8 @@ export class FarmScene extends Phaser.Scene {
       if (distancia <= 2.5) {
         sprite.setPosition(alvo.x, alvo.y).setVelocity(0, 0);
         npc.alvoMorador = null;
+        const variacao = (this.sementeMorador(morador.id) + (npc.passoMorador ?? 0) * 137) % 2200;
+        npc.proximaDecisao = this.tempoMovimentoMoradores + 1800 + variacao;
       } else {
         const velocidade = this.tamanhoTile * 0.78;
         const dx = alvo.x - sprite.x;
@@ -1117,7 +1135,7 @@ export class FarmScene extends Phaser.Scene {
       for (const [ox, oy] of candidatos) {
         const x = Math.round(atividade.x + ox + (raio > 0 ? Math.sign(ox || 1) * raio : 0));
         const y = Math.round(atividade.y + oy);
-        if (this.tileLivreParaMorador(x, y)) return { x, y };
+        if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y)) return { x, y };
       }
     }
     console.warn(`[moradores] ${morador.id}: nenhum tile livre perto de ${atividade.x},${atividade.y}`);
@@ -1130,16 +1148,31 @@ export class FarmScene extends Phaser.Scene {
     const t = this.tamanhoTile;
     const atualX = Math.round(npc.sprite.x / t);
     const atualY = Math.round(npc.sprite.y / t);
-    const base = this.sementeMorador(npc.morador!.id) + Math.floor(this.tempoMovimentoMoradores / 850);
-    const passos = [[1, 0], [0, 1], [-1, 0], [0, -1], [0, 0]];
+    const base = this.sementeMorador(npc.morador!.id) + (npc.passoMorador ?? 0);
+    const passos = [[1, 0], [0, 1], [-1, 0], [0, -1]];
     for (let i = 0; i < passos.length; i++) {
       const [dx, dy] = passos[(base + i) % passos.length];
       const x = atualX + dx;
       const y = atualY + dy;
       if (Math.abs(x * t - ancora.x) > t * 2.1 || Math.abs(y * t - ancora.y) > t * 2.1) continue;
-      if (this.tileLivreParaMorador(x, y)) return { x: x * t, y: y * t };
+      if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y, npc)) {
+        return { x: x * t, y: y * t };
+      }
     }
-    return { ...ancora };
+    return null;
+  }
+
+  /** Impede dois moradores de ocuparem ou escolherem o mesmo tile. */
+  private tileReservadoPorMorador(tx: number, ty: number, ignorar?: NpcVisual): boolean {
+    const t = this.tamanhoTile;
+    return this.npcs.some((outro) => {
+      if (outro === ignorar || !outro.morador || !outro.sprite.visible || !outro.atividadeChave) return false;
+      const atualX = Math.round(outro.sprite.x / t);
+      const atualY = Math.round(outro.sprite.y / t);
+      if (atualX === tx && atualY === ty) return true;
+      const alvo = outro.alvoMorador;
+      return Boolean(alvo && Math.round(alvo.x / t) === tx && Math.round(alvo.y / t) === ty);
+    });
   }
 
   private tileLivreParaMorador(tx: number, ty: number): boolean {
@@ -2753,6 +2786,7 @@ interface NpcVisual {
   ancoraMorador?: { x: number; y: number };
   alvoMorador?: { x: number; y: number } | null;
   proximaDecisao?: number;
+  passoMorador?: number;
   direcaoMorador?: Direcao;
 }
 

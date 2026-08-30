@@ -40,6 +40,12 @@ export interface Morador {
   dialogoAtual: string[];
   preferencias: PreferenciaNpc & { odeia: string };
   romancePermitido: boolean;
+  /**
+   * So recebe `vagar` quem possui uma folha com passos reais. As artes que
+   * trazem apenas as quatro poses paradas continuam vivas no cenario, mas nao
+   * deslizam pelo mapa fingindo uma caminhada.
+   */
+  movimento: 'parado' | 'vagar';
   sprite: SpriteNpc;
   spriteParado: SpriteNpc;
 }
@@ -52,7 +58,11 @@ const framesParados = {
   down: { linha: 0, colunas: [0] }, up: { linha: 1, colunas: [0] },
   left: { linha: 2, colunas: [0] }, right: { linha: 3, colunas: [0] },
 };
-const sprites = (id: string): Pick<Morador, 'sprite' | 'spriteParado'> => ({
+const NPCS_COM_PASSOS_REAIS = new Set([
+  'bruno', 'caio', 'clara', 'ilda', 'joao', 'julia', 'lucas', 'neide', 'samanta', 'suzan',
+]);
+const sprites = (id: string): Pick<Morador, 'sprite' | 'spriteParado' | 'movimento'> => ({
+  movimento: NPCS_COM_PASSOS_REAIS.has(id) ? 'vagar' : 'parado',
   sprite: { arquivo: `assets/sprites/${id}_andando_runtime.png`, colunas: 4, linhas: 4, frames },
   spriteParado: { arquivo: `assets/sprites/${id}_parado_runtime.png`, colunas: 4, linhas: 4, frames: framesParados },
 });

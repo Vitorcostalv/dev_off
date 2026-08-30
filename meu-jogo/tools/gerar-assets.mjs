@@ -1715,18 +1715,17 @@ const CONSTRUCOES_BAIRRO = {
   // `fechada` = predio de pe SEM interior: a porta nao abre, e no lugar dela o
   // mapa poe um objeto de exame com o texto fixo da Central Telefonica.
   central: { pegada: { w: 5, h: 4 }, comercio: true, fechada: true },
-  // Residencias dos 20 moradores do bairro. Ainda nao ha interiores proprios:
-  // a porta fica fechada para o jogador, mas a casa existe fisicamente e a
-  // familia usa a frente do lote na rotina. b8/c3/c4 seguem vazios de proposito.
-  casa_b1: { pegada: { w: 5, h: 4 }, estilo: 0, moradiaNpc: true },
-  casa_b2: { pegada: { w: 5, h: 4 }, estilo: 1, moradiaNpc: true },
-  casa_b3: { pegada: { w: 5, h: 4 }, estilo: 2, moradiaNpc: true },
-  casa_b4: { pegada: { w: 5, h: 4 }, estilo: 3, moradiaNpc: true },
-  casa_b5: { pegada: { w: 5, h: 4 }, estilo: 4, moradiaNpc: true },
-  casa_b6: { pegada: { w: 5, h: 4 }, estilo: 5, moradiaNpc: true },
-  casa_b7: { pegada: { w: 5, h: 4 }, estilo: 0, moradiaNpc: true },
-  casa_c1: { pegada: { w: 5, h: 4 }, estilo: 2, moradiaNpc: true },
-  casa_c2: { pegada: { w: 5, h: 4 }, estilo: 3, moradiaNpc: true },
+  // Residencias ocupadas: todas abrem um interior mobiliado. b8/c3/c4 seguem
+  // vazias de proposito e por isso nem entram nesta tabela.
+  casa_b1: { pegada: { w: 5, h: 4 }, estilo: 0, interior: 'casa_b1', moradiaNpc: true },
+  casa_b2: { pegada: { w: 5, h: 4 }, estilo: 1, interior: 'casa_b2', moradiaNpc: true },
+  casa_b3: { pegada: { w: 5, h: 4 }, estilo: 2, interior: 'casa_b3', moradiaNpc: true },
+  casa_b4: { pegada: { w: 5, h: 4 }, estilo: 3, interior: 'casa_b4', moradiaNpc: true },
+  casa_b5: { pegada: { w: 5, h: 4 }, estilo: 4, interior: 'casa_b5', moradiaNpc: true },
+  casa_b6: { pegada: { w: 5, h: 4 }, estilo: 5, interior: 'casa_b6', moradiaNpc: true },
+  casa_b7: { pegada: { w: 5, h: 4 }, estilo: 0, interior: 'casa_b7', moradiaNpc: true },
+  casa_c1: { pegada: { w: 5, h: 4 }, estilo: 2, interior: 'casa_c1', moradiaNpc: true },
+  casa_c2: { pegada: { w: 5, h: 4 }, estilo: 3, interior: 'casa_c2', moradiaNpc: true },
 };
 
 // ----------------------------------------------------- Mapa 3 — Zona Rural --
@@ -1778,8 +1777,8 @@ const CONSTRUCOES_RURAL = {
   // sem gerar mais um tilemap so pra um balcao.
   madeireira: { pegada: { w: 8, h: 5 }, comercio: true, balcao: true },
   // Uma casa para a familia de Joao/Neide/Priscila e outra para Bruno.
-  casa_rural_1: { pegada: { w: 6, h: 4 }, estilo: 1, moradiaNpc: true },
-  casa_rural_2: { pegada: { w: 6, h: 4 }, estilo: 4, moradiaNpc: true },
+  casa_rural_1: { pegada: { w: 6, h: 4 }, estilo: 1, interior: 'casa_rural_1', moradiaNpc: true },
+  casa_rural_2: { pegada: { w: 6, h: 4 }, estilo: 4, interior: 'casa_rural_2', moradiaNpc: true },
 };
 
 // -------------------------------------------------------- registro global --
@@ -4056,6 +4055,79 @@ const PLANTAS_CASA = {
     },
   },
 };
+
+/**
+ * As casas dos Mapas 2/3 partem da linguagem visual comprovada das casas do
+ * Mapa 1, mas nao repetem uma planta inteira. Cada familia recebe outra
+ * combinacao de planta, espelhamento, revestimentos e selecao de decoracao.
+ * Remover somente pecas opcionais conserva cozinha/banheiro/quarto/sala
+ * completos e abre circulacoes diferentes sem inventar coordenadas frágeis.
+ */
+function plantaDeFamilia(base, tema, espelhada, assinatura) {
+  const p = structuredClone(PLANTAS_CASA[base]);
+  Object.assign(p, tema);
+
+  p.mobilia = Object.fromEntries(Object.entries(p.mobilia).map(([comodo, lista]) => [
+    comodo,
+    lista.filter((_, indice) => indice < 5 || (indice + assinatura) % 3 !== 0),
+  ]));
+
+  if (!espelhada) return p;
+  const W = p.largura;
+  const espelharX = (x) => W - 1 - x;
+  p.porta = espelharX(p.porta);
+  p.cama = { ...p.cama, x: espelharX(p.cama.x) };
+  p.spawnNpc = { ...p.spawnNpc, x: espelharX(p.spawnNpc.x) };
+  p.paredes = p.paredes.map(([x, y, w, h]) => [W - x - w, y, w, h]);
+  p.vaos = p.vaos.map(([x, y]) => [espelharX(x), y]);
+  p.comodos = Object.fromEntries(Object.entries(p.comodos).map(([nome, [x, y, w, h]]) => [
+    nome, [W - x - w, y, w, h],
+  ]));
+  p.mobilia = Object.fromEntries(Object.entries(p.mobilia).map(([comodo, lista]) => [
+    comodo, lista.map((m) => {
+      // `tx` e a borda esquerda da caixa da peca (nao o centro). O espelho
+      // precisa descontar a largura real; usar apenas W-1-x empurrava tapetes e
+      // sofas largos para fora da parede direita.
+      const def = MOVEIS_CASA[m.movel];
+      const { w } = tamanhoDeMovel(def.folha, def.peca, def.escala ?? 1);
+      return { ...m, tx: W - m.tx - w };
+    }),
+  ]));
+  return p;
+}
+
+const TEMAS_CASAS_NOVAS = [
+  { parede: 'reboco_creme', chao: 'PISO_MADEIRA_CLARA', pisos: { cozinha: 'ladrilho_bege', banheiro: 'hexagonal' } },
+  { parede: 'liso_sage', chao: 'PISO_ESPINHA_CLARA', pisos: { cozinha: 'ladrilho_verde', banheiro: 'mosaico_menta' } },
+  { parede: 'reboco_bege', chao: 'PISO_MADEIRA_ESCURA', pisos: { cozinha: 'terracota', banheiro: 'marmore' } },
+  { parede: 'liso_azul', chao: 'PISO_ESPINHA_MADEIRA', pisos: { cozinha: 'azulejo_portugues', banheiro: 'mosaico_azul' } },
+  { parede: 'papel_azul', chao: 'PISO_MADEIRA_CLARA', pisos: { cozinha: 'xadrez_cozinha', banheiro: 'xadrez_banheiro' } },
+];
+
+Object.assign(PLANTAS_CASA, {
+  // Livia, Matheus e Cecilia: corredor central e sala de estudo ampla.
+  casa_b1: plantaDeFamilia('casa_2', TEMAS_CASAS_NOVAS[0], false, 1),
+  // Clara e Lucia: fundo compartimentado, sala frontal e planta espelhada.
+  casa_b2: plantaDeFamilia('casa_3', TEMAS_CASAS_NOVAS[1], true, 2),
+  // Caio e Helena: corredor horizontal, cozinha/oficina domestica ao fundo.
+  casa_b3: plantaDeFamilia('casa_4', TEMAS_CASAS_NOVAS[2], false, 3),
+  // Julia, Arthur e Rita: casa antiga lateral, espelhada e mais acolhedora.
+  casa_b4: plantaDeFamilia('casa_5', TEMAS_CASAS_NOVAS[3], true, 4),
+  // Roberto, Ilda e Ravi: hall central e sala comprida para livros e jogos.
+  casa_b5: plantaDeFamilia('casa_6', TEMAS_CASAS_NOVAS[4], false, 5),
+  // Davi, Samanta e Manuela: circulacao central e cozinha destacada.
+  casa_b6: plantaDeFamilia('casa_2', TEMAS_CASAS_NOVAS[2], true, 6),
+  // Rafael e Suzan: sala aberta na frente, com leitura mais contemporanea.
+  casa_b7: plantaDeFamilia('casa_3', TEMAS_CASAS_NOVAS[3], false, 7),
+  // Lucas: corredor transversal espelhado e decoracao mais contida.
+  casa_c1: plantaDeFamilia('casa_4', TEMAS_CASAS_NOVAS[0], true, 8),
+  // Tulio: planta lateral compacta, com menos ornamentos e area de reparos.
+  casa_c2: plantaDeFamilia('casa_5', TEMAS_CASAS_NOVAS[4], false, 9),
+  // Joao, Neide e Priscila: hall rural, cozinha central e sala longa invertida.
+  casa_rural_1: plantaDeFamilia('casa_6', TEMAS_CASAS_NOVAS[1], true, 10),
+  // Bruno: corredor central, acabamento escuro e mobiliario essencial.
+  casa_rural_2: plantaDeFamilia('casa_2', TEMAS_CASAS_NOVAS[2], false, 11),
+});
 
 
 // ---------------------------------------- interiores dos predios desta leva --

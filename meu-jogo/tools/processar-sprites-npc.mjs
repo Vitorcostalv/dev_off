@@ -637,7 +637,10 @@ novoComCaminhada4x4EParado1x4('lucas', 'Lucas_andando.png', 'lucas_parado.png');
 novoSoParado4x4('lucia', 'Lucia_parada.png');
 novoSoParado4x4('livia', 'Lívia diretora.png');
 novoVertical1x4('manuela', 'Manuela_parada.png');
-novoSoParado4x4('matheus', 'Matheus_parado.png');
+// A folha do Matheus e uma grade 4x4 regular, mas radio, bolsa e bone soltos
+// formam componentes separados. O corte por componentes confundia esses
+// acessorios com personagens inteiros e produzia frames sem cabeca/corpo.
+novoSoParado4x4('matheus', 'Matheus_parado.png', true);
 novoComCaminhada8x4('neide', 'Neide_andando.png', 'Neide_parada.png');
 novoSoParado4x4('priscila', 'Priscila.png');
 novoSoFolha4x4('ilda', 'Professora_ilda.png', false);

@@ -9,6 +9,7 @@ import { MORADORES, CRIANCAS, atividadeAtual } from '../src/game/moradores.ts';
 import { ITENS } from '../src/game/inventario.ts';
 import { SistemaEncontrosNpc, jogadorOuveEncontro } from '../src/game/encontrosNpc.ts';
 import { atividadeComEmprego, PROJETOS_CIDADE, SistemaCidade } from '../src/game/cidade.ts';
+import { MAPAS } from '../src/game/mapas.ts';
 
 const raiz = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const ok = (condicao, mensagem) => { if (!condicao) throw new Error(mensagem); };
@@ -48,19 +49,41 @@ const casasPorMapa = (mapa) => {
     .filter((zona) => zona.class === 'casa')
     .map((zona) => [
       zona.name,
-      Object.fromEntries((zona.properties ?? []).map((prop) => [prop.name, prop.value])).construida === true,
+      Object.fromEntries((zona.properties ?? []).map((prop) => [prop.name, prop.value])),
     ]));
 };
 const casasBairro = casasPorMapa('bairro');
 const casasRurais = casasPorMapa('rural');
 for (const id of ['casa_b1', 'casa_b2', 'casa_b3', 'casa_b4', 'casa_b5', 'casa_b6', 'casa_b7', 'casa_c1', 'casa_c2']) {
-  ok(casasBairro.get(id) === true, `${id}: residencia ocupada nao foi construida`);
+  ok(casasBairro.get(id)?.construida === true, `${id}: residencia ocupada nao foi construida`);
+  ok(casasBairro.get(id)?.mapaInterior === id, `${id}: residencia ocupada nao abre o proprio interior`);
 }
 for (const id of ['casa_b8', 'casa_c3', 'casa_c4']) {
-  ok(casasBairro.get(id) === false, `${id}: lote reservado deveria continuar vazio`);
+  ok(casasBairro.get(id)?.construida === false, `${id}: lote reservado deveria continuar vazio`);
 }
 for (const id of ['casa_rural_1', 'casa_rural_2']) {
-  ok(casasRurais.get(id) === true, `${id}: residencia rural nao foi construida`);
+  ok(casasRurais.get(id)?.construida === true, `${id}: residencia rural nao foi construida`);
+  ok(casasRurais.get(id)?.mapaInterior === id, `${id}: residencia rural nao abre o proprio interior`);
+}
+const casasOcupadas = [
+  'casa_b1', 'casa_b2', 'casa_b3', 'casa_b4', 'casa_b5', 'casa_b6', 'casa_b7',
+  'casa_c1', 'casa_c2', 'casa_rural_1', 'casa_rural_2',
+];
+for (const id of casasOcupadas) {
+  ok(Boolean(MAPAS[id]), `${id}: interior nao registrado em MAPAS`);
+  const interior = JSON.parse(readFileSync(join(raiz, 'public', 'assets', 'tilemaps', `${id}.json`), 'utf8'));
+  const moveis = interior.layers.find((camada) => camada.name === 'moveis')?.objects ?? [];
+  const comodos = interior.layers.find((camada) => camada.name === 'comodos')?.objects ?? [];
+  ok(moveis.length >= 24, `${id}: casa parece vazia (${moveis.length} moveis)`);
+  ok(comodos.length >= 4, `${id}: casa sem divisao real de comodos`);
+}
+
+const moveisEsperados = new Set(['bruno', 'caio', 'clara', 'ilda', 'joao', 'julia', 'lucas', 'neide', 'samanta', 'suzan']);
+for (const morador of Object.values(MORADORES)) {
+  ok(
+    morador.movimento === (moveisEsperados.has(morador.id) ? 'vagar' : 'parado'),
+    `${morador.id}: movimento nao corresponde ao tipo de folha disponivel`,
+  );
 }
 
 for (const morador of Object.values(MORADORES)) {
