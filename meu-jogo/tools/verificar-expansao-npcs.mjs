@@ -134,4 +134,99 @@ ok(pausados.length === 2 && Boolean(encontros.ativo), 'encontro forcado nao inic
 ok(jogadorOuveEncontro(3), 'jogador perto deveria ver o balao');
 ok(!jogadorOuveEncontro(30) && Boolean(encontros.ativo), 'jogador longe alterou a simulacao');
 
-console.log(`[expansao] OK: ${Object.keys(MORADORES).length} moradores, 4 obras com atribuicao, 6 missoes, 2 fluxos completos e encontro perto/longe.`);
+// --------------------------------------------------------------------------
+// POSICAO DE CADA ATIVIDADE, contra o tilemap de verdade.
+//
+// Esta parte nao existia, e foi por isso que duas ancoras dentro de PAREDE
+// entraram no repositorio sem ninguem notar: a compra de sabado dos 24
+// moradores em (67,54), que e a fachada do mercado, e o expediente do Tulio em
+// (50,64), dentro do predio central. O motor do Mapa 1 tem o equivalente disto
+// em `verificar-rotinas`, que amostra os sete dias contra a grade.
+//
+// A regra e a mesma que `tileLivreParaMorador` aplica em jogo: o tile nao pode
+// colidir na camada `objetos`, nao pode estar sob a pegada de um movel que nao
+// seja peca de chao, e nao pode estar sob flora.
+const RAIO_ESPALHAMENTO = 4; // igual ao da FarmScene
+const mapasCarregados = new Map();
+const carregarMapa = (nome) => {
+  if (mapasCarregados.has(nome)) return mapasCarregados.get(nome);
+  const bruto = JSON.parse(readFileSync(join(raiz, 'public', 'assets', 'tilemaps', `${nome}.json`), 'utf8'));
+  const tileset = bruto.tilesets[0];
+  const lado = bruto.tilewidth;
+  const colidem = new Set((tileset.tiles ?? [])
+    .filter((t) => (t.properties ?? []).some((p) => p.name === 'collides' && p.value))
+    .map((t) => t.id + tileset.firstgid));
+  const objetos = bruto.layers.find((c) => c.name === 'objetos').data;
+  // A pegada de um movel e ancorada na BASE (origem 0.5,1), como em criarMoveis.
+  const emTile = (obj) => `${Math.floor((obj.x ?? 0) / lado)},${Math.floor(((obj.y ?? 0) - 1) / lado)}`;
+  const moveis = new Set((bruto.layers.find((c) => c.name === 'moveis')?.objects ?? [])
+    .filter((obj) => !(obj.properties ?? []).some((p) => p.name === 'chao' && p.value))
+    .map(emTile));
+  const flora = new Set((bruto.layers.find((c) => c.name === 'flora')?.objects ?? []).map(emTile));
+  const dados = {
+    largura: bruto.width,
+    altura: bruto.height,
+    livre: (x, y) => x >= 1 && y >= 1 && x < bruto.width - 1 && y < bruto.height - 1
+      && !colidem.has(objetos[y * bruto.width + x])
+      && !moveis.has(`${x},${y}`) && !flora.has(`${x},${y}`),
+  };
+  mapasCarregados.set(nome, dados);
+  return dados;
+};
+/** Quantos moradores cabem em volta de uma ancora, contando o proprio tile. */
+const vagasEmVolta = (mapa, x, y) => {
+  const { livre } = carregarMapa(mapa);
+  let vagas = 0;
+  for (let dy = -RAIO_ESPALHAMENTO; dy <= RAIO_ESPALHAMENTO; dy++) {
+    for (let dx = -RAIO_ESPALHAMENTO; dx <= RAIO_ESPALHAMENTO; dx++) {
+      if (livre(x + dx, y + dy)) vagas += 1;
+    }
+  }
+  return vagas;
+};
+
+let postosConferidos = 0;
+for (const morador of Object.values(MORADORES)) {
+  for (const atividade of morador.atividades) {
+    ok(Boolean(MAPAS[atividade.mapa]), `${morador.id}: atividade "${atividade.atividade}" em mapa inexistente "${atividade.mapa}"`);
+    ok(
+      carregarMapa(atividade.mapa).livre(atividade.x, atividade.y),
+      `${morador.id}: "${atividade.atividade}" cai em parede/movel/arvore ` +
+        `em ${atividade.mapa} (${atividade.x},${atividade.y})`,
+    );
+    postosConferidos += 1;
+  }
+}
+
+// AGLOMERACAO: em nenhum instante pode haver mais morador numa ancora do que
+// tile livre em volta dela. Passar disso e o que empurrava os excedentes pro
+// fallback de `posicaoInicialSegura`, que planta o NPC na propria ancora.
+let picoAglomeracao = 0;
+for (let dia = 0; dia < 7; dia++) {
+  for (let minuto = 0; minuto < 24 * 60; minuto += 10) {
+    const porAncora = new Map();
+    for (const morador of Object.values(MORADORES)) {
+      const atividade = atividadeAtual(morador, dia, minuto);
+      if (!atividade) continue;
+      const chave = `${atividade.mapa}:${atividade.x}:${atividade.y}`;
+      porAncora.set(chave, (porAncora.get(chave) ?? 0) + 1);
+    }
+    for (const [chave, quantos] of porAncora) {
+      if (quantos < 2) continue;
+      picoAglomeracao = Math.max(picoAglomeracao, quantos);
+      const [mapa, x, y] = chave.split(':');
+      const vagas = vagasEmVolta(mapa, Number(x), Number(y));
+      ok(
+        vagas >= quantos,
+        `dia ${dia} ${String(Math.floor(minuto / 60)).padStart(2, '0')}:${String(minuto % 60).padStart(2, '0')}: ` +
+          `${quantos} moradores na ancora ${chave}, que so tem ${vagas} tile(s) livre(s) em volta`,
+      );
+    }
+  }
+}
+
+console.log(
+  `[expansao] OK: ${Object.keys(MORADORES).length} moradores, 4 obras com atribuicao, 6 missoes, ` +
+    `2 fluxos completos e encontro perto/longe; ${postosConferidos} postos conferidos no tilemap ` +
+    `(pico de ${picoAglomeracao} moradores numa ancora).`,
+);

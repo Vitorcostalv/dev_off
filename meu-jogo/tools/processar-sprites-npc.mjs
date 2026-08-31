@@ -228,6 +228,38 @@ function celulasFixas(img, linhas, colunas, limites = {}) {
   );
 }
 
+/**
+ * Onde cortar uma folha em N linhas quando as poses NAO ocupam faixas iguais.
+ *
+ * As folhas verticais das criancas tem poses de alturas diferentes: cortar em
+ * quartos exatos parte a cabeca de uma e deixa o pe da outra na celula errada.
+ * Com `maiorComponente` ligado, o pedaco invasor pode ate ser o MAIOR da celula,
+ * e ai a pose certa e descartada — foi assim que o frame de costas da Helena
+ * saiu como um arco vermelho sem personagem nenhum.
+ *
+ * A linha de corte e a MENOS ocupada perto de cada divisa, que e sempre o vao
+ * entre duas poses. Devolve proporcoes 0..1, o formato que `celulasFixas`
+ * espera em `cortesY`.
+ */
+function cortesEntreLinhas(img, linhas) {
+  const porLinha = new Int32Array(img.h);
+  for (let y = 0; y < img.h; y++) {
+    for (let x = 0; x < img.w; x++) if (img.px[(y * img.w + x) * 4 + 3] > 8) porLinha[y] += 1;
+  }
+  const cortes = [0];
+  const janela = Math.round(img.h / (linhas * 3));
+  for (let k = 1; k < linhas; k++) {
+    const alvo = Math.round((img.h * k) / linhas);
+    let melhor = alvo;
+    for (let y = Math.max(1, alvo - janela); y <= Math.min(img.h - 2, alvo + janela); y++) {
+      if (porLinha[y] < porLinha[melhor]) melhor = y;
+    }
+    cortes.push(melhor / img.h);
+  }
+  cortes.push(1);
+  return cortes;
+}
+
 /** Gera uma grade uniforme: cada frame contem exatamente uma pose. */
 function normalizar({
   entrada,
@@ -240,11 +272,15 @@ function normalizar({
   separarEmpilhados = false,
   gradeFixa = false,
   limitesGrade,
+  cortesAutoY = false,
 }) {
   const lida = lerPng(join(DIR, entrada));
   const origem = removerPreto ? removerFundoPreto(lida, limiarPreto) : lida;
+  const limites = gradeFixa && cortesAutoY && !limitesGrade?.cortesY
+    ? { ...limitesGrade, cortesY: cortesEntreLinhas(origem, linhasOriginais) }
+    : limitesGrade;
   const grade = gradeFixa
-    ? celulasFixas(origem, linhasOriginais, colunasOriginais, limitesGrade)
+    ? celulasFixas(origem, linhasOriginais, colunasOriginais, limites)
     : componentes(origem, linhasOriginais, colunasOriginais, separarEmpilhados);
   const frames = mapa.flat().map(({ coluna, linha, flipX = false }) => ({
     img: grade[linha][coluna].img,
@@ -583,12 +619,21 @@ function novoComCaminhada4x4EParado1x4(id, andando, parado) {
   });
 }
 
-/** Sem caminhada propria: usa as quatro direcoes paradas nos dois runtimes. */
-function novoSoParado4x4(id, entrada, gradeFixa = false) {
+/**
+ * Sem caminhada propria: usa as quatro direcoes paradas nos dois runtimes.
+ *
+ * Com `gradeFixa`, cada celula fica com o SEU MAIOR COMPONENTE. Sem isso a
+ * celula crua era mantida inteira, com os acessorios soltos que a arte deixa em
+ * volta do personagem: as folhas do Matheus e do Rafael saiam com o bone e o
+ * tufo de cabelo flutuando fora da cabeca, ocupando 90% da largura do frame.
+ */
+function novoSoParado4x4(id, entrada, gradeFixa = false, limiarPreto = 24) {
   for (const sufixo of ['andando', 'parado']) {
     normalizar({
       entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
-      mapa: mapaQuatroDirecoes, removerPreto: true, limiarPreto: 24, gradeFixa,
+      mapa: mapaQuatroDirecoes, removerPreto: true, limiarPreto, gradeFixa,
+      limitesGrade: gradeFixa ? { maiorComponente: true } : undefined,
+      cortesAutoY: gradeFixa,
     });
   }
 }
@@ -604,21 +649,31 @@ function novoSoFolha4x4(id, entrada, gradeFixa = false, limitesGrade, mapa = map
   }
 }
 
-/** Criancas em folha vertical 1x4: frente, perfil E, perfil D, costas. */
-function novoVertical1x4(id, entrada, limitesGrade = { maiorComponente: true }) {
+/**
+ * Criancas em folha vertical 1x4: frente, perfil E, perfil D, costas.
+ *
+ * As cinco folhas deste formato tem poses de alturas diferentes, entao o corte
+ * sai medido da propria arte (`cortesEntreLinhas`) em vez de ser um quarto de
+ * altura cada. Antes so o Arthur tinha divisas escritas a mao, e a Helena — que
+ * nao tinha — perdia duas das quatro poses.
+ *
+ * O limiar de fundo tambem baixou de 48 para 12: com 48 o flood-fill nao parava
+ * no fundo preto, avancava pelo cabelo e pela roupa escura e partia a pose em
+ * pedacos. `maiorComponente` entao ficava com um pedaco qualquer — a faixa de
+ * cabelo da Helena, o tronco do Arthur sem as pernas.
+ */
+function novoVertical1x4(id, entrada, limiarPreto = 12) {
   const mapa = [poseParada(0, 0), poseParada(0, 3), poseParada(0, 1), poseParada(0, 2)];
   for (const sufixo of ['andando', 'parado']) {
     normalizar({
       entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
-      colunasOriginais: 1, mapa, removerPreto: true, limiarPreto: 48, gradeFixa: true,
-      limitesGrade,
+      colunasOriginais: 1, mapa, removerPreto: true, limiarPreto, gradeFixa: true,
+      limitesGrade: { maiorComponente: true }, cortesAutoY: true,
     });
   }
 }
 
-novoVertical1x4('arthur', 'Arthur_parado.png', {
-  cortesY: [0, 0.285, 0.53, 0.78, 1], maiorComponente: true,
-});
+novoVertical1x4('arthur', 'Arthur_parado.png');
 novoSoParado4x4('bruno', 'Bruno_parado_madeireira.png');
 novoComFolhas4x4('caio', 'caio_andando.png', 'Caio_parado.png', true, true);
 novoVertical1x4('cecilia', 'Cecilia_parada.png');
@@ -626,6 +681,9 @@ novoComFolhas4x4('clara', 'Clara_andando.png', 'Clara_parada_bibliotecaria.png',
   cortesY: [0, 0.258, 0.5, 0.748, 1],
 });
 novoSoParado4x4('davi', 'Davi_parado.png');
+// Cabelo preto sobre fundo preto: com o limiar padrao de 48 o flood-fill comia o
+// cabelo e o vestido junto com o fundo, e o MAIOR componente que sobrava era a
+// faixa vermelha da cabeca — o frame de costas dela era so um arco vermelho.
 novoVertical1x4('helena', 'Helena_parada.png');
 novoComCaminhada8x4('joao', 'João_andando.png', 'João_parado.png');
 // A folha "Julia_parada" retrata outra personagem e contem uma pose gigante
@@ -640,7 +698,7 @@ novoVertical1x4('manuela', 'Manuela_parada.png');
 // A folha do Matheus e uma grade 4x4 regular, mas radio, bolsa e bone soltos
 // formam componentes separados. O corte por componentes confundia esses
 // acessorios com personagens inteiros e produzia frames sem cabeca/corpo.
-novoSoParado4x4('matheus', 'Matheus_parado.png', true);
+novoSoParado4x4('matheus', 'Matheus_parado.png', true, 12);
 novoComCaminhada8x4('neide', 'Neide_andando.png', 'Neide_parada.png');
 novoSoParado4x4('priscila', 'Priscila.png');
 novoSoFolha4x4('ilda', 'Professora_ilda.png', false);
@@ -655,5 +713,8 @@ novoSoFolha4x4('samanta', 'Samanda_andando.png', true, {
 novoComFolhas4x4('suzan', 'Suzan_andando.png', 'Suzan_parada.png', false, true, false, {
   cortesY: [0, 0.26, 0.495, 0.72, 1],
 });
-novoSoParado4x4('tulio', 'Tulio_parado.png');
+// A folha do Tulio e uma grade 4x4 regular e limpa. Sem `gradeFixa` o corte por
+// componentes tratava a cabeca como se fosse um personagem inteiro, e o frame de
+// frente — que e o idle padrao — saia como uma cabeca solta, sem corpo.
+novoSoParado4x4('tulio', 'Tulio_parado.png', true, 12);
 novoSoParado4x4('rita', 'Vó_rita_parada.png');
