@@ -48,6 +48,16 @@ import type { UIScene } from './UIScene';
 const TILES_VISIVEIS_X = 18;
 /** Altura do player em TILES (fica 1,5 tile, como antes). */
 const ALTURA_PERSONAGEM_TILES = 1.5;
+/**
+ * Ate onde `posicaoInicialSegura` procura tile livre em volta da ancora de uma
+ * atividade, em tiles. Com 4 sao 81 posicoes — folga de sobra para os oito
+ * alunos de uma sala ou para os vinte e quatro moradores no mercado do sabado.
+ */
+const RAIO_ESPALHAMENTO = 4;
+/** Passo do morador que perambula, em tiles por segundo (o player anda a ~2,8). */
+const VELOCIDADE_MORADOR_TILES = 1.6;
+/** Meia-largura maxima da area de perambular, em tiles, em volta da ancora. */
+const RAIO_VAGAR = 4;
 // Hitbox do player, em px do RECORTE (o frame tem 200x320), nao do mundo:
 // o Arcade multiplica tanto setSize quanto setOffset pela escala do sprite
 // (Body.js: `width = sourceWidth * _sx`, `position.x = ... + scaleX * offset.x`).
@@ -162,6 +172,13 @@ export class FarmScene extends Phaser.Scene {
   private interagiveis: Interagivel[] = [];
   private alvo: Interagivel | null = null;
   private npcs: NpcVisual[] = [];
+  /**
+   * Indice do alvo de conversa pro NPC que o desenha. Os dois motores respondem
+   * "estou em cena?" de jeitos diferentes (ver `npcPodeSerAlvo`), e `atualizarAlvo`
+   * roda todo quadro sobre TODOS os interagiveis — sem o indice seria uma busca
+   * linear por NPC por quadro.
+   */
+  private npcPorAlvo = new Map<Interagivel, NpcVisual>();
   private balaoEncontro: Phaser.GameObjects.Text | null = null;
   private figurantesAmbientais: FiguranteAmbiental[] = [];
   private luzesNoturnas: Phaser.GameObjects.Graphics[] = [];
@@ -259,6 +276,7 @@ export class FarmScene extends Phaser.Scene {
     this.marcadoresNpc = [];
     this.interagiveis = [];
     this.npcs = [];
+    this.npcPorAlvo.clear();
     this.figurantesAmbientais = [];
     this.luzesNoturnas = [];
     this.luzBiblioteca = null;
@@ -492,7 +510,7 @@ export class FarmScene extends Phaser.Scene {
       const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos);
       if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, 5800);
       this.sincronizarNpcs(delta);
-    }
+    } else this.pausarMoradores();
 
     this.atualizarBalaoEncontro();
 
@@ -980,7 +998,7 @@ export class FarmScene extends Phaser.Scene {
       if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
       sprite.anims.play(`${def.sprite ? `npc-${def.id}-` : ''}idle-down`);
       this.interagiveis.push(alvo);
-      this.npcs.push({ estado: estadoNpc, sprite, interagivel: alvo, animacao: def.sprite ? `npc-${def.id}-` : '' });
+      this.registrarNpc({ estado: estadoNpc, sprite, interagivel: alvo, animacao: def.sprite ? `npc-${def.id}-` : '' });
     }
     this.sincronizarNpcs();
   }
@@ -994,12 +1012,41 @@ export class FarmScene extends Phaser.Scene {
       };
       const sprite = this.physics.add.sprite(0, 0, `npc-${morador.id}-sprites`, 'down-0');
       this.configurarNpc(sprite);
-      sprite.setImmovable(true);
+      // NAO immovable: no Arcade dois corpos imoveis nunca se separam, e era por
+      // isso que os moradores atravessavam uns aos outros nos pontos de
+      // aglomeracao (escola, quadra, biblioteca). `pushable = false` guarda o
+      // efeito que interessa — o jogador esbarra e e barrado, o morador nao sai
+      // do lugar — e ainda deixa os moradores se separarem entre si.
+      sprite.setImmovable(false);
+      sprite.setPushable(false);
       sprite.anims.play(`npc-${morador.id}-idle-down`);
       this.interagiveis.push(alvo);
-      this.npcs.push({ morador, sprite, interagivel: alvo, animacao: `npc-${morador.id}-` });
+      this.registrarNpc({ morador, sprite, interagivel: alvo, animacao: `npc-${morador.id}-` });
     }
     this.sincronizarNpcs();
+  }
+
+  private registrarNpc(npc: NpcVisual): void {
+    this.npcs.push(npc);
+    this.npcPorAlvo.set(npc.interagivel, npc);
+  }
+
+  /**
+   * Um NPC so aceita o [E] enquanto esta EM CENA, e os dois motores respondem
+   * isso por caminhos diferentes: os 9 do Mapa 1 pelo estado da rotina (que
+   * existe mesmo com o NPC dentro de um predio, em outro mapa), e os 24
+   * moradores pelo proprio sprite, que `sincronizarMorador` liga e desliga a
+   * cada quadro conforme a agenda.
+   *
+   * Antes daqui a checagem era so `rotinasNpc.porId(...)`, que nao conhece
+   * morador nenhum: os 24 apareciam na tela, colidiam com o jogador e nunca
+   * viravam alvo — nao havia prompt "Falar" nem conversa em Mapa 2 e 3.
+   */
+  private npcPodeSerAlvo(alvo: Interagivel): boolean {
+    const npc = this.npcPorAlvo.get(alvo);
+    if (!npc) return false;
+    if (npc.estado) return this.posicaoNpcNoMapa(npc.estado) !== null;
+    return npc.sprite.visible;
   }
 
   private sincronizarNpcs(delta = 0): void {
@@ -1010,8 +1057,6 @@ export class FarmScene extends Phaser.Scene {
         this.sincronizarMorador(npc);
         continue;
       }
-      const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
-      void externoAtual;
       const posicao = this.posicaoNpcNoMapa(npc.estado!);
       const visivel = posicao !== null;
       sprite.setVisible(visivel).setActive(visivel);
@@ -1033,8 +1078,11 @@ export class FarmScene extends Phaser.Scene {
     const morador = npc.morador!;
     const padrao = atividadeAtual(morador, estado.dia, estado.relogio.minutos);
     const atividade = atividadeComEmprego(estado.cidade, morador, estado.dia, estado.relogio.minutos, padrao);
-    const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
-    const visivel = Boolean(atividade && estado.mapa === externoAtual && atividade.mapa === externoAtual);
+    // A atividade ja diz em que MAPA ela acontece, externo ou interior; estar em
+    // cena e so isso. Antes daqui os dois lados exigiam o mapa EXTERNO, e era o
+    // que prendia os moradores na rua: a aula acontecia no gramado ao sul da
+    // escola porque o interior nao podia ser destino de atividade.
+    const visivel = Boolean(atividade && atividade.mapa === estado.mapa);
     const { sprite, interagivel } = npc;
     sprite.setVisible(visivel).setActive(visivel);
     if (sprite.body) sprite.body.enable = visivel;
@@ -1049,6 +1097,9 @@ export class FarmScene extends Phaser.Scene {
       const inicial = this.posicaoInicialSegura(morador, atividade);
       npc.atividadeChave = chave;
       npc.ancoraMorador = { x: inicial.x * this.tamanhoTile, y: inicial.y * this.tamanhoTile };
+      npc.areaMorador = morador.movimento === 'vagar'
+        ? this.areaLivreEmVolta(inicial.x, inicial.y)
+        : null;
       npc.alvoMorador = null;
       npc.proximaDecisao = this.tempoMovimentoMoradores + 450;
       npc.passoMorador = 0;
@@ -1068,12 +1119,10 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
 
-    // Nao troca o destino no meio do passo. A versao anterior decidia a cada
-    // ~1 s, antes de percorrer um tile, e a sucessao de vetores fazia os NPCs
-    // descreverem circulos em volta da ancora.
+    // Nao troca o destino no meio do trajeto: so sorteia outro depois de chegar
+    // e cumprir a pausa.
     if (!npc.alvoMorador && this.tempoMovimentoMoradores >= (npc.proximaDecisao ?? 0)) {
-      npc.alvoMorador = this.proximoPassoDoMorador(npc);
-      npc.passoMorador = (npc.passoMorador ?? 0) + 1;
+      npc.alvoMorador = this.destinoDeVagar(npc);
       if (!npc.alvoMorador) npc.proximaDecisao = this.tempoMovimentoMoradores + 600;
     }
 
@@ -1087,7 +1136,7 @@ export class FarmScene extends Phaser.Scene {
         const variacao = (this.sementeMorador(morador.id) + (npc.passoMorador ?? 0) * 137) % 2200;
         npc.proximaDecisao = this.tempoMovimentoMoradores + 1800 + variacao;
       } else {
-        const velocidade = this.tamanhoTile * 0.78;
+        const velocidade = this.tamanhoTile * VELOCIDADE_MORADOR_TILES;
         const dx = alvo.x - sprite.x;
         const dy = alvo.y - sprite.y;
         const vetor = new Phaser.Math.Vector2(dx, dy).normalize().scale(velocidade);
@@ -1103,6 +1152,19 @@ export class FarmScene extends Phaser.Scene {
     interagivel.x = sprite.x;
     interagivel.y = sprite.y;
     sprite.anims.play(`${npc.animacao}${movendo ? 'walk' : 'idle'}-${npc.direcaoMorador ?? 'down'}`, true);
+  }
+
+  /**
+   * Congela os moradores enquanto a UI segura o jogo.
+   *
+   * Eles andam por `setVelocity`, e a fisica continua rodando com o dialogo
+   * aberto — `update` so pula a logica. Sem isto o morador guardava a velocidade
+   * do ultimo quadro e saia caminhando durante a propria fala, muitas vezes para
+   * longe de quem tinha puxado conversa. Os NPCs do Mapa 1 nao sofrem disso
+   * porque nao usam fisica: a cena escreve a posicao deles todo quadro.
+   */
+  private pausarMoradores(): void {
+    for (const npc of this.npcs) if (npc.morador) npc.sprite.setVelocity(0, 0);
   }
 
   private sementeMorador(id: string): number {
@@ -1125,16 +1187,26 @@ export class FarmScene extends Phaser.Scene {
       .map((outro) => outro.id)
       .sort();
     const indice = Math.max(0, iguais.indexOf(morador.id));
-    const preferencias = [
-      [0, 0], [-1, 0], [1, 0], [0, 1], [0, -1],
-      [-2, 0], [2, 0], [-1, 1], [1, 1], [-1, -1], [1, -1],
-    ];
-    const inicio = preferencias[indice % preferencias.length];
-    const candidatos = [inicio, ...preferencias.filter((p) => p !== inicio)];
-    for (let raio = 0; raio <= 5; raio++) {
-      for (const [ox, oy] of candidatos) {
-        const x = Math.round(atividade.x + ox + (raio > 0 ? Math.sign(ox || 1) * raio : 0));
-        const y = Math.round(atividade.y + oy);
+    // ANEIS CONCENTRICOS de verdade. O laco antigo so expandia o raio em X — o
+    // `oy` nunca era multiplicado por `raio` —, entao varria umas trinta posicoes
+    // numa faixa de tres linhas. Com oito alunos na mesma sala, ou com os vinte e
+    // quatro na calcada do mercado no sabado, a maioria nao achava lugar e caia
+    // no `return` final, que planta o NPC em cima da propria ancora (parede
+    // inclusive).
+    for (let raio = 0; raio <= RAIO_ESPALHAMENTO; raio++) {
+      const anel: { x: number; y: number }[] = [];
+      for (let oy = -raio; oy <= raio; oy++) {
+        for (let ox = -raio; ox <= raio; ox++) {
+          if (Math.max(Math.abs(ox), Math.abs(oy)) === raio) anel.push({ x: ox, y: oy });
+        }
+      }
+      // Cada morador entra no anel por um ponto diferente: percorrendo sempre na
+      // mesma ordem, a familia inteira se enfileirava no mesmo canto do comodo.
+      const giro = indice % anel.length;
+      for (let i = 0; i < anel.length; i++) {
+        const { x: ox, y: oy } = anel[(giro + i) % anel.length];
+        const x = Math.round(atividade.x) + ox;
+        const y = Math.round(atividade.y) + oy;
         if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y)) return { x, y };
       }
     }
@@ -1142,22 +1214,69 @@ export class FarmScene extends Phaser.Scene {
     return { x: atividade.x, y: atividade.y };
   }
 
-  /** Um passo cardinal mantem a reta inteira em tiles livres e evita cortar paredes. */
-  private proximoPassoDoMorador(npc: NpcVisual): { x: number; y: number } | null {
-    const ancora = npc.ancoraMorador!;
-    const t = this.tamanhoTile;
-    const atualX = Math.round(npc.sprite.x / t);
-    const atualY = Math.round(npc.sprite.y / t);
-    const base = this.sementeMorador(npc.morador!.id) + (npc.passoMorador ?? 0);
-    const passos = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-    for (let i = 0; i < passos.length; i++) {
-      const [dx, dy] = passos[(base + i) % passos.length];
-      const x = atualX + dx;
-      const y = atualY + dy;
-      if (Math.abs(x * t - ancora.x) > t * 2.1 || Math.abs(y * t - ancora.y) > t * 2.1) continue;
-      if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y, npc)) {
-        return { x: x * t, y: y * t };
+  /**
+   * O maior retangulo TODO livre que cabe em volta de um ponto, crescendo um
+   * lado de cada vez enquanto a linha inteira daquele lado estiver livre.
+   *
+   * E o substituto do pathfinding que este motor nao tem. Como o retangulo e
+   * convexo e nao tem um unico tile bloqueado, a reta entre dois pontos dele
+   * tambem e livre — a mesma garantia que o Mapa 1 obtem exigindo `AreaVagar`
+   * retangular (ver a nota de `vagar` em npcs.ts). A diferenca e que aqui a
+   * area sai medida do mapa, entao muda sozinha quando o cenario muda.
+   */
+  private areaLivreEmVolta(cx: number, cy: number): { x0: number; y0: number; x1: number; y1: number } {
+    const area = { x0: cx, y0: cy, x1: cx, y1: cy };
+    const linhaLivre = (x0: number, y0: number, x1: number, y1: number): boolean => {
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) if (!this.tileLivreParaMorador(x, y)) return false;
       }
+      return true;
+    };
+    let cresceu = true;
+    while (cresceu) {
+      cresceu = false;
+      if (cx - area.x0 < RAIO_VAGAR && linhaLivre(area.x0 - 1, area.y0, area.x0 - 1, area.y1)) {
+        area.x0 -= 1; cresceu = true;
+      }
+      if (area.x1 - cx < RAIO_VAGAR && linhaLivre(area.x1 + 1, area.y0, area.x1 + 1, area.y1)) {
+        area.x1 += 1; cresceu = true;
+      }
+      if (cy - area.y0 < RAIO_VAGAR && linhaLivre(area.x0, area.y0 - 1, area.x1, area.y0 - 1)) {
+        area.y0 -= 1; cresceu = true;
+      }
+      if (area.y1 - cy < RAIO_VAGAR && linhaLivre(area.x0, area.y1 + 1, area.x1, area.y1 + 1)) {
+        area.y1 += 1; cresceu = true;
+      }
+    }
+    return area;
+  }
+
+  /**
+   * Proximo destino de quem perambula: um PONTO sorteado dentro da area livre.
+   *
+   * A versao anterior sorteava um PASSO, girando a lista
+   * `[direita, baixo, esquerda, cima]` de uma posicao a cada decisao. Como o
+   * primeiro candidato valido era aceito, todo morador andava direita, baixo,
+   * esquerda, cima, direita... — um quadrado de dois tiles, para sempre, e igual
+   * em todos eles. Sortear o destino, e nao a direcao, e o que o motor do Mapa 1
+   * faz em `vagar`.
+   */
+  private destinoDeVagar(npc: NpcVisual): { x: number; y: number } | null {
+    const area = npc.areaMorador;
+    if (!area || (area.x1 === area.x0 && area.y1 === area.y0)) return null;
+    npc.passoMorador = (npc.passoMorador ?? 0) + 1;
+    // PRNG por semente, como o `aleatorio` de rotinasNpc: o percurso varia entre
+    // moradores e ao longo do dia, mas e o mesmo em toda partida.
+    const sorteio = (n: number, min: number, max: number): number => {
+      const s = Math.imul(this.sementeMorador(npc.morador!.id) + n, 1664525) + 1013904223;
+      return min + Math.floor(((s >>> 0) / 0x100000000) * (max - min + 1));
+    };
+    const t = this.tamanhoTile;
+    for (let tentativa = 0; tentativa < 8; tentativa++) {
+      const semente = (npc.passoMorador * 31 + tentativa) * 2654435761;
+      const x = sorteio(semente, area.x0, area.x1);
+      const y = sorteio(semente + 7919, area.y0, area.y1);
+      if (!this.tileReservadoPorMorador(x, y, npc)) return { x: x * t, y: y * t };
     }
     return null;
   }
@@ -1179,6 +1298,10 @@ export class FarmScene extends Phaser.Scene {
     const camada = this.camadaObjetos;
     if (!camada || tx < 1 || ty < 1 || tx >= camada.tilemap.width - 1 || ty >= camada.tilemap.height - 1) return false;
     if (camada.getTileAt(tx, ty)?.collides) return false;
+    // A pegada da mobilia que NAO colide (quadro, lousa, prateleira) tambem nao
+    // serve de posto: o NPC ficaria desenhado por dentro da peca. E a mesma regra
+    // que impede o jogador de empilhar dois moveis no mesmo tile.
+    if (this.pegadasDeMovel.some((p) => tx >= p.x0 && tx <= p.x1 && ty >= p.y0 && ty <= p.y1)) return false;
     const x = tx * this.tamanhoTile;
     const y = ty * this.tamanhoTile;
     return !this.obstaculos.some((zona) => zona.getBounds().contains(x, y - this.tamanhoTile * 0.15));
@@ -1721,8 +1844,14 @@ export class FarmScene extends Phaser.Scene {
       estado.relogio.minutos,
       atividadeAtual(morador, estado.dia, estado.relogio.minutos),
     );
-    if (!atividade || atividade.mapa !== this.mapaExternoAtual) return null;
-    return { x: atividade.x * this.tamanhoTile, y: atividade.y * this.tamanhoTile };
+    if (!atividade) return null;
+    if (atividade.mapa === this.mapaExternoAtual) {
+      return { x: atividade.x * this.tamanhoTile, y: atividade.y * this.tamanhoTile };
+    }
+    // Atividade DENTRO de um predio: o retrato vai pro lote dele no mapa externo,
+    // a mesma conta que o marcador do jogador usa quando ele esta num interior.
+    if (buscarMapa(atividade.mapa)?.mapaExterno !== this.mapaExternoAtual) return null;
+    return this.centroDaZonaDoInterior(atividade.mapa);
   }
 
   private paraCoordenadaDoMapa(x: number, y: number): [number, number] {
@@ -2044,10 +2173,7 @@ export class FarmScene extends Phaser.Scene {
     let melhorDist = Infinity;
 
     for (const alvo of this.interagiveis) {
-      if (alvo.tipo === 'npc') {
-        const npc = estado.rotinasNpc.porId(String(alvo.props.npcId));
-        if (!npc || !this.posicaoNpcNoMapa(npc)) continue;
-      }
+      if (alvo.tipo === 'npc' && !this.npcPodeSerAlvo(alvo)) continue;
       const dx = alvo.x - px;
       const dy = alvo.y - py;
       const dist = Math.hypot(dx, dy);
@@ -2784,6 +2910,14 @@ interface NpcVisual {
   animacao: string;
   atividadeChave?: string;
   ancoraMorador?: { x: number; y: number };
+  /**
+   * Retangulo TODO livre em volta da ancora, em tiles, calculado na troca de
+   * atividade. E o que substitui o pathfinding que este motor nao tem: como o
+   * retangulo e convexo e livre, qualquer reta entre dois pontos dele tambem e —
+   * a mesma garantia que `AreaVagar` da ao motor do Mapa 1. Null em quem nao
+   * perambula.
+   */
+  areaMorador?: { x0: number; y0: number; x1: number; y1: number } | null;
   alvoMorador?: { x: number; y: number } | null;
   proximaDecisao?: number;
   passoMorador?: number;
