@@ -37,6 +37,10 @@
  * SO como mencao nas falas. Nenhuma delas vira personagem aqui.
  */
 
+// O import e circular no papel (temasMoradores le os tipos daqui), mas so um
+// lado carrega valor: la o import e `import type`, que o TS apaga na compilacao.
+import { TEMAS_MORADORES } from './temasMoradores.ts';
+
 export type ReacaoTema = 'gosta' | 'neutro' | 'nao_gosta';
 
 /** Pontos de relacionamento por reacao ao tema. */
@@ -69,8 +73,12 @@ export const TEMAS_VISIVEIS = { min: 3, max: 4 } as const;
 /**
  * Tabela de temas por NPC. Escrita a partir do perfil de cada personagem:
  * o que ele gosta de conversar, o que passa batido e o que fecha a cara.
+ *
+ * Os nove NPCs do Mapa 1 ficam aqui; os 24 moradores dos Mapas 2 e 3 vem de
+ * `temasMoradores.ts`, no fim do arquivo. Sao tabelas separadas so por tamanho —
+ * o motor nao distingue os dois grupos.
  */
-export const TEMAS_POR_NPC: Record<string, readonly TemaDeConversa[]> = {
+const TEMAS_MAPA_1: Record<string, readonly TemaDeConversa[]> = {
   // ------------------------------------------------------------------ EDU --
   // Observador silencioso. Comenta pouco, mas comenta bem. Trabalho e neutro:
   // ele tem emprego estavel e nao e o assunto que o interessa.
@@ -1086,6 +1094,11 @@ export const TEMAS_POR_NPC: Record<string, readonly TemaDeConversa[]> = {
       ],
     },
   ],
+};
+
+export const TEMAS_POR_NPC: Record<string, readonly TemaDeConversa[]> = {
+  ...TEMAS_MAPA_1,
+  ...TEMAS_MORADORES,
 };
 
 /** Hash inteiro -> [0,1). Mesma avalanche usada pelo quadro de vagas. */

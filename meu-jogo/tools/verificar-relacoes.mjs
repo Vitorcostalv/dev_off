@@ -35,6 +35,7 @@ const [
   },
   { APARELHOS },
   { NPCS },
+  { MORADORES },
   { PONTOS_DE_LOJA, comprar, esquecerUltimaCompra, percentualDescontoNpc, precoNoPonto },
   { buscarItemDeLoja },
   { estado },
@@ -48,6 +49,7 @@ const [
   import('../src/game/trabalhos.ts'),
   import('../src/game/aparelhos.ts'),
   import('../src/game/npcs.ts'),
+  import('../src/game/moradores.ts'),
   import('../src/game/loja.ts'),
   import('../src/game/itens.ts'),
   import('../src/game/estado.ts'),
@@ -63,14 +65,31 @@ function conferir(condicao, mensagem) {
   }
 }
 
-// Os adultos com perfil escrito: 5 a 8 temas cada.
+// TODO NPC conversavel entra aqui, dos dois mapas. Os 24 moradores dos Mapas
+// 2 e 3 nao estavam nesta lista e por isso nenhum deles tinha tema nenhum: o
+// menu de conversa abria com "perguntar sobre o dia" e "dar um presente" e mais
+// nada, enquanto os nove do Mapa 1 ofereciam tres ou quatro assuntos por dia.
+//
+// As criancas ficam numa faixa propria pra a conferencia nao cobrar delas o
+// repertorio de um adulto.
+const CRIANCAS_MORADORAS = Object.values(MORADORES)
+  .filter((m) => m.faixa === 'crianca')
+  .map((m) => m.id);
+const ADULTOS_MORADORES = Object.values(MORADORES)
+  .filter((m) => m.faixa !== 'crianca')
+  .map((m) => m.id);
+/** Adultos com perfil escrito: 5 a 8 temas cada. */
 const NPCS_COM_PERFIL = [
   'edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice', 'hiago', 'vitor',
+  ...ADULTOS_MORADORES,
 ];
-// O Luke tem 12 anos e conversa menos: 3 a 4 temas bastam. Fica numa faixa
-// propria pra a conferencia nao cobrar dele o repertorio de um adulto.
-const NPCS_CRIANCA = ['luke'];
+/** Criancas e pre-adolescentes: 3 a 4 temas bastam. */
+const NPCS_CRIANCA = ['luke', ...CRIANCAS_MORADORAS];
 const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
+/** Quem tem feed no navegador do PC — por enquanto, so o elenco do Mapa 1. */
+const NPCS_COM_BLOG = [
+  'edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice', 'hiago', 'vitor', 'luke',
+];
 
 // ------------------------------------------------------------- score --
 {
@@ -274,7 +293,10 @@ const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
 
 // -------------------------------------------------------------- blog --
 {
-  for (const npcId of TODOS_COM_PERFIL) {
+  // O blog e dos NPCs do Mapa 1: sao eles que o jogador segue no navegador do
+  // PC. Os 24 moradores conversam mas ainda nao postam, entao a cobranca de 6 a
+  // 10 posts nao vale pra eles — quando escreverem, e so somar as listas.
+  for (const npcId of NPCS_COM_BLOG) {
     const pool = POSTS_POR_NPC[npcId] ?? [];
     conferir(pool.length >= 6, `${npcId} tem ${pool.length} posts; o combinado e 6 a 10`);
     conferir(pool.length <= 10, `${npcId} tem ${pool.length} posts; o combinado e 6 a 10`);
@@ -625,20 +647,22 @@ const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
 
 // -------------------------------------------- cobertura: todo NPC tem tudo --
 {
-  for (const npcId of TODOS_COM_PERFIL) {
+  for (const npcId of NPCS_COM_BLOG) {
     conferir(NPCS[npcId], `${npcId} nao existe em NPCS`);
-    conferir(TEMAS_POR_NPC[npcId], `${npcId} esta sem temas de conversa`);
-    conferir(PREFERENCIAS_NPCS[npcId], `${npcId} esta sem preferencia de presente`);
     conferir(POSTS_POR_NPC[npcId], `${npcId} esta sem posts de blog`);
   }
-  // e todo NPC do jogo precisa pelo menos nao quebrar a conversa
-  for (const npcId of Object.keys(NPCS)) {
-    conferir(
-      TEMAS_POR_NPC[npcId] !== undefined,
-      `${npcId} nao tem tema nenhum — a conversa dele abriria um menu vazio`,
-    );
+  // TODO NPC conversavel do jogo, dos tres mapas, precisa de tema e de
+  // preferencia de presente: sem tema o menu de conversa abre vazio, e sem
+  // preferencia o presente nao tem reacao.
+  const conversaveis = [...Object.keys(NPCS), ...Object.keys(MORADORES)];
+  for (const npcId of conversaveis) {
+    conferir(TEMAS_POR_NPC[npcId], `${npcId} esta sem temas de conversa`);
+    conferir(PREFERENCIAS_NPCS[npcId], `${npcId} esta sem preferencia de presente`);
   }
-  console.log(`  cobertura: ${Object.keys(NPCS).length} NPCs com tema, presente e blog`);
+  console.log(
+    `  cobertura: ${conversaveis.length} NPCs com tema e presente; ` +
+      `${NPCS_COM_BLOG.length} com blog`,
+  );
 }
 
 console.log(`[relacoes] ${passos} conferencias: passou`);
