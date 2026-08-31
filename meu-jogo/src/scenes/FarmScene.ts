@@ -429,6 +429,14 @@ export class FarmScene extends Phaser.Scene {
     if (moradoresMoveis.length > 0) {
       this.physics.add.collider(moradoresMoveis, objetos);
       if (this.obstaculos.length > 0) this.physics.add.collider(moradoresMoveis, this.obstaculos);
+      // Lista contra ELA MESMA. Sem segundo argumento o Arcade usa o caso
+      // "array vs. self" (`j = i + 1`), que compara cada par uma vez e nunca um
+      // corpo com ele mesmo — passar a lista duas vezes faria isso e teleportaria
+      // o sprite. Sem este colisor os moradores continuariam se atravessando
+      // mesmo depois de deixarem de ser `immovable`.
+      // O segundo argumento e obrigatorio no .d.ts, nao no motor.
+      const semSegundo = undefined as unknown as Phaser.Types.Physics.Arcade.ArcadeColliderType;
+      this.physics.add.collider(moradoresMoveis, semSegundo);
     }
     if (this.npcs.length > 0) {
       this.physics.add.collider(this.player, this.npcs.map((npc) => npc.sprite));
