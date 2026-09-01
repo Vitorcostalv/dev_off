@@ -48,7 +48,8 @@ src/
     inventario.ts      slots, empilhamento, catalogo de itens
     mapas.ts           registro dos mapas (keys do Phaser + spawn + mapa externo)
     casa.ts            casa do protagonista: comodos compraveis e catalogo de mobilia
-    npcs.ts            catalogo, moradias, sprites, dialogos e rotinas dos NPCs
+    npcs.ts            catalogo, moradias, sprites, dialogos e rotinas dos 33 NPCs
+    moradores.ts       ficha e agenda dos 24 moradores dos Mapas 2 e 3
     trabalhos.ts       quadro de vagas por dia, perguntas e regras de pagamento
     aparelhos.ts       catalogo dos aparelhos do minigame de conserto
     lixeira.ts         historico de descarte (o app Lixeira so le daqui)
@@ -224,14 +225,14 @@ O jogo tem **tres mapas externos**, ligados por zonas de transicao nas bordas:
 
 | mapa | chave | o que tem |
 | --- | --- | --- |
-| Mapa 1 | `farm` | a cidade original: 11 lotes, os 9 NPCs, mercado, academia, bar, farmacia, parque, lago |
-| Mapa 2 | `bairro` | casa+oficina do protagonista, escola, biblioteca, quadra, terreno abandonado, Central Telefonica, 12 lotes residenciais reservados (4 deles num condominio fechado), rio e ponte |
-| Mapa 3 | `rural` | madeireira (loja de expansao), pedreira, duas fazendas, dois lotes de casa reservados |
+| Mapa 1 | `farm` | a cidade original: 11 lotes, 9 NPCs, mercado, academia, bar, farmacia, parque, lago |
+| Mapa 2 | `bairro` | casa+oficina do protagonista, escola, biblioteca, quadra, terreno abandonado, Central Telefonica, 9 casas ocupadas (2 num condominio fechado) e 3 lotes reservados, rio e ponte |
+| Mapa 3 | `rural` | madeireira (loja de expansao), pedreira, duas fazendas, duas casas ocupadas |
 
-**Os NPCs vivem so no Mapa 1** (`MAPA_DOS_NPCS`, em `game/mapas.ts`). O motor de
-rotinas nao aprendeu a mover NPC entre mapas: fora do Mapa 1 eles simplesmente
-nao sao desenhados nem viram alvo — o mesmo tratamento que ja existia pro
-jogador estar dentro de um interior.
+**Cada NPC declara em que mapa vive** (`DefinicaoNpc.mapa`): 9 no Mapa 1, 20 no
+Mapa 2 e 4 no Mapa 3 — 33 no total, todos no mesmo motor de rotinas. Ao ar livre
+o NPC aparece so no proprio mapa; dentro de construcao ele aparece pra quem esta
+naquele interior, venha de onde vier. Ver **Rotinas de NPC**.
 
 **Jogo novo comeca no Mapa 2**, na porta da casa+oficina — que e onde o
 protagonista mora desde que a `casa_1` do Mapa 1 foi desativada.
@@ -530,18 +531,86 @@ tile lado a lado vira uma grade visivel.
 
 ## Rotinas de NPC
 
-Cada entrada de `NPCS`, em `game/npcs.ts`, concentra nome, casa, posicao
-inicial, spritesheet, dialogo e a lista ordenada de acoes. O motor aceita
-`vagar`, `vagar_rota`, `andar_rota`, `posto_interior`, `entrar_construcao`,
-`sair_construcao` e `voltar_para_casa`. NPC sem acao configurada depois das 18:00
-recebe automaticamente o retorno para sua casa. `vagar_rota` permite pausas entre
-waypoints; saidas de interiores caminham ate a porta antes de trocar de mapa.
+Sao **33 NPCs**: os 9 do Mapa 1, escritos um por um, e os 24 moradores dos Mapas
+2 e 3, montados a partir da agenda declarada em `MORADORES[].atividades`
+(`game/moradores.ts`). Os dois grupos rodam no MESMO motor, `SistemaRotinasNpc`.
+
+> Antes havia um segundo sistema em paralelo, que decidia a posicao dos 24 quadro
+> a quadro dentro da `FarmScene`. Ele andava em circulo num quadrado de 5x5, nao
+> entrava em predio nenhum (a diretora passava o dia na calcada da escola) e
+> deixava os 24 impossiveis de abordar, porque a busca de alvo de interacao
+> consulta o motor de rotinas. Uma agenda so, um motor so.
+
+Cada entrada de `NPCS`, em `game/npcs.ts`, concentra nome, casa, **mapa externo**,
+posicao inicial, spritesheet, dialogo e a lista ordenada de acoes. O motor aceita
+`vagar`, `vagar_rota`, `andar_rota`, `assumir_lugar`, `posto_interior`,
+`entrar_construcao`, `sair_construcao` e `voltar_para_casa`. NPC sem acao
+configurada depois das 18:00 recebe automaticamente o retorno para sua casa.
+`vagar_rota` permite pausas entre waypoints; saidas de interiores caminham ate a
+porta antes de trocar de mapa.
+
+**`DefinicaoNpc.mapa`** e o mapa externo a que o NPC pertence. Quem o usa e a
+cena, em `posicaoNpcNoMapa`: ao ar livre o NPC aparece so no proprio mapa; dentro
+de construcao ele aparece pra quem esta naquele interior, venha de onde vier — o
+Rafael mora no Bairro e atende na academia do Mapa 1. O motor em si nao le esse
+campo: pra ele bastam posicao e `dentro`.
 
 **Rotina por dia da semana.** Alem de `rotina`, um NPC pode ter `rotinaSemanal`:
 um mapa de indice do dia (0 = segunda, ver `DIA_DA_SEMANA` em `game/calendario.ts`)
 pra uma lista que SUBSTITUI a rotina daquele dia. O motor escolhe uma vez por dia,
 na virada, entao o dia inteiro roda com a mesma lista — nao ha `if` de dia da
-semana espalhado pelas acoes. E o que da a viagem semanal ao mercado.
+semana espalhado pelas acoes. E o que da a viagem semanal ao mercado, e o que
+separa o fim de semana dos 24 do dia util deles.
+
+Ha ainda uma **substituicao dinamica** da rotina do dia, ligada em
+`game/estado.ts`: quem foi designado a um projeto urbano troca o compromisso do
+meio do dia pelo turno da obra. Como a escolha e feita na virada do dia, a
+designacao vale a partir do dia seguinte — e o que o dialogo da prefeitura avisa.
+
+### `assumir_lugar`: trocar de lugar sem caminhar
+
+Das 24 folhas de arte dos moradores, **14 trazem apenas as quatro poses paradas**
+(ver `npc-caminhada.json`, publicado por `npm run processar-sprites-npc`). Nao ha
+como levar uma delas a pe sem deslizar uma pose de pe pelo chao. `assumir_lugar`
+resolve isso assumindo o lugar de uma vez: `construcao` (ou `null`, pra ar livre)
+mais `ponto`, e pronto.
+
+A entrada e a saida de cena ganham um **esmaecimento de 220 ms**
+(`aplicarVisibilidadeDeNpc`), o que faz o aparecer/desaparecer ler como
+intencional em vez de falha.
+
+Duas regras seguram o resto, e `npm run verificar-rotinas` cobra as duas:
+
+- **todo lugar tem de estar livre e alcancavel** — nos interiores, o flood-fill
+  parte da frente da porta da rua, entao ninguem fica de pe dentro de uma parede
+  nem num comodo onde o jogador nao consegue chegar pra conversar;
+- **no maximo UM bloco ao ar livre por dia**, cercado por interior. Duas trocas
+  seguidas ao ar livre no mesmo mapa seriam um teleporte na cara do jogador —
+  exatamente o que o sistema antigo fazia a cada mudanca de compromisso.
+
+Quem TEM passada real na arte continua andando de verdade: a faixa de agenda
+ganha uma `area` e o motor roda `vagar` nela depois do `assumir_lugar` que
+posiciona o NPC.
+
+### Onde cada um fica
+
+| lugar | quem |
+| --- | --- |
+| escola, diretoria | Livia (diretora) |
+| escola, sala de aula | Ilda (professora de historia, meio periodo) |
+| escola, carteiras | Cecilia, Arthur, Ravi, Manuela, Helena |
+| biblioteca, balcao | Clara (bibliotecaria) |
+| biblioteca, acervo | Lucas (funcionario); Ravi de tarde; Lucia na leitura |
+| madeireira, balcao | Bruno (encarregado) |
+| academia do Mapa 1 | Rafael (fisioterapeuta) |
+| lavoura da Zona Rural | Joao e Neide, perambulando |
+| portao da escola | Matheus (policial comunitario) |
+| quadra | as criancas de tarde e nos fins de semana; Suzan produzindo |
+| a propria casa | Rita (costura), Davi (cozinha), Priscila (escritorio) |
+| rua de casa | Caio (consertos), Julia (linha), Roberto, Samanta, Tulio |
+
+A terceira sala da escola virou **diretoria** (piso proprio, mesa e estante, sem
+carteira nem quadro): duas salas de aula bastam pras cinco criancas da cidade.
 
 ### Presenca interior fixa
 
@@ -552,12 +621,10 @@ interior e alterna entre dois `postos`, so pelo relogio. E a acao
 - `trabalho` — atras do balcao, no horario de funcionamento
 - `moradia` — na metade residencial do MESMO interior, fora do horario
 
-A troca e direta, sem caminhada: o NPC muda de posicao no tick em que o horario
-chega. Enquanto esta num posto ele fica com `dentro = casa` e `visivel = false`,
-que e o mesmo par que esconde qualquer NPC "dentro de construcao" — logo ele nao
-aparece no mapa externo nem no mapa da tecla M. Aparecer no interior e
-interagir com E ja vinham de graca: `posicaoNpcNoMapa` desenha todo NPC cujo
-`dentro` e o mapa aberto, e o alvo de interacao passa pelo mesmo teste.
+A troca NAO e teleporte: ele percorre a espinha do predio a pe, atravessando a
+porta somente-NPC. Enquanto esta dentro ele fica com `dentro = casa` e
+`visivel = false`, que e o mesmo par que esconde qualquer NPC "dentro de
+construcao" — logo ele nao aparece no mapa externo nem no mapa da tecla M.
 
 **Os postos sao do PREDIO, nao do NPC.** Ficam em `LOCAIS_CIDADE[lote].postos`,
 ao lado de `frente` e `portaInterior`, e `conferirMistos()` no gerador exige que
@@ -572,12 +639,29 @@ Marcar o NPC com `presencaInteriorFixa: true` nao muda comportamento — e rotul
 A validacao na carga de `npcs.ts` cobra que a marca, o uso de `posto_interior` e
 os `postos` do lote existam juntos, e que `dentroInicial` seja o proprio lote.
 
+### As folhas de sprite
+
 **Duas folhas por personagem: caminhada e pose parada.** `npm run processar-sprites-npc`
 normaliza cada uma numa grade 4x4 (linhas: baixo, cima, esquerda, direita) —
 mas a ordem DENTRO da arte muda de personagem pra personagem, entao cada entrada
 do script remapeia, e folha sem perfil esquerdo (Leticia, Mari) o gera
 espelhando o direito. Sem a folha de parado o idle cai no 1o frame da
 caminhada, que e uma pose de passo: o NPC parado parece andar no lugar.
+
+Tres coisas no recorte custaram caro e por isso estao explicadas no proprio
+script:
+
+- **a escala sai da CAIXA OPACA**, nunca do tamanho da imagem de origem.
+  `reduzirPara` reamostra somente a caixa opaca; no caminho `gradeFixa` a imagem
+  e a celula inteira da grade, e medir por ela esticava a figura ate a proporcao
+  da celula;
+- **os cortes da grade sao BUSCADOS**, nao assumidos. As folhas de arte nao
+  distribuem as poses em celulas iguais (na da Helena os vaos caem em 0,29 /
+  0,54 / 0,77), e cortar em quartos exatos partia a figura no meio;
+- **a remocao do fundo preto so roda em folha CHAPADA.** `removerFundoPreto`
+  decide pela cor ignorando o alfa, entao numa folha que ja vem recortada a
+  inundacao atravessa o fundo transparente e come o cabelo escuro do
+  personagem.
 
 A folha de caminhada do Wendel tem 8 colunas, e a saida usa as colunas 0/2/4/6
 pro ciclo de 4 frames nao sair pela metade. Ela tambem precisa de
@@ -586,39 +670,73 @@ da pose de baixo, e sem o corte a deteccao por componente acha 31 sprites onde
 deveria achar 32 — o corte pelos N maiores entra um rotulo da arte no lugar do
 que faltou e todas as linhas saem embaralhadas.
 
-Sao 7 moradores, um por moradia (a validacao em `npcs.ts` explode na carga se
-dois dividirem lote, ou se alguem for posto a morar em lote que nao e moradia):
+**`npc-caminhada.json`** lista quem tem passada real na arte. E o mesmo padrao de
+`mobilia.json`: a arte e a fonte, o gerador publica, o jogo e a conferencia leem.
+`npm run verificar-expansao-npcs` compara o cadastro com esse arquivo, o que
+impede um NPC voltar a receber `vagar` sem ter folha de caminhada — foi o caso do
+Bruno, que deslizava pelo pateo da madeireira com quatro poses de pe.
+
+### Moradias
 
 | NPC | mora em | dia |
 | --- | --- | --- |
-| morador_1 | `casa_1` | placeholder, sem rotina |
 | Edu | `casa_2` | vaga pela cidade inteira |
 | Mari | `casa_3` | academia 09:00-13:00 |
 | Jaqueline | `casa_4` | mercado 08:30-17:00 |
-| Leticia | `casa_5` | sem destino fixo: avenida e praca |
+| Leticia | `casa_5` | sem destino fixo: avenida e gramado da praca |
+| Hiago | `casa_6` | vaga pela cidade |
 | Wendel | `farmacia` | presenca interior fixa; abre 09:00, fecha 18:00 |
 | Alice | `bar` | presenca interior fixa; abre 12:00, fecha 20:00 |
+| Livia, Matheus, Cecilia | `casa_b1` | escola / portao / carteira |
+| Clara, Lucia | `casa_b2` | biblioteca |
+| Caio, Helena | `casa_b3` | consertos na rua / escola e quadra |
+| Julia, Arthur, Rita | `casa_b4` | linha de onibus / escola / costura em casa |
+| Roberto, Ilda, Ravi | `casa_b5` | calcada / escola / biblioteca |
+| Davi, Samanta, Manuela | `casa_b6` | cozinha de casa / rua / escola e quadra |
+| Rafael, Suzan | `casa_b7` | academia do Mapa 1 / quadra |
+| Lucas | `casa_c1` | acervo da biblioteca |
+| Tulio | `casa_c2` | pateo da central |
+| Joao, Neide, Priscila | `casa_rural_1` | lavoura / lavoura / escritorio em casa |
+| Bruno | `casa_rural_2` | balcao da madeireira |
 
-Wendel e Alice sao os unicos de **presenca interior fixa**, e os unicos com
-`rotinaSemanal`: uma vez por semana eles fecham a loja e vao ao mercado — Wendel
-na quarta (em vez de abrir as 09:00) e Alice na sexta (antes de abrir as 12:00).
-Saem pela porta, andam pelo hub que os outros NPCs ja usam, entram no mercado,
-ficam pouco mais de meia hora e voltam; a loja abre atrasada nesse dia. Fora
-desse dia nenhum dos dois aparece no mapa externo.
+Luke divide a `casa_4` com a mae e Vitor divide a `casa_6` com o irmao; nas casas
+dos Mapas 2 e 3 o **titular** e o primeiro morador dela na ordem de `MORADORES` e
+os demais da familia recebem `compartilhaCasa`. A validacao em `npcs.ts` explode
+na carga se dois titulares dividirem lote, ou se alguem for posto a morar em lote
+que nao e moradia.
 
-**Moradia disponivel** e o que `MORADIAS` lista: as 6 casas mais o bar e a
-farmacia, que sao lotes MISTOS (casa + comercio no mesmo interior) e por isso tem
-cama. `MORADIAS_VAGAS` deriva daquela lista menos quem ja tem morador — hoje so
-`casa_6`.
-`npm run verificar-rotinas` confere que a frente de cada moradia vaga esta livre.
+**Moradia disponivel** e o que `MORADIAS` lista: as 5 casas do Mapa 1, os 2 lotes
+MISTOS (bar e farmacia, que tem cama), as 9 casas ocupadas do Bairro e as 2 da
+Zona Rural — 18 no total. `MORADIAS_VAGAS` deriva daquela lista menos quem ja tem
+morador, e hoje esta vazia. `npm run verificar-rotinas` confere que a frente de
+cada moradia vaga esta livre.
 
-Ele tambem simula a **semana inteira** pros NPCs de presenca interior fixa e
-cobra o contrato: o dono aparece la fora APENAS no dia da viagem (e nesse dia
-chega ao mercado e volta pro proprio predio), nunca fica visivel nos outros seis
-dias, ocupa os dois postos todo dia, e nenhuma posicao dele — dentro ou fora,
-parado ou andando — cai em tile bloqueado. A grade do interior usada nessa
-conferencia inclui o corpo de cada movel solido, com a mesma caixa da FarmScene,
-entao ela pega tambem a caminhada do posto ate a porta.
+### Conversa
+
+Todos os 33 tem tema de conversa em `TEMAS_POR_NPC` (`game/dialogo.ts`): 5 a 8
+temas pros 9 originais, 3 a 5 pros 24 moradores, sempre com um tema que a pessoa
+gosta e um que ela evita, 2 ou 3 variacoes de fraseado por tema, e uma fala
+propria de "a gente ja conversou hoje". `npm run verificar-relacoes` cobra esse
+contrato inteiro, incluindo que o menu do dia saia com 3 a 4 temas e as duas
+polaridades.
+
+Os moradores tem ainda a opcao **"Perguntar sobre o dia"**, que le a agenda e
+responde com o compromisso do momento — e a ponte entre a rotina e o texto.
+
+### O que a conferencia cobra
+
+Rode `npm run verificar-rotinas`. Ele simula 06:00-19:00 amostrado nos **tres
+mapas** e confere:
+
+- tile bloqueado, na grade do mapa de cada NPC — tiles solidos, as caixas de
+  colisao de arvore e pedra **e** os moveis solidos ao ar livre (foi o que
+  mostrou que a area de `vagar` da praca cobria os brinquedos do parque);
+- cada area de `vagar` na definicao, incluindo as das rotinas semanais;
+- cada `assumir_lugar`: livre e alcancavel, no mapa ou interior que ele diz;
+- no maximo um bloco ao ar livre por dia, sem duas trocas seguidas ao ar livre;
+- nenhum posto FIXO sobreposto — dois NPCs parados no mesmo tile viram um sprite
+  so (quem esta andando ou perambulando se cruza de passagem, e isso e normal);
+- que todo NPC termine o dia dentro da propria casa, e as transicoes pelas portas.
 
 **As rotas usam coordenadas de tile e nao fazem pathfinding** — cada trecho e uma
 reta. Duas consequencias que ja morderam:
@@ -628,21 +746,27 @@ reta. Duas consequencias que ja morderam:
   convexidade garante o resto. Um retangulo "por cima da cidade" passa dentro de
   casa e de arvore. Pra cobrir regiao nao convexa, use varios turnos de `vagar`
   ligados por `andar_rota` — e o que a Leticia faz, um turno na avenida principal
-  e outro na praca do parque.
+  e outro no gramado sul da praca.
 - O **fallback das 18:00 sai em reta** da posicao atual pro primeiro ponto de
   `rotaCasa`. Entao esse primeiro ponto tem de ser alcancavel em reta de onde o
-  NPC costuma estar as 18:00 — no caso da Leticia, um ponto dentro da praca.
+  NPC costuma estar as 18:00 — no caso da Leticia, um ponto dentro da praca. Os
+  24 moradores nao dependem dele: a agenda deles fecha com um `assumir_lugar` em
+  casa as 22:00, e por isso a `rotaCasa` deles e vazia.
 
 Casa que fica ENTRE a porta e a via (o caso de `casa_5` e `casa_6`, ao sul do
 anel) precisa de rota contornando: subir reto da porta bate na parede da propria
 casa.
 
-Rode `npm run verificar-rotinas` pra simular 06:00-19:00 amostrado. Ele confere
-tile bloqueado (tiles solidos **e** as caixas de colisao de arvore e pedra),
-varre cada area de `vagar` na definicao, cobra que todo NPC termine o dia dentro
-da propria casa e valida as transicoes pelas portas.
+Ele tambem simula a **semana inteira** pros NPCs de presenca interior fixa e
+cobra o contrato: o dono aparece la fora APENAS no dia da viagem (e nesse dia
+chega ao mercado e volta pro proprio predio), nunca fica visivel nos outros seis
+dias, ocupa os dois postos todo dia, e nenhuma posicao dele — dentro ou fora,
+parado ou andando — cai em tile bloqueado. A grade do interior usada nessa
+conferencia inclui o corpo de cada movel solido, com a mesma caixa da FarmScene,
+entao ela pega tambem a caminhada do posto ate a porta.
+
 `npm run processar-sprites-npc` regenera as folhas transparentes e uniformes de
-caminhada/corrida de Edu e Mari.
+todos os 33.
 
 ## Expansao de casa e mobilia
 

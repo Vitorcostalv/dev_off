@@ -557,25 +557,32 @@ const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
   const { SistemaTrabalhos, ITEM_ENCOMENDA } = await import('../src/game/trabalhos.ts');
   const { ITENS, Inventario } = await import('../src/game/inventario.ts');
 
-  // 1) todo destino de entrega tem porta no mapa externo apontando pra ele.
-  //    E o que quebraria se as portas mudassem de estrutura/posicao.
-  const farm = JSON.parse(fs.readFileSync(new URL('../public/assets/tilemaps/farm.json', import.meta.url), 'utf8'));
-  const camada = farm.layers.find((l) => l.name === 'interativos');
-  conferir(camada, 'o mapa farm perdeu a camada "interativos"');
-  const portas = camada.objects
-    .filter((o) => (o.type || o.class) === 'porta')
-    .map((o) => ({
-      nome: o.name,
-      destino: (o.properties || []).find((p) => p.name === 'destino')?.value,
-      tx: (o.properties || []).find((p) => p.name === 'destinoTx')?.value,
-      ty: (o.properties || []).find((p) => p.name === 'destinoTy')?.value,
-    }));
+  // 1) todo destino de entrega tem porta apontando pra ele em ALGUM dos tres
+  //    mapas externos. Desde que os 24 moradores entraram no motor de rotinas,
+  //    a lista de destinos cobre tambem as casas do Bairro e da Zona Rural — os
+  //    mapas sao ligados por borda, entao a entrega continua possivel a pe.
+  const portas = [];
+  for (const chave of ['farm', 'bairro', 'rural']) {
+    const mapa = JSON.parse(fs.readFileSync(new URL(`../public/assets/tilemaps/${chave}.json`, import.meta.url), 'utf8'));
+    const camada = mapa.layers.find((l) => l.name === 'interativos');
+    conferir(camada, `o mapa ${chave} perdeu a camada "interativos"`);
+    for (const o of camada.objects) {
+      if ((o.type || o.class) !== 'porta') continue;
+      portas.push({
+        mapa: chave,
+        nome: o.name,
+        destino: (o.properties || []).find((p) => p.name === 'destino')?.value,
+        tx: (o.properties || []).find((p) => p.name === 'destinoTx')?.value,
+        ty: (o.properties || []).find((p) => p.name === 'destinoTy')?.value,
+      });
+    }
+  }
   for (const d of DESTINOS_DE_ENTREGA) {
     const porta = portas.find((p) => p.destino === d.mapa);
-    conferir(porta, `nao ha porta no farm apontando pra "${d.mapa}" (destino de entrega de ${d.npcId})`);
+    conferir(porta, `nenhum mapa externo tem porta pra "${d.mapa}" (destino de entrega de ${d.npcId})`);
     conferir(
       Number.isInteger(porta.tx) && Number.isInteger(porta.ty),
-      `a porta "${porta.nome}" esta sem ponto de chegada`,
+      `a porta "${porta.nome}" (${porta.mapa}) esta sem ponto de chegada`,
     );
   }
 
@@ -619,8 +626,47 @@ const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
   conferir(t3.entrega?.npcId === alvo.npcId, 'o NPC da entrega nao sobreviveu ao save');
 
   console.log(
-    `  entrega: ${DESTINOS_DE_ENTREGA.length} destinos com porta no farm; encomenda protegida e vaga recuperavel`,
+    `  entrega: ${DESTINOS_DE_ENTREGA.length} destinos com porta nos tres mapas; encomenda protegida e vaga recuperavel`,
   );
+}
+
+// ------------------------------------- temas dos 24 moradores dos Mapas 2/3 --
+/**
+ * Contrato mais leve que o dos 9 originais (5 a 8 temas, blog proprio): aqui sao
+ * 24 pessoas e o menu do dia mostra 3 a 4 de qualquer forma. O que se cobra e o
+ * mesmo minimo de qualidade: quatro temas, as duas polaridades, 2 a 3 variacoes
+ * por tema e nenhuma variacao repetida.
+ */
+{
+  const { MORADORES } = await import('../src/game/moradores.ts');
+  for (const id of Object.keys(MORADORES)) {
+    const temas = TEMAS_POR_NPC[id] ?? [];
+    conferir(temas.length >= 3 && temas.length <= 5, `${id} tem ${temas.length} temas; o combinado e 3 a 5`);
+    conferir(new Set(temas.map((t) => t.id)).size === temas.length, `${id} tem tema com id repetido`);
+    conferir(temas.some((t) => t.reacao === 'gosta'), `${id} nao tem nenhum tema que ele gosta`);
+    conferir(temas.some((t) => t.reacao === 'nao_gosta'), `${id} nao tem nenhum tema que ele evita`);
+    for (const tema of temas) {
+      conferir(tema.rotulo.length > 0, `tema "${tema.id}" de ${id} esta sem rotulo`);
+      conferir(
+        tema.variacoes.length >= 2 && tema.variacoes.length <= 3,
+        `tema "${tema.id}" de ${id} tem ${tema.variacoes.length} variacoes; o combinado e 2 ou 3`,
+      );
+      const textos = tema.variacoes.map((v) => v.join('|'));
+      conferir(new Set(textos).size === textos.length, `tema "${tema.id}" de ${id} tem variacao repetida`);
+      for (const variacao of tema.variacoes) {
+        conferir(variacao.length > 0, `variacao vazia no tema "${tema.id}" de ${id}`);
+        for (const fala of variacao) {
+          conferir(typeof fala === 'string' && fala.length > 0, `fala vazia em "${tema.id}" de ${id}`);
+        }
+      }
+    }
+    // o menu do dia continua saindo com 3 a 4 temas e as duas polaridades
+    for (let dia = 0; dia < 14; dia++) {
+      const doDia = temasDoDia(id, dia);
+      conferir(doDia.length >= 3 && doDia.length <= 4, `${id} no dia ${dia}: ${doDia.length} temas`);
+    }
+  }
+  console.log(`  temas dos moradores: ${Object.keys(MORADORES).length} NPCs com 3-5 temas e as duas polaridades`);
 }
 
 // -------------------------------------------- cobertura: todo NPC tem tudo --

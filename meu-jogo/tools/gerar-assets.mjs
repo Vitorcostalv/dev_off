@@ -3646,6 +3646,7 @@ const TIPO_DE_COMODO = {
   garagem: 'oficina',
   estudio: 'oficina',
   sala_aula: 'escola',
+  diretoria: 'escola',
   acervo: 'biblioteca',
   leitura: 'biblioteca',
 };
@@ -4271,17 +4272,21 @@ const PLANTAS_PROPRIAS = {
   },
 
   /**
-   * Escola: hall corrido no fundo e tres salas de aula em cima. Interior
-   * simples, como pedido — nao ha NPC aluno pra povoar, entao ele existe como
-   * espaco navegavel.
+   * Escola: hall corrido no fundo, duas salas de aula e a DIRETORIA em cima.
    *
-   * GANCHO FUTURO (nao implementado): horario de entrada/saida, aluno e
-   * professor. Nada no codigo depende disso hoje.
+   * Deixou de ser espaco vazio: a diretora Livia fica na diretoria, a professora
+   * Ilda da aula na sala do meio e as cinco criancas da cidade tem carteira
+   * propria la — ver `DIRETORIA`, `SALA_DE_AULA` e `CARTEIRA` em
+   * src/game/moradores.ts, e a conferencia de lugares em
+   * tools/verificar-rotinas-npc.mjs.
+   *
+   * GANCHO FUTURO (nao implementado): sino, chamada e horario de entrada/saida
+   * com porta trancada. Nada no codigo depende disso hoje.
    */
   escola: {
     parede: 'escola',
     chao: 'PISO_GRANILITE',
-    pisos: { sala_aula_1: 'madeira_clara', sala_aula_2: 'madeira_clara', sala_aula_3: 'madeira_clara' },
+    pisos: { sala_aula_1: 'madeira_clara', sala_aula_2: 'madeira_clara', diretoria: 'madeira_escura' },
     largura: 24,
     altura: 16,
     porta: 12,
@@ -4294,7 +4299,10 @@ const PLANTAS_PROPRIAS = {
     comodos: {
       sala_aula_1: [1, 2, 6, 7],
       sala_aula_2: [8, 2, 8, 7],
-      sala_aula_3: [17, 2, 6, 7],
+      // A terceira sala e a DIRETORIA, nao uma sala de aula: e o posto da
+      // diretora Livia (ver `DIRETORIA` em src/game/moradores.ts). Duas salas
+      // de aula bastam pras cinco criancas que a cidade tem.
+      diretoria: [17, 2, 6, 7],
       hall: [1, 11, 22, 4],
     },
     // Sala de aula e comodo ESTREITO (6 a 8 tiles) e a carteira ocupa 2,5 deles.
@@ -4313,10 +4321,10 @@ const PLANTAS_PROPRIAS = {
         { movel: 'carteira', tx: 12, ty: 7 },
         { movel: 'armario_escolar', tx: 14, ty: 4 },
       ],
-      sala_aula_3: [
-        { movel: 'quadro_sala', tx: 19, ty: 3 },
+      // Mesa e estante, sem carteira e sem quadro: le como sala da direcao.
+      diretoria: [
         { movel: 'mesa_professor', tx: 17, ty: 4 },
-        { movel: 'carteira', tx: 20, ty: 7 },
+        { movel: 'estante_escolar', tx: 20, ty: 7 },
       ],
       hall: [
         { movel: 'planta_grande', tx: 1, ty: 14 },

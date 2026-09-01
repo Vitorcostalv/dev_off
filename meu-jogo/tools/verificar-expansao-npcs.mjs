@@ -108,8 +108,28 @@ for (const morador of Object.values(MORADORES)) {
 for (const id of CRIANCAS) ok(MORADORES[id].romancePermitido === false, `${id}: crianca entrou no romance`);
 
 // Dois moradores realmente consultados em horarios diferentes, como a cena faz.
-ok(atividadeAtual(MORADORES.clara, 0, 10 * 60)?.atividade === 'turno na biblioteca', 'rotina da Clara nao abriu');
-ok(atividadeAtual(MORADORES.helena, 0, 15 * 60)?.atividade === 'quadra e amigos', 'rotina da Helena nao chegou ao lazer');
+// Nao se compara o TEXTO da atividade (ele e redacao, muda), e sim o LUGAR: as
+// 10:00 a Clara esta dentro da biblioteca, e as 15:00 a Helena esta na quadra,
+// ao ar livre. E o que a migracao pro motor de rotinas tinha de preservar.
+const clara10 = atividadeAtual(MORADORES.clara, 0, 10 * 60);
+ok(clara10?.lugar.construcao === 'biblioteca', `Clara as 10:00 nao esta na biblioteca: ${clara10?.atividade}`);
+const helena15 = atividadeAtual(MORADORES.helena, 0, 15 * 60);
+ok(helena15?.lugar.construcao === null && helena15.lugar.mapa === 'bairro', `Helena as 15:00 nao esta na quadra: ${helena15?.atividade}`);
+// Toda agenda comeca e termina em casa, e o `lugar` de cada faixa aponta pra
+// interior ou pra ar livre com mapa declarado — sem coordenada solta.
+for (const morador of Object.values(MORADORES)) {
+  for (const lista of [morador.atividades.filter((a) => !a.fimDeSemana), morador.atividades.filter((a) => a.fimDeSemana)]) {
+    ok(lista.length >= 3, `${morador.id}: agenda curta demais (${lista.length} faixas)`);
+    ok(lista[0].lugar.construcao === morador.casa, `${morador.id}: nao comeca o dia na propria casa`);
+    ok(lista[lista.length - 1].lugar.construcao === morador.casa, `${morador.id}: nao termina o dia na propria casa`);
+    for (const faixa of lista) {
+      ok(faixa.fim > faixa.inicio, `${morador.id}: faixa "${faixa.atividade}" com fim antes do inicio`);
+      ok(['bairro', 'rural', 'farm'].includes(faixa.lugar.mapa), `${morador.id}: mapa invalido em "${faixa.atividade}"`);
+      ok(!faixa.lugar.area || faixa.lugar.construcao === null, `${morador.id}: area de perambulacao dentro de construcao`);
+      ok(!faixa.lugar.area || comCaminhada.has(morador.id), `${morador.id}: perambula sem folha de caminhada`);
+    }
+  }
+}
 ok(MORADORES.clara.dialogoAtual.length >= 3 && MORADORES.helena.dialogoAtual.length >= 3, 'dialogo basico ausente');
 
 // Duas missoes ponta a ponta: estado, dinheiro, relacao, flag e persistencia.

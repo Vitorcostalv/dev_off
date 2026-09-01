@@ -5,12 +5,12 @@ import { formatarDinheiro } from '../game/dinheiro';
 import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
 import { lojasDoMapa } from '../game/loja';
-import { MAPA_DA_CASA, MAPA_DOS_NPCS, MAPAS, buscarMapa } from '../game/mapas';
+import { MAPA_DA_CASA, MAPA_PADRAO, MAPAS, buscarMapa } from '../game/mapas';
 import { CATALOGO_MOBILIA, buscarExpansao, buscarMovelDeLoja } from '../game/casa';
 import { requisitosDoMovel } from '../game/casa';
 import type { DefinicaoExpansao, RequisitoMaterial } from '../game/casa';
 import type { MedidaDeMovel, MovelPosto } from '../game/casa';
-import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
+import { buscarNpc, LOCAIS_CIDADE, NPCS } from '../game/npcs';
 import type { PerfilNpc } from '../game/npcs';
 import { atividadeAtual, buscarMorador, MORADORES } from '../game/moradores';
 import type { Morador } from '../game/moradores';
@@ -151,6 +151,8 @@ const AVISOS_DE_PREDIO: Record<string, string[]> = {
  * Sem isto daria pra mobiliar um comodo do outro lado da casa sem sair do lugar.
  */
 const ALCANCE_DE_MOBILIA = 6;
+/** Duracao do esmaecer de entrada/saida de cena de um NPC, em ms. */
+const DURACAO_FADE_NPC = 220;
 
 export class FarmScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -233,8 +235,6 @@ export class FarmScene extends Phaser.Scene {
   private camadaObjetos: Phaser.Tilemaps.TilemapLayer | null = null;
   /** Aviso fixo na tela durante o posicionamento de mobilia. */
   private avisoMobilia: Phaser.GameObjects.Text | null = null;
-  /** relogio local dos passos/pausas dos moradores novos */
-  private tempoMovimentoMoradores = 0;
 
   constructor() {
     super('FarmScene');
@@ -277,7 +277,6 @@ export class FarmScene extends Phaser.Scene {
     this.posicionando = null;
     this.camadaObjetos = null;
     this.avisoMobilia = null;
-    this.tempoMovimentoMoradores = 0;
     this.alvo = null;
   }
 
@@ -404,14 +403,8 @@ export class FarmScene extends Phaser.Scene {
     // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
     // predios, moveis, arvores e pedras do mapa carregado.
     this.criarNpcs();
-    this.criarNovosMoradores();
 
     this.physics.add.collider(this.player, objetos);
-    const moradoresMoveis = this.npcs.filter((npc) => npc.morador).map((npc) => npc.sprite);
-    if (moradoresMoveis.length > 0) {
-      this.physics.add.collider(moradoresMoveis, objetos);
-      if (this.obstaculos.length > 0) this.physics.add.collider(moradoresMoveis, this.obstaculos);
-    }
     if (this.npcs.length > 0) {
       this.physics.add.collider(this.player, this.npcs.map((npc) => npc.sprite));
     }
@@ -491,7 +484,7 @@ export class FarmScene extends Phaser.Scene {
       estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, delta);
       const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos);
       if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, 5800);
-      this.sincronizarNpcs(delta);
+      this.sincronizarNpcs();
     }
 
     this.atualizarBalaoEncontro();
@@ -980,41 +973,61 @@ export class FarmScene extends Phaser.Scene {
       if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
       sprite.anims.play(`${def.sprite ? `npc-${def.id}-` : ''}idle-down`);
       this.interagiveis.push(alvo);
-      this.npcs.push({ estado: estadoNpc, sprite, interagivel: alvo, animacao: def.sprite ? `npc-${def.id}-` : '' });
+      sprite.setVisible(false);
+      this.npcs.push({
+        estado: estadoNpc,
+        sprite,
+        interagivel: alvo,
+        animacao: def.sprite ? `npc-${def.id}-` : '',
+        visivelAplicado: false,
+      });
     }
-    this.sincronizarNpcs();
+    this.sincronizarNpcs(true);
   }
 
-  /** Os moradores dos Mapas 2/3 usam agenda declarativa entre mapas externos. */
-  private criarNovosMoradores(): void {
-    for (const morador of Object.values(MORADORES)) {
-      const alvo: Interagivel = {
-        id: `npc_${morador.id}`, tipo: 'npc', rotulo: ROTULOS.npc,
-        x: 0, y: 0, props: { npcId: morador.id },
-      };
-      const sprite = this.physics.add.sprite(0, 0, `npc-${morador.id}-sprites`, 'down-0');
-      this.configurarNpc(sprite);
-      sprite.setImmovable(true);
-      sprite.anims.play(`npc-${morador.id}-idle-down`);
-      this.interagiveis.push(alvo);
-      this.npcs.push({ morador, sprite, interagivel: alvo, animacao: `npc-${morador.id}-` });
+  /**
+   * Entrar e sair de cena com ESMAECIMENTO, e nao num quadro.
+   *
+   * A maioria dos NPCs troca de lugar sem caminhar (ver `assumir_lugar` em
+   * npcs.ts) — e o unico jeito honesto de mover quem so tem poses paradas na
+   * arte. O esmaecimento e o que faz esse aparecer/desaparecer ler como
+   * intencional em vez de falha: ninguem pisca no meio da rua.
+   *
+   * `visivelAplicado` existe porque `sprite.visible` continua true durante o
+   * esmaecimento de saida: sem ele, cada quadro reiniciaria o tween.
+   */
+  private aplicarVisibilidadeDeNpc(npc: NpcVisual, visivel: boolean, instantaneo = false): void {
+    if (npc.visivelAplicado === visivel) return;
+    npc.visivelAplicado = visivel;
+    this.tweens.killTweensOf(npc.sprite);
+    // Na montagem da cena nao ha o que esmaecer: a camera inteira ja entra com
+    // fade. Fazer isso aqui tambem deixaria o NPC em alpha 0 se o primeiro
+    // quadro demorasse.
+    if (instantaneo) {
+      npc.sprite.setVisible(visivel).setAlpha(1);
+      return;
     }
-    this.sincronizarNpcs();
+    if (visivel) {
+      npc.sprite.setVisible(true).setAlpha(0);
+      this.tweens.add({ targets: npc.sprite, alpha: 1, duration: DURACAO_FADE_NPC });
+      return;
+    }
+    this.tweens.add({
+      targets: npc.sprite,
+      alpha: 0,
+      duration: DURACAO_FADE_NPC,
+      // pode ter voltado a ser visivel no meio do caminho
+      onComplete: () => { if (!npc.visivelAplicado) npc.sprite.setVisible(false); },
+    });
   }
 
-  private sincronizarNpcs(delta = 0): void {
-    this.tempoMovimentoMoradores += Math.max(0, delta);
+  private sincronizarNpcs(instantaneo = false): void {
     for (const npc of this.npcs) {
       const { sprite, interagivel } = npc;
-      if (npc.morador) {
-        this.sincronizarMorador(npc);
-        continue;
-      }
-      const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
-      void externoAtual;
-      const posicao = this.posicaoNpcNoMapa(npc.estado!);
+      const posicao = this.posicaoNpcNoMapa(npc.estado);
       const visivel = posicao !== null;
-      sprite.setVisible(visivel).setActive(visivel);
+      this.aplicarVisibilidadeDeNpc(npc, visivel, instantaneo);
+      sprite.setActive(visivel);
       if (sprite.body) sprite.body.enable = visivel;
       if (!visivel) continue;
       const x = posicao.x * this.tamanhoTile;
@@ -1022,166 +1035,10 @@ export class FarmScene extends Phaser.Scene {
       sprite.setPosition(x, y).setDepth(y);
       interagivel.x = x;
       interagivel.y = y;
-      const movendo = npc.estado!.movendo;
-      const direcao = npc.estado!.direcao;
+      const movendo = npc.estado.movendo;
+      const direcao = npc.estado.direcao;
       sprite.anims.play(`${npc.animacao}${movendo ? 'walk' : 'idle'}-${direcao}`, true);
     }
-  }
-
-  /** Movimento local real dos moradores dos Mapas 2/3, sem teleporte por frame. */
-  private sincronizarMorador(npc: NpcVisual): void {
-    const morador = npc.morador!;
-    const padrao = atividadeAtual(morador, estado.dia, estado.relogio.minutos);
-    const atividade = atividadeComEmprego(estado.cidade, morador, estado.dia, estado.relogio.minutos, padrao);
-    const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
-    const visivel = Boolean(atividade && estado.mapa === externoAtual && atividade.mapa === externoAtual);
-    const { sprite, interagivel } = npc;
-    sprite.setVisible(visivel).setActive(visivel);
-    if (sprite.body) sprite.body.enable = visivel;
-    if (!visivel || !atividade) {
-      sprite.setVelocity(0, 0);
-      npc.atividadeChave = undefined;
-      return;
-    }
-
-    const chave = `${estado.dia}:${atividade.inicio}:${atividade.fim}:${atividade.mapa}:${atividade.x}:${atividade.y}`;
-    if (npc.atividadeChave !== chave || !npc.ancoraMorador) {
-      const inicial = this.posicaoInicialSegura(morador, atividade);
-      npc.atividadeChave = chave;
-      npc.ancoraMorador = { x: inicial.x * this.tamanhoTile, y: inicial.y * this.tamanhoTile };
-      npc.alvoMorador = null;
-      npc.proximaDecisao = this.tempoMovimentoMoradores + 450;
-      npc.passoMorador = 0;
-      npc.direcaoMorador = 'down';
-      sprite.setPosition(npc.ancoraMorador.x, npc.ancoraMorador.y).setVelocity(0, 0);
-    }
-
-    // Uma folha so de poses paradas nunca deve deslizar pelo chao. Esses NPCs
-    // continuam mudando de compromisso pela agenda, mas permanecem no posto
-    // escolhido enquanto aquela atividade estiver ativa.
-    if (morador.movimento === 'parado') {
-      sprite.setVelocity(0, 0).setDepth(sprite.y);
-      npc.alvoMorador = null;
-      interagivel.x = sprite.x;
-      interagivel.y = sprite.y;
-      sprite.anims.play(`${npc.animacao}idle-${npc.direcaoMorador ?? 'down'}`, true);
-      return;
-    }
-
-    // Nao troca o destino no meio do passo. A versao anterior decidia a cada
-    // ~1 s, antes de percorrer um tile, e a sucessao de vetores fazia os NPCs
-    // descreverem circulos em volta da ancora.
-    if (!npc.alvoMorador && this.tempoMovimentoMoradores >= (npc.proximaDecisao ?? 0)) {
-      npc.alvoMorador = this.proximoPassoDoMorador(npc);
-      npc.passoMorador = (npc.passoMorador ?? 0) + 1;
-      if (!npc.alvoMorador) npc.proximaDecisao = this.tempoMovimentoMoradores + 600;
-    }
-
-    let movendo = false;
-    const alvo = npc.alvoMorador;
-    if (alvo) {
-      const distancia = Phaser.Math.Distance.Between(sprite.x, sprite.y, alvo.x, alvo.y);
-      if (distancia <= 2.5) {
-        sprite.setPosition(alvo.x, alvo.y).setVelocity(0, 0);
-        npc.alvoMorador = null;
-        const variacao = (this.sementeMorador(morador.id) + (npc.passoMorador ?? 0) * 137) % 2200;
-        npc.proximaDecisao = this.tempoMovimentoMoradores + 1800 + variacao;
-      } else {
-        const velocidade = this.tamanhoTile * 0.78;
-        const dx = alvo.x - sprite.x;
-        const dy = alvo.y - sprite.y;
-        const vetor = new Phaser.Math.Vector2(dx, dy).normalize().scale(velocidade);
-        sprite.setVelocity(vetor.x, vetor.y);
-        npc.direcaoMorador = Math.abs(dx) >= Math.abs(dy)
-          ? (dx >= 0 ? 'right' : 'left')
-          : (dy >= 0 ? 'down' : 'up');
-        movendo = true;
-      }
-    } else sprite.setVelocity(0, 0);
-
-    sprite.setDepth(sprite.y);
-    interagivel.x = sprite.x;
-    interagivel.y = sprite.y;
-    sprite.anims.play(`${npc.animacao}${movendo ? 'walk' : 'idle'}-${npc.direcaoMorador ?? 'down'}`, true);
-  }
-
-  private sementeMorador(id: string): number {
-    return [...id].reduce((n, c) => Math.imul(n, 31) + c.charCodeAt(0), 17) >>> 0;
-  }
-
-  /** Separa quem compartilha casa/trabalho e procura o tile caminhavel mais proximo. */
-  private posicaoInicialSegura(morador: Morador, atividade: NonNullable<ReturnType<typeof atividadeAtual>>): { x: number; y: number } {
-    const iguais = Object.values(MORADORES)
-      .filter((outro) => {
-        const atual = atividadeComEmprego(
-          estado.cidade,
-          outro,
-          estado.dia,
-          estado.relogio.minutos,
-          atividadeAtual(outro, estado.dia, estado.relogio.minutos),
-        );
-        return atual?.mapa === atividade.mapa && atual.x === atividade.x && atual.y === atividade.y;
-      })
-      .map((outro) => outro.id)
-      .sort();
-    const indice = Math.max(0, iguais.indexOf(morador.id));
-    const preferencias = [
-      [0, 0], [-1, 0], [1, 0], [0, 1], [0, -1],
-      [-2, 0], [2, 0], [-1, 1], [1, 1], [-1, -1], [1, -1],
-    ];
-    const inicio = preferencias[indice % preferencias.length];
-    const candidatos = [inicio, ...preferencias.filter((p) => p !== inicio)];
-    for (let raio = 0; raio <= 5; raio++) {
-      for (const [ox, oy] of candidatos) {
-        const x = Math.round(atividade.x + ox + (raio > 0 ? Math.sign(ox || 1) * raio : 0));
-        const y = Math.round(atividade.y + oy);
-        if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y)) return { x, y };
-      }
-    }
-    console.warn(`[moradores] ${morador.id}: nenhum tile livre perto de ${atividade.x},${atividade.y}`);
-    return { x: atividade.x, y: atividade.y };
-  }
-
-  /** Um passo cardinal mantem a reta inteira em tiles livres e evita cortar paredes. */
-  private proximoPassoDoMorador(npc: NpcVisual): { x: number; y: number } | null {
-    const ancora = npc.ancoraMorador!;
-    const t = this.tamanhoTile;
-    const atualX = Math.round(npc.sprite.x / t);
-    const atualY = Math.round(npc.sprite.y / t);
-    const base = this.sementeMorador(npc.morador!.id) + (npc.passoMorador ?? 0);
-    const passos = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-    for (let i = 0; i < passos.length; i++) {
-      const [dx, dy] = passos[(base + i) % passos.length];
-      const x = atualX + dx;
-      const y = atualY + dy;
-      if (Math.abs(x * t - ancora.x) > t * 2.1 || Math.abs(y * t - ancora.y) > t * 2.1) continue;
-      if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y, npc)) {
-        return { x: x * t, y: y * t };
-      }
-    }
-    return null;
-  }
-
-  /** Impede dois moradores de ocuparem ou escolherem o mesmo tile. */
-  private tileReservadoPorMorador(tx: number, ty: number, ignorar?: NpcVisual): boolean {
-    const t = this.tamanhoTile;
-    return this.npcs.some((outro) => {
-      if (outro === ignorar || !outro.morador || !outro.sprite.visible || !outro.atividadeChave) return false;
-      const atualX = Math.round(outro.sprite.x / t);
-      const atualY = Math.round(outro.sprite.y / t);
-      if (atualX === tx && atualY === ty) return true;
-      const alvo = outro.alvoMorador;
-      return Boolean(alvo && Math.round(alvo.x / t) === tx && Math.round(alvo.y / t) === ty);
-    });
-  }
-
-  private tileLivreParaMorador(tx: number, ty: number): boolean {
-    const camada = this.camadaObjetos;
-    if (!camada || tx < 1 || ty < 1 || tx >= camada.tilemap.width - 1 || ty >= camada.tilemap.height - 1) return false;
-    if (camada.getTileAt(tx, ty)?.collides) return false;
-    const x = tx * this.tamanhoTile;
-    const y = ty * this.tamanhoTile;
-    return !this.obstaculos.some((zona) => zona.getBounds().contains(x, y - this.tamanhoTile * 0.15));
   }
 
   /** O encontro sempre simula; so a camada visual depende da proximidade. */
@@ -1213,7 +1070,16 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
-    if (estado.mapa === MAPA_DOS_NPCS) return npc.visivel ? { x: npc.x, y: npc.y } : null;
+    // AO AR LIVRE: aparece so no proprio mapa externo. Cada NPC declara o seu
+    // (`DefinicaoNpc.mapa`) — antes disto havia um mapa unico de NPC, e os 24
+    // moradores dos Mapas 2/3 ficavam de fora do motor por causa disso.
+    const def = NPCS[npc.id];
+    if (!def) return null;
+    if (npc.dentro === null) {
+      return npc.visivel && estado.mapa === def.mapa ? { x: npc.x, y: npc.y } : null;
+    }
+    // DENTRO de construcao: aparece so pra quem esta no mesmo interior, venha o
+    // NPC do mapa que vier (o Rafael mora no Bairro e atende na academia).
     if (npc.dentro !== estado.mapa) return null;
     if (!LOCAIS_CIDADE[npc.dentro]) return null;
     // Dentro de comodo privado ele some da cena: o jogador ve o dono andar ate a
@@ -1395,7 +1261,10 @@ export class FarmScene extends Phaser.Scene {
     this.sincronizarNpcs();
     this.ui.iniciarDialogo(falasDe('Prefeitura', [
       `${morador.nome} agora e responsavel por ${projeto.nome}.`,
-      'Nos dias uteis, o turno acontece das 08:00 as 17:00.',
+      // A rotina de cada NPC e montada UMA vez por dia, na virada. Trocar agora
+      // reiniciaria o dia dele na frente do jogador — ver `atividadesComEmprego`
+      // em src/game/cidade.ts.
+      'O turno comeca amanha, nos dias uteis, das 08:00 as 17:00.',
     ], morador.id));
   }
 
@@ -1547,7 +1416,7 @@ export class FarmScene extends Phaser.Scene {
    */
   private get mapaExternoAtual(): string {
     const def = buscarMapa(estado.mapa);
-    return def ? def.mapaExterno : MAPA_DOS_NPCS;
+    return def ? def.mapaExterno : MAPA_PADRAO;
   }
 
   private criarOverlayMapa(): void {
@@ -1660,10 +1529,7 @@ export class FarmScene extends Phaser.Scene {
     filhos.push(this.marcadorPlayer);
     // Um retrato corporal substitui o ponto amarelo. Todos os 33 perfis ganham
     // marcador; `atualizarMarcadoresMapa` mostra apenas quem esta neste mapa.
-    const idsNpc = [...new Set([
-      ...estado.rotinasNpc.todos.map((npc) => npc.id),
-      ...Object.keys(MORADORES),
-    ])];
+    const idsNpc = estado.rotinasNpc.todos.map((npc) => npc.id);
     this.marcadoresNpc = idsNpc.map((npcId) => {
       const perfil = buscarNpc(npcId);
       const chaveTextura = perfil?.spriteParado
@@ -1707,22 +1573,10 @@ export class FarmScene extends Phaser.Scene {
 
   /** Posicao externa de qualquer NPC, mesmo se o jogador estiver num interior. */
   private posicaoNpcNoMapaAberto(npcId: string): { x: number; y: number } | null {
-    const original = estado.rotinasNpc.porId(npcId);
-    if (original) {
-      if (this.mapaExternoAtual !== MAPA_DOS_NPCS || !original.visivel) return null;
-      return { x: original.x * this.tamanhoTile, y: original.y * this.tamanhoTile };
-    }
-    const morador = MORADORES[npcId];
-    if (!morador) return null;
-    const atividade = atividadeComEmprego(
-      estado.cidade,
-      morador,
-      estado.dia,
-      estado.relogio.minutos,
-      atividadeAtual(morador, estado.dia, estado.relogio.minutos),
-    );
-    if (!atividade || atividade.mapa !== this.mapaExternoAtual) return null;
-    return { x: atividade.x * this.tamanhoTile, y: atividade.y * this.tamanhoTile };
+    const npc = estado.rotinasNpc.porId(npcId);
+    const def = NPCS[npcId];
+    if (!npc || !def || !npc.visivel || def.mapa !== this.mapaExternoAtual) return null;
+    return { x: npc.x * this.tamanhoTile, y: npc.y * this.tamanhoTile };
   }
 
   private paraCoordenadaDoMapa(x: number, y: number): [number, number] {
@@ -2777,17 +2631,15 @@ export class FarmScene extends Phaser.Scene {
 
 /** O que a cena precisa saber pra montar um sprite da camada `flora`. */
 interface NpcVisual {
-  estado?: EstadoNpc;
-  morador?: Morador;
+  estado: EstadoNpc;
   sprite: Phaser.Physics.Arcade.Sprite;
   interagivel: Interagivel;
   animacao: string;
-  atividadeChave?: string;
-  ancoraMorador?: { x: number; y: number };
-  alvoMorador?: { x: number; y: number } | null;
-  proximaDecisao?: number;
-  passoMorador?: number;
-  direcaoMorador?: Direcao;
+  /**
+   * Ultima visibilidade APLICADA, que nao e a mesma coisa que `sprite.visible`
+   * durante o esmaecimento. Ver `aplicarVisibilidadeDeNpc`.
+   */
+  visivelAplicado: boolean;
 }
 
 /** Retrato de um NPC exibido sobre o mapa aberto. */

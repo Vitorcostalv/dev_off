@@ -11,111 +11,159 @@ import {
 } from '../src/game/npcs.ts';
 
 const url = (caminho) => new URL(caminho, import.meta.url);
-const mapa = JSON.parse(readFileSync(url('../public/assets/tilemaps/farm.json')));
-const bloqueados = new Set();
-for (const tileset of mapa.tilesets) {
-  for (const tile of tileset.tiles ?? []) {
-    if ((tile.properties ?? []).some((p) => p.name === 'collides' && p.value === true)) {
-      bloqueados.add(tileset.firstgid + tile.id);
-    }
-  }
-}
+const props = (o) => Object.fromEntries((o.properties ?? []).map((p) => [p.name, p.value]));
 
 // Arvore e pedra sao SPRITE, nao tile: a colisao delas e uma caixa na base, do
 // mesmo tamanho que a FarmScene monta. Sem contar isso a conferencia aprova
-// rota que atravessa a mata — o que era justamente o risco das rotas novas,
-// que saem da malha viaria pra entrar no lote do mercado e na praca.
+// rota que atravessa a mata. Movel ao ar livre (banco de praca, mesa de feira)
+// entra pela mesma conta, com a caixa de `MOVEL_CORPO`.
 const TRONCO = { largura: 0.56, altura: 0.375 };
 const PEDRA = { largura: 0.78, altura: 0.34 };
 const PEDRA_COLIDE_ACIMA_DE = 0.45;
-const T = mapa.tilewidth;
+const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
 
-const solido = new Uint8Array(mapa.width * mapa.height);
-for (const camada of mapa.layers) {
-  if (camada.type !== 'tilelayer') continue;
-  for (let i = 0; i < camada.data.length; i++) {
-    if (bloqueados.has(camada.data[i] & 0x1fffffff)) solido[i] = 1;
+const atlasCache = new Map();
+function framesDoAtlas(atlas) {
+  if (!atlasCache.has(atlas)) {
+    atlasCache.set(
+      atlas,
+      JSON.parse(readFileSync(url(`../public/assets/sprites/${atlas}.atlas.json`))).frames,
+    );
   }
+  return atlasCache.get(atlas);
 }
 
-const props = (o) => Object.fromEntries((o.properties ?? []).map((p) => [p.name, p.value]));
-const framesPedra = JSON.parse(
-  readFileSync(url('../public/assets/sprites/pedras.atlas.json')),
-).frames;
-
-function marcarCorpo(cx, cy, largura, altura) {
-  for (let py = cy - altura; py < cy; py += 1) {
-    for (let px = cx - largura / 2; px < cx + largura / 2; px += 1) {
-      const tx = Math.floor(px / T);
-      const ty = Math.floor(py / T);
-      if (tx >= 0 && ty >= 0 && tx < mapa.width && ty < mapa.height) {
-        solido[ty * mapa.width + tx] = 1;
+/**
+ * Grade de colisao de um mapa EXTERNO. Antes havia uma so, do `farm`, porque os
+ * NPCs viviam todos nele; hoje cada NPC declara o seu mapa (`DefinicaoNpc.mapa`)
+ * e a conferencia precisa da grade dos tres.
+ */
+function carregarExterno(chave) {
+  const mapa = JSON.parse(readFileSync(url(`../public/assets/tilemaps/${chave}.json`)));
+  const T = mapa.tilewidth;
+  const bloqueados = new Set();
+  for (const tileset of mapa.tilesets) {
+    for (const tile of tileset.tiles ?? []) {
+      if ((tile.properties ?? []).some((p) => p.name === 'collides' && p.value === true)) {
+        bloqueados.add(tileset.firstgid + tile.id);
       }
     }
   }
-}
-
-let corpos = 0;
-for (const o of mapa.layers.find((c) => c.name === 'flora')?.objects ?? []) {
-  const p = props(o);
-  if (o.type === 'arvore') {
-    if (p.estagio < 2) continue;
-    marcarCorpo(o.x, o.y, TRONCO.largura * T, TRONCO.altura * T);
-  } else if (o.type === 'pedra') {
-    if (p.alturaTiles <= PEDRA_COLIDE_ACIMA_DE) continue;
-    const f = framesPedra[`pedra_${p.indice}`].frame;
-    const h = p.alturaTiles * T;
-    marcarCorpo(o.x, o.y, h * (f.w / f.h) * PEDRA.largura, h * PEDRA.altura);
-  } else continue;
-  corpos += 1;
-}
-
-function livre(x, y) {
-  const tx = Math.floor(x);
-  const ty = Math.floor(y);
-  if (tx < 0 || ty < 0 || tx >= mapa.width || ty >= mapa.height) return false;
-  return !solido[ty * mapa.width + tx];
-}
-
-/** Amostra o segmento a->b como o NPC anda: em reta, sem pathfinding. */
-function trechoBloqueado(a, b) {
-  const passos = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.25));
-  for (let i = 0; i <= passos; i++) {
-    const x = a.x + ((b.x - a.x) * i) / passos;
-    const y = a.y + ((b.y - a.y) * i) / passos;
-    if (!livre(x, y)) return `${Math.floor(x)},${Math.floor(y)}`;
+  const solido = new Uint8Array(mapa.width * mapa.height);
+  for (const camada of mapa.layers) {
+    if (camada.type !== 'tilelayer') continue;
+    for (let i = 0; i < camada.data.length; i++) {
+      if (bloqueados.has(camada.data[i] & 0x1fffffff)) solido[i] = 1;
+    }
   }
-  return null;
+  const marcarCorpo = (cx, cy, largura, altura) => {
+    for (let py = cy - altura; py < cy; py += 1) {
+      for (let px = cx - largura / 2; px < cx + largura / 2; px += 1) {
+        const tx = Math.floor(px / T);
+        const ty = Math.floor(py / T);
+        if (tx >= 0 && ty >= 0 && tx < mapa.width && ty < mapa.height) {
+          solido[ty * mapa.width + tx] = 1;
+        }
+      }
+    }
+  };
+  let corpos = 0;
+  const framesPedra = framesDoAtlas('pedras');
+  for (const o of mapa.layers.find((c) => c.name === 'flora')?.objects ?? []) {
+    const p = props(o);
+    if (o.type === 'arvore') {
+      if (p.estagio < 2) continue;
+      marcarCorpo(o.x, o.y, TRONCO.largura * T, TRONCO.altura * T);
+    } else if (o.type === 'pedra') {
+      if (p.alturaTiles <= PEDRA_COLIDE_ACIMA_DE) continue;
+      const f = framesPedra[`pedra_${p.indice}`].frame;
+      const h = p.alturaTiles * T;
+      marcarCorpo(o.x, o.y, h * (f.w / f.h) * PEDRA.largura, h * PEDRA.altura);
+    } else continue;
+    corpos += 1;
+  }
+  for (const o of mapa.layers.find((c) => c.name === 'moveis')?.objects ?? []) {
+    const p = props(o);
+    if (p.colide !== true) continue;
+    const f = framesDoAtlas(String(p.atlas))[String(p.frame)];
+    if (!f) continue;
+    const escala = (Number(p.alturaTiles) * T) / f.frame.h;
+    marcarCorpo(o.x, o.y, f.frame.w * escala * MOVEL_CORPO.largura, f.frame.h * escala * MOVEL_CORPO.altura);
+    corpos += 1;
+  }
+
+  const livre = (x, y) => {
+    const tx = Math.floor(x);
+    const ty = Math.floor(y);
+    if (tx < 0 || ty < 0 || tx >= mapa.width || ty >= mapa.height) return false;
+    return !solido[ty * mapa.width + tx];
+  };
+  /** Amostra o segmento a->b como o NPC anda: em reta, sem pathfinding. */
+  const trechoBloqueado = (a, b) => {
+    const passos = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.25));
+    for (let i = 0; i <= passos; i++) {
+      const x = a.x + ((b.x - a.x) * i) / passos;
+      const y = a.y + ((b.y - a.y) * i) / passos;
+      if (!livre(x, y)) return `${Math.floor(x)},${Math.floor(y)}`;
+    }
+    return null;
+  };
+  return { chave, largura: mapa.width, altura: mapa.height, corpos, livre, trechoBloqueado };
+}
+
+const EXTERNOS = new Map(
+  ['farm', 'bairro', 'rural'].map((chave) => [chave, carregarExterno(chave)]),
+);
+const externoDe = (chave) => {
+  const externo = EXTERNOS.get(chave);
+  if (!externo) throw new Error(`mapa externo desconhecido: ${chave}`);
+  return externo;
+};
+// Os apelidos do mapa 1 continuam existindo: as conferencias dos 9 NPCs
+// originais, escritas antes de haver tres mapas, falam do `farm` sem dizer.
+const farm = externoDe('farm');
+const { livre, trechoBloqueado } = farm;
+const corpos = [...EXTERNOS.values()].reduce((total, e) => total + e.corpos, 0);
+/** Grade externa do mapa a que o NPC pertence. */
+const externoDoNpc = (id) => externoDe(NPCS[id].mapa);
+
+/** Todas as acoes de um NPC: a rotina padrao mais as rotinas de dia da semana. */
+function acoesDe(def) {
+  return [...def.rotina, ...Object.values(def.rotinaSemanal ?? {}).flat()];
 }
 
 /**
  * Retangulo de `vagar`: por ser convexo, basta que todo tile dele seja livre
  * pra qualquer reta interna tambem ser. Confere na definicao, nao por amostra —
- * o sorteio pode levar centenas de dias pra achar o canto ruim.
+ * o sorteio pode levar centenas de dias pra achar o canto ruim. A grade e a do
+ * MAPA DO NPC (`DefinicaoNpc.mapa`), nao mais sempre a do mapa 1.
  *
- * Confere tambem a VOLTA PRA CASA a partir de cada area. O fallback das 18:00
- * monta `[...saidaSegura, ...rotaCasa, frente]` e anda tudo em reta, entao:
- * o primeiro ponto tem de ser alcancavel em reta dos quatro cantos da area (se
- * estiver dentro dela, a convexidade ja garante), e cada perna da rota tem de
- * estar livre. E isso que impede a definicao de depender de qual acao ficou por
- * ultimo no dia.
+ * Confere tambem a VOLTA PRA CASA a partir de cada area, mas SO pra quem
+ * depende dela: o fallback das 18:00 (`voltar_para_casa`) e acrescentado apenas
+ * quando a rotina nao tem nenhuma acao as 18:00 ou depois. Os 24 moradores
+ * fecham o dia com um `assumir_lugar` em casa as 22:00 justamente pra nao
+ * dependerem de andar pra casa — quem nao tem folha de caminhada nao pode.
  */
 function conferirAreasDeVagar() {
   let areas = 0;
   for (const def of Object.values(NPCS)) {
-    for (const acao of def.rotina) {
+    const externo = externoDoNpc(def.id);
+    const temAcaoNoturna = acoesDe(def).some((acao) => acao.horario >= 18 * 60);
+    for (const acao of acoesDe(def)) {
       if (acao.tipo !== 'vagar') continue;
       areas += 1;
       const { min, max } = acao.area;
       for (let ty = Math.floor(min.y); ty <= Math.floor(max.y); ty++) {
         for (let tx = Math.floor(min.x); tx <= Math.floor(max.x); tx++) {
-          if (!livre(tx + 0.5, ty + 0.5)) {
+          if (!externo.livre(tx + 0.5, ty + 0.5)) {
             throw new Error(
-              `area de vagar de ${def.id} (${acao.horario}) inclui tile bloqueado ${tx},${ty}`,
+              `area de vagar de ${def.id} (${acao.horario}) inclui tile bloqueado ` +
+                `${tx},${ty} em ${externo.chave}`,
             );
           }
         }
       }
+      if (temAcaoNoturna) continue; // nao usa o fallback: nada a conferir aqui
 
       const frente = LOCAIS_CIDADE[def.casa]?.frente;
       if (!frente) throw new Error(`${def.id}: casa "${def.casa}" sem frente`);
@@ -125,7 +173,7 @@ function conferirAreasDeVagar() {
         { x: min.x, y: max.y }, { x: max.x, y: max.y },
       ];
       for (const canto of cantos) {
-        const ruim = trechoBloqueado(canto, volta[0]);
+        const ruim = externo.trechoBloqueado(canto, volta[0]);
         if (ruim) {
           throw new Error(
             `${def.id} (${acao.horario}): do canto ${canto.x},${canto.y} da area ate ` +
@@ -134,7 +182,7 @@ function conferirAreasDeVagar() {
         }
       }
       for (let i = 0; i < volta.length - 1; i++) {
-        const ruim = trechoBloqueado(volta[i], volta[i + 1]);
+        const ruim = externo.trechoBloqueado(volta[i], volta[i + 1]);
         if (ruim) {
           throw new Error(
             `${def.id} (${acao.horario}): a volta pra casa passa pelo tile bloqueado ${ruim} ` +
@@ -169,8 +217,11 @@ for (let minuto = 6 * 60; minuto <= 19 * 60; minuto++) {
   for (let amostra = 0; amostra < 10; amostra++) {
     sistema.atualizar(0, minuto, 100);
     for (const npc of sistema.todos) {
-      if (npc.visivel && !livre(npc.x, npc.y)) {
-        throw new Error(`${npc.id} entrou em tile bloqueado as ${minuto}: ${npc.x},${npc.y}`);
+      if (npc.visivel && !externoDoNpc(npc.id).livre(npc.x, npc.y)) {
+        throw new Error(
+          `${npc.id} entrou em tile bloqueado as ${minuto} em ` +
+            `${NPCS[npc.id].mapa}: ${npc.x},${npc.y}`,
+        );
       }
       if (npc.id === 'leticia' && npc.visivel && npc.acaoAtual === 'vagar') {
         for (const marca of areasLeticia) {
@@ -319,25 +370,12 @@ console.log('[rotinas] cidade percorrida; caminhada, pausas e transicoes por por
  * permite cobrar que o dono do predio misto nunca pare — nem passe — em cima de
  * mobilia solida ao trocar de posto ou ao sair pra rua.
  */
-const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
 /**
  * Minimo de minutos de jogo que a troca de posto tem de levar. Nao e um numero
  * de design: e so o piso que separa "andou" de "teleportou". A duracao real sai
  * da distancia dentro do interior, com a mesma velocidade das rotas externas.
  */
 const MINUTOS_MINIMOS_DE_TRANSITO = 3;
-const atlasCache = new Map();
-
-function framesDoAtlas(atlas) {
-  if (!atlasCache.has(atlas)) {
-    atlasCache.set(
-      atlas,
-      JSON.parse(readFileSync(url(`../public/assets/sprites/${atlas}.atlas.json`))).frames,
-    );
-  }
-  return atlasCache.get(atlas);
-}
-
 function gradeInterior(nome, quem = 'npc') {
   const m = JSON.parse(readFileSync(url(`../public/assets/tilemaps/${nome}.json`)));
   // `quem` escolhe QUAL colisao vale: a porta somente-NPC barra o jogador e nao
@@ -597,6 +635,160 @@ function conferirPresencaInteriorFixa() {
   return { linhas, solidos, total: ids.length };
 }
 
+// ------------------------------------- os lugares fixos dos 24 moradores --
+/**
+ * Todo `assumir_lugar` tem de apontar pra um tile que EXISTA, esteja livre e
+ * seja alcancavel.
+ *
+ * A acao troca de lugar sem caminhar (ver npcs.ts), entao um ponto errado nao
+ * quebra nada em runtime: o NPC simplesmente fica de pe dentro de uma parede,
+ * ou num comodo em que o jogador nao consegue entrar pra falar com ele. Sao os
+ * dois casos que esta conferencia reprova.
+ *
+ * Nos interiores a grade usada e a do NPC, e o flood-fill parte da frente da
+ * porta da rua — o mesmo ponto de partida da conferencia de interiores do
+ * gerador.
+ */
+function conferirLugaresAssumidos() {
+  const gradesInterior = new Map();
+  const alcanceInterior = new Map();
+  const grade = (nome) => {
+    if (!gradesInterior.has(nome)) gradesInterior.set(nome, gradeInterior(nome));
+    return gradesInterior.get(nome);
+  };
+  const alcancaveis = (nome) => {
+    if (alcanceInterior.has(nome)) return alcanceInterior.get(nome);
+    const g = grade(nome);
+    const porta = LOCAIS_CIDADE[nome]?.portaInterior;
+    if (!porta) throw new Error(`interior "${nome}" nao tem portaInterior em LOCAIS_CIDADE`);
+    const inicio = `${Math.floor(porta.x)},${Math.floor(porta.y)}`;
+    const vistos = new Set([inicio]);
+    const fila = [[Math.floor(porta.x), Math.floor(porta.y)]];
+    while (fila.length) {
+      const [x, y] = fila.pop();
+      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+        const a = x + dx;
+        const b = y + dy;
+        const chave = `${a},${b}`;
+        if (vistos.has(chave) || !g.livre(a + 0.5, b + 0.5)) continue;
+        vistos.add(chave);
+        fila.push([a, b]);
+      }
+    }
+    alcanceInterior.set(nome, vistos);
+    return vistos;
+  };
+
+  let lugares = 0;
+  const interioresVistos = new Set();
+  for (const def of Object.values(NPCS)) {
+    for (const acao of acoesDe(def)) {
+      if (acao.tipo !== 'assumir_lugar') continue;
+      lugares += 1;
+      const { x, y } = acao.ponto;
+      if (acao.construcao === null) {
+        const externo = externoDoNpc(def.id);
+        if (!externo.livre(x, y)) {
+          throw new Error(
+            `${def.id} (${acao.horario}): o lugar ao ar livre ${x},${y} esta bloqueado ` +
+              `em ${externo.chave}`,
+          );
+        }
+        continue;
+      }
+      interioresVistos.add(acao.construcao);
+      const g = grade(acao.construcao);
+      if (!g.livre(x, y)) {
+        throw new Error(
+          `${def.id} (${acao.horario}): o lugar ${x},${y} de "${acao.construcao}" ` +
+            'cai em parede ou mobilia solida',
+        );
+      }
+      if (!alcancaveis(acao.construcao).has(`${Math.floor(x)},${Math.floor(y)}`)) {
+        throw new Error(
+          `${def.id} (${acao.horario}): o lugar ${x},${y} de "${acao.construcao}" nao e ` +
+            'alcancavel a partir da porta da rua',
+        );
+      }
+    }
+  }
+  return { lugares, interiores: interioresVistos.size };
+}
+
+/**
+ * No maximo UM bloco ao ar livre por dia, cercado por interior.
+ *
+ * `assumir_lugar` troca de lugar num instante. Entre dois interiores, ou de
+ * interior pra rua, isso acontece longe de vista. Entre dois pontos ao ar livre
+ * do MESMO mapa seria um teleporte na frente do jogador — que e exatamente o
+ * que o sistema antigo fazia a cada mudanca de compromisso.
+ */
+function conferirBlocosAoArLivre() {
+  let blocos = 0;
+  for (const def of Object.values(NPCS)) {
+    const rotinas = [['padrao', def.rotina], ...Object.entries(def.rotinaSemanal ?? {})];
+    for (const [nome, rotina] of rotinas) {
+      const lugares = rotina
+        .filter((acao) => acao.tipo === 'assumir_lugar')
+        .sort((a, b) => a.horario - b.horario);
+      if (!lugares.length) continue;
+      if (lugares[0].construcao === null) {
+        throw new Error(`${def.id} (${nome}): o dia comeca ao ar livre, e nao em casa`);
+      }
+      let abertos = 0;
+      let anterior = null;
+      for (const acao of lugares) {
+        if (acao.construcao === null) {
+          if (anterior?.construcao === null) {
+            throw new Error(
+              `${def.id} (${nome}): duas trocas seguidas ao ar livre ` +
+                `(${anterior.ponto.x},${anterior.ponto.y} -> ${acao.ponto.x},${acao.ponto.y}) ` +
+                'seriam um teleporte a vista do jogador',
+            );
+          }
+          abertos += 1;
+        }
+        anterior = acao;
+      }
+      if (abertos > 1) {
+        throw new Error(`${def.id} (${nome}): ${abertos} blocos ao ar livre no mesmo dia`);
+      }
+      blocos += abertos;
+    }
+  }
+  return blocos;
+}
+
+/**
+ * Dois NPCs parados no MESMO tile ao mesmo tempo viram um sprite so.
+ *
+ * So conta quem esta PARADO e sem acao em curso (`inativo`): quem esta andando
+ * ou perambulando se cruza de passagem, e o motor nao tem colisao entre NPCs —
+ * o Hiago passa pela sala onde o Vitor esta sentado, e isso e normal. O que se
+ * cobra e o posto FIXO: a carteira de cada crianca, o ponto de cada membro da
+ * familia na sala, o balcao de cada funcionario.
+ */
+function conferirPostosSemColisao() {
+  const sistema = new SistemaRotinasNpc();
+  const conflitos = [];
+  for (const dia of [0, 5]) {
+    for (let minuto = 0; minuto <= 23 * 60; minuto += 10) {
+      sistema.atualizar(dia, minuto, 100);
+      const ocupacao = new Map();
+      for (const npc of sistema.todos) {
+        if (npc.acaoAtual !== 'inativo' || npc.movendo) continue;
+        const chave = `${npc.dentro ?? NPCS[npc.id].mapa}:${Math.floor(npc.x)},${Math.floor(npc.y)}`;
+        const antes = ocupacao.get(chave);
+        if (antes) conflitos.push(`${antes} e ${npc.id} em ${chave} (dia ${dia}, ${minuto}min)`);
+        else ocupacao.set(chave, npc.id);
+      }
+    }
+  }
+  if (conflitos.length) {
+    throw new Error(`postos fixos sobrepostos: ${conflitos.slice(0, 5).join(' | ')}`);
+  }
+}
+
 const nomeDoDiaDaSemana = (dia) => DIAS_DA_SEMANA[dia];
 const moradores = conferirInterioresDeMoradores();
 console.log(
@@ -609,6 +801,14 @@ console.log(
     `(corpos de movel por interior: ${presenca.solidos})`,
 );
 for (const linha of presenca.linhas) console.log(linha);
+
+const lugares = conferirLugaresAssumidos();
+const blocos = conferirBlocosAoArLivre();
+conferirPostosSemColisao();
+console.log(
+  `[rotinas] ${lugares.lugares} lugar(es) fixo(s) conferido(s) em ${lugares.interiores} ` +
+    `interior(es); ${blocos} bloco(s) ao ar livre, no maximo um por dia, sem posto sobreposto`,
+);
 
 for (const [minuto, estados] of registros) {
   const hora = `${String(Math.floor(minuto / 60)).padStart(2, '0')}:${String(minuto % 60).padStart(2, '0')}`;

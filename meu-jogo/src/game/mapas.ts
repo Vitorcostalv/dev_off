@@ -50,12 +50,14 @@ function mapa(
 }
 
 /**
- * Onde os 9 NPCs vivem. O motor de rotinas continua sendo de UM mapa so: ele
- * nao aprendeu a mover NPC entre mapas nesta leva. Fora daqui os NPCs
- * simplesmente nao sao renderizados nem viram alvo de interacao — mesmo
- * tratamento que ja existia pro jogador estar dentro de um interior.
+ * Mapa externo usado como ultimo recurso quando `estado.mapa` nao esta em
+ * `MAPAS` — o BootScene ja barra esse caso ao aplicar o save, entao isto so
+ * cobre um estado impossivel sem espalhar `null` pela cena.
+ *
+ * NAO e mais "o mapa dos NPCs": cada NPC declara o seu em `DefinicaoNpc.mapa`,
+ * e o motor de rotinas move os 33 nos tres mapas.
  */
-export const MAPA_DOS_NPCS = 'farm';
+export const MAPA_PADRAO = 'farm';
 
 /** O interior da casa+oficina do protagonista: onde se dorme, salva e usa o PC. */
 export const MAPA_DA_CASA = 'oficina';
