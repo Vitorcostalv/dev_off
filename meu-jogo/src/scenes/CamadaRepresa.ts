@@ -9,35 +9,28 @@ import {
   ferirInimigo,
 } from '../game/inimigos';
 import type { DefinicaoInimigo, EstadoRuntimeInimigo } from '../game/inimigos';
-import { FLAG_LANTERNA, RAIO_DE_LUZ, naRepresa, setorDaRepresa } from '../game/represa';
+import { naRepresa } from '../game/represa';
 import { avancarProjetil } from '../game/armas';
 import type { EstadoProjetil, Tiro } from '../game/armas';
 import { buscarTabelaDeSucata, sortearSucata } from '../game/sucata';
 import type { Direcao } from '../game/tipos';
 
 /**
- * CAMADA DA REPRESA — escuridao, inimigos e combate.
+ * CAMADA DA REPRESA — inimigos, projeteis e combate.
  *
  * Isto NAO e uma segunda cena nem um segundo motor: e um componente da
- * `FarmScene`, criado no `create` dela e destruido no restart, que cuida das
- * tres coisas que so existem dentro da usina. Ficou separado por tamanho, nao
- * por arquitetura — a FarmScene ja tem 2800 linhas, e enfiar IA de inimigo,
- * vinheta de luz e caixa de golpe no meio dela deixaria os dois ilegiveis.
+ * `FarmScene`, criado no `create` dela e destruido no restart, que cuida do que
+ * so existe dentro da usina. Ficou separado por tamanho, nao por arquitetura — a
+ * FarmScene ja tem tres mil linhas, e enfiar IA de inimigo, voo de projetil e
+ * caixa de golpe no meio dela deixaria os dois ilegiveis.
+ *
+ * A ESCURIDAO saiu daqui nesta leva: ela era uma vinheta radial presa ao
+ * jogador, e virou um mapa de luz com oclusao de parede em `CamadaLuz` (ver o
+ * cabecalho de la).
  *
  * Fora da represa a camada nao faz NADA: `montar` sai na primeira linha se o
  * mapa nao for da usina, e `atualizar` idem. Nenhum mapa antigo paga por ela.
  */
-
-/**
- * Tamanho da textura de vinheta, em px, e onde o buraco de luz comeca/acaba
- * como fracao do meio-lado.
- *
- * A textura e gerada UMA vez e depois so escalada: o raio de luz muda (com a
- * lanterna, e por comodo) e regerar canvas a cada mudanca seria desperdicio.
- * O buraco pequeno (0.18) e o que garante que a parte OPACA cubra a tela toda
- * mesmo com o raio de luz grande — a imagem fica ~5,5x o raio de cada lado.
- */
-const VINHETA = { lado: 384, raioLuz: 0.18, raioCheio: 0.34 };
 
 /** Duracao do piscar do jogador ao tomar dano, em ms. */
 const PISCAR_MS = 180;
@@ -71,10 +64,6 @@ export class CamadaRepresa {
   private deps: DependenciasCamada;
 
   private inimigos: InimigoVisual[] = [];
-  private vinheta: Phaser.GameObjects.Image | null = null;
-  private luzes: Phaser.GameObjects.Graphics | null = null;
-  private escuridaoAtual = 0;
-  private escuridaoAlvo = 0;
 
   /** ms restantes da trava de animacao do golpe do jogador */
   private golpeAtivo = 0;
@@ -103,86 +92,9 @@ export class CamadaRepresa {
   }
 
   // ------------------------------------------------------------- montagem --
-  montar(map: Phaser.Tilemaps.Tilemap, player: Phaser.Physics.Arcade.Sprite): void {
+  montar(map: Phaser.Tilemaps.Tilemap): void {
     if (!naRepresa(estado.mapa)) return;
-    this.criarVinheta(player);
-    this.criarLuzesDeEmergencia(map);
     this.criarInimigos(map);
-  }
-
-  private criarVinheta(player: Phaser.Physics.Arcade.Sprite): void {
-    const setor = setorDaRepresa(estado.mapa);
-    // o mapa externo da represa nao escurece: ele e dia aberto
-    if (!setor) return;
-    const chave = 'represa-vinheta';
-    if (!this.cena.textures.exists(chave)) {
-      const canvas = this.cena.textures.createCanvas(chave, VINHETA.lado, VINHETA.lado);
-      const ctx = canvas?.getContext();
-      if (canvas && ctx) {
-        const meio = VINHETA.lado / 2;
-        const gradiente = ctx.createRadialGradient(meio, meio, 0, meio, meio, meio);
-        // 5,7,12 e o escuro do jogo: preto puro mata a leitura da arte
-        gradiente.addColorStop(VINHETA.raioLuz, 'rgba(5,7,12,0)');
-        gradiente.addColorStop(VINHETA.raioCheio, 'rgba(5,7,12,0.82)');
-        gradiente.addColorStop(1, 'rgba(5,7,12,1)');
-        ctx.fillStyle = gradiente;
-        ctx.fillRect(0, 0, VINHETA.lado, VINHETA.lado);
-        canvas.refresh();
-      }
-    }
-    this.escuridaoAtual = setor.escuridao;
-    this.escuridaoAlvo = setor.escuridao;
-    this.vinheta = this.cena.add
-      .image(player.x, player.y, chave)
-      .setDepth(90000)
-      .setAlpha(setor.escuridao);
-    this.aplicarRaioDeLuz();
-  }
-
-  /**
-   * Escala a vinheta pra que o buraco transparente tenha o raio de luz atual.
-   * Sem lanterna o raio e menor, e a mesma textura serve pros dois casos.
-   */
-  private aplicarRaioDeLuz(): void {
-    if (!this.vinheta) return;
-    const tiles = estado.worldEvents.ativa(FLAG_LANTERNA)
-      ? RAIO_DE_LUZ.comLanterna
-      : RAIO_DE_LUZ.base;
-    const raioPx = tiles * this.tamanhoTile;
-    // (lado/2) * raioLuz = raioPx  =>  escala = raioPx / (lado/2 * raioLuz)
-    const escala = raioPx / ((VINHETA.lado / 2) * VINHETA.raioLuz);
-    this.vinheta.setScale(escala);
-  }
-
-  /**
-   * Lampadas de emergencia, paineis acesos e faisca: sao MARCOS. Ficam ACIMA da
-   * vinheta com mistura aditiva, entao no escuro elas aparecem de longe e dao
-   * ao jogador uma referencia de onde ele esta — que e o que separa escuridao
-   * tensa de escuridao chata.
-   */
-  private criarLuzesDeEmergencia(map: Phaser.Tilemaps.Tilemap): void {
-    const camada = map.getObjectLayer('luzes');
-    if (!camada) return;
-    const t = this.tamanhoTile;
-    const g = this.cena.add.graphics().setDepth(90001);
-    g.setBlendMode(Phaser.BlendModes.ADD);
-    for (const obj of camada.objects) {
-      const props = Object.fromEntries(
-        (obj.properties ?? []).map((p: { name: string; value: unknown }) => [p.name, p.value]),
-      );
-      const raio = Math.max(1, Number(props.raio) || 2) * t;
-      const x = (obj.x ?? 0) + (obj.width ?? 0) / 2;
-      const y = (obj.y ?? 0) + (obj.height ?? 0) / 2;
-      // tres circulos concentricos fracos: da um halo com queda suave sem
-      // precisar de shader nem de outra textura
-      g.fillStyle(0xffd9a0, 0.1);
-      g.fillCircle(x, y, raio);
-      g.fillStyle(0xffd9a0, 0.09);
-      g.fillCircle(x, y, raio * 0.62);
-      g.fillStyle(0xfff0d0, 0.1);
-      g.fillCircle(x, y, raio * 0.3);
-    }
-    this.luzes = g;
   }
 
   private criarInimigos(map: Phaser.Tilemaps.Tilemap): void {
@@ -230,10 +142,6 @@ export class CamadaRepresa {
     this.inimigos = [];
     for (const p of this.projeteis) p.sprite.destroy();
     this.projeteis = [];
-    this.vinheta?.destroy();
-    this.vinheta = null;
-    this.luzes?.destroy();
-    this.luzes = null;
     this.arcoDoGolpe?.destroy();
     this.arcoDoGolpe = null;
   }
@@ -250,7 +158,6 @@ export class CamadaRepresa {
     pausado: boolean,
   ): void {
     if (!naRepresa(estado.mapa)) return;
-    this.atualizarEscuridao(deltaMs, player);
     if (this.golpeAtivo > 0) this.golpeAtivo = Math.max(0, this.golpeAtivo - deltaMs);
     if (this.recargaGolpe > 0) this.recargaGolpe = Math.max(0, this.recargaGolpe - deltaMs);
     if (pausado) {
@@ -354,20 +261,6 @@ export class CamadaRepresa {
       duration: 150,
       onComplete: () => g.destroy(),
     });
-  }
-
-  private atualizarEscuridao(deltaMs: number, player: Phaser.Physics.Arcade.Sprite): void {
-    if (!this.vinheta) return;
-    this.vinheta.setPosition(player.x, player.y);
-    const t = this.tamanhoTile;
-    const alvo = this.deps.escuridaoNoTile(Math.floor(player.x / t), Math.floor(player.y / t));
-    if (Number.isFinite(alvo)) this.escuridaoAlvo = alvo;
-    // transicao suave entre comodos de escuridao diferente: sem isto, passar de
-    // uma galeria pro corredor de servico daria um piscar seco
-    const passo = Math.min(1, deltaMs / 420);
-    this.escuridaoAtual += (this.escuridaoAlvo - this.escuridaoAtual) * passo;
-    this.vinheta.setAlpha(this.escuridaoAtual);
-    this.aplicarRaioDeLuz();
   }
 
   private atualizarInimigos(deltaMs: number, player: Phaser.Physics.Arcade.Sprite): void {

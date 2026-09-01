@@ -41,6 +41,7 @@ import type {
 } from '../game/tipos';
 import type { UIScene } from './UIScene';
 import { CamadaRepresa } from './CamadaRepresa';
+import { CamadaLuz } from './CamadaLuz';
 import {
   PERDA_POR_DERROTA,
   PONTO_DE_RESGATE,
@@ -348,6 +349,13 @@ export class FarmScene extends Phaser.Scene {
    */
   private represa: CamadaRepresa | null = null;
 
+  /**
+   * ILUMINACAO do andar: mapa de luz, luminarias e lanterna. `null` fora dos
+   * andares da usina — o mapa externo da represa e dia aberto, e a cidade tem o
+   * proprio sistema de luz noturna, que e outro assunto.
+   */
+  private luz: CamadaLuz | null = null;
+
   /** Painel de enigma em andamento; `null` fora de um. */
   private painelAtivo: ProgressoPainel | null = null;
 
@@ -438,6 +446,8 @@ export class FarmScene extends Phaser.Scene {
     this.alvo = null;
     this.represa?.destruir();
     this.represa = null;
+    this.luz?.destruir();
+    this.luz = null;
     this.painelAtivo = null;
     this.escuridaoDoComodo = [];
     this.minutoObservado = -1;
@@ -729,6 +739,9 @@ export class FarmScene extends Phaser.Scene {
     }
 
     this.represa?.atualizar(delta, this.player, this.ui.bloqueado || this.transicionando);
+    // A LUZ e atualizada mesmo com menu aberto: parar de desenhar a escuridao
+    // clarearia a tela atras do menu.
+    this.luz?.atualizar(delta, this.player, this.direcao, this.vetorDaMira());
 
     this.atualizarAlvo();
     if (this.atravessarBordaSeEncostou()) return;
@@ -2795,6 +2808,18 @@ export class FarmScene extends Phaser.Scene {
     return this.armaEquipada() !== null && !this.ui.bloqueado && !this.mapaAberto;
   }
 
+  /**
+   * Vetor da MIRA, quando ela esta ativa; `null` quando nao ha arma na mao.
+   *
+   * E o que faz o facho da lanterna seguir o cursor em vez de um dos quatro
+   * lados. Sem ele, atirar na diagonal iluminaria o lado errado.
+   */
+  private vetorDaMira(): { x: number; y: number } | null {
+    if (!this.armaEquipada()) return null;
+    const p = this.input.activePointer;
+    return { x: p.worldX - this.player.x, y: p.worldY - (this.player.y - this.tamanhoTile * 0.6) };
+  }
+
   /** A arma de fogo na mao, e so quando o mapa aceita tiro. */
   private armaEquipada(): ReturnType<typeof buscarArma> {
     if (!zonaPerigosa(estado.mapa)) return null;
@@ -3061,7 +3086,17 @@ export class FarmScene extends Phaser.Scene {
       escuridaoNoTile: (tx, ty) => this.escuridaoNoTile(tx, ty),
       aoSerDerrotado: () => this.serDerrotado(),
     });
-    this.represa.montar(map, this.player);
+    this.represa.montar(map);
+    // ILUMINACAO: so nos ANDARES, e nao no mapa externo da represa. `montar` e
+    // caro (ele traca linha de visao de cada luminaria pra cada tile no alcance)
+    // e roda uma vez por andar.
+    if (setorDaRepresa(estado.mapa)) {
+      this.luz = new CamadaLuz(this, this.tamanhoTile, {
+        tileBloqueado: (tx, ty) => this.tileBloqueado(tx, ty),
+        escuridaoNoTile: (tx, ty) => this.escuridaoNoTile(tx, ty),
+      });
+      this.luz.montar(map);
+    }
     // marca a primeira visita: e o gancho pro resto do jogo saber que o jogador
     // conhece a usina (fala de NPC, blog, missao futura)
     estado.worldEvents.definir('represaVisitada', true);

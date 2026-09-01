@@ -379,6 +379,16 @@ export interface ModuloDeAndar {
   comodo: string;
   piso: string;
   parede: string;
+  /**
+   * Parede do CAPITULO 5 (andares 41 a 50). Ausente = o modulo usa a mesma
+   * parede em toda a descida.
+   *
+   * Existe porque o fundo da usina tem folha de arte propria
+   * (`PAredes_internas_represa_andar_50_100.png`): concreto rachado, vidro
+   * blindado, parede de painel e tubulacao pesada. E o que faz o capitulo 5
+   * parecer outro lugar sem mudar uma linha de geometria.
+   */
+  paredeFunda?: string;
   /** somado a escuridao do andar; pode ser negativo (comodo com luz propria) */
   escuridaoExtra: number;
   /** true = pode receber painel de enigma */
@@ -394,76 +404,76 @@ export interface ModuloDeAndar {
 export const MODULOS_DE_ANDAR: readonly ModuloDeAndar[] = [
   {
     id: 'controle', nome: 'Sala de controle', comodo: 'controle',
-    piso: 'granilite', parede: 'represa_limpo', escuridaoExtra: -0.08,
+    piso: 'granilite', parede: 'represa_limpo', paredeFunda: 'fundo_painel', escuridaoExtra: -0.08,
     aceitaPainel: true, aceitaFicha: true, seguro: true, luzes: 2,
   },
   {
     id: 'turbina', nome: 'Camara de turbina', comodo: 'galeria',
-    piso: 'concreto_escuro', parede: 'represa_tecnico', escuridaoExtra: 0.04,
+    piso: 'concreto_escuro', parede: 'represa_tecnico', paredeFunda: 'fundo_tubos', escuridaoExtra: 0.04,
     aceitaPainel: true, luzes: 2,
   },
   {
     id: 'corredor', nome: 'Corredor de manutencao', comodo: 'corredor_manutencao',
-    piso: 'concreto_escuro', parede: 'represa_tecnico', escuridaoExtra: 0.05, luzes: 1,
+    piso: 'concreto_escuro', parede: 'represa_tecnico', paredeFunda: 'fundo_concreto', escuridaoExtra: 0.05, luzes: 1,
   },
   {
     id: 'alagado', nome: 'Area alagada', comodo: 'poco',
-    piso: 'concreto_escuro', parede: 'represa_gasto', escuridaoExtra: 0.08, luzes: 1,
+    piso: 'concreto_escuro', parede: 'represa_gasto', paredeFunda: 'fundo_concreto', escuridaoExtra: 0.08, luzes: 1,
   },
   {
     id: 'eletrica', nome: 'Sala eletrica', comodo: 'eletrica',
-    piso: 'granilite', parede: 'represa_tecnico', escuridaoExtra: -0.04,
+    piso: 'granilite', parede: 'represa_tecnico', paredeFunda: 'fundo_painel', escuridaoExtra: -0.04,
     aceitaPainel: true, luzes: 2,
   },
   {
     id: 'deposito', nome: 'Deposito', comodo: 'deposito',
-    piso: 'concreto_escuro', parede: 'represa_faixa', escuridaoExtra: 0.02, luzes: 1,
+    piso: 'concreto_escuro', parede: 'represa_faixa', paredeFunda: 'fundo_concreto', escuridaoExtra: 0.02, luzes: 1,
   },
   {
     id: 'ventilacao', nome: 'Corredor de ventilacao', comodo: 'corredor_manutencao',
-    piso: 'concreto_escuro', parede: 'represa_tubos', escuridaoExtra: 0.06, luzes: 1,
+    piso: 'concreto_escuro', parede: 'represa_tubos', paredeFunda: 'fundo_tubos', escuridaoExtra: 0.06, luzes: 1,
   },
   {
     id: 'geradores', nome: 'Sala dos geradores', comodo: 'galeria',
-    piso: 'concreto_escuro', parede: 'represa_tecnico', escuridaoExtra: 0,
+    piso: 'concreto_escuro', parede: 'represa_tecnico', paredeFunda: 'fundo_painel', escuridaoExtra: 0,
     aceitaPainel: true, luzes: 3,
   },
   {
     id: 'arquivo', nome: 'Arquivo do escritorio', comodo: 'arquivo',
-    piso: 'marmore', parede: 'represa_limpo', escuridaoExtra: -0.05,
+    piso: 'marmore', parede: 'represa_limpo', paredeFunda: 'fundo_vidro', escuridaoExtra: -0.05,
     aceitaFicha: true, seguro: true, luzes: 2,
   },
   {
     id: 'tunel', nome: 'Tunel de servico', comodo: 'corredor_manutencao',
-    piso: 'concreto_escuro', parede: 'represa_escuro', escuridaoExtra: 0.07, luzes: 1,
+    piso: 'concreto_escuro', parede: 'represa_escuro', paredeFunda: 'fundo_concreto', escuridaoExtra: 0.07, luzes: 1,
   },
   {
     id: 'bombas', nome: 'Casa de bombas', comodo: 'poco',
-    piso: 'concreto_escuro', parede: 'represa_tecnico', escuridaoExtra: 0.05,
+    piso: 'concreto_escuro', parede: 'represa_tecnico', paredeFunda: 'fundo_tubos', escuridaoExtra: 0.05,
     aceitaPainel: true, luzes: 2,
   },
   {
     id: 'portaria', nome: 'Posto de seguranca', comodo: 'controle',
-    piso: 'granilite', parede: 'represa_faixa', escuridaoExtra: -0.1,
+    piso: 'granilite', parede: 'represa_faixa', paredeFunda: 'fundo_vidro', escuridaoExtra: -0.1,
     aceitaFicha: true, seguro: true, luzes: 2,
   },
   {
     id: 'ferramentaria', nome: 'Ferramentaria', comodo: 'deposito',
-    piso: 'concreto_escuro', parede: 'represa_faixa', escuridaoExtra: 0,
+    piso: 'concreto_escuro', parede: 'represa_faixa', paredeFunda: 'fundo_concreto', escuridaoExtra: 0,
     aceitaPainel: true, luzes: 2,
   },
   {
     id: 'servidores', nome: 'Sala de servidores', comodo: 'eletrica',
-    piso: 'granilite', parede: 'represa_limpo', escuridaoExtra: -0.02,
+    piso: 'granilite', parede: 'represa_limpo', paredeFunda: 'fundo_painel', escuridaoExtra: -0.02,
     aceitaPainel: true, aceitaFicha: true, luzes: 2,
   },
   {
     id: 'cabos', nome: 'Galeria de cabos', comodo: 'corredor_manutencao',
-    piso: 'concreto_escuro', parede: 'represa_tubos', escuridaoExtra: 0.06, luzes: 1,
+    piso: 'concreto_escuro', parede: 'represa_tubos', paredeFunda: 'fundo_tubos', escuridaoExtra: 0.06, luzes: 1,
   },
   {
     id: 'baias', nome: 'Baias de escritorio', comodo: 'arquivo',
-    piso: 'granilite', parede: 'represa_limpo', escuridaoExtra: 0.02,
+    piso: 'granilite', parede: 'represa_limpo', paredeFunda: 'fundo_vidro', escuridaoExtra: 0.02,
     aceitaFicha: true, luzes: 2,
   },
 ];

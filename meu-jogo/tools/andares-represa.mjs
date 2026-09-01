@@ -475,7 +475,10 @@ export function plantasCompostas({ medir }) {
       const chave = nomeDeComodo(modulo, i);
       comodos[chave] = c.rect;
       pisos[chave] = modulo.piso;
-      paredePorComodo[chave] = modulo.parede;
+      // CAPITULO 5: a parede vem da folha do fundo da usina. E a unica coisa
+      // que muda por capitulo na geometria — o resto do andar continua sendo o
+      // mesmo template com os mesmos modulos.
+      paredePorComodo[chave] = (def.capitulo === 5 && modulo.paredeFunda) || modulo.parede;
       escuridaoPorComodo[chave] = +Math.min(
         0.9,
         Math.max(0, def.escuridao + modulo.escuridaoExtra),
@@ -718,7 +721,7 @@ export function plantasCompostas({ medir }) {
       rotulo: `${def.rotulo} — ${def.codigo}`,
       escuridao: def.escuridao,
       escuridaoPorComodo,
-      parede: 'represa_tecnico',
+      parede: def.capitulo === 5 ? 'fundo_concreto' : 'represa_tecnico',
       paredePorComodo,
       chao: 'PISO_CONCRETO',
       pisos,

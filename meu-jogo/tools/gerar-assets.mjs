@@ -572,6 +572,25 @@ const FOLHAS_PAINEL = {
     modo: 'blobs', fundoPreto: true, areaMinima: 1500, tolerancia: 55,
     linhas: 5, paineis: 2, porLinha: 6,
   },
+  /**
+   * A folha do FUNDO da usina — concreto rachado, vidro blindado, painel de
+   * comando e tubulacao pesada.
+   *
+   * Ela chegou rotulada "andar 50 a 100", e os andares 51 em diante nao existem
+   * nesta fase. O que dela se usa AQUI e o vocabulario de parede, no capitulo 5
+   * (andares 41 a 50), que e onde a usina deixa de parecer uma usina — ver
+   * `paredeFunda` em src/game/andares.ts.
+   *
+   * As pecas [0,2] a [0,6] da primeira linha trazem NUMERO DE ANDAR pintado
+   * (51-60, 61-70, ...) e por isso ficam de fora: usar uma delas escreveria "71-80"
+   * na parede do andar 44. Os estilos abaixo endereçam so as duas pecas lisas da
+   * linha 0 e as linhas de vidro, painel e tubo.
+   */
+  represa_fundo: {
+    arquivo: 'PAredes_internas_represa_andar_50_100.png',
+    modo: 'blobs', fundoPreto: true, areaMinima: 1500, tolerancia: 55,
+    linhas: 8, paineis: 1, porLinha: 7,
+  },
 };
 
 /** Faixa detectada por projecao mais estreita que isto e sujeira, nao painel. */
@@ -775,6 +794,14 @@ const ESTILOS_PAREDE = {
   represa_gasto: ['represa', [4, 5]],
   // azulejo escuro do setor profundo
   represa_escuro: ['represa', [0, 4]],
+  // --- capitulo 5 (andares 41 a 50): a folha do fundo da usina ---
+  // Concreto rachado sem rotulo, vidro blindado de sala de observacao, parede de
+  // painel de comando e parede de tubulacao pesada.
+  fundo_concreto: ['represa_fundo', [0, 0]],
+  fundo_luz: ['represa_fundo', [0, 1]],
+  fundo_vidro: ['represa_fundo', [1, 0]],
+  fundo_painel: ['represa_fundo', [3, 5]],
+  fundo_tubos: ['represa_fundo', [4, 0]],
 };
 
 const TILES_DE_PAREDE = Object.entries(ESTILOS_PAREDE).flatMap(([nome, [folha, painel, faixas]]) =>
