@@ -18,6 +18,7 @@
     "verificar-economia": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-economia.mjs",
     "verificar-ambientacao": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-ambientacao.mjs",
     "gerar-aparelhos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-aparelhos.mjs",
+    "verificar-represa": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-represa.mjs",
     "verificar-expansao-npcs": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-expansao-npcs.mjs",
     "gerar-relatorio-relacionamentos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-relatorio-relacionamentos.mjs"
   },

@@ -33,6 +33,7 @@ conserto.
 | F7 | avancar uma hora para testar rotinas (debug) |
 | F2 / F3 | adicionar Cabo USB / Bateria no inventario (debug) |
 | F4 | apagar o save (debug) |
+| Espaco | golpear com a chave inglesa (so faz algo dentro da represa) |
 | F9 | salvar na hora (debug) |
 
 ## Estrutura
@@ -54,11 +55,17 @@ src/
     aparelhos.ts       catalogo dos aparelhos do minigame de conserto
     lixeira.ts         historico de descarte (o app Lixeira so le daqui)
     rotinasNpc.ts      motor generico de agenda e movimento dos NPCs
+    vida.ts            HP do jogador (30/30) e a janela de invulnerabilidade
+    inimigos.ts        catalogo dos 7 monstros e a IA — sem uma linha de Phaser
+    sucata.ts          salvado da represa: itens, tabelas de sorteio e revenda
+    represa.ts         setores, escuridao, tensao, os 7 enigmas e a derrota
+    avisos.ts          textos de exame; e aqui que as RESPOSTAS dos enigmas moram
     save.ts            localStorage
     tipos.ts           tipos compartilhados
   scenes/
     BootScene.ts       preload, animacoes, carga do save
     FarmScene.ts       cena de mundo: tilemap, player, colisao, camera, interacao
+    CamadaRepresa.ts   componente da FarmScene: escuridao, inimigos e combate
     UIScene.ts         HUD, prompt, dialogo, confirmacao, inventario, loja fisica
     ComputadorScene.ts o PC do protagonista: desktop de tela cheia e os apps
   pc/                  o "sistema operacional" do computador de casa
@@ -77,11 +84,16 @@ src/
 tools/
   png.mjs              encoder PNG minimo + hash deterministico
   imagem.mjs           decoder PNG, deteccao de grade/blob e reducao de tile
+  folha-personagem.mjs recortador de folha 4x4, compartilhado por NPC e monstro
   gerar-assets.mjs     monta tileset + folhas/atlas de sprite + todos os tilemaps
+  processar-sprites-npc.mjs      as folhas dos 33 NPCs
+  processar-sprites-monstro.mjs  as folhas dos 7 monstros da represa
 public/assets/
-  tilemaps/            3 externos (farm, bairro, rural) + um por interior
-                       (casa_2..casa_6, mercado, academia, bar, farmacia,
-                       oficina, escola, biblioteca) — todos gerados
+  tilemaps/            4 externos (farm, bairro, rural, represa) + um por
+                       interior (casa_2..casa_6, casa_b1..b7, casa_c1/c2,
+                       casa_rural_1/2, mercado, academia, bar, farmacia,
+                       oficina, escola, biblioteca) + os 5 setores da represa
+                       (represa_0..represa_4) — todos gerados
   tilesets/terrain.png tileset 32x32 montado pelo script (nao edite a mao)
   sprites/             folhas de runtime, folhas de movel geradas, spritesheets
                        do player e os atlas
@@ -104,6 +116,12 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `Grama.png` (3 variantes) | `arte/` | tiles de grama do Mapa 1 | build |
 | `Grama_mapa_2.png` (3x2) | `arte/` | grama do Mapa 2 — so as 2 celulas lisas da linha 0 | build |
 | `Grama_mapa_3.png` (3x2) | `arte/` | grama do Mapa 3 — so a celula lisa da linha 0 | build |
+| `Grama_mapa_4.png` (3x2) | `arte/` | **so a celula do vertedouro**, como sprite de marco. As seis celulas sao cenas compostas e nao ladrilham | build |
+| `Represa.png` (5 linhas) | `arte/` | fachada da casa de forca, portaria e galpao do Mapa 4 | build |
+| `PAredes_internas_represa.png` (7 linhas) | `arte/` | 6 estilos de parede dos setores da represa | build |
+| `Monstros/*.png` (9 folhas) | `public/assets/Monstros/` | 7 viram folha 4x4 de runtime; `Boss_v1` e `Micro-ondas` ficaram de fora | processar-sprites-monstro |
+| `Arvores_mapa_4.png` | `arte/` | **SEM USO** — veio sobre gradiente verde opaco, que o removedor de fundo nao trata | — |
+| `Rios_v1.png` / `RIos_v2.png` | `arte/` | **SEM USO** — sao pecas de composicao de rio, nao grade de tile; a agua sai do 9-slice de `lago_v1` | — |
 | `estrada_de_terra.png` (3x3) | `arte/` | autotile de estrada + terra batida | build |
 | `lago_v1.png` (3x3) | `arte/` | 9-slice de agua | build |
 | `Paredes_casa_v1.png` (6x3) | `arte/` | parede das fachadas de casa | build |
@@ -206,21 +224,27 @@ player e congela o relogio.
 `start('FarmScene')`, porque a cena de mundo ja fala com a UI dentro do
 `create()`.
 
-## Os tres mapas do mundo
+## Os quatro mapas do mundo
 
-O jogo tem **tres mapas externos**, ligados por zonas de transicao nas bordas:
+O jogo tem **quatro mapas externos**, e o **Mapa 1 e o centro**: cada ponta de
+avenida dele e uma saida.
 
 ```
-        Mapa 2                    Mapa 1
-   Bairro da Estacao  <--leste-->  Cidade (farm)
-     (140x110)                      (120x90)
-          |
-        sul (depois da ponte sobre o rio)
-          |
-        Mapa 3
-     Zona Rural (150x120)
-          |
-        sul: RESERVADO pro Mapa 4 (represa) — nao implementado
+                          Mapa 4
+                    Estrada da Represa
+                         (80x140)
+                            |
+                          norte
+                            |
+     Mapa 2                                        Mapa 3
+Bairro da Estacao --oeste-- Mapa 1 --leste-- Zona Rural
+   (140x110)                Cidade            (150x120)
+                            (120x90)
+                            |
+                           sul
+                            |
+                   RESERVADO pro mapa futuro
+              (estrada interditada por obra, com placa)
 ```
 
 | mapa | chave | o que tem |
@@ -228,11 +252,24 @@ O jogo tem **tres mapas externos**, ligados por zonas de transicao nas bordas:
 | Mapa 1 | `farm` | a cidade original: 11 lotes, 9 NPCs, mercado, academia, bar, farmacia, parque, lago |
 | Mapa 2 | `bairro` | casa+oficina do protagonista, escola, biblioteca, quadra, terreno abandonado, Central Telefonica, 9 casas ocupadas (2 num condominio fechado) e 3 lotes reservados, rio e ponte |
 | Mapa 3 | `rural` | madeireira (loja de expansao), pedreira, duas fazendas, duas casas ocupadas |
+| Mapa 4 | `represa` | a estrada da usina: mirante, canal com ponte, galpao, subestacao murada, cerca de area restrita, casa de forca, barragem e reservatorio. Nenhum morador. Ver **A represa** |
+
+**A ligacao Mapa 2 <-> Mapa 3 nao existe mais.** Ela passava pela ponte da rua
+da estacao e fazia o mundo ler como uma corrente de tres elos em vez de um centro
+com radiais. A ponte e a rua continuam desenhadas e viraram **estrada local**,
+que morre na mata da borda — e por isso nenhum lote, rota de NPC ou coordenada de
+save precisou mudar de lugar.
+
+**A ponta SUL do Mapa 1 e reserva** pro mapa futuro. A avenida vertical chega na
+beira, mas ha uma **barreira de obra** atravessando a pista e uma placa de exame
+que diz o motivo. Nao ha zona de transicao ali, e `npm run verificar-represa`
+reprova se alguem puser uma.
 
 **Cada NPC declara em que mapa vive** (`DefinicaoNpc.mapa`): 9 no Mapa 1, 20 no
-Mapa 2 e 4 no Mapa 3 — 33 no total, todos no mesmo motor de rotinas. Ao ar livre
-o NPC aparece so no proprio mapa; dentro de construcao ele aparece pra quem esta
-naquele interior, venha de onde vier. Ver **Rotinas de NPC**.
+Mapa 2 e 4 no Mapa 3 — 33 no total, todos no mesmo motor de rotinas. **Nenhum
+mora no Mapa 4.** Ao ar livre o NPC aparece so no proprio mapa; dentro de
+construcao ele aparece pra quem esta naquele interior, venha de onde vier. Ver
+**Rotinas de NPC**.
 
 **Jogo novo comeca no Mapa 2**, na porta da casa+oficina — que e onde o
 protagonista mora desde que a `casa_1` do Mapa 1 foi desativada.
@@ -502,6 +539,22 @@ A caixa de colisao da arvore e fixa em tiles (`TRONCO_TILES`); a da pedra e
 fracao do **tamanho do sprite** (`PEDRA_CORPO`), porque as pedras variam de
 pedrisco a matacao.
 
+## Conferencias
+
+Uma por assunto, todas offline (`node --experimental-strip-types`), todas
+reprovando com erro alto em vez de aviso:
+
+| comando | o que prova |
+| --- | --- |
+| `npm run verificar-mapas` | topologia dos externos, par de borda, interior alcancavel, area privada dos mistos |
+| `npm run verificar-rotinas` | os 33 NPCs nos 7 dias: rota livre, area/percurso conferido, lugar fixo alcancavel |
+| `npm run verificar-relacoes` | tema, presente, blog e missao de cada NPC |
+| `npm run verificar-economia` | preco, faixa, compra, save de dinheiro |
+| `npm run verificar-inventario` | pilha, slot, save |
+| `npm run verificar-ambientacao` | material, quadro, segredo, worldEvent |
+| `npm run verificar-expansao-npcs` | os 24 moradores, as obras, as missoes |
+| `npm run verificar-represa` | topologia em estrela, grafo dos setores, resposta de enigma escrita em documento, dano por tipo, IA, tabela de salvado, revenda, derrota |
+
 ## Determinismo
 
 Nada no mapa usa `Math.random()`. A variacao de terreno e a distribuicao da
@@ -589,8 +642,25 @@ Duas regras seguram o resto, e `npm run verificar-rotinas` cobra as duas:
   exatamente o que o sistema antigo fazia a cada mudanca de compromisso.
 
 Quem TEM passada real na arte continua andando de verdade: a faixa de agenda
-ganha uma `area` e o motor roda `vagar` nela depois do `assumir_lugar` que
-posiciona o NPC.
+ganha uma **`rota`** (percurso de rua) ou uma **`area`** (retangulo de
+perambulacao), e o motor roda `vagar_rota` ou `vagar` nela depois do
+`assumir_lugar` que posiciona o NPC.
+
+**Prefira `rota`.** A `area` tem de ser um retangulo convexo e inteiramente
+livre, e num bairro com casa, cerca e arvore o maior retangulo livre perto de uma
+porta e miudo — o da Samanta era 10x3, e o resultado em jogo era ela indo e
+voltando num pedaco de gramado na frente da propria casa. O percurso nao tem essa
+amarra: ele acompanha o EIXO das vias, que o gerador mantem livre (a flora
+respeita a faixa da via e nenhum lote invade ela), entao o trajeto pode ter
+dezenas de tiles e ainda ser feito de retas livres.
+
+Seis percursos hoje, cada um combinando com o que a pessoa faz: a Julia percorre
+a linha do onibus, o Caio desce a rua baixa de 20 a 55 atras de conserto, a
+Samanta sai de casa e vai ate a escola, o Roberto anda a calcada de 66 a 100, a
+Ilda faz a caminhada da tarde de 70 a 108 e a Suzan circula a quadra. A **roca do
+Joao e da Neide continua sendo `area`**: sao 20x12 tiles de leira aberta, e quem
+esta capinando anda mesmo sem rumo fixo — a objecao do retangulo pequeno nao vale
+la.
 
 ### Onde cada um fica
 
@@ -607,7 +677,8 @@ posiciona o NPC.
 | portao da escola | Matheus (policial comunitario) |
 | quadra | as criancas de tarde e nos fins de semana; Suzan produzindo |
 | a propria casa | Rita (costura), Davi (cozinha), Priscila (escritorio) |
-| rua de casa | Caio (consertos), Julia (linha), Roberto, Samanta, Tulio |
+| percurso de rua | Caio (consertos), Julia (linha do onibus), Roberto e Ilda (calcada), Samanta (clientes), Suzan (quadra) |
+| patio da central | Tulio (bicos de reparo) |
 
 A terceira sala da escola virou **diretoria** (piso proprio, mesa e estante, sem
 carteira nem quadro): duas salas de aula bastam pras cinco criancas da cidade.
@@ -746,7 +817,12 @@ reta. Duas consequencias que ja morderam:
   convexidade garante o resto. Um retangulo "por cima da cidade" passa dentro de
   casa e de arvore. Pra cobrir regiao nao convexa, use varios turnos de `vagar`
   ligados por `andar_rota` — e o que a Leticia faz, um turno na avenida principal
-  e outro no gramado sul da praca.
+  e outro no gramado sul da praca — ou, melhor, um **percurso** (`rota`) pelo
+  eixo das vias.
+- O **percurso de `vagar_rota` e um ciclo**, e a conferencia confere cada trecho
+  em reta, incluindo o que fecha (ultimo -> primeiro) e a entrada a partir do
+  `ponto` da faixa. Waypoint em cima do eixo de uma via e sempre seguro; waypoint
+  no meio do gramado precisa ser conferido.
 - O **fallback das 18:00 sai em reta** da posicao atual pro primeiro ponto de
   `rotaCasa`. Entao esse primeiro ponto tem de ser alcancavel em reta de onde o
   NPC costuma estar as 18:00 — no caso da Leticia, um ponto dentro da praca. Os
@@ -767,6 +843,165 @@ entao ela pega tambem a caminhada do posto ate a porta.
 
 `npm run processar-sprites-npc` regenera as folhas transparentes e uniformes de
 todos os 33.
+
+## A represa (Mapa 4)
+
+A primeira **area de risco** do jogo: uma usina hidroeletrica desativada ao
+norte do Mapa 1. Ela e aditiva — nenhum sistema antigo mudou por causa dela, e
+quem nunca subir a estrada nao ve diferenca nenhuma no jogo.
+
+### O exterior
+
+`represa`, 80x140 — estreito e comprido de proposito. E um corredor de mata
+subindo de sul pra norte, com a **maior densidade de flora dos quatro mapas** e
+nenhum morador. A estrada e polilinha com sete inflexoes e dois ramais que nao
+levam a lugar obrigatorio, pra nao ler como corredor reto.
+
+De sul pra norte: entrada do Mapa 1, mata, placa velha, cerca caida do
+piquenique, **mirante** sobre o rio de jusante, **canal de drenagem** cruzando a
+estrada (com ponte), **galpao de servico**, **subestacao murada**, **cerca de
+alambrado de ponta a ponta com portao unico**, patio de concreto, **casa de
+forca**, o corpo da **barragem** atravessando o mapa e o **reservatorio** de
+78x21 tiles acima dela.
+
+A agua e intransponivel e a cerca fecha o vale: a unica forma de chegar na porta
+e o portao. `conferirExterno` (na geracao) recebe uma lista de **alvos
+proibidos** — o miolo do reservatorio, a passarela da barragem e o rio — e
+reprova se qualquer um deles ficar alcancavel. Um furo de 1 tile na cerca nao
+passaria por uma conferencia que so olha o que E alcancavel.
+
+### Os cinco setores
+
+Cinco tilemaps desenhados a mao, ligados por alcapao e elevador. **Nao sao
+interiores de predio**: tem varias portas, nenhuma cama, nenhum comodo privado, e
+por isso `verificar-mapas` desvia deles (quem confere e a geracao e
+`verificar-represa`).
+
+| nivel | chave | escuridao | o que tem |
+| --- | --- | --- | --- |
+| 0 | `represa_0` | 0 | entrada, sala de controle e arquivo. **Zona segura**: sem inimigo, e onde o jogador acorda apos derrota |
+| -1 | `represa_1` | 0,18 | manutencao em dois ramos (A e B) e um corredor; a porta de servico do ramo A e o primeiro atalho |
+| -2 | `represa_2` | 0,38 | galeria das turbinas (tres vaos separados por pilar), corredor de servico (0,52) e casa de bombas |
+| -3 | `represa_3` | 0,60 | galerias inferiores em ANEL — da pra fugir dando a volta — e o quadro geral |
+| -4 | `represa_4` | 0,80 | poco de drenagem e a camara da placa mestre, com o cofre de peca rara |
+
+A escuridao mora no **tilemap, por comodo** (`comodos[].escuridao`), com o valor
+do setor como piso. Nao ha cadeia de `if` por nivel no codigo. Em jogo ela e uma
+vinheta radial centrada no jogador, com o buraco de luz do tamanho do **raio de
+lanterna** — 3,2 tiles sem lanterna, 5,6 com a lanterna de manutencao que o
+primeiro enigma libera. Lampada de emergencia e painel aceso ficam ACIMA da
+vinheta, com mistura aditiva: sao marcos de navegacao, e e o que separa escuridao
+tensa de escuridao chata.
+
+### Os dois eixos de dificuldade
+
+**Profundidade** e o eixo permanente: cada nivel escurece mais e os bichos de la
+doem mais. **Tensao** e o eixo temporario: ela sobe enquanto o jogador esta
+DENTRO dos setores e zera quando ele sai (sair pro patio da casa de forca ja
+conta como escapar).
+
+A tensao multiplica velocidade, raio de deteccao e cadencia dos inimigos —
+**nunca dano nem HP**, pra a conta de "quantos golpes eu aguento" continuar
+previsivel — e **desconta tentativas dos enigmas**. Errar num painel tambem sobe
+a tensao. Quarenta minutos de jogo no nivel 0 nao passam de 0,25; quarenta no
+nivel -4 passam de 0,8.
+
+### Enigmas
+
+Sete paineis: uma alavanca, tres simples, dois intermediarios e um profundo de
+tres passos. O conteudo mora em `src/game/represa.ts`; o tilemap so diz onde cada
+um esta.
+
+| painel | nivel | tipo | o que abre |
+| --- | --- | --- | --- |
+| quadro de disjuntores | 0 | sequencia de 3 | luz do hall, a gaveta do controle e a **lanterna** |
+| painel de simbolos | -1 | escolha | armario de suprimentos |
+| caixa de passagem | -1 | escolha | caixa de pecas da bomba |
+| alavanca da porta de servico | -2 | um passo | **atalho permanente** pro nivel -1 |
+| sinoptico dos geradores | -2 | sequencia de 4 | a descida pro nivel -3 |
+| mesa de comportas | -3 | sequencia de 4 + **codigo de 2 digitos** | a descida pro nivel -4 |
+| placa de controle mestre | -4 | escolha + **peca do inventario** + **codigo de 4 digitos** | o cofre de peca rara e o **elevador de servico** |
+
+**A resposta de todo enigma esta escrita em algum documento do mapa**, e
+`verificar-represa` prova isso lendo os documentos do proprio tilemap. O enigma
+profundo junta pista de tres setores diferentes: o componente queimado esta no
+arquivo do nivel 0, a primeira metade do codigo na placa da turbina (nivel -2) e
+a segunda no terminal do nivel -4.
+
+Nenhum enigma e obrigatorio pra sair da usina. Tres protegem so loot; os outros
+abrem profundidade ou atalho.
+
+### Combate, vida e derrota
+
+| coisa | valor |
+| --- | --- |
+| vida | 30/30, independente da energia de trabalho |
+| invulnerabilidade apos dano | 750 ms |
+| golpe do jogador (chave inglesa) | 4 de dano, arco de 1,5 tile a frente, trava de 260 ms, recarga de 460 ms |
+| inimigos | 7 tipos, 6 a 32 de HP, 2 a 8 de dano |
+
+Nenhum inimigo mata o jogador cheio em menos de tres golpes — `verificar-represa`
+cobra isso por tipo. A IA e uma maquina de estados simples (parado, patrulha,
+alerta, perseguindo, atacando, atingido, morto) com **histerese** no aggro (o
+raio de desistencia e sempre maior que o de deteccao, senao o bicho tremeria no
+limite do circulo) e **linha de visao** (sem ela ele perseguiria atravessando
+parede).
+
+A IA vive em `src/game/inimigos.ts` e **nao tem uma linha de Phaser**: e por isso
+que `verificar-represa` consegue provar sem navegador que ele persegue, desiste,
+respeita a cadencia e para de agir depois de morto.
+
+**Derrota nao e permadeath e nao encosta em nada critico.** Vida a zero: o
+jogador acorda no nivel 0, passam 4 horas de jogo, ele volta com 60% da vida e
+perde METADE do salvado recolhido NESTA descida (arredondando pra baixo — quem
+achou uma peca so nao perde nada). Save, item de missao, mobilia, relacionamento,
+flag de enigma e atalho aberto ficam todos intactos.
+
+### Salvado e dinheiro
+
+15 itens de salvado em tres raridades, com **preco fixo escrito a mao** (o valor
+do salvado E a regra de balanceamento por profundidade, e sorteio nao se
+equilibra). Dez tabelas de sorteio, uma por nivel mais os premios de enigma e o
+cofre profundo — e `verificar-represa` cobra que o **valor esperado suba do nivel
+0 ao -4**, senao nada garantiria que descer valha a pena.
+
+O ciclo fecha na **caixa de despacho da oficina** (o canto sudoeste, tile 17,20):
+ela revende salvado a 80% do valor de referencia. A diferenca existe pra usar a
+peca na bancada continuar sendo uma opcao. A venda remove do inventario ANTES de
+creditar, e por isso acionar de novo nao duplica dinheiro.
+
+### Arte
+
+| arte | como entrou |
+| --- | --- |
+| `Represa.png` | fachada da casa de forca, portaria e galpao, pelo sistema de PAINEL que a fachada de comercio ja usava |
+| `PAredes_internas_represa.png` | seis estilos de parede interna, um por profundidade |
+| `Grama_mapa_4.png` | so a celula do vertedouro, como sprite de marco. As seis celulas sao CENAS compostas e nao ladrilham |
+| `public/assets/Monstros/*.png` | 7 das 9 folhas, processadas pro mesmo formato 4x4 dos NPCs |
+
+Cinco tiles pintados a mais, pro que a arte nao cobre em planta baixa: patio de
+concreto, corpo da barragem, grelha de aco, cerca de tela e barreira de obra.
+
+**`Boss_v1.png` e `Micro-ondas.png` ficaram de fora**, com o motivo documentado
+em `tools/processar-sprites-monstro.mjs`: a primeira veio sobre fundo degrade (o
+removedor de fundo decide por preto chapado e nao encosta nele) e a segunda
+mistura ciclo de caminhada com quadro de morte, sopro de fogo e pecas soltas nas
+mesmas linhas. **`Arvores_mapa_4.png` tambem esta sem uso**: ela veio sobre
+gradiente verde opaco, e a mata do Mapa 4 usa o atlas de arvore que ja existia.
+
+### Persistencia
+
+O save continua na **versao 6**: a leva e aditiva.
+
+| dado | onde mora |
+| --- | --- |
+| vida | campo `vida` (ausente no save antigo -> 30/30) |
+| corrida atual (tempo dentro, tensao, salvado recolhido) | campo `represa` (ausente -> zerada) |
+| enigma resolvido e atalho aberto | flag de `worldEvents` |
+| recipiente ja saqueado | id em `itensColetados`, o mesmo Set dos pickups |
+
+Nao ha um segundo sistema de save por causa da represa. Inimigo **nao** persiste
+individualmente: ele volta a cada visita, de proposito.
 
 ## Expansao de casa e mobilia
 

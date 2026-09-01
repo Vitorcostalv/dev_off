@@ -153,28 +153,15 @@ const TIPOS_ZONA_VALIDOS: TipoZona[] = [
 const USOS_ZONA_VALIDOS: UsoZona[] = ['moradia', 'comercio', 'misto', 'praca', 'vago'];
 
 /**
- * Texto de exame dos predios FECHADOS — os que tem fachada de pe e nenhuma
- * porta que abra. Sao os dois lotes `vago` com construcao: a casinha inicial
- * desativada nesta leva e a Central Telefonica do Mapa 2.
+ * Texto de exame de todo objeto `placa` que carrega um `aviso`: predio fechado,
+ * placa de estrada, interdicao de obra e os documentos de manutencao da represa.
+ *
+ * A tabela mora em src/game/avisos.ts e nao aqui porque e la que as RESPOSTAS
+ * dos enigmas da usina estao escritas, e `npm run verificar-represa` le aquele
+ * arquivo pra provar duas coisas: que nenhuma resposta ficou so na cabeca de
+ * quem escreveu o painel, e que nenhum aviso posto no mundo ficou sem texto.
  */
-const AVISOS_DE_PREDIO: Record<string, string[]> = {
-  casa_1: [
-    'A porta esta fechada com um cadeado velho.',
-    'Local desativado. Ninguem mora aqui agora.',
-  ],
-  central: [
-    'Central Telefonica Municipal — parece abandonada ha muitos anos.',
-  ],
-  // A INTERDICAO da ponta sul do Mapa 1. O texto e a unica coisa que impede a
-  // barreira de ler como bug: sem ele, uma parede no meio da estrada seria so
-  // uma parede no meio da estrada. Ver `INTERDICAO_SUL` em gerar-assets.mjs.
-  estrada_sul: [
-    'ESTRADA INTERDITADA — Obras de recuperacao da pista. Sem previsao.',
-    'Atras da barreira a estrada continua, mas o asfalto cedeu num trecho longo.',
-    'Alguem escreveu a caneta embaixo do aviso: "quando abrir, da pra chegar no distrito".',
-  ],
-  ...ITENS_DE_LEITURA,
-};
+const AVISOS_DE_PREDIO: Record<string, string[]> = ITENS_DE_LEITURA;
 
 /**
  * Quanto o ponteiro pode ficar longe do jogador, em TILES, pra soltar um movel.
@@ -471,6 +458,7 @@ export class FarmScene extends Phaser.Scene {
     this.interagiveis.push(...this.lerPontosDeLoja());
     this.interagiveis.push(...this.lerPontosDeAmbientacao());
     this.interagiveis.push(...this.lerPontoDeRevenda());
+    this.interagiveis.push(...this.lerPontosDeSucata(map));
     this.zonas = this.lerZonas(map);
     this.limparLotesDosProjetos();
     this.tilesPrivados = this.lerComodosPrivados(map);
@@ -501,6 +489,11 @@ export class FarmScene extends Phaser.Scene {
     // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
     // predios, moveis, arvores e pedras do mapa carregado.
     this.criarNpcs();
+    // registra a TROCA DE MAPA na represa aqui, com 0 minuto: e o que fecha a
+    // corrida ao sair da usina e o que marca o nivel mais fundo alcancado.
+    // Deixar isso so pro tique de minuto perdia visita curta — descer, olhar e
+    // subir em menos de dez minutos de jogo nao contava.
+    estado.represa.avancar(estado.mapa, 0);
     this.criarCamadaDaRepresa(map);
 
     this.physics.add.collider(this.player, objetos);
@@ -2636,6 +2629,35 @@ export class FarmScene extends Phaser.Scene {
   }
 
   /**
+   * Recipientes de SALVADO, da camada `sucata` dos setores.
+   *
+   * Eles vem numa camada propria e nao em `interativos` porque o gerador precisa
+   * distinguir os dois na hora de conferir (a conferencia de setor cobra coisas
+   * diferentes de porta, painel e recipiente), e porque assim `lerInterativos`
+   * continua com uma lista fechada de classes. Aqui os dois se juntam na mesma
+   * lista de alvos — pro resto da cena um recipiente e um interagivel como
+   * qualquer outro.
+   */
+  private lerPontosDeSucata(map: Phaser.Tilemaps.Tilemap): Interagivel[] {
+    const camada = map.getObjectLayer('sucata');
+    if (!camada) return [];
+    const lista: Interagivel[] = [];
+    for (const obj of camada.objects) {
+      const id = obj.name || `sucata_${lista.length}`;
+      if (estado.itensColetados.has(id)) continue;
+      lista.push({
+        id,
+        tipo: 'sucata',
+        rotulo: ROTULOS.sucata,
+        x: (obj.x ?? 0) + (obj.width ?? 0) / 2,
+        y: (obj.y ?? 0) + (obj.height ?? 0) / 2,
+        props: lerProps(obj),
+      });
+    }
+    return lista;
+  }
+
+  /**
    * Escuridao por comodo, lida do tilemap. O valor cai pra escuridao BASE do
    * setor nos tiles que nenhum comodo cobre (vao de parede, soleira) — sem isso
    * atravessar um vao daria um flash de claro.
@@ -3217,6 +3239,7 @@ const TITULO_DO_MAPA: Record<string, string> = {
   farm: 'Mapa da cidade',
   bairro: 'Bairro da Estacao',
   rural: 'Zona Rural',
+  represa: 'Estrada da Represa',
 };
 
 /** Retangulo em TILES, com o canto (x0,y0) inclusivo e (x1,y1) exclusivo. */

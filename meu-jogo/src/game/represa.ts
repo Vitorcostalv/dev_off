@@ -442,8 +442,14 @@ export class SistemaRepresa {
     const setor = setorDaRepresa(mapa);
     if (this.ultimoMapa !== mapa) {
       this.ultimoMapa = mapa;
-      // saiu da usina: a corrida fecha e a tensao zera
-      if (!naRepresa(mapa)) this.encerrarCorrida();
+      // Saiu dos SETORES: a corrida fecha e a tensao zera.
+      //
+      // O corte e no setor e nao em `naRepresa`, que inclui o mapa externo do
+      // Mapa 4: a estrada e dia aberto e nao ha inimigo nela, entao chegar no
+      // patio da casa de forca ja e ter escapado. Usar `naRepresa` aqui fazia a
+      // tensao sobreviver a saida pela porta — o jogador saia, respirava e
+      // voltava com a mesma tensao de antes.
+      if (!setor) this.encerrarCorrida();
     }
     if (!setor) return;
     if (setor.nivel < this._nivelMaisFundo) this._nivelMaisFundo = setor.nivel;

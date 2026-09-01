@@ -23,6 +23,42 @@
  * setores levam o prefixo `represa_` (ver `gerarSetorRepresa`).
  */
 export const ITENS_DE_LEITURA: Record<string, string[]> = {
+  // ------------------------------------------------- predios FECHADOS --
+  // Predio de pe cuja porta nao abre: no lugar dela o mapa poe um objeto de
+  // exame com estes textos. Estavam na FarmScene e vieram pra ca quando a
+  // conferencia passou a cobrar texto pra TODO aviso do mundo — deixar metade
+  // dos textos numa cena e metade aqui era o caminho pra sobrar placa muda.
+  casa_1: [
+    'A porta esta fechada com um cadeado velho.',
+    'Local desativado. Ninguem mora aqui agora.',
+  ],
+  central: [
+    'Central Telefonica Municipal — parece abandonada ha muitos anos.',
+  ],
+  portaria_represa: [
+    'PORTARIA — apresentar credencial. Registro de entrada e saida obrigatorio.',
+    'O livro de registro esta aberto no balcao, atras do vidro. A ultima linha e ' +
+      'de tres anos atras e a letra dela e a mesma das anotacoes lá dentro.',
+  ],
+  galpao_represa: [
+    'GALPAO DE SERVICO 2 — ferramentaria e almoxarifado.',
+    'A porta de enrolar esta emperrada a meio metro do chao e por baixo dela sai ' +
+      'um cheiro de oleo queimado.',
+  ],
+
+  /**
+   * A INTERDICAO da ponta sul do Mapa 1 — a reserva pro mapa futuro.
+   *
+   * O texto e a unica coisa que impede a barreira de ler como bug: sem ele, uma
+   * parede no meio da estrada e so uma parede no meio da estrada. Ver
+   * `INTERDICAO_SUL` em tools/gerar-assets.mjs.
+   */
+  estrada_sul: [
+    'ESTRADA INTERDITADA — Obras de recuperacao da pista. Sem previsao.',
+    'Atras da barreira a estrada continua, mas o asfalto cedeu num trecho longo.',
+    'Alguem escreveu a caneta embaixo do aviso: "quando abrir, da pra chegar no distrito".',
+  ],
+
   // ------------------------------------------- marcos do Mapa 4 (estrada) --
   estrada_represa: [
     'USINA DA REPRESA — 9 km. Trafego de servico somente.',
