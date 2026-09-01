@@ -43,6 +43,14 @@ export class SistemaRotinasNpc {
   private runtimes = new Map<string, RuntimeNpc>();
   private diaAtual: number | null = null;
   private pausas = new Map<string, number>();
+  /**
+   * Substituicao opcional da rotina do dia, consultada UMA vez por NPC na
+   * virada do dia. Existe pelo emprego dos projetos urbanos: quem foi designado
+   * pra uma obra troca o compromisso do meio do dia pelo turno de la, e essa
+   * informacao vive no `estado.cidade`, que este modulo nao pode importar sem
+   * fechar um ciclo. Quem liga as duas pontas e src/game/estado.ts.
+   */
+  private substituicao: ((def: DefinicaoNpc, dia: number) => AcaoRotinaNpc[] | null) | null = null;
 
   constructor() {
     for (const def of Object.values(NPCS)) this.runtimes.set(def.id, this.criarRuntime(def));
@@ -71,6 +79,13 @@ export class SistemaRotinasNpc {
       }
       this.atualizarNpc(runtime, minutos, deltaMs / 1000);
     }
+  }
+
+  /** Ver `substituicao`. Passar `null` volta ao comportamento sem substituicao. */
+  definirSubstituicaoDeRotina(
+    fn: ((def: DefinicaoNpc, dia: number) => AcaoRotinaNpc[] | null) | null,
+  ): void {
+    this.substituicao = fn;
   }
 
   pausarParaEncontro(ids: readonly string[], milissegundos: number): void {
@@ -111,7 +126,9 @@ export class SistemaRotinasNpc {
    * inteiro roda com a mesma lista e nao ha risco de trocar de rotina no meio.
    */
   private rotinaDoDia(def: DefinicaoNpc, dia: number): AcaoRotinaNpc[] {
-    const base = def.rotinaSemanal?.[diaDaSemana(dia)] ?? def.rotina;
+    const base = this.substituicao?.(def, dia)
+      ?? def.rotinaSemanal?.[diaDaSemana(dia)]
+      ?? def.rotina;
     const rotina = [...base];
     if (!rotina.some((acao) => acao.horario >= HORA_FALLBACK_CASA)) {
       rotina.push({ horario: HORA_FALLBACK_CASA, tipo: 'voltar_para_casa' });
@@ -286,6 +303,17 @@ export class SistemaRotinasNpc {
         runtime.estado.posto = acao.posto;
         return true;
       }
+      case 'assumir_lugar':
+        // Troca instantanea de lugar: sem rota, sem passo. Ver o comentario do
+        // tipo em npcs.ts — e o que os NPCs sem folha de caminhada usam, e
+        // tambem quem trabalha num posto fixo dentro de um predio.
+        runtime.estado.x = acao.ponto.x;
+        runtime.estado.y = acao.ponto.y;
+        runtime.estado.dentro = acao.construcao;
+        runtime.estado.visivel = acao.construcao === null;
+        runtime.estado.posto = null;
+        if (acao.direcao) runtime.estado.direcao = acao.direcao;
+        return true;
       case 'entrar_construcao':
         runtime.estado.x = LOCAIS_CIDADE[acao.construcao].portaInterior.x;
         runtime.estado.y = LOCAIS_CIDADE[acao.construcao].portaInterior.y;

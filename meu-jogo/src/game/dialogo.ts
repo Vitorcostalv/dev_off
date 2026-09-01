@@ -1086,6 +1086,902 @@ export const TEMAS_POR_NPC: Record<string, readonly TemaDeConversa[]> = {
       ],
     },
   ],
+
+  // ==================================================================
+  // MORADORES DOS MAPAS 2 E 3
+  // ------------------------------------------------------------------
+  // Quatro temas cada: dois que a pessoa gosta, um neutro e um que ela
+  // evita. Sao menos que os cinco a oito dos 9 originais de proposito —
+  // aqui sao 24 pessoas, e o menu do dia mostra 3 a 4 de qualquer forma.
+  // O que cada um gosta ou evita sai do perfil em src/game/moradores.ts:
+  // profissao, hobby, preocupacao e o item que ele odeia.
+  // ==================================================================
+
+  // ---------------------------------------------------------------- LIVIA --
+  livia: [
+    {
+      id: 'escola', rotulo: 'Como esta a escola este ano?', reacao: 'gosta',
+      variacoes: [
+        ['Cheia nas primeiras semanas e mais vazia em maio. Sempre e assim.',
+          'Eu anoto quem falta. Nao pra punir. Pra ir atras.'],
+        ['Melhor do que no ano passado, e ainda longe do que precisa ser.',
+          'Tenho tres salas e nenhuma delas devia ter trinta alunos.'],
+        ['Funcionando. Nao e elogio pequeno, considerando o orcamento.'],
+      ],
+    },
+    {
+      id: 'oficinas', rotulo: 'Ouvi falar de oficinas no contraturno.', reacao: 'gosta',
+      variacoes: [
+        ['Ainda e projeto. Mas eu tenho o espaco, e a Clara tem os livros.',
+          'Falta so quem fique com as criancas nas tardes.'],
+        ['Voce ouviu bem. Quero abrir leitura e desenho depois das aulas.',
+          'Metade dos alunos vai pra casa vazia. Prefiro que venham pra ca.'],
+      ],
+    },
+    {
+      id: 'encadernacao', rotulo: 'O que voce faz nas horas livres?', reacao: 'neutro',
+      variacoes: [
+        ['Encaderno. Livro velho, capa nova. Da pra consertar quase tudo.'],
+        ['Jardim e cola de encadernacao. Duas coisas que pedem paciencia.'],
+      ],
+    },
+    {
+      id: 'drone', rotulo: 'Ja pensou em filmar a escola com drone?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Nao. Tem crianca de nove anos nesse patio.',
+          'Camera voando por cima delas nao entra aqui.'],
+        ['Nao gosto da ideia. Ninguem pediu pra ser filmado indo pra aula.'],
+      ],
+    },
+  ],
+
+  // -------------------------------------------------------------- MATHEUS --
+  matheus: [
+    {
+      id: 'ronda', rotulo: 'Como vai a ronda?', reacao: 'gosta',
+      variacoes: [
+        ['Calma. Do jeito que eu gosto.',
+          'Fico no portao na entrada e na saida. O resto do dia eu ando.'],
+        ['Sem ocorrencia. Isso e o trabalho dando resultado, nao falta dele.'],
+        ['Hoje so um portao aberto que ninguem tinha visto. Fechei.'],
+      ],
+    },
+    {
+      id: 'guarda', rotulo: 'Voce falou de uma guarda comunitaria.', reacao: 'gosta',
+      variacoes: [
+        ['Desarmada. Gente do bairro que conhece o bairro.',
+          'A maioria do que aparece aqui se resolve conversando.'],
+        ['E a ideia. Nao pra substituir ninguem — pra chegar antes.'],
+      ],
+    },
+    {
+      id: 'xadrez', rotulo: 'Voce joga xadrez com o Roberto, ne?', reacao: 'neutro',
+      variacoes: [
+        ['Sextas. Ele ganha mais. Nao me incomoda.'],
+        ['Jogo. Ele demora dez minutos por lance e conta uma historia em cada um.'],
+      ],
+    },
+    {
+      id: 'autoridade', rotulo: 'As pessoas te tratam bem por aqui?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Me tratam como farda.',
+          'Eu moro aqui. Minha filha estuda aqui. Isso custa pra aparecer.'],
+        ['Depende do dia. Tem gente que abaixa a voz quando eu chego perto.',
+          'Nao e o efeito que eu quero causar.'],
+      ],
+    },
+  ],
+
+  // -------------------------------------------------------------- CECILIA --
+  cecilia: [
+    {
+      id: 'desenho', rotulo: 'O que voce esta desenhando?', reacao: 'gosta',
+      variacoes: [
+        ['Uma folha! Achei uma bem grande no caminho da escola.',
+          'Eu desenho e depois colo a folha do lado pra comparar.'],
+        ['Um mapa. O Arthur inventa o caminho e eu desenho.',
+          'Ele diz que existe. Eu acho que talvez.'],
+        ['Um livro. Ainda nao tem historia, so os desenhos.'],
+      ],
+    },
+    {
+      id: 'perguntas', rotulo: 'Voce pergunta muito, ne?', reacao: 'gosta',
+      variacoes: [
+        ['Pergunto! Como voce sabe? Alguem falou? Foi minha mae?'],
+        ['E ruim? A professora Ilda disse que nao e ruim.'],
+      ],
+    },
+    {
+      id: 'amigos', rotulo: 'Quem sao seus amigos?', reacao: 'neutro',
+      variacoes: [
+        ['O Arthur e o Ravi. E a Manuela, mas ela e pequena.'],
+        ['Todo mundo da minha sala. Alguns eu ainda nao sei o nome.'],
+      ],
+    },
+    {
+      id: 'leitura_em_voz_alta', rotulo: 'Voce le em voz alta na aula?', reacao: 'nao_gosta',
+      variacoes: [
+        ['...as vezes.',
+          'Minha voz fica esquisita quando todo mundo olha.'],
+        ['Nao gosto. Eu leio bem sozinha, juro.'],
+      ],
+    },
+  ],
+
+  // ---------------------------------------------------------------- CLARA --
+  clara: [
+    {
+      id: 'acervo', rotulo: 'Como esta o acervo?', reacao: 'gosta',
+      variacoes: [
+        ['Organizado. Nao completo, mas organizado.',
+          'Tem coisa aqui que so existe aqui. E o que me deixa acordada de noite.'],
+        ['Crescendo devagar. Doacao chega mais que verba.'],
+        ['Bem. Tirando a goteira, que voltou.'],
+      ],
+    },
+    {
+      id: 'arquivo_local', rotulo: 'Voce queria montar um arquivo da cidade?', reacao: 'gosta',
+      variacoes: [
+        ['Quero. Fotografia, ata, jornal de bairro, o que aparecer.',
+          'A Ilda ja gravou umas entrevistas. Falta lugar pra guardar.'],
+        ['E o meu projeto. A memoria desta cidade esta em gaveta de gente.'],
+      ],
+    },
+    {
+      id: 'restauro', rotulo: 'Voce restaura livro?', reacao: 'neutro',
+      variacoes: [
+        ['Restauro. Lombada, dobra, mancha de umidade.',
+          'A Livia encaderna melhor que eu. Nao conte pra ela que eu disse.'],
+        ['Um pouco. E parecido com palavra cruzada: da certo ou nao da.'],
+      ],
+    },
+    {
+      id: 'barulho', rotulo: 'Podia ter musica ambiente aqui.', reacao: 'nao_gosta',
+      variacoes: [
+        ['Nao.',
+          'Desculpe. Foi seco. Mas nao.'],
+        ['Ja tentaram. Uma caixa de som na sala de leitura.',
+          'Duas pessoas foram embora no primeiro dia.'],
+      ],
+    },
+  ],
+
+  // ---------------------------------------------------------------- LUCIA --
+  lucia: [
+    {
+      id: 'documentario', rotulo: 'Voce esta gravando alguma coisa?', reacao: 'gosta',
+      variacoes: [
+        ['Estou! (mais ou menos) (tenho quarenta minutos de audio e nenhum roteiro)',
+          'E sobre a cidade. Todo mundo aqui tem uma versao diferente da mesma rua.'],
+        ['Gravando, editando, apagando, gravando de novo. O ciclo.',
+          'O Vitor me ensinou a nao estourar o microfone. Foi tarde, mas ensinou.'],
+        ['Um pouco. Hoje so o som da estacao. Da um fundo bom.'],
+      ],
+    },
+    {
+      id: 'fotografia', rotulo: 'Vi voce fotografando na rua.', reacao: 'gosta',
+      variacoes: [
+        ['Ah, viu? Eu ando com a Leticia. Ela caminha e eu paro toda hora.',
+          'Ela tem paciencia. Eu tenho quatrocentas fotos de portao.'],
+        ['Fotografia de rua. Que e um nome bonito pra "eu nao sei o que quero fotografar".'],
+      ],
+    },
+    {
+      id: 'irma', rotulo: 'Voce mora com a Clara, ne?', reacao: 'neutro',
+      variacoes: [
+        ['Moro. Ela e a irma organizada e eu sou a outra.'],
+        ['Sim. Ela arruma minha mesa quando eu saio. Eu finjo que nao vejo.'],
+      ],
+    },
+    {
+      id: 'carreira', rotulo: 'Ja decidiu o que vai fazer da vida?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Essa pergunta.',
+          'Nao. E cada vez que alguem pergunta eu decido menos.'],
+        ['Ainda nao. (obrigada por lembrar) (estava esquecendo por dez minutos)'],
+      ],
+    },
+  ],
+
+  // ----------------------------------------------------------------- CAIO --
+  caio: [
+    {
+      id: 'conserto', rotulo: 'Em que voce esta trabalhando?', reacao: 'gosta',
+      variacoes: [
+        ['Carburador. Peca velha, dona teimosa.',
+          'Motor avisa antes de quebrar. Basta escutar.'],
+        ['Uma moto de 82. O dono quer que fique como nova.',
+          'Vai ficar como uma de 82 bem cuidada. E melhor.'],
+        ['Nada grande hoje. Freio e uma lanterna.'],
+      ],
+    },
+    {
+      id: 'oficina', rotulo: 'Nunca pensou em abrir uma oficina?', reacao: 'gosta',
+      variacoes: [
+        ['Penso. Com aprendiz.',
+          'Ferramenta eu tenho. Falta parede e alguem pra ensinar.'],
+        ['Pensei ontem, inclusive. Passa por semana.',
+          'A Helena diz que eu ja tenho oficina, e que ela e o quintal.'],
+      ],
+    },
+    {
+      id: 'domino', rotulo: 'Voce joga domino?', reacao: 'neutro',
+      variacoes: [
+        ['Jogo. Ganho pouco e falo menos.'],
+        ['De vez em quando. Da pra jogar calado, e isso conta.'],
+      ],
+    },
+    {
+      id: 'tempo_com_helena', rotulo: 'A Helena passa muito tempo sozinha?', reacao: 'nao_gosta',
+      variacoes: [
+        ['...',
+          'Passa. Eu sei.',
+          'Motor eu conserto. Isso ai eu ainda estou aprendendo.'],
+        ['Ela diz que nao. Eu conto as horas e vejo que sim.'],
+      ],
+    },
+  ],
+
+  // --------------------------------------------------------------- HELENA --
+  helena: [
+    {
+      id: 'skate', rotulo: 'Como vai o skate?', reacao: 'gosta',
+      variacoes: [
+        ['Vai. Cai, levanta, vai de novo.',
+          'A Suzan filma. Da pra ver o erro no video, e ai da pra consertar.'],
+        ['Melhor que semana passada. Ja e alguma coisa.'],
+        ['Bem. Estou treinando uma manobra que ainda nao sai. Vai sair.'],
+      ],
+    },
+    {
+      id: 'competicao', rotulo: 'Voce quer competir?', reacao: 'gosta',
+      variacoes: [
+        ['Quero. Nao pra ganhar de ninguem daqui.',
+          'Pra saber onde eu estou de verdade.'],
+        ['Sim. E antes que voce pergunte: eu sei que e longe e sei que e caro.'],
+      ],
+    },
+    {
+      id: 'miniaturas', rotulo: 'Voce monta miniaturas?', reacao: 'neutro',
+      variacoes: [
+        ['Monto. Peca pequena, cola, paciencia. Igual ao meu pai, mas menor.'],
+        ['Monto sim. Ninguem espera isso de mim, o que e otimo.'],
+      ],
+    },
+    {
+      id: 'pai_trabalhando', rotulo: 'Seu pai trabalha muito, ne?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Trabalha.',
+          'Nao precisa fazer essa cara. Eu sei cuidar de mim.'],
+        ['Voce e a terceira pessoa a falar isso essa semana.',
+          'Fala com ele, entao. Comigo nao resolve.'],
+      ],
+    },
+  ],
+  // ---------------------------------------------------------------- JULIA --
+  julia: [
+    {
+      id: 'linha', rotulo: 'Como esta a linha hoje?', reacao: 'gosta',
+      variacoes: [
+        ['Atrasou seis minutos na primeira volta e eu recuperei quatro.',
+          'Ponto por ponto, eu conheco todo mundo que sobe.'],
+        ['Boa. Sem buraco novo, o que por aqui e noticia.'],
+        ['Cheia. Sabado e sempre assim, mercado e quadra no mesmo horario.'],
+      ],
+    },
+    {
+      id: 'intermunicipal', rotulo: 'Voce quer pegar linha intermunicipal?', reacao: 'gosta',
+      variacoes: [
+        ['Quero. Estrada aberta, menos parada, mais horas seguidas.',
+          'O problema e o Arthur. Turno longo com filho pequeno nao fecha.'],
+        ['Um dia. Quando ele estiver maior e eu tiver menos medo de perder o jantar.'],
+      ],
+    },
+    {
+      id: 'suculentas', rotulo: 'Voce cuida de plantas?', reacao: 'neutro',
+      variacoes: [
+        ['Suculenta. E a unica que aguenta meu horario.'],
+        ['Cuido. Elas nao reclamam se eu chegar tarde.'],
+      ],
+    },
+    {
+      id: 'horario', rotulo: 'Da conta de conciliar tudo?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Dou. Todo dia eu dou.',
+          'Nao precisa perguntar duas vezes. A resposta cansa mais que o turno.'],
+        ['Dou conta. Minha mae ajuda. Nao me faz gostar da pergunta.'],
+      ],
+    },
+  ],
+
+  // --------------------------------------------------------------- ARTHUR --
+  arthur: [
+    {
+      id: 'mapas', rotulo: 'O que voce esta mapeando?', reacao: 'gosta',
+      variacoes: [
+        ['Um atalho! Ele passa por tras da escola e sai na quadra.',
+          'Nao passa mesmo, mas no mapa passa, e no mapa vale.'],
+        ['Todas as estradas. Ja tenho quatro. Faltam as outras.'],
+        ['A ponte. Eu desenhei ela tres vezes porque ela e comprida.'],
+      ],
+    },
+    {
+      id: 'clube', rotulo: 'Voce tem um clube?', reacao: 'gosta',
+      variacoes: [
+        ['Tenho! Tem regra pra entrar, regra pra sair e regra pra falar.',
+          'A Cecilia disse que tem regra demais. Eu escrevi mais uma.'],
+        ['Tenho. Somos tres. Um e o Ravi, que faz os avioes.'],
+      ],
+    },
+    {
+      id: 'aviao', rotulo: 'Seus avioes de papel voam bem?', reacao: 'neutro',
+      variacoes: [
+        ['Alguns. Um foi no telhado e ficou la.'],
+        ['O Ravi dobra melhor. Eu jogo mais longe.'],
+      ],
+    },
+    {
+      id: 'mae_cansada', rotulo: 'Sua mae trabalha muito?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Ela dirige de noite as vezes.',
+          'Eu fico acordado escutando o onibus. Nao conta pra ela.'],
+        ['Muito. Eu nao gosto de falar disso.'],
+      ],
+    },
+  ],
+
+  // ----------------------------------------------------------------- RITA --
+  rita: [
+    {
+      id: 'colcha', rotulo: 'Como vai a colcha?', reacao: 'gosta',
+      variacoes: [
+        ['Vai. Um quadrado por pessoa da familia.',
+          'Comecei com quatro. Agora sao seis. Filha, neto, e os que chegarem.'],
+        ['Devagar. Colcha boa nao tem pressa, e eu tenho tempo de sobra.'],
+        ['Terminei um quadrado ontem. O do Arthur, cheio de aviao.'],
+      ],
+    },
+    {
+      id: 'horta', rotulo: 'Como esta sua horta?', reacao: 'gosta',
+      variacoes: [
+        ['Em vaso, que e o que cabe. Cebolinha, hortela e uma pimenta valente.',
+          'A Neide me trouxe semente nova. Vamos ver o que sai.'],
+        ['Boa. Quem rega todo dia colhe todo mes.'],
+      ],
+    },
+    {
+      id: 'cafe_domingo', rotulo: 'Voce toma cafe com a Ilda?', reacao: 'neutro',
+      variacoes: [
+        ['Todo domingo. Ela fala de historia e eu costuro.'],
+        ['Tomo. Ela explica as coisas com data. Eu explico com proverbio.'],
+      ],
+    },
+    {
+      id: 'filha_descanso', rotulo: 'A Julia descansa pouco.', reacao: 'nao_gosta',
+      variacoes: [
+        ['Nao me diga o que eu sei.',
+          'Eu ponho comida no prato dela. E o que me deixam fazer.'],
+        ['Pouco. Ela nao me ouve, e voce tambem nao vai ouvir de mim.'],
+      ],
+    },
+  ],
+
+  // -------------------------------------------------------------- ROBERTO --
+  roberto: [
+    {
+      id: 'ferrovia', rotulo: 'Como era a ferrovia aqui?', reacao: 'gosta',
+      variacoes: [
+        ['Passava as seis e dez, e as dezoito e quarenta.',
+          'Fechou em 89. O trilho ficou dois anos no chao antes de tirarem.'],
+        ['Tinha duas plataformas. A segunda quase nao era usada.',
+          'Eu trabalhei nela dezenove anos. Sei onde cada dormente estava torto.'],
+        ['Era o relogio da cidade. Quando parou, todo mundo passou a chegar atrasado.'],
+      ],
+    },
+    {
+      id: 'maquete', rotulo: 'Voce esta montando uma maquete?', reacao: 'gosta',
+      variacoes: [
+        ['Estou. Escala pequena, paciencia grande.',
+          'Quero a estacao como ela era, nao como ficou.'],
+        ['Estou. Ja tenho o galpao e trezentos metros de trilho de mentira.'],
+      ],
+    },
+    {
+      id: 'xadrez', rotulo: 'Voce joga xadrez, ne?', reacao: 'neutro',
+      variacoes: [
+        ['Sextas, com o Matheus. Ele pensa rapido demais.'],
+        ['Jogo. Gosto do silencio que vem com o tabuleiro.'],
+      ],
+    },
+    {
+      id: 'esquecer', rotulo: 'O senhor lembra de tudo isso mesmo?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Lembro hoje.',
+          'E por isso que eu escrevo. Um dia nao vou lembrar, e ai alguem le.'],
+        ['Lembro. Nao brinque com isso.'],
+      ],
+    },
+  ],
+
+  // ----------------------------------------------------------------- ILDA --
+  ilda: [
+    {
+      id: 'memoria_oral', rotulo: 'A senhora esta gravando entrevistas?', reacao: 'gosta',
+      variacoes: [
+        ['Estou. Comecei pelos mais velhos, por motivo obvio.',
+          'Antes de responder eu preciso contar como cheguei nisso: foi uma aula em que ninguem sabia o nome da propria rua.'],
+        ['Estou, sim. Onze pessoas ate agora. A Clara vai guardar o material.',
+          'Historia local nao esta em livro. Esta em cozinha.'],
+        ['Estou. Ontem gravei o Roberto falando de trem por quarenta minutos.'],
+      ],
+    },
+    {
+      id: 'genealogia', rotulo: 'A senhora estuda arvore genealogica?', reacao: 'gosta',
+      variacoes: [
+        ['Estudo. Meia cidade e prima da outra meia e ninguem sabe.',
+          'Descobri que a Samanta e o Tulio tem bisavo em comum. Nao contei ainda.'],
+        ['Estudo. Da pra explicar muita briga antiga com um papel e uma caneta.'],
+      ],
+    },
+    {
+      id: 'croche', rotulo: 'A senhora faz croche?', reacao: 'neutro',
+      variacoes: [
+        ['Faco. Com a Rita, nos domingos. Ela costura melhor.'],
+        ['Faco. E como corrigir prova: um ponto errado e voce volta tres.'],
+      ],
+    },
+    {
+      id: 'ravi_calado', rotulo: 'O Ravi parece calado.', reacao: 'nao_gosta',
+      variacoes: [
+        ['Ele e cuidadoso, nao calado.',
+          'O que me preocupa e outra coisa: ele esconde quando precisa de ajuda. Isso eu nao consigo ensinar.'],
+        ['Ele fala. Escolhe as palavras, o que e diferente de nao ter.',
+          'Nao chame ele de timido perto dele, por favor.'],
+      ],
+    },
+  ],
+
+  // ----------------------------------------------------------------- RAVI --
+  ravi: [
+    {
+      id: 'jogo_de_tabuleiro', rotulo: 'Voce esta criando um jogo?', reacao: 'gosta',
+      variacoes: [
+        ['Estou. Ainda esta desbalanceado.',
+          'O Arthur sempre ganha, e nao e por estrategia. E porque a regra dele deixa.'],
+        ['Estou. Tem dado, tem carta e tem uma parte que ninguem entende ainda.',
+          'O Lucas testou. Ele anota tudo o que da errado. Eu gosto disso.'],
+        ['Estou. Hoje eu redesenhei o tabuleiro inteiro.'],
+      ],
+    },
+    {
+      id: 'quadrinhos', rotulo: 'Voce le quadrinhos?', reacao: 'gosta',
+      variacoes: [
+        ['Leio. A Cecilia desenha e eu escrevo a legenda.',
+          'Ela desenha melhor. Eu penso a ordem dos quadros.'],
+        ['Leio. Na biblioteca tem uma prateleira inteira, no canto do acervo.'],
+      ],
+    },
+    {
+      id: 'xadrez', rotulo: 'Seu avo te ensinou xadrez?', reacao: 'neutro',
+      variacoes: [
+        ['Ensinou. Ele demora muito pra jogar. Eu nao me importo.'],
+        ['Ensinou. Eu ganho uma em cinco. Esta melhorando.'],
+      ],
+    },
+    {
+      id: 'dar_trabalho', rotulo: 'Seus avos cuidam bem de voce?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Cuidam.',
+          'Eu tento nao dar trabalho. Eles ja fizeram muito.'],
+        ['Cuidam, sim. Prefiro nao falar sobre isso.'],
+      ],
+    },
+  ],
+
+  // ----------------------------------------------------------------- DAVI --
+  davi: [
+    {
+      id: 'pao', rotulo: 'Voce anda assando pao?', reacao: 'gosta',
+      variacoes: [
+        ['Todo dia. E a unica coisa que a minha mao aguenta sem reclamar.',
+          'Massa nao tem pressa. Isso ajuda.'],
+        ['Ando. Fermentacao lenta, que e o que da sabor e o que da tempo.',
+          'A Jaqueline provou e disse que faltava sal. Faltava sal.'],
+        ['Assei ontem. Sobrou. Passe la depois.'],
+      ],
+    },
+    {
+      id: 'padaria', rotulo: 'Voce quer abrir uma padaria?', reacao: 'gosta',
+      variacoes: [
+        ['Pequena. Balcao, forno e duas mesas.',
+          'Nao preciso de restaurante. Preciso de um lugar que abra as cinco.'],
+        ['Quero. Ja sei o cardapio inteiro e nao tenho o ponto.'],
+      ],
+    },
+    {
+      id: 'filmes', rotulo: 'Voce ve filme antigo?', reacao: 'neutro',
+      variacoes: [
+        ['Vejo. Preto e branco, de preferencia. Tem menos coisa na tela.'],
+        ['Vejo. A Manuela dorme no meio e diz que assistiu.'],
+      ],
+    },
+    {
+      id: 'mao', rotulo: 'Quando voce volta pra cozinha profissional?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Quando a mao deixar.',
+          'Nao sei a data. Ninguem sabe. O Rafael tambem nao.'],
+        ['Nao me pergunte isso de manha.',
+          'Desculpe. E que a resposta e sempre a mesma e sempre ruim.'],
+      ],
+    },
+  ],
+  // -------------------------------------------------------------- SAMANTA --
+  samanta: [
+    {
+      id: 'salao', rotulo: 'Voce quer abrir um salao?', reacao: 'gosta',
+      variacoes: [
+        ['Quero. Duas cadeiras, espelho grande e uma tomada que aguente o secador.',
+          'Hoje eu atendo na sala de casa e na calcada. Da certo, mas nao da conta.'],
+        ['Quero, e ja escolhi o nome. Nao vou falar antes de ter a chave.'],
+        ['Quero. Cada mes eu guardo um pouco. Ja e alguma coisa.'],
+      ],
+    },
+    {
+      id: 'canto', rotulo: 'Ouvi voce cantando com a Julia.', reacao: 'gosta',
+      variacoes: [
+        ['Sabado de manha, sempre. Ela faz a primeira e eu faco a segunda.',
+          'Ela tem voz de anunciar parada. Combina melhor do que parece.'],
+        ['Ah, ouviu? A gente canta enquanto eu escovo o cabelo dela.'],
+      ],
+    },
+    {
+      id: 'penteado', rotulo: 'Voce faz penteado de festa?', reacao: 'neutro',
+      variacoes: [
+        ['Faco. Formatura, casamento, aniversario de sete anos.'],
+        ['Faco. Trancado leva duas horas e rende historia pra semana.'],
+      ],
+    },
+    {
+      id: 'fofoca', rotulo: 'Voce sabe de tudo o que acontece aqui, ne?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Eu escuto muito. Nao e a mesma coisa.',
+          'Quem senta na minha cadeira fala. O que fica na cadeira, fica.'],
+        ['Sei o que as pessoas me contam. E nao e pra sair repetindo.',
+          'Se eu repetisse, ninguem mais sentava.'],
+      ],
+    },
+  ],
+
+  // -------------------------------------------------------------- MANUELA --
+  manuela: [
+    {
+      id: 'danca', rotulo: 'Voce esta ensaiando alguma coreografia?', reacao: 'gosta',
+      variacoes: [
+        ['ESTOU! Ja sei quase metade!',
+          'A Cecilia inventa o meio e eu invento o fim.'],
+        ['Estou! Quer ver? Eu faco agora. Aqui mesmo.'],
+        ['Estou. Mas tem uma parte que eu erro sempre e fico brava.'],
+      ],
+    },
+    {
+      id: 'adesivos', rotulo: 'Voce coleciona adesivo?', reacao: 'gosta',
+      variacoes: [
+        ['Tenho um caderno inteiro! So os brilhantes ficam na primeira pagina.'],
+        ['Tenho! Nao pode trocar os brilhantes. So os normais.'],
+      ],
+    },
+    {
+      id: 'skate', rotulo: 'A Helena esta te ensinando skate?', reacao: 'neutro',
+      variacoes: [
+        ['Esta. Ela segura minha mao e diz pra eu nao olhar pro pe.'],
+        ['Esta! Eu ja fico em pe parada. Andar e o proximo.'],
+      ],
+    },
+    {
+      id: 'mae_trabalhando', rotulo: 'Sua mae fica ocupada, ne?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Fica.',
+          'Eu queria que ela sentasse. Ela nunca senta.'],
+        ['Fica. Nao quero falar disso agora.'],
+      ],
+    },
+  ],
+
+  // --------------------------------------------------------------- RAFAEL --
+  rafael: [
+    {
+      id: 'atendimento', rotulo: 'Como vao os atendimentos?', reacao: 'gosta',
+      variacoes: [
+        ['Bem. Tres pacientes hoje, e um deles finalmente subiu escada sem apoio.',
+          'Meta pequena. Sempre meta pequena. E o que funciona.'],
+        ['Bem. A Mari me encaminha os alunos que exageram no treino.',
+          'Ela avisa antes de virar lesao. Isso vale ouro.'],
+        ['Boa semana. O Caio esta recuperando movimento na mao, devagar.'],
+      ],
+    },
+    {
+      id: 'comunitario', rotulo: 'Voce quer atender de graca no bairro?', reacao: 'gosta',
+      variacoes: [
+        ['Nao de graca. A preco de quem mora aqui.',
+          'Metade das dores que eu vejo viraram cronicas por falta de duas consultas.'],
+        ['Quero. Um dia por semana, comecando por quem nao pode pagar.'],
+      ],
+    },
+    {
+      id: 'corrida', rotulo: 'Voce corre de manha?', reacao: 'neutro',
+      variacoes: [
+        ['Corro. Antes das seis, quando o bairro ainda esta quieto.'],
+        ['Corro. E o unico horario em que eu nao estou ajudando ninguem.'],
+      ],
+    },
+    {
+      id: 'cafe', rotulo: 'Aceita um cafe?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Nao, obrigado. Eu nao tomo.',
+          'Ja tentei gostar por educacao. Nao deu.'],
+        ['Nao bebo cafe. Eu sei, eu sei, sou o unico.'],
+      ],
+    },
+  ],
+
+  // ---------------------------------------------------------------- SUZAN --
+  suzan: [
+    {
+      id: 'festival', rotulo: 'Como vai o festival do bairro?', reacao: 'gosta',
+      variacoes: [
+        ['Vai virar realidade. Imagine a quadra com palco baixo, luz lateral, e o pessoal sentado no chao.',
+          'Ja tenho tres apresentacoes confirmadas e nenhum orcamento.'],
+        ['Vai. Estou juntando gente que nunca se falou: a Clara, a Helena, o Vitor.',
+          'Quando junta, aparece programacao.'],
+        ['Vai bem. Hoje eu marquei onde o palco encaixa. Cabe.'],
+      ],
+    },
+    {
+      id: 'video', rotulo: 'Voce filma as manobras da Helena?', reacao: 'gosta',
+      variacoes: [
+        ['Filmo. Camera baixa, no nivel do chao, acompanhando o eixo dela.',
+          'Ela ve o video e corrige sozinha. Eu so aponto a camera.'],
+        ['Filmo. E o melhor material que eu tenho, e nem e trabalho.'],
+      ],
+    },
+    {
+      id: 'danca', rotulo: 'Voce danca?', reacao: 'neutro',
+      variacoes: [
+        ['Danco. Mal, mas com convicao.'],
+        ['Danco. E como producao: alguem tem que marcar o primeiro passo.'],
+      ],
+    },
+    {
+      id: 'renda_irregular', rotulo: 'Da pra viver de projeto avulso?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Da. Alguns meses da muito bem e alguns meses nao da nada.',
+          'Eu prefiro nao fazer essa conta em voz alta.'],
+        ['Da. E a pergunta que meu pai faz todo Natal, se serve de resposta.'],
+      ],
+    },
+  ],
+
+  // ---------------------------------------------------------------- LUCAS --
+  lucas: [
+    {
+      id: 'biblioteca', rotulo: 'Como e trabalhar na biblioteca?', reacao: 'gosta',
+      variacoes: [
+        ['E excelente. Perdao — e bom. Eu fico formal quando estou animado.',
+          'A Clara me ensinou a catalogar. Eu descobri que gosto disso mais do que de ler.'],
+        ['Gosto muito. Silencio, ordem e gente entrando pra procurar coisa.'],
+        ['Bom. Hoje catalogei setenta e um volumes. Numero exato, eu conto.'],
+      ],
+    },
+    {
+      id: 'arquivologia', rotulo: 'Voce quer estudar arquivologia?', reacao: 'gosta',
+      variacoes: [
+        ['Quero. E a distancia, o que resolve o problema de eu morar aqui.',
+          'A Clara disse que ela assina a carta de recomendacao. Eu ainda nao pedi.'],
+        ['Quero. Sei que parece assunto arido. Nao e.'],
+      ],
+    },
+    {
+      id: 'aves', rotulo: 'Voce observa passaros?', reacao: 'neutro',
+      variacoes: [
+        ['Observo. Da janela do acervo passa bem-te-vi todo dia as sete.'],
+        ['Observo. E ficcao cientifica. Sao os dois hobbies e eu nao sei explicar a ligacao.'],
+      ],
+    },
+    {
+      id: 'de_fora', rotulo: 'Voce nao e daqui, ne?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Nao sou.',
+          'Faz dois anos. Ainda me perguntam isso, o que responde a sua pergunta seguinte.'],
+        ['Nao. Minha familia esta em outra cidade.',
+          'Eu tento nao ficar pensando nisso, e ai alguem pergunta.'],
+      ],
+    },
+  ],
+
+  // ---------------------------------------------------------------- TULIO --
+  tulio: [
+    {
+      id: 'servicos', rotulo: 'Voce faz que tipo de servico?', reacao: 'gosta',
+      variacoes: [
+        ['Quase tudo. Telhado, tomada, dobradica, portao emperrado.',
+          'Uma vez eu consertei uma bomba d agua com um pedaco de mangueira de jardim. Durou dois anos.'],
+        ['O que aparecer. E ja apareceu de tudo.',
+          'Semana passada foi uma cadeira de balanco que balancava de um lado so.'],
+        ['Pequeno reparo. Coisa que ninguem quer chamar profissional pra fazer.'],
+      ],
+    },
+    {
+      id: 'marcenaria', rotulo: 'Voce quer montar uma marcenaria?', reacao: 'gosta',
+      variacoes: [
+        ['De reparo, nao de movel novo. Tem diferenca.',
+          'O Bruno me consegue madeira de sobra na madeireira. O resto e bancada e tempo.'],
+        ['Quero. Restaurar movel velho e melhor negocio do que fazer barato.'],
+      ],
+    },
+    {
+      id: 'pesca', rotulo: 'Voce pesca?', reacao: 'neutro',
+      variacoes: [
+        ['Domingo, com o Joao. A gente pesca pouco e conversa muito.'],
+        ['Pesco. E o unico lugar em que eu fico calado.'],
+      ],
+    },
+    {
+      id: 'emprego_fixo', rotulo: 'Nunca pensou em pegar um emprego fixo?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Pensei. Muito.',
+          'Eu tenho oficio, tenho nome na cidade e nao tenho carteira assinada. Nao gosto de explicar isso.'],
+        ['Todo mes eu penso. Nao precisa me lembrar.'],
+      ],
+    },
+  ],
+  // ----------------------------------------------------------------- JOAO --
+  joao: [
+    {
+      id: 'plantacao', rotulo: 'Como esta a plantacao?', reacao: 'gosta',
+      variacoes: [
+        ['De pe. Milho adiantado, feijao atrasado, e o tomate decidindo.',
+          'Se voce quiser levar alguma coisa, eu separo antes de a gente conversar.'],
+        ['Boa. Chuva veio na semana certa este ano, o que e sorte, nao competencia.'],
+        ['Vai indo. Colheita pequena sabado, pra feira.'],
+      ],
+    },
+    {
+      id: 'diversificar', rotulo: 'Voce pensa em plantar outras coisas?', reacao: 'gosta',
+      variacoes: [
+        ['Penso. Uma coisa que aguente seca e uma que aguente agua demais.',
+          'Nao da mais pra apostar tudo numa cultura so. O tempo mudou de jeito.'],
+        ['Penso. A Priscila fez a conta e disse que compensa. Ela costuma estar certa.'],
+      ],
+    },
+    {
+      id: 'radio', rotulo: 'Voce escuta radio na lida?', reacao: 'neutro',
+      variacoes: [
+        ['Escuto. Noticia de manha e musica de tarde.'],
+        ['Escuto. Previsao do tempo, principalmente. Erram bastante.'],
+      ],
+    },
+    {
+      id: 'maquina_nova', rotulo: 'Nao seria mais facil mecanizar tudo?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Mais facil pra quem vende a maquina.',
+          'Eu conheco esta terra hectare por hectare. Nao vou trocar isso por um manual.'],
+        ['Ja me falaram. Ja disse nao.',
+          'Nao e teimosia. E que aqui a conta nao fecha.'],
+      ],
+    },
+  ],
+
+  // ---------------------------------------------------------------- NEIDE --
+  neide: [
+    {
+      id: 'conservas', rotulo: 'Voce faz conserva?', reacao: 'gosta',
+      variacoes: [
+        ['Faco. Pimenta, pepino, jilo e uma geleia de umbu que sai bem.',
+          'Vinte vidros por semana. Vendo no mercado, pela Jaqueline.'],
+        ['Faco. E o que transforma o excesso da colheita em dinheiro de mes seguinte.'],
+        ['Faco, sim. Hoje foi dia de esterilizar vidro. Cozinha inteira quente.'],
+      ],
+    },
+    {
+      id: 'marca_propria', rotulo: 'Voce queria ter uma marca?', reacao: 'gosta',
+      variacoes: [
+        ['Queria. Rotulo com nome, nao com fita crepe.',
+          'Quem compra uma vez volta. So nao sabe como me achar de novo.'],
+        ['Queria. A Suzan disse que faz o rotulo. Eu ainda estou decidindo o nome.'],
+      ],
+    },
+    {
+      id: 'ervas', rotulo: 'Voce entende de erva medicinal?', reacao: 'neutro',
+      variacoes: [
+        ['Entendo o basico. Boldo, erva-cidreira, hortela.',
+          'Nao substituo farmacia. Antes que alguem entenda errado.'],
+        ['Um pouco. A Rita me ensinou mais do que eu ensinei ela.'],
+      ],
+    },
+    {
+      id: 'joao_cansado', rotulo: 'O Joao aguenta esse ritmo?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Ele diz que aguenta.',
+          'Ele levanta as quatro e nao conta quando as costas travam. Eu conto.'],
+        ['Voce percebeu tambem, entao.',
+          'Nao fale com ele sobre isso. Ele fecha.'],
+      ],
+    },
+  ],
+
+  // ------------------------------------------------------------- PRISCILA --
+  priscila: [
+    {
+      id: 'cooperativa', rotulo: 'Como estao as contas da cooperativa?', reacao: 'gosta',
+      variacoes: [
+        ['Fechadas no dia dez, como todo mes.',
+          'Doze produtores, quatro atrasados, nenhum inadimplente. E um bom numero.'],
+        ['Em ordem. E raro alguem perguntar, entao obrigada.',
+          'A margem melhorou dois pontos desde que a Neide passou a rotular.'],
+        ['Boas. Fechei hoje de manha.'],
+      ],
+    },
+    {
+      id: 'estudio', rotulo: 'Voce quer construir um estudio no campo?', reacao: 'gosta',
+      variacoes: [
+        ['Quero. Um quarto com porta e uma mesa. Nao preciso de mais.',
+          'Eu trabalho de casa e a casa e de tres pessoas. A conta e simples.'],
+        ['Quero. Ja tenho o orcamento em planilha, com tres cenarios.'],
+      ],
+    },
+    {
+      id: 'corrida', rotulo: 'Voce corre?', reacao: 'neutro',
+      variacoes: [
+        ['Corro. Estrada de terra, seis quilometros, sem fone.'],
+        ['Corro de manha. E o unico numero do meu dia que nao e de outra pessoa.'],
+      ],
+    },
+    {
+      id: 'casa_cheia', rotulo: 'E bom morar com seu irmao e sua cunhada?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Eles sao otimos. A casa e pequena.',
+          'Sao coisas diferentes, e eu prefiro nao detalhar.'],
+        ['E bom. Nao ter uma porta pra fechar nao e.'],
+      ],
+    },
+  ],
+
+  // ---------------------------------------------------------------- BRUNO --
+  bruno: [
+    {
+      id: 'madeireira', rotulo: 'Como vai a madeireira?', reacao: 'gosta',
+      variacoes: [
+        ['Vai. Serra afiada, equipe inteira e nenhum dedo a menos este ano.',
+          'Se precisar de madeira pra ampliar aquela casa, o balcao e aqui.'],
+        ['Bem. Entrou pedido grande na terca. Deu conta.'],
+        ['Vai. Falo alto porque a serra fica ligada o dia todo. Nao e comigo.'],
+      ],
+    },
+    {
+      id: 'seguranca', rotulo: 'A serra nao e perigosa?', reacao: 'gosta',
+      variacoes: [
+        ['E. E por isso que tem regra e a regra vale pra mim tambem.',
+          'Quem trabalha comigo volta pra casa inteiro. Isso nao e negociavel.'],
+        ['Muito. Eu treino todo mundo duas vezes: quando entra e quando relaxa.'],
+      ],
+    },
+    {
+      id: 'entalhe', rotulo: 'Voce entalha madeira?', reacao: 'neutro',
+      variacoes: [
+        ['Entalho. Coisa pequena, em casa, depois do turno.'],
+        ['Entalho. E o oposto do trabalho: aqui eu corto rapido, la eu corto devagar.'],
+      ],
+    },
+    {
+      id: 'modernizar', rotulo: 'Maquina nova nao dispensaria gente?', reacao: 'nao_gosta',
+      variacoes: [
+        ['Nao na minha.',
+          'Se a maquina chegar e alguem sair, eu nao troco. Ponto.'],
+        ['E o que todo mundo assume, e me irrita.',
+          'Eu quero modernizar sem demitir. E possivel. Da mais trabalho.'],
+      ],
+    },
+  ],
 };
 
 /** Hash inteiro -> [0,1). Mesma avalanche usada pelo quadro de vagas. */
@@ -1200,6 +2096,30 @@ const JA_CONVERSOU: Record<string, string> = {
   luke: 'De novo?! Ta, pode falar.',
   hiago: 'Ja trocamos ideia hoje, mas fala ai.',
   vitor: 'A gente ja conversou. Tudo bem, manda.',
+  livia: 'Ja conversamos hoje. Mas pode falar.',
+  matheus: 'De novo? Tudo bem. Fala.',
+  cecilia: 'Voce voltou! Eu tenho mais pergunta.',
+  clara: 'A gente ja falou hoje. Sem problema.',
+  lucia: 'Oi de novo! (eu nao me importo) (nunca)',
+  caio: 'Ja falamos. Pode falar mais.',
+  helena: 'Voce nao cansa, ne.',
+  julia: 'Ja te vi hoje. Segunda parada, entao.',
+  arthur: 'Voce voltou pro clube?',
+  rita: 'Volta sempre, filho. Senta.',
+  roberto: 'Hoje ja teve conversa. Mas eu tenho tempo.',
+  ilda: 'Ja conversamos, mas repetir nao faz mal a ninguem.',
+  ravi: 'A gente ja falou. Tudo bem.',
+  davi: 'De novo? Ta. Fala.',
+  samanta: 'Voce ja passou aqui! Senta.',
+  manuela: 'OUTRA VEZ! Oi!',
+  rafael: 'A gente ja falou hoje. Manda de novo.',
+  suzan: 'De novo, otimo. Eu adoro repetir ideia.',
+  lucas: 'Nos ja conversamos hoje. Ainda assim, pois nao.',
+  tulio: 'Ja falamos, mas eu nao terminei o causo.',
+  joao: 'Ja conversamos. O dia e longo.',
+  neide: 'Ja falamos hoje. Pode falar.',
+  priscila: 'Segunda conversa no mesmo dia. Anotado.',
+  bruno: 'Ja falamos. Fala de novo, entao.',
 };
 
 export function falaJaConversou(npcId: string): string {

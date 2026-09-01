@@ -6,7 +6,7 @@
  "tileheight": 32,
  "infinite": false,
  "nextlayerid": 5,
- "nextobjectid": 3446,
+ "nextobjectid": 4201,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -15,222 +15,222 @@
  "layers": [
   {
    "data": [
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175,
-    175
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199,
+    199
    ],
    "height": 12,
    "id": 1,
@@ -451,7 +451,7 @@
     130,
     130,
     130,
-    196,
+    225,
     130,
     130,
     130,
@@ -481,7 +481,7 @@
      "type": "porta",
      "height": 32,
      "width": 32,
-     "id": 3445,
+     "id": 4200,
      "name": "porta_saida",
      "rotation": 0,
      "visible": true,
@@ -528,7 +528,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3430,
+     "id": 4185,
      "name": "movel_academia_0",
      "rotation": 0,
      "visible": true,
@@ -568,7 +568,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3431,
+     "id": 4186,
      "name": "movel_academia_1",
      "rotation": 0,
      "visible": true,
@@ -608,7 +608,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3432,
+     "id": 4187,
      "name": "movel_academia_2",
      "rotation": 0,
      "visible": true,
@@ -648,7 +648,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3433,
+     "id": 4188,
      "name": "movel_academia_3",
      "rotation": 0,
      "visible": true,
@@ -688,7 +688,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3434,
+     "id": 4189,
      "name": "movel_academia_4",
      "rotation": 0,
      "visible": true,
@@ -728,7 +728,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3435,
+     "id": 4190,
      "name": "movel_academia_5",
      "rotation": 0,
      "visible": true,
@@ -768,7 +768,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3436,
+     "id": 4191,
      "name": "movel_academia_6",
      "rotation": 0,
      "visible": true,
@@ -808,7 +808,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3437,
+     "id": 4192,
      "name": "movel_academia_7",
      "rotation": 0,
      "visible": true,
@@ -848,7 +848,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3438,
+     "id": 4193,
      "name": "movel_academia_8",
      "rotation": 0,
      "visible": true,
@@ -888,7 +888,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3439,
+     "id": 4194,
      "name": "movel_academia_9",
      "rotation": 0,
      "visible": true,
@@ -928,7 +928,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3440,
+     "id": 4195,
      "name": "movel_academia_10",
      "rotation": 0,
      "visible": true,
@@ -968,7 +968,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3441,
+     "id": 4196,
      "name": "movel_academia_11",
      "rotation": 0,
      "visible": true,
@@ -1008,7 +1008,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3442,
+     "id": 4197,
      "name": "movel_academia_12",
      "rotation": 0,
      "visible": true,
@@ -1048,7 +1048,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3443,
+     "id": 4198,
      "name": "movel_academia_13",
      "rotation": 0,
      "visible": true,
@@ -1088,7 +1088,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 3444,
+     "id": 4199,
      "name": "movel_academia_14",
      "rotation": 0,
      "visible": true,
@@ -1132,15 +1132,15 @@
  ],
  "tilesets": [
   {
-   "columns": 197,
+   "columns": 226,
    "firstgid": 1,
    "image": "../tilesets/terrain.png",
-   "imagewidth": 6304,
+   "imagewidth": 7232,
    "imageheight": 32,
    "margin": 0,
    "spacing": 0,
    "name": "terrain",
-   "tilecount": 197,
+   "tilecount": 226,
    "tilewidth": 32,
    "tileheight": 32,
    "tiles": [
@@ -2115,7 +2115,7 @@
      ]
     },
     {
-     "id": 185,
+     "id": 159,
      "properties": [
       {
        "name": "collides",
@@ -2125,7 +2125,7 @@
      ]
     },
     {
-     "id": 186,
+     "id": 160,
      "properties": [
       {
        "name": "collides",
@@ -2135,7 +2135,7 @@
      ]
     },
     {
-     "id": 188,
+     "id": 161,
      "properties": [
       {
        "name": "collides",
@@ -2145,7 +2145,7 @@
      ]
     },
     {
-     "id": 194,
+     "id": 162,
      "properties": [
       {
        "name": "collides",
@@ -2155,7 +2155,277 @@
      ]
     },
     {
-     "id": 196,
+     "id": 163,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 164,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 165,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 166,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 167,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 168,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 169,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 170,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 171,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 172,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 173,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 174,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 175,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 176,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 177,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 178,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 179,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 180,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 181,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 182,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 209,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 210,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 212,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 219,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 221,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 222,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 223,
+     "properties": [
+      {
+       "name": "collides",
+       "type": "bool",
+       "value": true
+      }
+     ]
+    },
+    {
+     "id": 225,
      "properties": [
       {
        "name": "collides",

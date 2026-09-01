@@ -14,7 +14,15 @@ export type TipoInteragivel =
   /** bancada da oficina: abre o catalogo de MOBILIA da casa */
   | 'mobilia'
   /** placa de projeto urbano: construir predio e atribuir trabalhador */
-  | 'obra';
+  | 'obra'
+  /** painel de enigma da represa: quadro, sinoptico, mesa de comportas */
+  | 'painel'
+  /** recipiente de salvado da represa: caixa, armario, gaveta, cofre */
+  | 'sucata'
+  /** caixa de despacho da oficina: revende o salvado da represa */
+  | 'revenda'
+  /** cabine do elevador de servico da represa: abre o menu de paradas */
+  | 'elevador';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
 export type TipoZona =
@@ -35,7 +43,10 @@ export type TipoZona =
   // Mapa 3 — Zona Rural
   | 'madeireira'
   | 'pedreira'
-  | 'fazenda';
+  | 'fazenda'
+  // Mapa 4 — Estrada da Represa
+  | 'represa'
+  | 'mirante';
 
 /**
  * O que a construcao do lote É, independente de como ela se chama:
@@ -105,6 +116,18 @@ export interface ZonaReservada {
 /** O que a UI precisa saber da cena de mundo, sem depender da classe dela. */
 export interface MundoJogavel {
   interagir(): void;
+  /** equipa um item do inventario, respeitando a zona do mapa atual */
+  equiparItem(id: string): void;
+  desequiparItem(id: string): void;
+  /** aplica a acao de USO de um item; a UI e quem consome a unidade */
+  usarItemDoInventario(id: string): {
+    ok: boolean;
+    consumiu: boolean;
+    aviso: string;
+    cor?: string;
+  };
+  /** true quando o clique esquerdo esta servindo pra atirar, e nao pra interagir */
+  mirandoComArma(): boolean;
 }
 
 /** Um bloco de fala do dialogo. */

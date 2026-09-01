@@ -6,6 +6,7 @@ import type { SpriteNpc } from '../game/npcs';
 import { NPCS } from '../game/npcs';
 import { MORADORES } from '../game/moradores';
 import { carregar } from '../game/save';
+import { CATALOGO_INIMIGOS } from '../game/inimigos';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
 const PLAYER_RECORTE = {
@@ -38,8 +39,14 @@ export class BootScene extends Phaser.Scene {
     // tileset: a key ('tiles-terrain') e o que o Phaser usa;
     // o nome do tileset dentro do JSON do Tiled e 'terrain' (ver FarmScene).
     this.load.image('tiles-terrain', 'assets/tilesets/terrain.png');
-    // um tilemap por entrada de MAPAS: nao ha lista pra manter em dois lugares
+    // Um tilemap por entrada de MAPAS: nao ha lista pra manter em dois lugares.
+    //
+    // Fora os marcados `sobDemanda` — os quarenta e cinco andares novos da
+    // represa. Somados eles passam de um megabyte de JSON, e carregar tudo no
+    // boot atrasaria a abertura pra quem nunca desceu na usina. Quem os busca e a
+    // cena de mundo, ao chegar no andar (ver `garantirTilemap` na FarmScene).
     for (const def of Object.values(MAPAS)) {
+      if (def.sobDemanda) continue;
       this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo);
     }
 
@@ -97,11 +104,35 @@ export class BootScene extends Phaser.Scene {
     this.load.json('mobilia', 'assets/sprites/mobilia.json');
 
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
+    // Folha GENERICA de segurar item, ja regravada na geometria das outras tres
+    // por tools/processar-sprites-jogador.mjs — mesma celula de 200x320, mesmo
+    // centro, mesmos pes. O par dela e `maos_jogador.json`, com o ponto de
+    // presa medido em cada pose.
+    this.load.image('player-hold-sprites', 'assets/sprites/player_segurando_runtime.png');
+    this.load.json('maos-jogador', 'assets/sprites/maos_jogador.json');
+    // O que o jogador SEGURA e o que ele DISPARA, mais as lampadas da usina.
+    // Atlas a parte do de icone (`itens`) porque estes sao sprites de mundo e
+    // precisam de ponto de ancoragem — ver tools/gerar-equipamento.mjs.
+    this.load.atlas(
+      'equipamento',
+      'assets/sprites/equipamento.png',
+      'assets/sprites/equipamento.atlas.json',
+    );
+    this.load.json('equipamento-ancoras', 'assets/sprites/equipamento.ancoras.json');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
     for (const npc of [...Object.values(NPCS), ...Object.values(MORADORES)]) {
       if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
       if (npc.spriteParado) this.load.image(`npc-${npc.id}-parado`, npc.spriteParado.arquivo);
+    }
+
+    // Monstros eletronicos da represa. As folhas saem de
+    // tools/processar-sprites-monstro.mjs no MESMO formato 4x4 das de NPC — e
+    // por isso elas passam pelo mesmo `recortarFolhaNpc` logo abaixo, sem um
+    // segundo caminho de sprite no jogo.
+    for (const id of Object.keys(CATALOGO_INIMIGOS)) {
+      this.load.image(`monstro-${id}-sprites`, `assets/sprites/${id}_andando_runtime.png`);
+      this.load.image(`monstro-${id}-parado`, `assets/sprites/${id}_parado_runtime.png`);
     }
   }
 
@@ -109,8 +140,10 @@ export class BootScene extends Phaser.Scene {
     this.criarFramesPlayer('idle');
     this.criarFramesPlayer('walk');
     this.criarFramesPlayer('run');
+    this.criarFramesDeSegurar();
     this.criarAnimacoes();
     this.criarSpritesNpcs();
+    this.criarSpritesMonstros();
     const inicio = this.aplicarSave();
 
     // a UI roda em paralelo, por cima do mundo, na resolucao base (sem zoom).
@@ -146,6 +179,15 @@ export class BootScene extends Phaser.Scene {
     estado.worldEvents.restaurar(save.worldEvents);
     estado.missoesNpc.restaurar(save.missoesNpc);
     estado.cidade.restaurar(save.cidade);
+    estado.vida.restaurar(save.vida);
+    estado.represa.restaurar(save.represa);
+    estado.equipamento.restaurar(save.equipamento);
+    estado.armas.restaurar(save.armas);
+    estado.arquivo.restaurar(save.arquivo);
+    // O item pode ter saido do inventario por outro caminho (venda, descarte)
+    // entre gravar e carregar; sem esta linha o save traria uma arma equipada
+    // que nao esta mais na mochila.
+    estado.equipamento.sincronizarCom((id) => estado.inventario.contar(id));
     estado.itensColetados = new Set(
       Array.isArray(save.itensColetados)
         ? save.itensColetados.filter((id): id is string => typeof id === 'string')
@@ -157,6 +199,31 @@ export class BootScene extends Phaser.Scene {
         ` ${estado.carteira.texto}`,
     );
     return { mapa: mapa.chave, x: save.x, y: save.y };
+  }
+
+  /**
+   * Recortes da folha de SEGURAR. Diferente das outras tres do jogador, esta ja
+   * vem em grade uniforme (o processador a regravou assim), entao o recorte e
+   * uma multiplicacao — nao ha coluna medida a mao aqui.
+   *
+   * A ordem das LINHAS e a mesma do `PLAYER_RECORTE`: baixo, esquerda, direita,
+   * cima.
+   */
+  private criarFramesDeSegurar(): void {
+    const textura = this.textures.get('player-hold-sprites');
+    const linhas = ['down', 'left', 'right', 'up'];
+    linhas.forEach((direcao, linha) => {
+      for (let coluna = 0; coluna < 4; coluna++) {
+        textura.add(
+          `${direcao}-${coluna}`,
+          0,
+          coluna * PLAYER_FRAME.largura,
+          linha * PLAYER_FRAME.altura,
+          PLAYER_FRAME.largura,
+          PLAYER_FRAME.altura,
+        );
+      }
+    });
   }
 
   private criarAnimacoes(): void {
@@ -185,6 +252,20 @@ export class BootScene extends Phaser.Scene {
       this.anims.create({
         key: `idle-${key}`,
         frames: [{ key: PLAYER_RECORTE.idle.textura, frame: `${key}-0` }],
+        frameRate: 1,
+      });
+      // As mesmas duas na folha de SEGURAR. Nao ha `seg-run`: correr segurando
+      // uma pistola nao tem arte, e a cena cai em `seg-walk` (ver
+      // `MaoDoJogador.animacaoDoCorpo`).
+      this.anims.create({
+        key: `seg-walk-${key}`,
+        frames: [0, 1, 2, 3].map((i) => ({ key: 'player-hold-sprites', frame: `${key}-${i}` })),
+        frameRate: 8,
+        repeat: -1,
+      });
+      this.anims.create({
+        key: `seg-idle-${key}`,
+        frames: [{ key: 'player-hold-sprites', frame: `${key}-0` }],
         frameRate: 1,
       });
     }
@@ -237,6 +318,43 @@ export class BootScene extends Phaser.Scene {
         this.anims.create({
           key: `npc-${npc.id}-idle-${direcao}`,
           frames: [(parado?.[direcao] ?? frames)[0]],
+          frameRate: 1,
+        });
+      }
+    }
+  }
+
+  /**
+   * Recortes e animacoes dos monstros. Identico ao dos NPCs, com o prefixo
+   * `monstro-` em vez de `npc-`: as duas folhas ja saem do mesmo processador,
+   * na mesma grade 4x4 e na mesma ordem de direcao.
+   */
+  private criarSpritesMonstros(): void {
+    const folha: SpriteNpc = {
+      arquivo: '',
+      colunas: 4,
+      linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    };
+    for (const id of Object.keys(CATALOGO_INIMIGOS)) {
+      const andando = this.recortarFolhaNpc(`monstro-${id}-sprites`, folha);
+      const parado = this.recortarFolhaNpc(`monstro-${id}-parado`, folha);
+      for (const [direcao, quadros] of Object.entries(andando)) {
+        this.anims.create({
+          key: `monstro-${id}-walk-${direcao}`,
+          frames: quadros,
+          // um pouco mais lento que o passo humano: maquina se move em cadencia
+          frameRate: 7,
+          repeat: -1,
+        });
+        this.anims.create({
+          key: `monstro-${id}-idle-${direcao}`,
+          frames: [(parado[direcao] ?? quadros)[0]],
           frameRate: 1,
         });
       }

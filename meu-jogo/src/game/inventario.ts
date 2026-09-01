@@ -7,14 +7,30 @@ import type { CategoriaItem } from './itens.ts';
  * vem (prateleira do mercado x prateleira de eletronico) e decide a faixa de
  * preco; tipo e o que ele FAZ na mao do jogador.
  */
-export type TipoItem = 'componente' | 'consumivel' | 'eletronico' | 'ferramenta' | 'material' | 'outro';
+export type TipoItem =
+  | 'componente'
+  | 'consumivel'
+  | 'eletronico'
+  | 'ferramenta'
+  | 'material'
+  /** arma de fogo ou de golpe; equipavel na MAO (ver equipar.ts) */
+  | 'arma'
+  /** cartucho; nao se equipa, se gasta ao recarregar */
+  | 'municao'
+  /** cracha, chave, cartao: abre porta e nao se destroi */
+  | 'acesso'
+  | 'outro';
 
 /** Ordem em que `Inventario.organizar()` agrupa os tipos. */
 export const ORDEM_DE_TIPO: readonly TipoItem[] = [
+  // arma e municao primeiro: sao o que se procura com pressa
+  'arma',
+  'municao',
   'consumivel',
+  'acesso',
+  'ferramenta',
   'eletronico',
   'componente',
-  'ferramenta',
   'material',
   'outro',
 ];
@@ -103,6 +119,43 @@ const COR_DE_CATEGORIA: Record<CategoriaItem, number> = {
   normal: 0x9ad27f,
   eletronico: 0x7fa8d9,
   material: 0xa79d8c,
+  sucata: 0x8f8578,
+  utilidade: 0x9c8f7a,
+  remedio: 0xd98f8f,
+};
+
+/**
+ * TIPO a partir da categoria. Categoria e a prateleira de onde o item vem; tipo
+ * e o que ele faz na mao do jogador — ver o comentario de `TipoItem`.
+ *
+ * `utilidade` cai em `ferramenta` como padrao e as excecoes saem por
+ * `TIPO_MANUAL`: a categoria junta chave inglesa, lanterna, pistola, cartucho e
+ * cracha, que fazem cinco coisas diferentes.
+ */
+const TIPO_DE_CATEGORIA: Record<CategoriaItem, TipoItem> = {
+  normal: 'consumivel',
+  material: 'material',
+  // Salvado e COMPONENTE e nao eletronico: ele nao se usa nem se liga — ele
+  // entra em bancada ou vai pra revenda.
+  sucata: 'componente',
+  eletronico: 'eletronico',
+  utilidade: 'ferramenta',
+  remedio: 'consumivel',
+};
+
+/**
+ * Tipo fixado a mao, sobrepondo o da categoria.
+ *
+ * Fica aqui e nao em `COMPORTAMENTOS` (equipar.ts) por uma razao de dependencia:
+ * `equipar.ts` importa este arquivo, e importar de volta fecharia um ciclo em
+ * que `ITENS` seria montado antes de a tabela de comportamentos existir.
+ */
+const TIPO_MANUAL: Record<string, TipoItem> = {
+  pistola: 'arma',
+  chave_inglesa: 'arma',
+  municao_pistola: 'municao',
+  cartao_acesso_usina: 'acesso',
+  lanterna_manutencao: 'ferramenta',
 };
 
 /**
@@ -122,7 +175,7 @@ export const ITENS: Record<string, DefinicaoItem> = (() => {
       nome: item.nome,
       descricao: item.descricao,
       // comida e bebida se usam; materiais e eletronicos mantem tipo proprio
-      tipo: item.categoria === 'normal' ? 'consumivel' : item.categoria === 'material' ? 'material' : 'eletronico',
+      tipo: TIPO_MANUAL[item.id] ?? TIPO_DE_CATEGORIA[item.categoria],
       maxPilha: item.maxPilha,
       frame: item.frame,
       icone: item.icone ?? COR_DE_CATEGORIA[item.categoria],

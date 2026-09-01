@@ -14,6 +14,13 @@ import { FOLHAS_DE_MOVEL } from '../src/game/moveis.ts';
 import { CATALOGO_MOBILIA } from '../src/game/casa.ts';
 import { PROJETOS_CIDADE } from '../src/game/cidade.ts';
 import {
+  ANDARES,
+  ANDARES_COMPOSTOS,
+  escuridaoDoAndar,
+  mapaDoAndar,
+} from '../src/game/andares.ts';
+import { plantasCompostas, DESCIDA_DO_ANDAR_5 } from './andares-represa.mjs';
+import {
   agruparEmLinhas,
   blobs,
   caixaOpaca,
@@ -60,6 +67,11 @@ const FOLHAS = {
   // tinte por cima do mesmo tile.
   grama2: { arquivo: 'Grama_mapa_2.png', cols: 3, rows: 2, limiar: 0, inset: 0.22 },
   grama3: { arquivo: 'Grama_mapa_3.png', cols: 3, rows: 2, limiar: 0, inset: 0.22 },
+  // Grama do Mapa 4. NAO vira tile de chao: as seis celulas sao CENAS compostas
+  // (barranco com poca, cascalho, vertedouro), e ladrilhar uma delas vira
+  // carimbo repetido. Entra so pela celula [2,0] — o vertedouro com guarda-corpo
+  // e queda de agua —, que sai como SPRITE de marco no patio da usina.
+  grama4: { arquivo: 'Grama_mapa_4.png', cols: 3, rows: 2, limiar: 0, inset: 0.22 },
   // estrada/lago: o inset subiu de 0.05 quando o tile foi pra 32 px. A arte tem
   // franja colorida na beirada de cada celula; em 16 px ela sumia na media do
   // downscale, em 32 resolve como pontinhos claros e o tile vira grade.
@@ -543,6 +555,23 @@ const FOLHAS_PAINEL = {
   // madeireira e a central telefonica, que nao tem folha de ramo propria.
   predio: { arquivo: 'PAredes_predio.png', modo: 'grade', fundoPreto: true, paineis: 3, porLinha: 6 },
   bar: { arquivo: 'Paredes_bar.png', modo: 'grade', fundoPreto: true, paineis: 3, porLinha: 6 },
+  // ------------------------------------------------ folhas da represa --
+  // As duas vieram sobre preto chapado e com as pecas se ENCOSTANDO na
+  // horizontal, entao vao por `blobs` (a projecao acha uma coluna so). `paineis`
+  // e 1 nas duas porque so a PRIMEIRA linha e homogenea: nas outras a folha
+  // mistura painel com placa, tubulacao, armario e porta, cada linha com uma
+  // contagem propria. O que vem depois da linha 0 e endereçado a dedo pelos
+  // estilos abaixo, e `caixaDePainel` erra alto se o endereco nao existir.
+  represa: {
+    arquivo: 'PAredes_internas_represa.png',
+    modo: 'blobs', fundoPreto: true, areaMinima: 1500, tolerancia: 55,
+    linhas: 7, paineis: 1, porLinha: 7,
+  },
+  represa_fachada: {
+    arquivo: 'Represa.png',
+    modo: 'blobs', fundoPreto: true, areaMinima: 1500, tolerancia: 55,
+    linhas: 5, paineis: 2, porLinha: 6,
+  },
 };
 
 /** Faixa detectada por projecao mais estreita que isto e sujeira, nao painel. */
@@ -733,6 +762,19 @@ const ESTILOS_PAREDE = {
   predio: ['predio', [0, 0]],
   // concreto rachado: a parede do comodo de OFICINA, que le como puxadinho
   predio_gasto: ['predio', [1, 1]],
+  // --- setores da represa: um estilo por profundidade ---
+  // Concreto limpo com faixa azul institucional: o nivel 0, que ainda esta
+  // conservado. A partir dai a parede vai piorando junto com o setor.
+  represa_faixa: ['represa', [0, 1]],
+  represa_limpo: ['represa', [0, 0]],
+  // azulejo tecnico da manutencao
+  represa_tecnico: ['represa', [0, 2]],
+  // tubulacao aparente: a galeria das turbinas
+  represa_tubos: ['represa', [3, 0]],
+  // painel rachado, das galerias inferiores
+  represa_gasto: ['represa', [4, 5]],
+  // azulejo escuro do setor profundo
+  represa_escuro: ['represa', [0, 4]],
 };
 
 const TILES_DE_PAREDE = Object.entries(ESTILOS_PAREDE).flatMap(([nome, [folha, painel, faixas]]) =>
@@ -1221,6 +1263,69 @@ const TILES = [
       im.rect(ox, 7, T_ARTE, 2, [236, 232, 222]);
     }),
   },
+  // ------------------------------------------------ Mapa 4: a represa --
+  // Cinco tiles pintados que a pasta de arte nao cobre. `Represa.png` e
+  // `PAredes_internas_represa.png` resolvem PAINEL (elevacao frontal), que e o
+  // que vira fachada e parede de interior; o que falta e chao e obstaculo em
+  // planta baixa, e pra isso nao ha arte.
+  {
+    // Pavimento de concreto do patio da usina. Nao colide: e piso.
+    nome: 'CONCRETO_PATIO',
+    px: pintado((im, ox, s) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [150, 150, 146]);
+      salpico(im, ox, s, [162, 162, 158], 0.8);
+      salpico(im, ox, s + 7, [136, 136, 132], 0.86);
+      im.rect(ox, 0, T_ARTE, 1, [122, 122, 118]); // junta de dilatacao
+      im.rect(ox, 0, 1, T_ARTE, [122, 122, 118]);
+    }),
+  },
+  {
+    // Corpo da BARRAGEM: concreto macico com junta vertical marcada. Colide.
+    nome: 'BARRAGEM',
+    colide: true,
+    px: pintado((im, ox, s) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [166, 166, 162]);
+      salpico(im, ox, s, [178, 178, 174], 0.82);
+      im.rect(ox + 3, 0, 1, T_ARTE, [132, 132, 128]);
+      im.rect(ox + 8, 0, 1, T_ARTE, [138, 138, 134]);
+      im.rect(ox + 13, 0, 1, T_ARTE, [132, 132, 128]);
+      im.rect(ox, 0, T_ARTE, 2, [196, 196, 192]); // coroamento claro
+    }),
+  },
+  {
+    // Passarela de GRELHA de aco sobre a casa de forca. Nao colide.
+    nome: 'GRELHA',
+    px: pintado((im, ox) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [88, 92, 96]);
+      for (let y = 1; y < T_ARTE; y += 3) im.rect(ox, y, T_ARTE, 1, [126, 130, 136]);
+      for (let x = 1; x < T_ARTE; x += 5) im.rect(ox + x, 0, 1, T_ARTE, [112, 116, 122]);
+    }),
+  },
+  {
+    // Cerca de TELA de alambrado, com mourao. Colide.
+    nome: 'CERCA_TELA',
+    colide: true,
+    px: pintado((im, ox) => {
+      for (let y = 0; y < T_ARTE; y += 2) {
+        for (let x = (y / 2) % 2; x < T_ARTE; x += 2) im.rect(ox + x, y, 1, 1, [150, 154, 158]);
+      }
+      im.rect(ox, 0, T_ARTE, 1, [104, 108, 112]); // travessa de cima
+      im.rect(ox + 7, 0, 2, T_ARTE, [118, 122, 126]); // mourao
+    }),
+  },
+  {
+    // Barreira de OBRA listrada, para a interdicao da ponta sul do Mapa 1.
+    // Colide, e a listra e o que faz a interdicao ser lida e nao esbarrada.
+    nome: 'BARREIRA_OBRA',
+    colide: true,
+    px: pintado((im, ox) => {
+      im.rect(ox, 0, T_ARTE, T_ARTE, [96, 88, 78]);
+      im.rect(ox, 4, T_ARTE, 8, [232, 148, 40]);
+      for (let x = 0; x < T_ARTE; x += 6) im.rect(ox + x, 4, 3, 8, [242, 240, 234]);
+      im.rect(ox, 3, T_ARTE, 1, [70, 64, 58]);
+      im.rect(ox, 12, T_ARTE, 1, [70, 64, 58]);
+    }),
+  },
   {
     nome: 'PAREDE',
     colide: true,
@@ -1328,6 +1433,7 @@ const MATERIAIS = {
   grama_rural: [0, 1, 2, 3].map((r) => ({ gid: GID[`GRAMA3_0${r}`], peso: 1 })),
   plantacao: [{ gid: GID.PLANTACAO, peso: 1 }],
   cascalho: [{ gid: GID.CASCALHO, peso: 1 }],
+  concreto_patio: [{ gid: GID.CONCRETO_PATIO, peso: 1 }],
   quadra: [{ gid: GID.QUADRA, peso: 1 }],
 };
 
@@ -1404,10 +1510,13 @@ const FAZENDA = { largura: 120, altura: 90 };
  */
 const LARGURA_VIA = 3;
 const VIAS = [
-  // Vai de borda a borda: a ponta OESTE e por onde se sai pro Mapa 2 (ver
-  // `BORDAS`). A ponta leste continua so terminando na mata.
+  // Vai de borda a borda nos DOIS eixos: o Mapa 1 e o centro do mundo, e cada
+  // ponta de avenida e uma saida. Oeste -> Mapa 2, leste -> Mapa 3, norte ->
+  // Mapa 4 (a represa). A ponta SUL fica RESERVADA: a estrada chega na beira,
+  // mas ha uma interdicao de obra no caminho e nenhuma zona de transicao — ver
+  // `INTERDICAO_SUL` e o comentario de `BORDAS`.
   { nome: 'avenida_h', x: 0, y: 45, w: 120, h: 1 },
-  { nome: 'avenida_v', x: 60, y: 3, w: 1, h: 84 },
+  { nome: 'avenida_v', x: 60, y: 0, w: 1, h: 90 },
   { nome: 'anel_norte', x: 22, y: 20, w: 78, h: 1 },
   { nome: 'anel_sul', x: 22, y: 71, w: 78, h: 1 },
   { nome: 'anel_oeste', x: 22, y: 20, w: 1, h: 52 },
@@ -1534,7 +1643,7 @@ const CONSTRUCOES = {
 };
 
 /** Lotes que sao area externa: praca, sem predio e sem interior. */
-const PRACAS = { parque: true, quadra: true };
+const PRACAS = { parque: true, quadra: true, mirante_represa: true };
 
 // ================================================================= MUNDO ==
 // A partir desta leva o jogo tem TRES mapas externos, e nao mais um. O que era
@@ -1751,7 +1860,9 @@ const VIAS_RURAL = [
     [66, 1], [66, 18], [74, 34], [82, 52], [78, 74], [68, 92], [62, 110], [62, 118],
   ]),
   linha('ramal_madeireira', [[82, 52], [104, 46], [122, 42]]),
-  linha('ramal_fazenda', [[74, 34], [48, 30], [26, 38]]),
+  // O ramal da fazenda deixou de morrer no meio do mato: ele segue a oeste ate
+  // a borda, que e por onde se chega do Mapa 1 na topologia nova.
+  linha('ramal_fazenda', [[74, 34], [48, 30], [26, 38], [12, 42], [1, 44]]),
   linha('ramal_pedreira', [[78, 74], [100, 70], [118, 72]]),
 ];
 
@@ -1781,6 +1892,107 @@ const CONSTRUCOES_RURAL = {
   casa_rural_2: { pegada: { w: 6, h: 4 }, estilo: 4, interior: 'casa_rural_2', moradiaNpc: true },
 };
 
+// ------------------------------------------- Mapa 4 — Estrada da Represa --
+/**
+ * Mapa 4 — "Estrada da Represa" / a usina hidroeletrica velha.
+ *
+ * IDENTIDADE. Os tres primeiros mapas sao cidade: malha de rua, lote, morador.
+ * Este e o oposto — uma estrada SO, subindo por dentro da mata de sul pra
+ * norte, sem morador nenhum e com uma unica construcao que abre. Por isso ele e
+ * estreito e comprido (80x140 contra os 120x90 / 140x110 / 150x120), e por isso
+ * a densidade de mata e a maior do jogo: e o corredor que fecha o mundo pelo
+ * norte.
+ *
+ * ELE NAO E UM CORREDOR RETO. A estrada e polilinha e vai tortuosa de proposito
+ * — sete inflexoes ao longo dos 140 tiles, mais dois ramais (o mirante e o
+ * galpao de servico) que saem dela e nao levam a lugar nenhum obrigatorio. O
+ * jogador nao precisa de seta: a estrada e o unico chao batido do mapa.
+ *
+ * COMPOSICAO, de sul pra norte:
+ *
+ *   y 128..139  entrada do Mapa 1, mata fechada
+ *   y 100..128  estrada na mata, duas curvas, entulho e placa velha
+ *   y  88..100  ramal do MIRANTE, a oeste, sobre o rio de jusante
+ *   y  58..70   canal de drenagem atravessando a estrada (PONTE) e o GALPAO
+ *   y  44..58   subestacao desativada e a PORTARIA da usina
+ *   y      40   CERCA de alambrado de ponta a ponta, com um portao unico
+ *   y  33..37   patio de concreto da casa de forca
+ *   y  28..33   CASA DE FORCA — a porta que abre o interior da represa
+ *   y  23..27   corpo da BARRAGEM, atravessando o mapa inteiro
+ *   y   2..22   RESERVATORIO: 78x21 tiles de agua parada
+ *
+ * O reservatorio e intransponivel e o rio de jusante tambem: a unica forma de
+ * chegar na porta e o portao da cerca. `conferirExterno` recebe o miolo do
+ * reservatorio como alvo PROIBIDO, entao um furo na cerca reprova a geracao.
+ */
+const REPRESA = { largura: 80, altura: 140 };
+
+const VIAS_REPRESA = [
+  // estrada principal: entra pela borda sul e sobe torta ate o patio da usina
+  linha('estrada_represa', [
+    [40, 139], [40, 128], [33, 116], [35, 102], [43, 90], [41, 76], [35, 64], [37, 52], [40, 44], [40, 37],
+  ]),
+  // ramal do mirante: sai da estrada e morre na beira do rio de jusante
+  linha('ramal_mirante', [[35, 102], [30, 99], [24, 99]]),
+  // ramal do galpao de servico
+  linha('ramal_galpao', [[41, 76], [52, 73], [60, 72]]),
+];
+
+/** RESERVATORIO: a agua ACIMA da barragem. Larga e parada. */
+const RESERVATORIO = { x: 1, y: 2, w: 78, h: 21 };
+
+/** Corpo da BARRAGEM: faixa de concreto macico atravessando o mapa. */
+const BARRAGEM = { x: 1, y: 23, w: 78, h: 5 };
+
+/**
+ * RIO DE JUSANTE: mais estreito que o reservatorio (10 contra 78 tiles) e
+ * ondulado, pra ler como agua corrente em vez de agua parada. Desce da saida da
+ * barragem ate a borda sul, sempre a oeste da estrada.
+ */
+const RIO_JUSANTE = {
+  x: 10,
+  largura: 10,
+  y0: 28,
+  /** deslocamento lateral do leito, em tiles */
+  onda: (y) => Math.round(2 * Math.sin(y / 9)),
+};
+
+/**
+ * CANAL DE DRENAGEM de concreto, atravessando a estrada. O trecho que cai na
+ * faixa da via vira PONTE — a mesma regra da ponte do Mapa 2, mas derivada da
+ * faixa em vez de uma coluna fixa, porque aqui a estrada e torta.
+ */
+const CANAL_REPRESA = { y: 58, altura: 3, x0: 20, x1: 66 };
+
+/** CERCA da area restrita: fecha o mapa de ponta a ponta, com um portao. */
+const CERCA_REPRESA = { y: 40, x0: 4, x1: 78, portao: { x: 39, w: 3 } };
+
+/** Subestacao desativada: recinto murado sem interior, so ambientacao. */
+const SUBESTACAO_REPRESA = { x: 58, y: 46, w: 10, h: 7 };
+
+/** Cerca caida da antiga area de piquenique, um dos marcos da subida. */
+const CERCA_CAIDA_REPRESA = { x: 44, y: 110, w: 14 };
+
+/** Patio de concreto da casa de forca, entre a porta e a estrada. */
+const PATIO_REPRESA = { x: 28, y: 33, w: 24, h: 4 };
+
+const ZONAS_REPRESA = [
+  // A unica construcao que ABRE no mapa: a casa de forca, no pe da barragem.
+  { nome: 'casa_maquinas', classe: 'represa', uso: 'comercio', x: 30, y: 28, w: 20, h: 7 },
+  // Portaria da usina, ao lado do portao. Predio de pe, porta lacrada.
+  { nome: 'portaria_represa', classe: 'servico', uso: 'vago', x: 46, y: 44, w: 8, h: 6 },
+  // Galpao de servico no ramal leste. Tambem lacrado.
+  { nome: 'galpao_represa', classe: 'servico', uso: 'vago', x: 56, y: 64, w: 10, h: 7 },
+  // Mirante sobre o rio de jusante: area externa, sem predio (como o parque).
+  { nome: 'mirante_represa', classe: 'mirante', uso: 'praca', x: 22, y: 90, w: 10, h: 6 },
+];
+
+const CONSTRUCOES_REPRESA = {
+  casa_maquinas: { pegada: { w: 14, h: 5 }, interior: 'represa_0', comercio: true },
+  portaria_represa: { pegada: { w: 6, h: 4 }, comercio: true, fechada: true },
+  galpao_represa: { pegada: { w: 6, h: 4 }, comercio: true, fechada: true },
+};
+
 // -------------------------------------------------------- registro global --
 /**
  * Os tres mapas externos do jogo. `grama` e o material de chao de cada um (as
@@ -1808,6 +2020,18 @@ const MUNDO = {
     zonas: ZONAS_RURAL,
     construcoes: CONSTRUCOES_RURAL,
   },
+  // Mapa 4. A grama e a do Mapa 1 (`Grama.png`, a mais fechada e umida das
+  // tres folhas) e nao uma quarta: `Grama_mapa_4.png` nao ladrilha — as seis
+  // celulas dela sao CENAS compostas (barranco com poca, cascalho, vertedouro),
+  // e repetir uma delas vira carimbo. A celula do vertedouro entra sim, mas
+  // como SPRITE de marco no patio da usina, nao como tile de chao.
+  represa: {
+    largura: REPRESA.largura,
+    altura: REPRESA.altura,
+    grama: 'grama',
+    zonas: ZONAS_REPRESA,
+    construcoes: CONSTRUCOES_REPRESA,
+  },
 };
 
 /**
@@ -1819,13 +2043,52 @@ const MUNDO = {
  * par exista e que o ponto de chegada de uma caia dentro da outra.
  */
 const BORDAS = [
-  // Mapa 1 <-> Mapa 2, pela ponta oeste da avenida horizontal da fazenda
+  // ------------------------------------------------------------------------
+  // TOPOLOGIA: o Mapa 1 e o CENTRO. Cada ponta de avenida dele e uma saida.
+  //
+  //                        MAPA 4 (represa)
+  //                             norte
+  //                               |
+  //     MAPA 2 -- oeste --     MAPA 1     -- leste --  MAPA 3
+  //                               |
+  //                             sul
+  //                     (RESERVADO, sem mapa)
+  //
+  // A ligacao antiga Mapa 2 <-> Mapa 3 (pela ponte da rua da estacao) SAIU:
+  // era o que fazia o mundo ler como uma corrente de tres elos em vez de um
+  // centro com radiais. A ponte e a rua continuam desenhadas — viraram estrada
+  // LOCAL, que morre na mata da borda —, e por isso nenhum lote, rota de NPC ou
+  // save precisou mudar de lugar.
+  //
+  // A ponta SUL do Mapa 1 nao tem entrada aqui de proposito: e a reserva pro
+  // mapa futuro. Quem barra o jogador la nao e parede invisivel, e uma
+  // INTERDICAO DE OBRA visivel, com barreira e placa (ver `INTERDICAO_SUL`).
+  // ------------------------------------------------------------------------
+  // Mapa 1 <-> Mapa 2, pela ponta OESTE da avenida horizontal
   { mapa: 'farm', nome: 'borda_oeste', x: 0, y: 44, w: 2, h: 3, destino: 'bairro', destinoTx: 136, destinoTy: 55 },
   { mapa: 'bairro', nome: 'borda_leste', x: 138, y: 54, w: 2, h: 3, destino: 'farm', destinoTx: 3, destinoTy: 45 },
-  // Mapa 2 <-> Mapa 3, pela rua da estacao, DEPOIS da ponte
-  { mapa: 'bairro', nome: 'borda_sul', x: 65, y: 108, w: 3, h: 2, destino: 'rural', destinoTx: 66, destinoTy: 4 },
-  { mapa: 'rural', nome: 'borda_norte', x: 65, y: 0, w: 3, h: 2, destino: 'bairro', destinoTx: 66, destinoTy: 105 },
+  // Mapa 1 <-> Mapa 3, pela ponta LESTE da mesma avenida
+  { mapa: 'farm', nome: 'borda_leste', x: 118, y: 44, w: 2, h: 3, destino: 'rural', destinoTx: 3, destinoTy: 44 },
+  { mapa: 'rural', nome: 'borda_oeste', x: 0, y: 43, w: 2, h: 3, destino: 'farm', destinoTx: 116, destinoTy: 45 },
+  // Mapa 1 <-> Mapa 4, pela ponta NORTE da avenida vertical
+  { mapa: 'farm', nome: 'borda_norte', x: 59, y: 0, w: 3, h: 2, destino: 'represa', destinoTx: 40, destinoTy: 136 },
+  { mapa: 'represa', nome: 'borda_sul', x: 39, y: 138, w: 3, h: 2, destino: 'farm', destinoTx: 60, destinoTy: 3 },
 ];
+
+/**
+ * INTERDICAO da ponta SUL do Mapa 1 — a reserva pro mapa futuro.
+ *
+ * A avenida vertical agora chega na borda de baixo, entao sem nada no caminho o
+ * jogador desceria ate a moldura de mata e ficaria encostado nela sem entender
+ * por que. Aqui ha uma barreira de obra atravessando a estrada e uma placa de
+ * exame ao lado dela: o motivo fica dito no mundo, nao no codigo.
+ *
+ * A barreira vai de x0 a x1 (bem mais larga que a faixa da via) porque contornar
+ * pela grama tornaria a interdicao decorativa; a mata densa da beira fecha o
+ * resto. Nao ha zona de transicao nenhuma aqui — a `conferirBordas` cobra que
+ * todo par exista, e nao existe par pro sul.
+ */
+const INTERDICAO_SUL = { y: 84, x0: 52, x1: 68, placa: { x: 62, y: 82 } };
 
 const bordasDoMapa = (mapa) => BORDAS.filter((b) => b.mapa === mapa);
 
@@ -2237,6 +2500,33 @@ const ESTILOS_COMERCIO = {
   // Central Telefonica Municipal: predio pequeno e FECHADO. A porta da folha
   // entra na composicao so como desenho — no mapa o tile dela colide, entao
   // nao ha como entrar (ver `CONSTRUCOES_BAIRRO`).
+  // --------------------------------------------- predios da represa --
+  // CASA DE FORCA: a porta e a peca de aco duplo com faixa de perigo, e o
+  // letreiro e o logo "USINA REPRESA" da propria folha. Nao e entrada de casa:
+  // o jogador tem de ler "instalacao industrial" antes de apertar E.
+  casa_maquinas: {
+    painel: 'represa_fachada',
+    parede: [0, 0],
+    letreiro: [0, 4],
+    porta: { painel: 'represa_fachada', peca: [2, 2] },
+    telhado: null,
+  },
+  // Portaria: guarita de concreto com porta de aco simples.
+  portaria_represa: {
+    painel: 'represa_fachada',
+    parede: [0, 0],
+    letreiro: [2, 6],
+    porta: { painel: 'represa_fachada', peca: [1, 5] },
+    telhado: null,
+  },
+  // Galpao de servico: parede com grelha de ventilacao e porta de enrolar.
+  galpao_represa: {
+    painel: 'represa_fachada',
+    parede: [0, 1],
+    letreiro: [1, 0],
+    porta: { painel: 'represa_fachada', peca: [2, 3] },
+    telhado: null,
+  },
   central: {
     painel: 'predio',
     parede: [1, 0],
@@ -2435,6 +2725,19 @@ function gerarConstrucoes() {
     }
     return { nome: c.nome, im: comporCasa(ESTILOS_CASA[c.estilo], larguraPx, alturaPx) };
   });
+  // VERTEDOURO da represa: recorte direto da celula [2,0] de `Grama_mapa_4.png`,
+  // escalado pra 6x5 tiles. Nao passa por `comporComercio` porque nao e fachada
+  // de predio — e uma peca de cenario pronta, como o ponto de onibus.
+  const vertedouro = (() => {
+    const f = folhas.grama4;
+    const [x0, x1] = f.cols[2];
+    const [y0, y1] = f.rows[0];
+    const w = 6 * T;
+    const h = 5 * T;
+    const im = new Img(w, h);
+    colarPeca(im, f.img, { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }, 0, 0, w, h);
+    return { nome: 'vertedouro_represa', im };
+  })();
   const pecasProjetos = Object.values(PROJETOS_CIDADE).map((projeto) => ({
     nome: projeto.quadro,
     im: comporProjetoCidade(
@@ -2443,7 +2746,7 @@ function gerarConstrucoes() {
       Math.round((projeto.pegada.h + SOBRA_TELHADO) * T),
     ),
   }));
-  const pecas = [...pecasFixas, ...pecasProjetos];
+  const pecas = [...pecasFixas, ...pecasProjetos, vertedouro];
 
   const largura = pecas.reduce((s, p) => s + p.im.w, 0);
   const altura = Math.max(...pecas.map((p) => p.im.h));
@@ -2871,8 +3174,12 @@ function gerarFazenda(ts) {
   pavimentarPraca(caminhos);
 
   obj.moldura(GID.MATO);
-  // vao na mata da borda: e por ele que se atravessa pro Mapa 2
+  // vao na mata da borda: e por ele que se atravessa pros outros mapas
   for (const b of bordasDoMapa('farm')) obj.rect(b.x, b.y, b.w, b.h, 0);
+  // INTERDICAO da ponta sul: barreira de obra atravessando a estrada. A placa
+  // que explica entra em `interativos`, logo abaixo.
+  const it = INTERDICAO_SUL;
+  obj.rect(it.x0, it.y, it.x1 - it.x0 + 1, 1, GID.BARREIRA_OBRA);
   pintarLago(obj, LAGO);
 
   // Pegada de cada construcao: PAREDE colide, PORTA nao. O sprite da fachada
@@ -2887,6 +3194,7 @@ function gerarFazenda(ts) {
 
   const interativos = [
     objeto('placa_teste', 'placa', CENTRO.x - 3, CENTRO.y + 3),
+    objeto('aviso_estrada_sul', 'placa', it.placa.x, it.placa.y, { aviso: 'estrada_sul' }),
     objeto('pickup_cabo_usb_1', 'item', CENTRO.x - 2, CENTRO.y, { itemId: 'cabo_usb' }),
     objeto('pickup_cabo_usb_2', 'item', CENTRO.x + 2, CENTRO.y, { itemId: 'cabo_usb' }),
     ...construidasDe('farm').map((c) => {
@@ -3307,6 +3615,193 @@ function gerarRural(ts) {
   };
 }
 
+// ------------------------------------------------------------- Mapa 4 --
+/** Coluna do leito do rio de jusante na linha `y`. */
+const leitoDoRio = (y) => RIO_JUSANTE.x + RIO_JUSANTE.onda(y);
+
+/**
+ * Pinta uma faixa de agua de N tiles usando o 9-slice do lago: a primeira e a
+ * ultima celula pegam a borda, o miolo pega o centro. Serve pro rio de jusante,
+ * que e uma faixa horizontal de 10 tiles por linha.
+ */
+function aguaEmFaixa(obj, x0, y, largura) {
+  for (let i = 0; i < largura; i++) {
+    const lado = i === 0 ? 0 : i === largura - 1 ? 2 : 1;
+    const x = x0 + i;
+    obj.set(x, y, GID_AGUA[1][lado] ?? variante('agua_centro', x, y));
+  }
+}
+
+function gerarRepresa(ts) {
+  const { W, H, chao, caminhos, obj, faixa } = baseExterna('represa', VIAS_REPRESA);
+
+  // --- reservatorio: bloco de agua parada, 9-slice de ponta a ponta ---
+  const r = RESERVATORIO;
+  for (let j = 0; j < r.h; j++) {
+    const linha = j === 0 ? 0 : j === r.h - 1 ? 2 : 1;
+    for (let i = 0; i < r.w; i++) {
+      const coluna = i === 0 ? 0 : i === r.w - 1 ? 2 : 1;
+      const x = r.x + i;
+      const y = r.y + j;
+      obj.set(x, y, GID_AGUA[linha][coluna] ?? variante('agua_centro', x, y));
+    }
+  }
+
+  // --- corpo da barragem: concreto macico atravessando o mapa ---
+  obj.rect(BARRAGEM.x, BARRAGEM.y, BARRAGEM.w, BARRAGEM.h, GID.BARRAGEM);
+  // coroamento: passarela de grelha no meio da faixa. Nao da acesso a nada — a
+  // barragem e macica dos dois lados dela. E leitura, nao caminho.
+  obj.rect(BARRAGEM.x, BARRAGEM.y + 2, BARRAGEM.w, 1, GID.GRELHA);
+
+  // --- rio de jusante: mais estreito e ondulado que o reservatorio ---
+  for (let y = RIO_JUSANTE.y0; y < H - 1; y++) {
+    aguaEmFaixa(obj, leitoDoRio(y), y, RIO_JUSANTE.largura);
+  }
+
+  // --- canal de drenagem cruzando a estrada; o trecho na via vira ponte ---
+  const canal = CANAL_REPRESA;
+  for (let j = 0; j < canal.altura; j++) {
+    const y = canal.y + j;
+    for (let x = canal.x0; x <= canal.x1; x++) {
+      if (faixa.get(x, y)) {
+        obj.set(x, y, GID.PONTE);
+        continue;
+      }
+      const lado = j === 0 ? 0 : j === canal.altura - 1 ? 2 : 1;
+      obj.set(x, y, GID_AGUA[lado][1] ?? variante('agua_centro', x, y));
+    }
+  }
+  // cabeceiras da ponte, pra a tabua nao comecar na agua
+  for (let x = canal.x0; x <= canal.x1; x++) {
+    if (!faixa.get(x, canal.y)) continue;
+    obj.set(x, canal.y - 1, GID.PONTE);
+    obj.set(x, canal.y + canal.altura, GID.PONTE);
+  }
+
+  // --- cerca da area restrita, de ponta a ponta, com portao unico ---
+  const cerca = CERCA_REPRESA;
+  for (let x = cerca.x0; x <= cerca.x1; x++) obj.set(x, cerca.y, GID.CERCA_TELA);
+  obj.rect(cerca.portao.x, cerca.y, cerca.portao.w, 1, GID.PORTAO);
+
+  // --- subestacao desativada: recinto murado, so ambientacao ---
+  const sub = SUBESTACAO_REPRESA;
+  obj.rect(sub.x, sub.y, sub.w, 1, GID.MURO);
+  obj.rect(sub.x, sub.y + sub.h - 1, sub.w, 1, GID.MURO);
+  obj.rect(sub.x, sub.y, 1, sub.h, GID.MURO);
+  obj.rect(sub.x + sub.w - 1, sub.y, 1, sub.h, GID.MURO);
+  for (let y = sub.y; y < sub.y + sub.h; y++) {
+    for (let x = sub.x; x < sub.x + sub.w; x++) caminhos.set(x, y, GID.CASCALHO);
+  }
+
+  // --- cerca caida da antiga area de piquenique: 2 mouroes de pe em cada 3 ---
+  const cc = CERCA_CAIDA_REPRESA;
+  for (let i = 0; i < cc.w; i++) {
+    if (i % 3 !== 2) obj.set(cc.x + i, cc.y, GID.CERCA_TELA);
+  }
+
+  // --- patio de concreto entre a estrada e a porta da casa de forca ---
+  const patio = PATIO_REPRESA;
+  for (let y = patio.y; y < patio.y + patio.h; y++) {
+    for (let x = patio.x; x < patio.x + patio.w; x++) {
+      caminhos.set(x, y, variante('concreto_patio', x, y));
+    }
+  }
+  // mirante: piso de concreto, guarda-corpo virado pro rio e calcada de ligacao
+  const mirante = zona('mirante_represa');
+  for (let y = mirante.y; y < mirante.y + mirante.h; y++) {
+    for (let x = mirante.x; x < mirante.x + mirante.w; x++) {
+      caminhos.set(x, y, variante('concreto_patio', x, y));
+    }
+  }
+  for (let y = mirante.y; y < mirante.y + mirante.h; y++) obj.set(mirante.x, y, GID.MURO);
+  const meioMirante = mirante.x + Math.floor(mirante.w / 2);
+  for (let y = mirante.y + mirante.h; y <= 99; y++) {
+    caminhos.set(meioMirante, y, variante('concreto_patio', meioMirante, y));
+    caminhos.set(meioMirante + 1, y, variante('concreto_patio', meioMirante + 1, y));
+  }
+
+  const { interativos, fachadas } = predionosDoMapa('represa', obj);
+  // Marcos da subida. Sao objeto de exame (`placa` + `aviso`), o mesmo caminho
+  // dos predios fechados — o texto mora em AVISOS_DE_PREDIO, na FarmScene.
+  interativos.push(
+    objeto('aviso_estrada_represa', 'placa', 43, 122, { aviso: 'estrada_represa' }),
+    objeto('aviso_piquenique', 'placa', 47, 108, { aviso: 'piquenique_represa' }),
+    objeto('aviso_mirante', 'placa', mirante.x + 3, mirante.y + mirante.h - 1, { aviso: 'mirante_represa' }),
+    objeto('aviso_canal', 'placa', 43, 62, { aviso: 'canal_represa' }),
+    objeto('aviso_subestacao', 'placa', sub.x - 1, sub.y + 3, { aviso: 'subestacao_represa' }),
+    objeto('aviso_portao_represa', 'placa', 44, 41, { aviso: 'portao_represa' }),
+    objeto('aviso_barragem', 'placa', 24, 34, { aviso: 'barragem' }),
+  );
+  // VERTEDOURO: a unica celula de `Grama_mapa_4.png` que nao e cena de chao —
+  // entra como sprite de marco, ancorado na saida oeste da barragem.
+  fachadas.push(
+    ponto('vertedouro_represa', 'fachada', 16 * T, 33 * T, { frame: 'vertedouro_represa' }),
+  );
+
+  const bordas = objetosDeBorda('represa');
+  const zonas = objetosDeZona('represa');
+
+  // --- o que a flora tem de respeitar ---
+  const ocupado = new Set();
+  for (const z of MUNDO.represa.zonas) bloquearEm(ocupado, z.x - 1, z.y - 1, z.w + 2, z.h + 2);
+  bloquearEm(ocupado, r.x - 1, r.y - 1, r.w + 2, r.h + 2);
+  bloquearEm(ocupado, BARRAGEM.x, BARRAGEM.y - 1, BARRAGEM.w, BARRAGEM.h + 2);
+  bloquearEm(ocupado, patio.x - 1, patio.y - 1, patio.w + 2, patio.h + 2);
+  bloquearEm(ocupado, sub.x - 1, sub.y - 1, sub.w + 2, sub.h + 2);
+  bloquearEm(ocupado, cerca.x0, cerca.y - 1, cerca.x1 - cerca.x0 + 1, 3);
+  bloquearEm(ocupado, canal.x0, canal.y - 2, canal.x1 - canal.x0 + 1, canal.altura + 4);
+  bloquearEm(ocupado, meioMirante - 1, mirante.y + mirante.h, 4, 6);
+  bloquearEm(ocupado, 12, 29, 12, 6); // area do vertedouro
+  for (let y = RIO_JUSANTE.y0 - 1; y < H; y++) {
+    bloquearEm(ocupado, leitoDoRio(y) - 2, y, RIO_JUSANTE.largura + 4, 1);
+  }
+  for (const b of bordasDoMapa('represa')) bloquearEm(ocupado, b.x - 2, b.y - 2, b.w + 4, b.h + 4);
+  for (const alvo of interativos) bloquearEm(ocupado, alvo.x / T - 1, alvo.y / T - 1, 3, 3);
+
+  // entulho de concreto solto: e o que faz a estrada ler como abandonada sem
+  // precisar de arte nova
+  const entulho = [
+    ...entulhoEm('entulho_represa', { x: 26, y: 112, w: 16, h: 8 }, SEMENTE + 3703, 0.16, new Set(ocupado)),
+    ...entulhoEm(
+      'cascalho_represa',
+      { x: sub.x + 1, y: sub.y + 1, w: sub.w - 2, h: sub.h - 2 },
+      SEMENTE + 3704, 0.24, new Set(),
+    ),
+  ];
+
+  // A MAIS densa dos quatro mapas: e o corredor de mata que fecha o mundo pelo
+  // norte, e o respiro tem de vir da estrada, nao do vazio em volta dela.
+  const flora = gerarFlora(W, H, faixa, ocupado, {
+    semente: SEMENTE + 3000,
+    densidades: { beira: 0.62, perto: 0.16, longe: 0.07 },
+    pedra: 0.03,
+    flor: 0.05,
+  });
+
+  return {
+    mapa: montarMapa(
+      W,
+      H,
+      [
+        camadaTiles('chao', 1, chao),
+        camadaTiles('caminhos', 2, caminhos),
+        camadaTiles('objetos', 3, obj),
+        camadaObjetos('interativos', 4, interativos),
+        camadaObjetos('zonas', 5, zonas),
+        camadaObjetos('flora', 6, [...flora.arvores, ...flora.pedras, ...entulho, ...flora.flores]),
+        camadaObjetos('construcoes', 7, fachadas),
+        camadaObjetos('bordas', 8, bordas),
+      ],
+      ts,
+    ),
+    contagem: {
+      arvores: flora.arvores.length,
+      pedras: flora.pedras.length + entulho.length,
+      flores: flora.flores.length,
+    },
+  };
+}
+
 // ------------------------------------------------------------------ moveis --
 /**
  * Caixa de colisao de um movel, em fracao do sprite. Espelha `MOVEL_CORPO` da
@@ -3646,8 +4141,39 @@ const TIPO_DE_COMODO = {
   garagem: 'oficina',
   estudio: 'oficina',
   sala_aula: 'escola',
+  diretoria: 'escola',
   acervo: 'biblioteca',
   leitura: 'biblioteca',
+  // --- comodos dos setores da represa ---
+  // Todos entram como `oficina`: a mobilia industrial do jogo (bancada, armario
+  // de pecas, estante de sucata, estante industrial) mora naquela categoria, e e
+  // exatamente o que uma usina abandonada tem dentro. Sem isto `pecasDeCatalogo`
+  // reprovaria toda peca da represa por "movel de oficina em comodo de outro
+  // tipo" — o que e a protecao funcionando, nao um estorvo.
+  controle: 'oficina',
+  arquivo: 'biblioteca',
+  entrada: 'oficina',
+  manutencao_a: 'oficina',
+  manutencao_b: 'oficina',
+  escada: 'oficina',
+  corredor_manutencao: 'oficina',
+  galeria_a: 'oficina',
+  galeria_b: 'oficina',
+  galeria_c: 'oficina',
+  servico: 'oficina',
+  bombas: 'oficina',
+  galeria_norte: 'oficina',
+  galeria_oeste: 'oficina',
+  galeria_leste: 'oficina',
+  galeria_sul: 'oficina',
+  quadro_geral: 'oficina',
+  camara: 'oficina',
+  poco: 'oficina',
+  // --- comodos dos MODULOS dos andares compostos (6 a 50) ---
+  // O nome do comodo de um andar composto e `<modulo.comodo>_<indice>`, e
+  // `pecasDeCatalogo` corta o sufixo numerico antes de olhar aqui.
+  galeria: 'oficina',
+  eletrica: 'oficina',
 };
 
 // -------------------------------------------------- plantas multi-comodo --
@@ -4271,17 +4797,21 @@ const PLANTAS_PROPRIAS = {
   },
 
   /**
-   * Escola: hall corrido no fundo e tres salas de aula em cima. Interior
-   * simples, como pedido — nao ha NPC aluno pra povoar, entao ele existe como
-   * espaco navegavel.
+   * Escola: hall corrido no fundo, duas salas de aula e a DIRETORIA em cima.
    *
-   * GANCHO FUTURO (nao implementado): horario de entrada/saida, aluno e
-   * professor. Nada no codigo depende disso hoje.
+   * Deixou de ser espaco vazio: a diretora Livia fica na diretoria, a professora
+   * Ilda da aula na sala do meio e as cinco criancas da cidade tem carteira
+   * propria la — ver `DIRETORIA`, `SALA_DE_AULA` e `CARTEIRA` em
+   * src/game/moradores.ts, e a conferencia de lugares em
+   * tools/verificar-rotinas-npc.mjs.
+   *
+   * GANCHO FUTURO (nao implementado): sino, chamada e horario de entrada/saida
+   * com porta trancada. Nada no codigo depende disso hoje.
    */
   escola: {
     parede: 'escola',
     chao: 'PISO_GRANILITE',
-    pisos: { sala_aula_1: 'madeira_clara', sala_aula_2: 'madeira_clara', sala_aula_3: 'madeira_clara' },
+    pisos: { sala_aula_1: 'madeira_clara', sala_aula_2: 'madeira_clara', diretoria: 'madeira_escura' },
     largura: 24,
     altura: 16,
     porta: 12,
@@ -4294,7 +4824,10 @@ const PLANTAS_PROPRIAS = {
     comodos: {
       sala_aula_1: [1, 2, 6, 7],
       sala_aula_2: [8, 2, 8, 7],
-      sala_aula_3: [17, 2, 6, 7],
+      // A terceira sala e a DIRETORIA, nao uma sala de aula: e o posto da
+      // diretora Livia (ver `DIRETORIA` em src/game/moradores.ts). Duas salas
+      // de aula bastam pras cinco criancas que a cidade tem.
+      diretoria: [17, 2, 6, 7],
       hall: [1, 11, 22, 4],
     },
     // Sala de aula e comodo ESTREITO (6 a 8 tiles) e a carteira ocupa 2,5 deles.
@@ -4313,10 +4846,10 @@ const PLANTAS_PROPRIAS = {
         { movel: 'carteira', tx: 12, ty: 7 },
         { movel: 'armario_escolar', tx: 14, ty: 4 },
       ],
-      sala_aula_3: [
-        { movel: 'quadro_sala', tx: 19, ty: 3 },
+      // Mesa e estante, sem carteira e sem quadro: le como sala da direcao.
+      diretoria: [
         { movel: 'mesa_professor', tx: 17, ty: 4 },
-        { movel: 'carteira', tx: 20, ty: 7 },
+        { movel: 'estante_escolar', tx: 20, ty: 7 },
       ],
       hall: [
         { movel: 'planta_grande', tx: 1, ty: 14 },
@@ -5506,12 +6039,813 @@ function conferirMistos() {
   );
 }
 
+// ------------------------------------------ interiores da represa (Mapa 4) --
+/**
+ * PLANTAS_REPRESA — os cinco setores do interior da usina.
+ *
+ * NAO e um interior de predio como a escola ou uma casa, e tambem NAO e um
+ * gerador procedural: e uma area DESENHADA A MAO, um tilemap por nivel, com
+ * porta ligando um nivel ao outro. O formato e o mesmo de `PLANTAS_CASA` (mesmas
+ * `paredes`/`vaos`/`comodos`/`mobilia`, mesmo `acabarParedes`), com cinco campos
+ * a mais que so os setores usam:
+ *
+ *  - `nivel`      — 0 a -4. E o que ordena os setores e o que a UI mostra.
+ *  - `escuridao`  — 0 a 1, quanto o setor escurece em jogo (Parte 5 do plano).
+ *                   Fica no TILEMAP e nao numa cadeia de `if` na cena: cada
+ *                   comodo pode sobrepor o valor do setor em `escuridaoPorComodo`.
+ *  - `saidas`     — as portas. Diferente de um interior de predio, que tem UMA
+ *                   porta pra rua, um setor tem varias: a que sobe, a que desce,
+ *                   os atalhos e (no nivel 0) a que sai pro Mapa 4. Cada uma
+ *                   pode exigir uma flag (`trancada`), e e assim que o
+ *                   progresso por puzzle abre profundidade sem inventar nivel de
+ *                   personagem.
+ *  - `sucata`     — os recipientes de salvado, com a tabela de sorteio.
+ *  - `paineis`    — os quebra-cabecas, por id. A REGRA e a mesma dos moveis: o
+ *                   conteudo (passos, respostas, recompensa) mora em
+ *                   src/game/represa.ts; aqui fica so onde ele esta.
+ *  - `inimigos`   — pontos de nascimento, com tipo e raio de patrulha.
+ *  - `luzes`      — lampada de emergencia, painel aceso, faisca. Sao MARCOS de
+ *                   navegacao no escuro, nao iluminacao real: quem clareia de
+ *                   verdade e a lanterna do jogador.
+ *
+ * O grafo dos cinco, com as travas:
+ *
+ *     represa (Mapa 4)
+ *          |
+ *      NIVEL 0  entrada + sala de controle + arquivo        (seguro, claro)
+ *          |
+ *     NIVEL -1  manutencao, dois ramos (A e B) e deposito   (escuridao 0.18)
+ *        /   \
+ *       A     B ....... atalho A->-2 TRANCADO, abre pelo lado de baixo
+ *        \   /
+ *     NIVEL -2  galeria das turbinas                        (escuridao 0.38)
+ *          |  ... trava: represaEnergiaGaleria
+ *     NIVEL -3  galerias inferiores                         (escuridao 0.60)
+ *          |  ... trava: represaComportaAberta
+ *     NIVEL -4  setor profundo                              (escuridao 0.80)
+ *          |
+ *      elevador de servico -> NIVEL 0 (atalho permanente)
+ */
+const PLANTAS_REPRESA = {
+  // ------------------------------------------------------------ NIVEL 0 --
+  /**
+   * Nivel 0 — a unica parte da usina que ainda parece um lugar de trabalho.
+   * Luz de teto funcionando, piso lavado, nenhum inimigo. E a zona segura: e
+   * aqui que o jogador acorda depois de ser derrotado lá embaixo.
+   *
+   *   controle (13x7)  |  arquivo (12x7)
+   *   -------------------------------
+   *   entrada (27x8)
+   */
+  represa_0: {
+    nivel: 0,
+    rotulo: 'Casa de Forca — Nivel 0',
+    // A ESCURIDAO dos cinco autorais passou a sair da curva de cinquenta andares
+    // (`escuridaoDoAndar`). Eles ficaram mais claros do que eram: com 50 andares
+    // eles sao a introducao da descida, e nao o fim dela. A conferencia compara
+    // cada literal com a funcao e reprova se divergirem.
+    escuridao: 0,
+    parede: 'represa_faixa',
+    paredePorComodo: { controle: 'represa_limpo', arquivo: 'represa_limpo' },
+    chao: 'PISO_CONCRETO',
+    pisos: { controle: 'granilite', arquivo: 'marmore' },
+    largura: 30,
+    altura: 20,
+    paredes: [
+      [15, 2, 1, 7], // divisa controle / arquivo
+      [1, 9, 27, 2], // divisa das salas com o hall de entrada
+    ],
+    vaos: [[5, 9], [5, 10], [22, 9], [22, 10], [15, 5]],
+    comodos: {
+      controle: [1, 2, 13, 7],
+      arquivo: [16, 2, 12, 7],
+      entrada: [1, 11, 27, 8],
+    },
+    saidas: [
+      // porta da rua: fica na moldura de baixo, como em qualquer interior
+      { id: 'saida_represa', tx: 14, ty: 19, destino: 'represa', rotulo: 'Sair' },
+      // descida pro nivel -1: alcapao de grelha no canto leste do hall
+      { id: 'desce_1', tx: 25, ty: 15, destino: 'represa_1', destinoTx: 25, destinoTy: 19, grelha: true, rotulo: 'Descer' },
+      // chegada do elevador de servico do nivel -4. So funciona depois que a
+      // placa de controle e restaurada — antes disso a cabine nem desce.
+      { id: 'elevador_0', tx: 3, ty: 15, destino: 'represa_4', destinoTx: 5, destinoTy: 4, grelha: true, trancada: 'represaElevadorLiberado', rotulo: 'Elevador de servico' },
+    ],
+    mobilia: {
+      controle: [
+        { movel: 'mesa_bancada_pc', tx: 2, ty: 4 },
+        { movel: 'setup_oficina', tx: 6, ty: 4 },
+        { movel: 'armario_pecas', tx: 11, ty: 4 },
+        { movel: 'estante_caixas', tx: 1, ty: 8 },
+        { movel: 'relogio_parede', tx: 8, ty: 2 },
+        { movel: 'caixa_ferramenta', tx: 10, ty: 8 },
+      ],
+      arquivo: [
+        { movel: 'estante_arquivo', tx: 17, ty: 5 },
+        { movel: 'estante_acervo', tx: 21, ty: 5 },
+        { movel: 'estante_arquivo', tx: 25, ty: 5 },
+        { movel: 'mesa_leitura', tx: 18, ty: 8 },
+        { movel: 'quadros', tx: 23, ty: 2 },
+      ],
+      entrada: [
+        { movel: 'armario_pecas', tx: 2, ty: 12 },
+        { movel: 'estante_caixas', tx: 5, ty: 12 },
+        { movel: 'cesto_sucata', tx: 20, ty: 18 },
+        { movel: 'ventilador_oficina', tx: 26, ty: 12 },
+        { movel: 'prateleira_pecas', tx: 9, ty: 18 },
+        { movel: 'relogio_v2', tx: 13, ty: 11 },
+      ],
+    },
+    paineis: [
+      // Puzzle 1 (simples): sequencia do quadro de disjuntores.
+      { id: 'quadro_entrada', tx: 4, ty: 3 },
+    ],
+    sucata: [
+      { id: 'caixa_entrada', tx: 8, ty: 17, tabela: 'nivel_0' },
+      { id: 'armario_arquivo', tx: 26, ty: 3, tabela: 'nivel_0' },
+      // recompensa do puzzle 1: so aparece com o quadro religado
+      { id: 'gaveta_controle', tx: 12, ty: 3, tabela: 'nivel_0_premio', requer: 'represaLuzEntrada' },
+    ],
+    // Documentos de manutencao: as pistas dos puzzles mais fundos comecam aqui.
+    avisos: [
+      { id: 'log_entrada', tx: 18, ty: 4 },
+      { id: 'mapa_setores', tx: 12, ty: 11 },
+      { id: 'log_placa', tx: 24, ty: 8 },
+    ],
+    inimigos: [],
+    luzes: [
+      { tx: 7, ty: 2, raio: 4 },
+      { tx: 20, ty: 2, raio: 4 },
+      { tx: 14, ty: 11, raio: 5 },
+    ],
+  },
+
+  // ----------------------------------------------------------- NIVEL -1 --
+  /**
+   * Nivel -1 — manutencao. Primeira penumbra e o primeiro bifurcacao real:
+   * o corredor liga os dois ramos, e so o ramo B desce. O ramo A tem a porta de
+   * servico que o jogador vai destrancar do outro lado, e a partir dai a descida
+   * fica quatro comodos mais curta.
+   *
+   *   ramo A (12x7)  |  ramo B (11x7)
+   *   -----------------------------
+   *   corredor (27x4)
+   *   -----------------------------
+   *   escada (27x4)
+   */
+  represa_1: {
+    nivel: -1,
+    rotulo: 'Manutencao — Nivel -1',
+    escuridao: 0.12,
+    parede: 'represa_tecnico',
+    paredePorComodo: { escada: 'represa_faixa' },
+    chao: 'PISO_CONCRETO',
+    pisos: { corredor_manutencao: 'concreto_escuro', escada: 'granilite' },
+    largura: 30,
+    altura: 22,
+    paredes: [
+      [13, 2, 1, 7], // divisa ramo A / ramo B
+      [1, 9, 27, 2], // ramos / corredor
+      [1, 15, 27, 2], // corredor / escada
+    ],
+    vaos: [[4, 9], [4, 10], [22, 9], [22, 10], [14, 15], [14, 16]],
+    comodos: {
+      manutencao_a: [1, 2, 12, 7],
+      manutencao_b: [14, 2, 14, 7],
+      corredor_manutencao: [1, 11, 27, 4],
+      escada: [1, 17, 27, 4],
+    },
+    escuridaoPorComodo: { escada: 0.09 },
+    saidas: [
+      { id: 'sobe_0', tx: 25, ty: 19, destino: 'represa_0', destinoTx: 25, destinoTy: 16, grelha: true, rotulo: 'Subir' },
+      // descida normal: pelo ramo B
+      { id: 'desce_2', tx: 25, ty: 4, destino: 'represa_2', destinoTx: 30, destinoTy: 18, grelha: true, rotulo: 'Descer' },
+      // ATALHO PERMANENTE: porta de servico do ramo A. Comeca trancada e nao ha
+      // nada aqui que a abra — quem abre e a alavanca do outro lado, no nivel
+      // -2. Depois disso o jogador desce por aqui e economiza o ramo B inteiro.
+      { id: 'atalho_2', tx: 3, ty: 4, destino: 'represa_2', destinoTx: 3, destinoTy: 18, grelha: true, trancada: 'represaAtalhoManutencao', rotulo: 'Porta de servico' },
+    ],
+    mobilia: {
+      manutencao_a: [
+        { movel: 'bancada_trabalho', tx: 6, ty: 4 },
+        { movel: 'prateleira_pecas', tx: 1, ty: 8 },
+        { movel: 'armario_pecas', tx: 10, ty: 8 },
+        { movel: 'ar_oficina', tx: 9, ty: 2 },
+      ],
+      manutencao_b: [
+        { movel: 'estante_caixas', tx: 15, ty: 8 },
+        { movel: 'armario_pecas', tx: 19, ty: 8 },
+        { movel: 'bancada_trabalho', tx: 15, ty: 4 },
+        { movel: 'ventilador_oficina', tx: 22, ty: 8 },
+      ],
+      corredor_manutencao: [
+        { movel: 'estante_caixas', tx: 2, ty: 14 },
+        { movel: 'cesto_sucata', tx: 12, ty: 14 },
+        { movel: 'estante_caixas', tx: 24, ty: 14 },
+      ],
+      escada: [
+        { movel: 'armario_pecas', tx: 2, ty: 20 },
+        { movel: 'caixa_ferramenta', tx: 15, ty: 20 },
+      ],
+    },
+    paineis: [
+      // Puzzle 2 (simples): casar simbolo de manutencao com a etiqueta.
+      { id: 'simbolos_manutencao', tx: 8, ty: 3 },
+      // Puzzle 3 (simples): religar o cabo certo pela legenda da placa ao lado.
+      { id: 'cabos_bomba', tx: 21, ty: 3 },
+    ],
+    sucata: [
+      { id: 'caixa_ramo_a', tx: 4, ty: 7, tabela: 'nivel_1' },
+      { id: 'caixa_ramo_b', tx: 26, ty: 7, tabela: 'nivel_1' },
+      { id: 'armario_corredor', tx: 7, ty: 13, tabela: 'nivel_1' },
+      // recompensa do puzzle 2
+      { id: 'suprimentos', tx: 11, ty: 3, tabela: 'nivel_1_premio', requer: 'represaSimbolosResolvido' },
+      // recompensa do puzzle 3
+      { id: 'caixa_bomba', tx: 24, ty: 3, tabela: 'nivel_1_premio', requer: 'represaCabosResolvido' },
+    ],
+    avisos: [
+      { id: 'legenda_cabos', tx: 18, ty: 3 },
+      { id: 'log_manutencao', tx: 5, ty: 13 },
+    ],
+    inimigos: [
+      { id: 'esfera_1', tipo: 'esfera_choque', tx: 20, ty: 5, raio: 5 },
+    ],
+    luzes: [
+      { tx: 14, ty: 19, raio: 4 },
+      { tx: 4, ty: 12, raio: 3 },
+      { tx: 25, ty: 12, raio: 3 },
+    ],
+  },
+
+  // ----------------------------------------------------------- NIVEL -2 --
+  /**
+   * Nivel -2 — a galeria das turbinas. E aqui que o setor deixa de parecer
+   * conservado: luz falhando, maquinario grande e os primeiros bichos.
+   *
+   *   galeria (32x9)  — o vao das turbinas, o comodo mais largo do jogo
+   *   ------------------------------------
+   *   servico (32x4)  — corredor estreito de manutencao
+   *   ------------------------------------
+   *   bombas (32x5)
+   */
+  represa_2: {
+    nivel: -2,
+    rotulo: 'Galeria das Turbinas — Nivel -2',
+    escuridao: 0.1355,
+    parede: 'represa_tubos',
+    paredePorComodo: { bombas: 'represa_tecnico' },
+    chao: 'PISO_CONCRETO_ESCURO',
+    pisos: { servico: 'concreto', bombas: 'ladrilho_verde' },
+    largura: 34,
+    altura: 22,
+    paredes: [
+      [1, 11, 31, 2], // galeria / corredor de servico
+      [1, 16, 31, 2], // corredor / casa de bombas
+      [12, 2, 1, 9], // pilar-parede que divide o vao das turbinas
+      [22, 2, 1, 9],
+    ],
+    vaos: [[4, 11], [4, 12], [28, 11], [28, 12], [16, 16], [16, 17], [12, 6], [22, 6]],
+    // O vao das turbinas e UM espaco, mas entra como TRES comodos porque os dois
+    // pilares-parede o cortam: comodo e retangulo livre, e um retangulo que
+    // atravessa pilar reprovaria na conferencia (e reprovou).
+    comodos: {
+      galeria_a: [1, 2, 11, 9],
+      galeria_b: [13, 2, 9, 9],
+      galeria_c: [23, 2, 9, 9],
+      servico: [1, 13, 31, 3],
+      bombas: [1, 18, 31, 3],
+    },
+    escuridaoPorComodo: { servico: 0.2 },
+    saidas: [
+      { id: 'sobe_1', tx: 30, ty: 18, destino: 'represa_1', destinoTx: 25, destinoTy: 5, grelha: true, rotulo: 'Subir' },
+      // ponta de baixo do atalho: existe dos dois lados desde sempre, e o que
+      // muda com a alavanca e a trava do lado de cima
+      { id: 'atalho_1', tx: 3, ty: 18, destino: 'represa_1', destinoTx: 3, destinoTy: 5, grelha: true, rotulo: 'Porta de servico' },
+      // descida pro nivel -3: exige o setor reenergizado (puzzle 4)
+      { id: 'desce_3', tx: 17, ty: 3, destino: 'represa_3', destinoTx: 16, destinoTy: 21, grelha: true, trancada: 'represaEnergiaGaleria', rotulo: 'Descer' },
+    ],
+    mobilia: {
+      galeria_a: [
+        { movel: 'estante_caixas', tx: 2, ty: 5 },
+        { movel: 'bancada_trabalho', tx: 6, ty: 5 },
+        { movel: 'ventilador_oficina', tx: 9, ty: 10 },
+      ],
+      galeria_b: [
+        { movel: 'armario_pecas', tx: 14, ty: 5 },
+        { movel: 'estante_caixas', tx: 18, ty: 5 },
+        { movel: 'ar_oficina', tx: 20, ty: 2 },
+      ],
+      galeria_c: [
+        { movel: 'armario_pecas', tx: 25, ty: 5 },
+        { movel: 'estante_caixas', tx: 28, ty: 5 },
+      ],
+      servico: [
+        { movel: 'caixa_ferramenta', tx: 8, ty: 15 },
+        { movel: 'cesto_sucata', tx: 24, ty: 15 },
+      ],
+      bombas: [
+        { movel: 'bancada_trabalho', tx: 3, ty: 20 },
+        { movel: 'armario_pecas', tx: 12, ty: 20 },
+        { movel: 'estante_caixas', tx: 22, ty: 20 },
+        { movel: 'prateleira_pecas', tx: 27, ty: 20 },
+      ],
+    },
+    paineis: [
+      // ALAVANCA do atalho: nao e quebra-cabeca, e uma acao de um passo. Fica
+      // aqui, do lado de dentro, porque o sentido dela e "abri isto por onde
+      // cheguei" — o jogador destranca a porta que o barrou uma hora atras.
+      { id: 'alavanca_atalho', tx: 5, ty: 18 },
+      // Puzzle 4 (intermediario): religar os geradores na ordem do diario.
+      { id: 'geradores', tx: 16, ty: 5 },
+    ],
+    sucata: [
+      { id: 'caixa_galeria_1', tx: 4, ty: 9, tabela: 'nivel_2' },
+      { id: 'caixa_galeria_2', tx: 20, ty: 9, tabela: 'nivel_2' },
+      { id: 'caixa_servico', tx: 14, ty: 15, tabela: 'nivel_2' },
+      { id: 'caixa_bombas', tx: 8, ty: 20, tabela: 'nivel_2' },
+      { id: 'painel_queimado', tx: 30, ty: 9, tabela: 'nivel_2_premio', requer: 'represaEnergiaGaleria' },
+    ],
+    avisos: [
+      { id: 'placa_turbina', tx: 26, ty: 3 },
+      { id: 'log_geradores', tx: 11, ty: 5 },
+      { id: 'camera_quebrada', tx: 2, ty: 15 },
+    ],
+    inimigos: [
+      { id: 'esfera_3a', tipo: 'esfera_choque', tx: 7, ty: 7, raio: 6 },
+      { id: 'esfera_3b', tipo: 'esfera_choque', tx: 27, ty: 7, raio: 6 },
+      { id: 'smart_3a', tipo: 'smartfone', tx: 18, ty: 20, raio: 7 },
+    ],
+    luzes: [
+      { tx: 17, ty: 2, raio: 3 },
+      { tx: 3, ty: 3, raio: 2 },
+      { tx: 30, ty: 3, raio: 2 },
+      { tx: 16, ty: 19, raio: 3 },
+    ],
+  },
+
+  // ----------------------------------------------------------- NIVEL -3 --
+  /**
+   * Nivel -3 — as galerias inferiores. Escuro de verdade, infiltracao e o
+   * quadro geral. Duas galerias paralelas ligadas nas duas pontas: da pra fugir
+   * de um inimigo dando a volta, o que e a razao do formato em anel.
+   */
+  represa_3: {
+    nivel: -3,
+    rotulo: 'Galerias Inferiores — Nivel -3',
+    escuridao: 0.151,
+    parede: 'represa_gasto',
+    paredePorComodo: { quadro_geral: 'represa_tubos' },
+    chao: 'PISO_CONCRETO_ESCURO',
+    pisos: { quadro_geral: 'concreto' },
+    largura: 32,
+    altura: 24,
+    paredes: [
+      // o miolo do anel: um bloco de parede no centro, com galeria em volta
+      [7, 6, 18, 5],
+      [7, 15, 18, 4],
+      [7, 11, 1, 4],
+      [24, 11, 1, 4],
+    ],
+    vaos: [[7, 13], [24, 13]],
+    comodos: {
+      galeria_norte: [1, 2, 30, 3],
+      galeria_oeste: [1, 6, 5, 13],
+      galeria_leste: [26, 6, 5, 13],
+      quadro_geral: [8, 11, 16, 4],
+      galeria_sul: [1, 20, 30, 2],
+    },
+    escuridaoPorComodo: { quadro_geral: 0.12, galeria_sul: 0.22 },
+    saidas: [
+      { id: 'sobe_2', tx: 16, ty: 21, destino: 'represa_2', destinoTx: 17, destinoTy: 4, grelha: true, rotulo: 'Subir' },
+      // descida pro setor profundo: exige a comporta aberta (puzzle 5)
+      { id: 'desce_4', tx: 16, ty: 3, destino: 'represa_4', destinoTx: 13, destinoTy: 17, grelha: true, trancada: 'represaComportaAberta', rotulo: 'Descer' },
+    ],
+    mobilia: {
+      galeria_norte: [
+        { movel: 'estante_caixas', tx: 4, ty: 4 },
+        { movel: 'armario_pecas', tx: 26, ty: 4 },
+      ],
+      galeria_oeste: [
+        { movel: 'estante_caixas', tx: 1, ty: 9 },
+        { movel: 'prateleira_pecas', tx: 1, ty: 17 },
+      ],
+      galeria_leste: [
+        { movel: 'armario_pecas', tx: 27, ty: 9 },
+        { movel: 'estante_caixas', tx: 27, ty: 17 },
+      ],
+      quadro_geral: [
+        { movel: 'bancada_trabalho', tx: 9, ty: 13 },
+        { movel: 'armario_pecas', tx: 14, ty: 13 },
+        { movel: 'mesa_bancada_pc', tx: 18, ty: 13 },
+      ],
+      galeria_sul: [
+        { movel: 'cesto_sucata', tx: 6, ty: 21 },
+        { movel: 'caixa_ferramenta', tx: 25, ty: 21 },
+      ],
+    },
+    paineis: [
+      // Puzzle 5 (intermediario): sequencia de valvulas e pressao.
+      { id: 'comportas', tx: 20, ty: 12 },
+    ],
+    sucata: [
+      { id: 'caixa_norte', tx: 12, ty: 3, tabela: 'nivel_3' },
+      { id: 'caixa_oeste', tx: 3, ty: 13, tabela: 'nivel_3' },
+      { id: 'caixa_leste', tx: 29, ty: 13, tabela: 'nivel_3' },
+      { id: 'caixa_sul', tx: 16, ty: 21, tabela: 'nivel_3' },
+      { id: 'quadro_geral_gaveta', tx: 12, ty: 12, tabela: 'nivel_3_premio', requer: 'represaComportaAberta' },
+    ],
+    avisos: [
+      { id: 'log_comportas', tx: 22, ty: 12 },
+      { id: 'terminal_morto', tx: 8, ty: 3 },
+      { id: 'modificacao_estranha', tx: 3, ty: 21 },
+    ],
+    inimigos: [
+      { id: 'esfera_4a', tipo: 'esfera_choque', tx: 5, ty: 8, raio: 6 },
+      { id: 'smart_4a', tipo: 'smartfone', tx: 28, ty: 16, raio: 6 },
+      { id: 'smart_4b', tipo: 'smartfone', tx: 24, ty: 3, raio: 8 },
+      { id: 'esfera_4b', tipo: 'esfera_choque', tx: 12, ty: 21, raio: 5 },
+    ],
+    luzes: [
+      { tx: 16, ty: 2, raio: 2 },
+      { tx: 16, ty: 13, raio: 3 },
+      { tx: 2, ty: 6, raio: 2 },
+      { tx: 30, ty: 19, raio: 2 },
+    ],
+  },
+
+  // ----------------------------------------------------------- NIVEL -4 --
+  /**
+   * Nivel -4 — o setor profundo, o mais escuro que existe hoje. Duas camaras: o
+   * poco de drenagem (por onde se chega) e a camara da placa de controle, que e
+   * onde o misterio da usina fica mais explicito e onde esta o cofre de peca
+   * rara. Ganho da visita: o elevador de servico, que passa a ligar isto
+   * direto com o nivel 0.
+   */
+  represa_4: {
+    nivel: -4,
+    rotulo: 'Setor Profundo — Nivel -4',
+    escuridao: 0.1665,
+    parede: 'represa_escuro',
+    paredePorComodo: { camara: 'represa_tubos' },
+    chao: 'PISO_CONCRETO_ESCURO',
+    pisos: { camara: 'xadrez_banheiro' },
+    largura: 28,
+    altura: 20,
+    paredes: [[1, 10, 25, 2]],
+    vaos: [[13, 10], [13, 11]],
+    comodos: {
+      camara: [1, 2, 25, 8],
+      poco: [1, 12, 25, 6],
+    },
+    escuridaoPorComodo: { camara: 0.14 },
+    saidas: [
+      { id: 'sobe_3', tx: 13, ty: 17, destino: 'represa_3', destinoTx: 16, destinoTy: 4, grelha: true, rotulo: 'Subir' },
+      // ELEVADOR: atalho permanente pro nivel 0, liberado pelo puzzle profundo.
+      { id: 'elevador_4', tx: 5, ty: 4, destino: 'represa_0', destinoTx: 3, destinoTy: 16, grelha: true, trancada: 'represaElevadorLiberado', rotulo: 'Elevador de servico' },
+      // DESCIDA PRO ANDAR 6 — a boca dos quarenta e cinco andares novos.
+      //
+      // Ela e travada pelo MESMO puzzle profundo que libera o elevador: quem
+      // restaura a placa mestre destranca as duas coisas. Era o fim da usina e
+      // passou a ser o meio dela; o texto do painel ja dizia que o terminal
+      // cuspia uma data de tres anos depois do desligamento, entao a continuacao
+      // nao contradiz nada do que estava escrito.
+      { id: 'desce_5', tx: 20, ty: 15, destino: 'represa_f06', destinoTx: 3, destinoTy: 17, grelha: true, trancada: 'represaPlacaRestaurada', rotulo: 'Descer' },
+    ],
+    mobilia: {
+      camara: [
+        { movel: 'mesa_bancada_pc', tx: 9, ty: 5 },
+        { movel: 'armario_pecas', tx: 14, ty: 5 },
+        { movel: 'estante_caixas', tx: 18, ty: 5 },
+        { movel: 'bancada_trabalho', tx: 21, ty: 9 },
+        { movel: 'estante_caixas', tx: 2, ty: 9 },
+      ],
+      poco: [
+        { movel: 'cesto_sucata', tx: 3, ty: 17 },
+        { movel: 'estante_caixas', tx: 8, ty: 17 },
+        { movel: 'armario_pecas', tx: 20, ty: 17 },
+        { movel: 'prateleira_pecas', tx: 24, ty: 13 },
+      ],
+    },
+    paineis: [
+      // Puzzle 6 (profundo, tres passos): restaurar a placa de controle.
+      { id: 'placa_controle', tx: 12, ty: 4 },
+    ],
+    sucata: [
+      { id: 'caixa_poco_1', tx: 6, ty: 13, tabela: 'nivel_4' },
+      { id: 'caixa_poco_2', tx: 18, ty: 13, tabela: 'nivel_4' },
+      { id: 'caixa_camara', tx: 4, ty: 3, tabela: 'nivel_4' },
+      // COFRE: a unica fonte de peca rara garantida. So abre com a placa
+      // restaurada, entao ele nao e sorte — e consequencia do puzzle profundo.
+      { id: 'cofre_profundo', tx: 24, ty: 3, tabela: 'nivel_4_cofre', requer: 'represaPlacaRestaurada' },
+    ],
+    avisos: [
+      { id: 'terminal_profundo', tx: 16, ty: 4 },
+      { id: 'placa_fabricante', tx: 2, ty: 13 },
+      { id: 'anotacao_final', tx: 22, ty: 17 },
+    ],
+    // FAUNA rebalanceada pro capitulo 1. Os dois monstros mais pesados do jogo
+    // estavam aqui, no quinto de cinquenta andares — eles agora sao do capitulo
+    // 5, e este trecho passa a ter a especie de introducao. Ver `CAPITULOS` em
+    // src/game/andares.ts.
+    inimigos: [
+      { id: 'esfera_5a', tipo: 'esfera_choque', tx: 8, ty: 8, raio: 6 },
+      { id: 'smart_5a', tipo: 'smartfone', tx: 20, ty: 8, raio: 6 },
+      { id: 'esfera_5b', tipo: 'esfera_choque', tx: 14, ty: 15, raio: 7 },
+    ],
+    luzes: [
+      { tx: 13, ty: 12, raio: 2 },
+      { tx: 12, ty: 3, raio: 2 },
+    ],
+  },
+};
+
+/**
+ * Gera o tilemap de um setor da represa.
+ *
+ * Reaproveita a maquina de interior que ja existe — `Grade`, `acabarParedes`,
+ * `portasDeVao`, `objetosDeMovel`, os mesmos GIDs de parede e piso — e nao
+ * inventa nada de cena. O que ele tem de diferente de `gerarInteriorPlanta` sao
+ * quatro coisas, todas por causa do formato do setor:
+ *
+ *  1. VARIAS portas, em posicao livre, cada uma podendo exigir uma flag; contra
+ *     a porta unica no meio da parede de baixo de um interior de predio;
+ *  2. tres camadas de objeto novas (`sucata`, `inimigos`, `luzes`);
+ *  3. `escuridao` gravada no mapa e por comodo;
+ *  4. nenhuma cama, nenhum spawn de NPC, nenhuma expansao compravel.
+ */
+/** Tamanho em TILES de uma peca do catalogo de mobilia, pelo nome dela. */
+function medirMovel(nomeDoMovel) {
+  const def = MOVEIS_CASA[nomeDoMovel];
+  if (!def) throw new Error(`movel "${nomeDoMovel}" nao existe em MOVEIS_CASA`);
+  return tamanhoDeMovel(def.folha, def.peca, def.escala);
+}
+
+/**
+ * OS QUARENTA E CINCO ANDARES COMPOSTOS entram na MESMA tabela dos cinco
+ * autorais.
+ *
+ * E a decisao central desta leva: nao ha um segundo motor de mapa pros andares
+ * novos. `gerarSetorRepresa`, `conferirSetoresRepresa` e `entradaDoInterior` nao
+ * sabem se a planta que estao lendo foi desenhada a mao ou composta por modulo —
+ * e por isso que os cinco antigos continuam gerando byte por byte o que geravam
+ * (fora a escuridao e a fauna, rebalanceadas de proposito) e os quarenta e cinco
+ * novos passam pelas mesmas conferencias que eles.
+ */
+Object.assign(PLANTAS_REPRESA, plantasCompostas({ medir: medirMovel }));
+
+function gerarSetorRepresa(nome, ts) {
+  const p = PLANTAS_REPRESA[nome];
+  if (!p) throw new Error(`"${nome}" nao tem planta em PLANTAS_REPRESA`);
+  const { largura: W, altura: H } = p;
+
+  const chao = new Grade(W, H, GID[p.chao]);
+  for (const [comodo, piso] of Object.entries(p.pisos ?? {})) {
+    const ret = p.comodos[comodo];
+    if (!ret) throw new Error(`"${nome}": piso pedido pro comodo "${comodo}", que nao existe`);
+    chao.rect(ret[0], ret[1], ret[2], ret[3], gidDePiso(piso));
+  }
+  // grelha de aco sob cada passagem entre niveis: e o que faz o alcapao ler
+  // como alcapao antes de o jogador encostar nele
+  for (const s of p.saidas) if (s.grelha) chao.set(s.tx, s.ty, GID.GRELHA);
+
+  const obj = new Grade(W, H);
+  obj.moldura(GID.PAREDE);
+  obj.rect(0, 0, W, PAREDE_TOPO, GID.PAREDE);
+  for (const [x, y, w, h] of p.paredes) obj.rect(x, y, w, h, GID.PAREDE);
+  for (const [x, y] of p.vaos) obj.set(x, y, 0);
+  // porta de rua (a que fica na moldura) nao colide
+  for (const s of p.saidas) if (s.ty === H - 1) obj.set(s.tx, s.ty, GID.PORTA);
+  for (const [x, y, gid] of portasDeVao(p)) obj.set(x, y, gid);
+  acabarParedes(obj, W, H, estiloDeParedeDoTile(p));
+
+  const c = p.nivel === 0 ? construcao('casa_maquinas') : null;
+  const interativos = p.saidas.map((s) => {
+    const alvo = s.destino === 'represa'
+      ? { destinoTx: c.frente.x, destinoTy: c.frente.y }
+      : { destinoTx: s.destinoTx, destinoTy: s.destinoTy };
+    return objeto(s.id, s.elevador ? 'elevador' : 'porta', s.tx, s.ty, {
+      destino: s.destino,
+      ...alvo,
+      rotulo: s.rotulo,
+      ...(s.trancada ? { trancada: s.trancada } : {}),
+      // ELEVADOR: a classe e outra e o `andar` diz em que parada a cabine esta.
+      // Ele nao leva a um destino fixo — abre o menu de paradas ja ativadas.
+      ...(s.elevador ? { andar: s.elevador } : {}),
+    });
+  });
+  for (const painel of p.paineis) {
+    interativos.push(objeto(`painel_${painel.id}`, 'painel', painel.tx, painel.ty, {
+      painel: painel.id,
+    }));
+  }
+  for (const aviso of p.avisos ?? []) {
+    // Os cinco autorais levam prefixo `represa_` no id do texto (foi assim que
+    // eles nasceram); os documentos dos andares compostos ja vem com id proprio
+    // (`ficha_017`, `pista_23`, `tubo_azul_08`) e nao levam prefixo nenhum.
+    const chave = aviso.ficha || aviso.marco || /^(ficha|pista|lote)_/.test(aviso.id)
+      ? aviso.id
+      : `represa_${aviso.id}`;
+    interativos.push(objeto(`doc_${aviso.id}`, 'placa', aviso.tx, aviso.ty, {
+      aviso: chave,
+      // FICHA MEDICA: o `andar` marca o documento como uma das cinquenta fichas,
+      // e e por ele que a cena sabe arquivar em vez de so mostrar o texto.
+      ...(aviso.ficha ? { ficha: aviso.ficha } : {}),
+      ...(aviso.requer ? { requer: aviso.requer } : {}),
+    }));
+  }
+
+  const sucata = (p.sucata ?? []).map((s) =>
+    objeto(`sucata_${s.id}`, 'sucata', s.tx, s.ty, {
+      tabela: s.tabela,
+      ...(s.requer ? { requer: s.requer } : {}),
+    }),
+  );
+  const inimigos = (p.inimigos ?? []).map((i) =>
+    objeto(`inimigo_${i.id}`, 'inimigo', i.tx, i.ty, { tipo: i.tipo, raio: i.raio }),
+  );
+  const luzes = (p.luzes ?? []).map((l, i) =>
+    objeto(`luz_${i}`, 'luz', l.tx, l.ty, {
+      raio: l.raio,
+      // `tipo` escolhe a luminaria no atlas `equipamento`; ausente = so o halo
+      // antigo, que e o caso dos cinco setores autorais.
+      ...(l.tipo ? { tipo: l.tipo } : {}),
+      // `circuito` liga a lampada a uma flag: apagada enquanto ela nao existir.
+      ...(l.circuito ? { circuito: l.circuito } : {}),
+    }),
+  );
+
+  const comodos = Object.entries(p.comodos).map(([comodo, [x, y, w, h]]) =>
+    objeto(
+      comodo,
+      'comodo',
+      x,
+      y,
+      {
+        privado: false,
+        // escuridao POR COMODO: e o que faz o corredor de servico do nivel -2
+        // ser mais escuro que a galeria dele sem precisar de outro tilemap
+        escuridao: p.escuridaoPorComodo?.[comodo] ?? p.escuridao,
+      },
+      w,
+      h,
+    ),
+  );
+
+  const moveis = objetosDeMovel(nome, pecasDeCatalogo(nome, mobiliaDaPlanta(p)), 'mobilia_v1');
+
+  return {
+    mapa: montarMapa(
+      W,
+      H,
+      [
+        camadaTiles('chao', 1, chao),
+        camadaTiles('objetos', 2, obj),
+        camadaObjetos('interativos', 3, interativos),
+        camadaObjetos('moveis', 4, moveis),
+        camadaObjetos('comodos', 5, comodos),
+        camadaObjetos('sucata', 6, sucata),
+        camadaObjetos('inimigos', 7, inimigos),
+        camadaObjetos('luzes', 8, luzes),
+      ],
+      ts,
+    ),
+    moveis: moveis.length,
+    sucata: sucata.length,
+    inimigos: inimigos.length,
+    paineis: p.paineis.length,
+  };
+}
+
+/**
+ * Sanidade dos setores. Cada uma destas ja pegou um erro real na escrita das
+ * cinco plantas acima, por isso todas ficaram:
+ *
+ *  - todo tile de comodo tem de ser LIVRE (nada de comodo por cima de parede);
+ *  - toda porta, painel, sucata, aviso, inimigo, luz e movel tem de cair em
+ *    tile livre e ALCANCAVEL a partir da porta de chegada do setor;
+ *  - toda porta tem de ter par de volta no setor de destino, e o ponto de
+ *    chegada de uma tem de ser livre no outro;
+ *  - a escuridao tem de subir monotonicamente com a profundidade.
+ */
+function conferirSetoresRepresa(gerados) {
+  const grades = new Map();
+  for (const [nome, gerado] of Object.entries(gerados)) {
+    const p = PLANTAS_REPRESA[nome];
+    const dados = gerado.mapa.layers.find((l) => l.name === 'objetos').data;
+    const livre = (x, y) =>
+      x >= 0 && y >= 0 && x < p.largura && y < p.altura && !gidBloqueia(dados[y * p.largura + x] ?? 0);
+    grades.set(nome, { p, livre });
+  }
+
+  let conferidos = 0;
+  for (const [nome, { p, livre }] of grades) {
+    // chegada do setor: a primeira saida e sempre a que liga pra "fora" (a rua
+    // no nivel 0, o setor de cima nos outros), e e de onde o jogador entra
+    const entrada = p.saidas[0];
+    const inicio = entrada.ty === p.altura - 1 ? [entrada.tx, entrada.ty - 1] : [entrada.tx, entrada.ty];
+    if (!livre(...inicio)) throw new Error(`${nome}: a chegada ${inicio} esta bloqueada`);
+
+    const vistos = new Set([inicio.join(',')]);
+    const fila = [inicio];
+    for (let i = 0; i < fila.length; i++) {
+      const [x, y] = fila[i];
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        const k = `${nx},${ny}`;
+        if (livre(nx, ny) && !vistos.has(k)) {
+          vistos.add(k);
+          fila.push([nx, ny]);
+        }
+      }
+    }
+    const alcanca = (x, y) => vistos.has(`${x},${y}`);
+
+    for (const [comodo, [x, y, w, h]] of Object.entries(p.comodos)) {
+      for (let j = y; j < y + h; j++) {
+        for (let i = x; i < x + w; i++) {
+          if (!livre(i, j)) throw new Error(`${nome}: o comodo "${comodo}" cobre a parede ${i},${j}`);
+          if (!alcanca(i, j)) throw new Error(`${nome}: o tile ${i},${j} de "${comodo}" nao e alcancavel`);
+        }
+      }
+      conferidos += w * h;
+    }
+
+    const pontos = [
+      ...p.saidas.map((s) => [s.tx, s.ty, `saida ${s.id}`]),
+      ...p.paineis.map((s) => [s.tx, s.ty, `painel ${s.id}`]),
+      ...(p.sucata ?? []).map((s) => [s.tx, s.ty, `sucata ${s.id}`]),
+      ...(p.avisos ?? []).map((s) => [s.tx, s.ty, `aviso ${s.id}`]),
+      ...(p.inimigos ?? []).map((s) => [s.tx, s.ty, `inimigo ${s.id}`]),
+      ...(p.luzes ?? []).map((s, i) => [s.tx, s.ty, `luz ${i}`]),
+    ];
+    for (const [x, y, rotulo] of pontos) {
+      // a porta da rua fica NA moldura de proposito; o resto tem de estar dentro
+      const naMoldura = y === p.altura - 1;
+      if (naMoldura) continue;
+      if (!livre(x, y)) throw new Error(`${nome}: ${rotulo} em ${x},${y} esta em tile bloqueado`);
+      if (!alcanca(x, y)) throw new Error(`${nome}: ${rotulo} em ${x},${y} nao e alcancavel`);
+    }
+
+    // par de volta e ponto de chegada
+    for (const s of p.saidas) {
+      if (s.destino === 'represa') continue;
+      // O ELEVADOR nao e uma porta com par: ele abre um menu de paradas ja
+      // ativadas e o `destino` declarado nele e so o andar 1, que e a parada que
+      // sempre existe. Cobrar par de volta dele exigiria uma porta de elevador
+      // no andar 1 por cada uma das onze paradas.
+      if (s.elevador) {
+        const outroLado = grades.get(s.destino);
+        if (outroLado && !outroLado.livre(s.destinoTx, s.destinoTy)) {
+          throw new Error(
+            `${nome}: o elevador larga o jogador em ${s.destinoTx},${s.destinoTy} de ` +
+              `"${s.destino}", que e tile bloqueado`,
+          );
+        }
+        continue;
+      }
+      const outro = grades.get(s.destino);
+      if (!outro) throw new Error(`${nome}: a saida "${s.id}" aponta pro setor inexistente "${s.destino}"`);
+      if (!outro.livre(s.destinoTx, s.destinoTy)) {
+        throw new Error(
+          `${nome}: a saida "${s.id}" larga o jogador em ${s.destinoTx},${s.destinoTy} de ` +
+            `"${s.destino}", que e tile bloqueado`,
+        );
+      }
+      const volta = outro.p.saidas.some((o) => o.destino === nome);
+      if (!volta) throw new Error(`${nome}: "${s.destino}" nao tem saida de volta pra ca`);
+    }
+  }
+
+  // a escuridao tem de crescer com a profundidade, senao o nivel -3 pode sair
+  // mais claro que o -2 sem ninguem notar
+  const ordem = Object.values(PLANTAS_REPRESA).sort((a, b) => b.nivel - a.nivel);
+  for (let i = 1; i < ordem.length; i++) {
+    if (ordem[i].escuridao <= ordem[i - 1].escuridao) {
+      throw new Error(
+        `escuridao nao cresce com a profundidade: nivel ${ordem[i].nivel} ` +
+          `(${ordem[i].escuridao}) nao e mais escuro que ${ordem[i - 1].nivel}`,
+      );
+    }
+  }
+  return conferidos;
+}
+
 /**
  * Onde o jogador cai ao entrar num predio: um tile acima da porta de saida do
  * interior. Cada interior tem tamanho proprio, entao a posicao sai da geometria
  * dele — e a mesma conta que `spawnTile` em src/game/mapas.ts declara.
  */
 function entradaDoInterior(chave) {
+  // Setor da represa: a "entrada" e o tile do alcapao/porta que o outro lado
+  // declarou, e nao um tile acima da porta da rua — um setor tem varias portas.
+  const setor = PLANTAS_REPRESA[chave];
+  if (setor) {
+    const rua = setor.saidas.find((s) => s.destino === 'represa');
+    if (rua) return { x: rua.tx, y: rua.ty - 1 };
+    // Andar COMPOSTO (6 a 50): nao ha saida pra rua nenhuma — a "entrada" dele e
+    // o alcapao por onde se chega, que e o `sobe`.
+    const sobe = setor.saidas.find((s) => s.id === 'sobe');
+    if (!sobe) throw new Error(`o andar "${chave}" nao tem alcapao de chegada`);
+    return { x: sobe.tx, y: sobe.ty };
+  }
   const p = PLANTAS_CASA[chave] ?? PLANTAS_MISTO[chave] ?? PLANTAS_PROPRIAS[chave];
   if (p) return { x: p.porta, y: p.altura - 2 };
   const salao = SALOES().find((s) => s.nome === chave);
@@ -5688,7 +7022,7 @@ function gidBloqueia(gid) {
   return Boolean(t?.colide);
 }
 
-function conferirExterno(chave, vias, gerado, alvosExtras = []) {
+function conferirExterno(chave, vias, gerado, alvosExtras = [], alvosProibidos = []) {
   const m = MUNDO[chave];
   const W = m.largura;
   const H = m.altura;
@@ -5766,6 +7100,15 @@ function conferirExterno(chave, vias, gerado, alvosExtras = []) {
   }
   for (const [x, y, rotulo] of alvosExtras) {
     if (!alcanca(x, y)) throw new Error(`${chave}: ${rotulo} (${x},${y}) nao esta alcancavel`);
+  }
+  // Alvos PROIBIDOS: o contrario da lista acima. Existe pela represa, onde a
+  // regra de jogo e "nao da pra andar por cima da agua nem furar a cerca" — sem
+  // isto um vao de 1 tile na cerca passaria batido, porque tudo continuaria
+  // alcancavel e nenhuma conferencia reclamaria.
+  for (const [x, y, rotulo] of alvosProibidos) {
+    if (alcanca(x, y)) {
+      throw new Error(`${chave}: ${rotulo} (${x},${y}) NAO devia ser alcancavel, e e`);
+    }
   }
 
   return { alcancaveis: vistos.size, lotes: m.zonas.length };
@@ -5846,11 +7189,39 @@ const rRural = conferirExterno('rural', VIAS_RURAL, rural, [
   [RESERVA_MAPA_4.x + 3, RURAL.altura - 3, 'o corredor reservado pro Mapa 4'],
 ]);
 escrever(join(ASSETS, 'tilemaps', 'rural.json'), JSON.stringify(rural.mapa, null, 1));
+const represa = gerarRepresa(ts);
+const rRepresa = conferirExterno(
+  'represa',
+  VIAS_REPRESA,
+  represa,
+  [
+    // a subida inteira, de ponta a ponta, mais os dois ramais
+    [PATIO_REPRESA.x + 12, PATIO_REPRESA.y + 2, 'o patio da casa de forca'],
+    [CERCA_REPRESA.portao.x + 1, CERCA_REPRESA.y, 'o portao da area restrita'],
+    [25, 92, 'o mirante sobre o rio de jusante'],
+    // a coluna da ponte sai da propria estrada: no y do canal o eixo da via
+    // esta em x~36, e a faixa cobre 34..37
+    [36, CANAL_REPRESA.y + 1, 'a ponte sobre o canal de drenagem'],
+  ],
+  [
+    // o que NAO pode ser alcancavel: se um destes cair, a cerca ou a agua tem
+    // furo, e a unica via de acesso a usina deixou de ser unica
+    [RESERVATORIO.x + 40, RESERVATORIO.y + 10, 'o meio do reservatorio'],
+    [RESERVATORIO.x + 3, RESERVATORIO.y + 2, 'a ponta oeste do reservatorio'],
+    [BARRAGEM.x + 40, BARRAGEM.y + 2, 'a passarela da barragem'],
+    [leitoDoRio(120) + 5, 120, 'o meio do rio de jusante'],
+    [SUBESTACAO_REPRESA.x + 5, SUBESTACAO_REPRESA.y + 3, 'o miolo da subestacao murada'],
+  ],
+);
+escrever(join(ASSETS, 'tilemaps', 'represa.json'), JSON.stringify(represa.mapa, null, 1));
 console.log(
   `mapas externos: bairro ${BAIRRO.largura}x${BAIRRO.altura} ` +
     `(${rBairro.lotes} lotes, ${rBairro.alcancaveis} tiles alcancaveis) | ` +
     `rural ${RURAL.largura}x${RURAL.altura} ` +
-    `(${rRural.lotes} lotes, ${rRural.alcancaveis} tiles alcancaveis)`,
+    `(${rRural.lotes} lotes, ${rRural.alcancaveis} tiles alcancaveis) | ` +
+    `represa ${REPRESA.largura}x${REPRESA.altura} ` +
+    `(${rRepresa.lotes} lotes, ${rRepresa.alcancaveis} tiles alcancaveis, ` +
+    `${represa.contagem.arvores} arvores)`,
 );
 let moveisDeCasa = 0;
 for (const c of CONSTRUIDAS) {
@@ -5874,6 +7245,20 @@ for (const salao of SALOES()) {
   const interior = gerarInteriorComercio(salao, ts);
   escrever(join(ASSETS, 'tilemaps', `${salao.nome}.json`), JSON.stringify(interior.mapa, null, 1));
 }
+// setores da represa: cinco tilemaps desenhados a mao, um por nivel
+const setoresRepresa = {};
+for (const nome of Object.keys(PLANTAS_REPRESA)) setoresRepresa[nome] = gerarSetorRepresa(nome, ts);
+const tilesRepresa = conferirSetoresRepresa(setoresRepresa);
+for (const [nome, gerado] of Object.entries(setoresRepresa)) {
+  escrever(join(ASSETS, 'tilemaps', `${nome}.json`), JSON.stringify(gerado.mapa, null, 1));
+}
+console.log(
+  `represa: ${Object.keys(setoresRepresa).length} setores, ${tilesRepresa} tiles de comodo ` +
+    `conferidos | ${Object.values(setoresRepresa).reduce((n, g) => n + g.moveis, 0)} moveis, ` +
+    `${Object.values(setoresRepresa).reduce((n, g) => n + g.sucata, 0)} pontos de sucata, ` +
+    `${Object.values(setoresRepresa).reduce((n, g) => n + g.inimigos, 0)} inimigos, ` +
+    `${Object.values(setoresRepresa).reduce((n, g) => n + g.paineis, 0)} paineis`,
+);
 // mistos: um unico interior por lote, com a moradia atras da porta somente-NPC
 let moveisMistos = 0;
 for (const nome of Object.keys(PLANTAS_MISTO)) {

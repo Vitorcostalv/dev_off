@@ -1,3 +1,5 @@
+import { ANDARES_COMPOSTOS } from './andares.ts';
+
 export interface DefinicaoMapa {
   /** chave usada em `estado.mapa` e na propriedade `destino` das portas */
   chave: string;
@@ -29,6 +31,17 @@ export interface DefinicaoMapa {
    * predio. Nos externos, e a propria chave.
    */
   mapaExterno: string;
+  /**
+   * CARREGA SOB DEMANDA: o tilemap nao entra no `preload` do BootScene; a cena de
+   * mundo o busca quando o jogador chega nele.
+   *
+   * Existe pelos quarenta e cinco andares novos da represa. Somados, os tilemaps
+   * deles passam de um megabyte de JSON — carregar tudo no boot atrasaria a
+   * abertura do jogo pra quem nunca desceu na usina, e manter os cinquenta em
+   * memoria e exatamente o que a Parte 51 do plano proibe. Ver `garantirTilemap`
+   * na FarmScene.
+   */
+  sobDemanda?: boolean;
 }
 
 /** Todo mapa sai do mesmo gerador, entao key e arquivo derivam da chave. */
@@ -50,12 +63,14 @@ function mapa(
 }
 
 /**
- * Onde os 9 NPCs vivem. O motor de rotinas continua sendo de UM mapa so: ele
- * nao aprendeu a mover NPC entre mapas nesta leva. Fora daqui os NPCs
- * simplesmente nao sao renderizados nem viram alvo de interacao — mesmo
- * tratamento que ja existia pro jogador estar dentro de um interior.
+ * Mapa externo usado como ultimo recurso quando `estado.mapa` nao esta em
+ * `MAPAS` — o BootScene ja barra esse caso ao aplicar o save, entao isto so
+ * cobre um estado impossivel sem espalhar `null` pela cena.
+ *
+ * NAO e mais "o mapa dos NPCs": cada NPC declara o seu em `DefinicaoNpc.mapa`,
+ * e o motor de rotinas move os 33 nos tres mapas.
  */
-export const MAPA_DOS_NPCS = 'farm';
+export const MAPA_PADRAO = 'farm';
 
 /** O interior da casa+oficina do protagonista: onde se dorme, salva e usa o PC. */
 export const MAPA_DA_CASA = 'oficina';
@@ -74,8 +89,11 @@ export const MAPAS: Record<string, DefinicaoMapa> = {
   // e por isso o spawn padrao dele e a porta da casa+oficina: jogo novo comeca
   // aqui (ver `estado.mapa`).
   bairro: mapa('bairro', { x: 80, y: 39 }, 'bairro'),
-  // Mapa 3 — Zona Rural, ao sul do Mapa 2, do outro lado do rio.
-  rural: mapa('rural', { x: 66, y: 4 }, 'rural'),
+  // Mapa 3 — Zona Rural, a LESTE do Mapa 1 na topologia nova.
+  rural: mapa('rural', { x: 3, y: 44 }, 'rural'),
+  // Mapa 4 — Estrada da Represa, ao NORTE do Mapa 1. Entra pela borda sul e
+  // sobe: o spawn padrao e a boca da estrada, nao o meio do mapa.
+  represa: mapa('represa', { x: 40, y: 136 }, 'represa'),
 
   // ----------------------------------------------- interiores do Mapa 1 --
   // A casa_1 (casinha inicial do protagonista) NAO esta mais aqui: o predio
@@ -120,6 +138,37 @@ export const MAPAS: Record<string, DefinicaoMapa> = {
   // Moradias da Zona Rural.
   casa_rural_1: mapa('casa_rural_1', { x: 11, y: 14 }, 'rural'),
   casa_rural_2: mapa('casa_rural_2', { x: 11, y: 16 }, 'rural'),
+
+  // ----------------------------------------------- interiores do Mapa 4 --
+  // Os cinco setores da usina. NAO sao interiores de predio: sao niveis de uma
+  // area de exploracao, ligados entre si por alcapao e elevador, com inimigo,
+  // sucata, painel de enigma e escuridao por comodo. O que os faz caber no
+  // sistema de mapa que ja existia e que eles sao tilemaps com camada
+  // `interativos` — a cena nao ganhou caminho novo por causa deles.
+  //
+  // O `spawnTile` de cada um e o alcapao de chegada. Ele quase nunca e usado:
+  // toda porta manda `destinoTx/destinoTy` explicito. Ele existe pro caso de um
+  // save antigo apontar pro setor sem coordenada valida.
+  represa_0: mapa('represa_0', { x: 14, y: 18 }, 'represa'),
+  represa_1: mapa('represa_1', { x: 25, y: 19 }, 'represa'),
+  represa_2: mapa('represa_2', { x: 30, y: 18 }, 'represa'),
+  represa_3: mapa('represa_3', { x: 16, y: 21 }, 'represa'),
+  represa_4: mapa('represa_4', { x: 13, y: 17 }, 'represa'),
+
+  // Os ANDARES 6 a 50 (`represa_f06` .. `represa_f50`). Nao estao escritos um
+  // por um: a lista sai de `ANDARES` (src/game/andares.ts), que e o registro
+  // central, e o `spawnTile` de cada um e o tile de chegada declarado no template
+  // dele. Manter quarenta e cinco linhas aqui em paralelo aquele arquivo seria
+  // manter a mesma lista em dois lugares.
+  //
+  // Todos entram como `sobDemanda`: o tilemap deles chega quando o jogador
+  // chega, e nao no boot.
+  ...Object.fromEntries(
+    ANDARES_COMPOSTOS.map((a) => [
+      a.mapa,
+      { ...mapa(a.mapa, a.entrada, 'represa'), sobDemanda: true },
+    ]),
+  ),
 };
 
 export function buscarMapa(chave: unknown): DefinicaoMapa | null {

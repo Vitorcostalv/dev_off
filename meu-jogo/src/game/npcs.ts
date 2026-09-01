@@ -1,7 +1,8 @@
 import { DIA_DA_SEMANA } from './calendario.ts';
 import type { IndiceDiaDaSemana } from './calendario.ts';
 import { MORADORES } from './moradores.ts';
-import type { Morador } from './moradores.ts';
+import type { AtividadeMorador, Morador } from './moradores.ts';
+import type { Direcao } from './tipos.ts';
 
 export interface PontoTile {
   x: number;
@@ -94,6 +95,28 @@ export type AcaoRotinaNpc =
       tipo: 'posto_interior';
       posto: PostoInterior;
     })
+  | (AcaoBase & {
+      /**
+       * Assume um lugar FIXO de uma vez, sem caminhar ate ele.
+       *
+       * Existe pelos 14 moradores cuja arte tem so as quatro poses paradas (ver
+       * `npc-caminhada.json`): nao ha como levar um deles a pe sem deslizar uma
+       * pose de pe pelo chao, que foi o bug que esta acao substitui. Vale
+       * tambem pra quem TEM passada mas trabalha num posto fixo, como a
+       * bibliotecaria atras do balcao.
+       *
+       * `construcao: null` e ar livre; qualquer outro valor poe o NPC DENTRO do
+       * interior indicado, invisivel no mapa externo, como `entrar_construcao`.
+       * A conferencia de rotinas exige que o ponto esteja livre e alcancavel no
+       * mapa (ou interior) que ele diz, e que duas trocas seguidas nao aconteca
+       * as duas ao ar livre no MESMO mapa — trocar de lugar ao ar livre na
+       * frente do jogador seria um teleporte.
+       */
+      tipo: 'assumir_lugar';
+      construcao: string | null;
+      ponto: PontoTile;
+      direcao?: Direcao;
+    })
   | (AcaoBase & { tipo: 'entrar_construcao'; construcao: string })
   | (AcaoBase & { tipo: 'sair_construcao'; construcao: string })
   | (AcaoBase & { tipo: 'voltar_para_casa' });
@@ -102,6 +125,16 @@ export interface DefinicaoNpc {
   id: string;
   nome: string;
   casa: string;
+  /**
+   * Mapa EXTERNO a que o NPC pertence. Quando o jogador esta num mapa externo,
+   * so aparecem os NPCs deste mapa que nao estao dentro de construcao; quando
+   * esta num interior, aparecem os que estao dentro DELE, venham de onde vierem
+   * (o Rafael mora no Bairro e atende na academia do Mapa 1).
+   *
+   * O motor de rotinas nao usa este campo: pra ele posicao e `dentro` bastam.
+   * Quem usa e a cena, em `posicaoNpcNoMapa`.
+   */
+  mapa: string;
   posicaoInicial: PontoTile;
   /** Construcao onde o NPC comeca o dia; null = ja esta do lado de fora. */
   dentroInicial: string | null;
@@ -143,6 +176,8 @@ export interface DefinicaoNpc {
 }
 
 interface LocalCidade {
+  /** Mapa externo em que o lote fica. */
+  mapa: string;
   frente: PontoTile;
   interior: PontoTile;
   portaInterior: PontoTile;
@@ -216,43 +251,43 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
   // tamanho e disposicao propria (ver `PLANTAS_CASA` em tools/gerar-assets.mjs).
   // `interior` e o tile em que o morador comeca o dia — sempre na sala, e sempre
   // alinhado com o vao por onde ele sai, pra `corredorInterior` ser uma reta.
-  casa_2: {
+  casa_2: { mapa: 'farm',
     frente: { x: 43.5, y: 16.5 },
     interior: { x: 14.5, y: 6.5 },
     portaInterior: { x: 11.5, y: 16.5 },
     // sala -> vao (12,6) -> corredor central -> porta
     corredorInterior: [{ x: 11.5, y: 6.5 }],
   },
-  casa_3: {
+  casa_3: { mapa: 'farm',
     frente: { x: 75.5, y: 16.5 },
     interior: { x: 11.5, y: 14.5 },
     portaInterior: { x: 11.5, y: 16.5 },
     // a sala da frente ja e a circulacao: desce reto ate a porta
   },
-  casa_4: {
+  casa_4: { mapa: 'farm',
     frente: { x: 87.5, y: 16.5 },
     interior: { x: 5.5, y: 15.5 },
     portaInterior: { x: 5.5, y: 18.5 },
   },
-  casa_5: {
+  casa_5: { mapa: 'farm',
     frente: { x: 31.5, y: 79.5 },
     interior: { x: 5.5, y: 14.5 },
     portaInterior: { x: 5.5, y: 16.5 },
   },
-  casa_6: {
+  casa_6: { mapa: 'farm',
     frente: { x: 43.5, y: 79.5 },
     interior: { x: 16.5, y: 12.5 },
     portaInterior: { x: 10.5, y: 14.5 },
     // sala -> vao (13,12) -> hall -> porta
     corredorInterior: [{ x: 10.5, y: 12.5 }],
   },
-  mercado: { frente: { x: 70.5, y: 55.5 }, interior: { x: 11.5, y: 9.5 }, portaInterior: { x: 11.5, y: 13.5 } },
-  academia: { frente: { x: 53.5, y: 35.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
+  mercado: { mapa: 'farm', frente: { x: 70.5, y: 55.5 }, interior: { x: 11.5, y: 9.5 }, portaInterior: { x: 11.5, y: 13.5 } },
+  academia: { mapa: 'farm', frente: { x: 53.5, y: 35.5 }, interior: { x: 9.5, y: 8.5 }, portaInterior: { x: 9.5, y: 10.5 } },
   // Mistos (casa + comercio no mesmo interior 20x14): `interior` fica na sala da
   // area PRIVADA, atras da porta somente-NPC — e onde o dono nasce e onde ele
   // volta fora do horario de funcionamento. Os dois lotes usam a mesma planta,
   // entao os postos e a espinha coincidem.
-  bar: {
+  bar: { mapa: 'farm',
     frente: { x: 81.5, y: 29.5 },
     interior: { x: 5.5, y: 11.5 },
     portaInterior: { x: 10.5, y: 12.5 },
@@ -260,7 +295,7 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
     rotaEntrePostos: ESPINHA_MISTO,
     corredorInterior: CORREDOR_SAIDA_MISTO,
   },
-  farmacia: {
+  farmacia: { mapa: 'farm',
     frente: { x: 85.5, y: 55.5 },
     interior: { x: 5.5, y: 11.5 },
     portaInterior: { x: 10.5, y: 12.5 },
@@ -268,10 +303,101 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
     rotaEntrePostos: ESPINHA_MISTO,
     corredorInterior: CORREDOR_SAIDA_MISTO,
   },
+  // -------------------------------------------- lotes do Mapa 2 (Bairro) --
+  // As 9 casas ocupadas do Bairro, a escola e a biblioteca. `interior` e o
+  // `spawnNpc` da planta gerada; `portaInterior` e o tile logo acima da porta
+  // de saida (`porta`, `altura - 2`), a mesma conta de `entradaDoInterior` no
+  // gerador. `corredorInterior` so aparece onde a reta do interior ate a porta
+  // atravessaria parede — nas plantas de corredor central e de hall.
+  casa_b1: {
+    mapa: 'bairro',
+    frente: { x: 17.5, y: 48.5 },
+    interior: { x: 14.5, y: 6.5 },
+    portaInterior: { x: 11.5, y: 16.5 },
+    corredorInterior: [{ x: 11.5, y: 6.5 }], // sala -> vao (12,6) -> corredor
+  },
+  casa_b2: {
+    mapa: 'bairro',
+    frente: { x: 17.5, y: 56.5 },
+    interior: { x: 10.5, y: 14.5 },
+    portaInterior: { x: 10.5, y: 16.5 },
+  },
+  casa_b3: {
+    mapa: 'bairro',
+    frente: { x: 37.5, y: 74.5 },
+    interior: { x: 5.5, y: 15.5 },
+    portaInterior: { x: 5.5, y: 18.5 },
+  },
+  casa_b4: {
+    mapa: 'bairro',
+    frente: { x: 59.5, y: 72.5 },
+    interior: { x: 14.5, y: 14.5 },
+    portaInterior: { x: 14.5, y: 16.5 },
+  },
+  casa_b5: {
+    mapa: 'bairro',
+    frente: { x: 81.5, y: 70.5 },
+    interior: { x: 16.5, y: 12.5 },
+    portaInterior: { x: 10.5, y: 14.5 },
+    corredorInterior: [{ x: 10.5, y: 12.5 }], // sala -> vao (13,12) -> hall
+  },
+  casa_b6: {
+    mapa: 'bairro',
+    frente: { x: 7.5, y: 56.5 },
+    interior: { x: 7.5, y: 6.5 },
+    portaInterior: { x: 10.5, y: 16.5 },
+    corredorInterior: [{ x: 10.5, y: 6.5 }], // sala -> vao (9,6) -> corredor
+  },
+  casa_b7: {
+    mapa: 'bairro',
+    frente: { x: 33.5, y: 84.5 },
+    interior: { x: 11.5, y: 14.5 },
+    portaInterior: { x: 11.5, y: 16.5 },
+  },
+  casa_c1: {
+    mapa: 'bairro',
+    frente: { x: 99.5, y: 28.5 },
+    interior: { x: 16.5, y: 15.5 },
+    portaInterior: { x: 16.5, y: 18.5 },
+  },
+  casa_c2: {
+    mapa: 'bairro',
+    frente: { x: 111.5, y: 28.5 },
+    interior: { x: 5.5, y: 14.5 },
+    portaInterior: { x: 5.5, y: 16.5 },
+  },
+  escola: {
+    mapa: 'bairro',
+    frente: { x: 38.5, y: 48.5 },
+    interior: { x: 12.5, y: 12.5 }, // hall, na frente da porta
+    portaInterior: { x: 12.5, y: 14.5 },
+  },
+  biblioteca: {
+    mapa: 'bairro',
+    frente: { x: 53.5, y: 50.5 },
+    interior: { x: 11.5, y: 12.5 },
+    portaInterior: { x: 11.5, y: 13.5 },
+  },
+
+  // ---------------------------------------- lotes do Mapa 3 (Zona Rural) --
+  casa_rural_1: {
+    mapa: 'rural',
+    frente: { x: 57.5, y: 70.5 },
+    interior: { x: 5.5, y: 12.5 },
+    portaInterior: { x: 11.5, y: 14.5 },
+    corredorInterior: [{ x: 11.5, y: 12.5 }], // sala -> vao (8,12) -> hall
+  },
+  casa_rural_2: {
+    mapa: 'rural',
+    frente: { x: 101.5, y: 34.5 },
+    interior: { x: 14.5, y: 6.5 },
+    portaInterior: { x: 11.5, y: 16.5 },
+    corredorInterior: [{ x: 11.5, y: 6.5 }],
+  },
 };
 
 /**
- * Lotes do MAPA 1 onde alguem pode morar, na ordem em que aparecem no mapa.
+ * Lotes onde alguem pode morar, nos tres mapas, na ordem em que aparecem.
  * Sao as cinco casas de NPC mais os dois predios MISTOS (casa + comercio no mesmo interior):
  * o bar e a farmacia tem cama na metade de moradia, entao contam como moradia
  * disponivel exatamente como `casa_2..casa_6`.
@@ -283,6 +409,7 @@ export const LOCAIS_CIDADE: Record<string, LocalCidade> = {
  * divergiram.
  */
 export const MORADIAS = [
+  // Mapa 1: cinco casas de NPC e os dois lotes MISTOS
   'casa_2',
   'casa_3',
   'casa_4',
@@ -290,13 +417,26 @@ export const MORADIAS = [
   'casa_6',
   'bar',
   'farmacia',
+  // Mapa 2: as nove casas ocupadas do Bairro da Estacao
+  'casa_b1',
+  'casa_b2',
+  'casa_b3',
+  'casa_b4',
+  'casa_b5',
+  'casa_b6',
+  'casa_b7',
+  'casa_c1',
+  'casa_c2',
+  // Mapa 3: as duas moradias da Zona Rural
+  'casa_rural_1',
+  'casa_rural_2',
 ] as const;
 
 export const hora = (horas: number, minutos = 0): number => horas * 60 + minutos;
 
 export const NPCS: Record<string, DefinicaoNpc> = {
   edu: {
-    id: 'edu', nome: 'Edu', casa: 'casa_2',
+    id: 'edu', nome: 'Edu', casa: 'casa_2', mapa: 'farm',
     posicaoInicial: { x: 14.5, y: 6.5 }, dentroInicial: 'casa_2', horaAcordar: hora(7),
     sprite: {
       arquivo: 'assets/sprites/Edu_andando_runtime.png', colunas: 4, linhas: 4,
@@ -352,7 +492,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
     ],
   },
   mari: {
-    id: 'mari', nome: 'Mari', casa: 'casa_3',
+    id: 'mari', nome: 'Mari', casa: 'casa_3', mapa: 'farm',
     posicaoInicial: { x: 11.5, y: 14.5 }, dentroInicial: 'casa_3', horaAcordar: hora(8),
     sprite: {
       arquivo: 'assets/sprites/Mari_andando_runtime.png', colunas: 4, linhas: 4,
@@ -398,7 +538,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
     ],
   },
   jaqueline: {
-    id: 'jaqueline', nome: 'Jaqueline', casa: 'casa_4',
+    id: 'jaqueline', nome: 'Jaqueline', casa: 'casa_4', mapa: 'farm',
     posicaoInicial: { x: 5.5, y: 15.5 }, dentroInicial: 'casa_4', horaAcordar: hora(8),
     sprite: {
       arquivo: 'assets/sprites/Jaqueline_andando_runtime.png', colunas: 4, linhas: 4,
@@ -451,7 +591,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
     ],
   },
   leticia: {
-    id: 'leticia', nome: 'Leticia', casa: 'casa_5',
+    id: 'leticia', nome: 'Leticia', casa: 'casa_5', mapa: 'farm',
     posicaoInicial: { x: 5.5, y: 14.5 }, dentroInicial: 'casa_5', horaAcordar: hora(9, 30),
     sprite: {
       arquivo: 'assets/sprites/leticia_andando_runtime.png', colunas: 4, linhas: 4,
@@ -489,13 +629,17 @@ export const NPCS: Record<string, DefinicaoNpc> = {
       { horario: hora(10), tipo: 'vagar', pausaMinSegundos: 4, pausaMaxSegundos: 12,
         area: { min: { x: 23.5, y: 44.4 }, max: { x: 97.5, y: 46.6 } } },
       { horario: hora(13), tipo: 'andar_rota', waypoints: [
-        { x: 37.5, y: 45.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 52.5 },
+        { x: 37.5, y: 45.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 52.5 }, { x: 37.5, y: 58.5 },
       ] },
       { horario: hora(13), tipo: 'vagar', pausaMinSegundos: 6, pausaMaxSegundos: 18,
-        area: { min: { x: 33.2, y: 52.2 }, max: { x: 42.8, y: 57.8 } },
-        // a praca nao tem saida em reta pra avenida: sobe pela calcada primeiro
+        area: { min: { x: 33.2, y: 57.2 }, max: { x: 44.8, y: 60.8 } },
+        // O RETANGULO DA PRACA e o gramado ao SUL do parque, nao o parque em si:
+        // as estruturas de brinquedo sao moveis SOLIDOS, e a area precisa ser
+        // toda livre. A conferencia passou a contar movel ao ar livre, e foi
+        // assim que este retangulo (que cobria os brinquedos) apareceu.
+        // A praca nao tem saida em reta pra avenida: sobe pela calcada primeiro
         saidaSegura: [
-          { x: 37.5, y: 52.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 45.5 },
+          { x: 37.5, y: 58.5 }, { x: 37.5, y: 52.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 45.5 },
         ] },
       // o turno da avenida nao precisa de saida: a area toda esta na faixa da
       // via, e o primeiro ponto de `rotaCasa` tambem
@@ -516,7 +660,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   // la fora. Ela vem de `rotinaSemanal`, entao o motor nao precisa saber nada
   // sobre dia da semana alem de escolher a lista na virada do dia.
   wendel: {
-    id: 'wendel', nome: 'Wendel', casa: 'farmacia',
+    id: 'wendel', nome: 'Wendel', casa: 'farmacia', mapa: 'farm',
     posicaoInicial: { x: 5.5, y: 11.5 }, dentroInicial: 'farmacia', horaAcordar: hora(7),
     presencaInteriorFixa: true,
     // a arte grafa "Wendeu"; o personagem e Wendel (ver processar-sprites-npc)
@@ -574,7 +718,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
     ],
   },
   alice: {
-    id: 'alice', nome: 'Alice', casa: 'bar',
+    id: 'alice', nome: 'Alice', casa: 'bar', mapa: 'farm',
     posicaoInicial: { x: 5.5, y: 11.5 }, dentroInicial: 'bar', horaAcordar: hora(9),
     presencaInteriorFixa: true,
     sprite: {
@@ -646,7 +790,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   // As duas areas de `vagar` sao as MESMAS que a Leticia usa, ja aprovadas pelo
   // verificador de rotinas — area nova exigiria conferir convexidade de novo.
   luke: {
-    id: 'luke', nome: 'Luke', casa: 'casa_4', compartilhaCasa: true,
+    id: 'luke', nome: 'Luke', casa: 'casa_4', mapa: 'farm', compartilhaCasa: true,
     posicaoInicial: { x: 6.5, y: 15.5 }, dentroInicial: 'casa_4', horaAcordar: hora(9),
     sprite: {
       arquivo: 'assets/sprites/Luke_andando_runtime.png', colunas: 4, linhas: 4,
@@ -681,14 +825,14 @@ export const NPCS: Record<string, DefinicaoNpc> = {
       { horario: hora(9, 30), tipo: 'vagar', pausaMinSegundos: 3, pausaMaxSegundos: 9,
         area: { min: { x: 23.5, y: 44.4 }, max: { x: 97.5, y: 46.6 } } },
       { horario: hora(13), tipo: 'andar_rota', waypoints: [
-        { x: 37.5, y: 45.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 52.5 },
+        { x: 37.5, y: 45.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 52.5 }, { x: 37.5, y: 58.5 },
       ] },
       // tarde no parque: e a ancora visual do "brincar no parque" — o
       // playground fica no lado leste do calcamento (ver PECAS_PARQUE)
       { horario: hora(13), tipo: 'vagar', pausaMinSegundos: 4, pausaMaxSegundos: 14,
-        area: { min: { x: 33.2, y: 52.2 }, max: { x: 42.8, y: 57.8 } },
+        area: { min: { x: 33.2, y: 57.2 }, max: { x: 44.8, y: 60.8 } },
         saidaSegura: [
-          { x: 37.5, y: 52.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 45.5 },
+          { x: 37.5, y: 58.5 }, { x: 37.5, y: 52.5 }, { x: 37.5, y: 47.5 }, { x: 37.5, y: 45.5 },
         ] },
     ],
     rotaCasa: [
@@ -701,7 +845,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   // vaga. Vive na rua e conhece todo mundo pelo apelido; treina correndo em vez
   // de academia, o que rende implicancia amigavel com a Mari.
   hiago: {
-    id: 'hiago', nome: 'Hiago', casa: 'casa_6',
+    id: 'hiago', nome: 'Hiago', casa: 'casa_6', mapa: 'farm',
     posicaoInicial: { x: 16.5, y: 12.5 }, dentroInicial: 'casa_6', horaAcordar: hora(6),
     sprite: {
       arquivo: 'assets/sprites/Hiago_andando_runtime.png', colunas: 4, linhas: 4,
@@ -747,7 +891,7 @@ export const NPCS: Record<string, DefinicaoNpc> = {
   // aparece na rua no fim da tarde — e o unico NPC que o jogador quase nunca
   // encontra de manha.
   vitor: {
-    id: 'vitor', nome: 'Vitor', casa: 'casa_6', compartilhaCasa: true,
+    id: 'vitor', nome: 'Vitor', casa: 'casa_6', mapa: 'farm', compartilhaCasa: true,
     posicaoInicial: { x: 15.5, y: 12.5 }, dentroInicial: 'casa_6', horaAcordar: hora(11),
     sprite: {
       arquivo: 'assets/sprites/Vitor_andando_runtime.png', colunas: 4, linhas: 4,
@@ -787,6 +931,105 @@ export const NPCS: Record<string, DefinicaoNpc> = {
     ],
   },
 };
+
+/**
+ * ------------------------------------ os 24 moradores dos Mapas 2 e 3 --
+ * Eles entram no MESMO motor de rotinas dos 9 originais, montados aqui a partir
+ * da agenda declarada em `MORADORES[].atividades` (ver src/game/moradores.ts).
+ *
+ * Antes desta migracao havia um segundo sistema, em paralelo, que decidia a
+ * posicao deles quadro a quadro dentro da cena: eles andavam em circulo num
+ * quadrado de 5x5, nao entravam em predio nenhum — a diretora passava o dia na
+ * calcada da escola — e nao podiam ser abordados, porque a busca de alvo de
+ * interacao consulta ESTE motor. Uma agenda so, um motor so.
+ *
+ * A traducao de atividade pra acao e direta:
+ *
+ *  - toda faixa vira um `assumir_lugar` no horario de inicio dela;
+ *  - faixa ao ar livre COM `area` (so quem tem passada real na arte) ganha
+ *    tambem um `vagar` naquele retangulo;
+ *  - fecha o dia um `assumir_lugar` em casa as 22:00. Ele existe pra que o
+ *    fallback global das 18:00 (`voltar_para_casa`, que anda ate a porta pela
+ *    `rotaCasa`) nunca seja acrescentado: quem nao tem folha de caminhada nao
+ *    pode ser mandado a pe pra casa. Por isso `rotaCasa` fica vazia aqui.
+ */
+const HORA_DE_DORMIR = hora(22);
+
+export function acoesDeAtividades(atividades: readonly AtividadeMorador[]): AcaoRotinaNpc[] {
+  const acoes: AcaoRotinaNpc[] = [];
+  for (const faixa of atividades) {
+    acoes.push({
+      horario: faixa.inicio,
+      tipo: 'assumir_lugar',
+      construcao: faixa.lugar.construcao,
+      ponto: faixa.lugar.ponto,
+    });
+    // A perambulacao entra no MESMO horario da chegada. `Array.prototype.sort`
+    // e estavel, entao ela continua depois do `assumir_lugar` que a posiciona —
+    // que e o que garante que o primeiro trecho saia de dentro da area.
+    if (faixa.lugar.rota) {
+      // PERCURSO de rua: ciclo pela polilinha, com pausa em cada ponta. Ver
+      // `LugarMorador.rota` em moradores.ts — e o que substituiu o retangulo
+      // miudo na frente de casa por um trajeto que atravessa o bairro.
+      acoes.push({
+        horario: faixa.inicio,
+        tipo: 'vagar_rota',
+        waypoints: faixa.lugar.rota,
+        pausaMinSegundos: 2,
+        pausaMaxSegundos: 7,
+      });
+    } else if (faixa.lugar.area) {
+      acoes.push({
+        horario: faixa.inicio,
+        tipo: 'vagar',
+        area: faixa.lugar.area,
+        pausaMinSegundos: 2,
+        pausaMaxSegundos: 6,
+      });
+    }
+  }
+  const lar = atividades[0]?.lugar;
+  if (lar) {
+    acoes.push({
+      horario: HORA_DE_DORMIR,
+      tipo: 'assumir_lugar',
+      construcao: lar.construcao,
+      ponto: lar.ponto,
+    });
+  }
+  return acoes;
+}
+
+// O TITULAR de cada casa e o primeiro morador dela na ordem de `MORADORES`; os
+// demais da mesma familia dividem o teto (ver `compartilhaCasa`). Derivar isso
+// da ordem evita uma segunda tabela dizendo quem e titular de que.
+const casaComTitular = new Set<string>();
+for (const morador of Object.values(MORADORES)) {
+  const uteis = morador.atividades.filter((faixa) => !faixa.fimDeSemana);
+  const fimDeSemana = acoesDeAtividades(morador.atividades.filter((faixa) => faixa.fimDeSemana));
+  const lar = uteis[0].lugar;
+  const definicao: DefinicaoNpc = {
+    id: morador.id,
+    nome: morador.nome,
+    casa: morador.casa,
+    mapa: morador.mapaResidencia,
+    posicaoInicial: lar.ponto,
+    dentroInicial: lar.construcao,
+    horaAcordar: uteis[0].inicio,
+    dialogoAtual: morador.dialogoAtual,
+    sprite: morador.sprite,
+    spriteParado: morador.spriteParado,
+    rotina: acoesDeAtividades(uteis),
+    rotinaSemanal: {
+      [DIA_DA_SEMANA.sabado]: fimDeSemana,
+      [DIA_DA_SEMANA.domingo]: fimDeSemana,
+    },
+    rotaCasa: [],
+  };
+  if (casaComTitular.has(morador.casa)) definicao.compartilhaCasa = true;
+  casaComTitular.add(morador.casa);
+  NPCS[morador.id] = definicao;
+}
 
 /** So quem OCUPA a moradia entra aqui; quem divide teto (ver `compartilhaCasa`) nao. */
 const TITULARES = Object.values(NPCS).filter((npc) => !npc.compartilhaCasa);

@@ -1,0 +1,94 @@
+{
+ "mao_pistola_disparo": {
+  "largura": 638,
+  "altura": 375,
+  "presa": {
+   "x": 0.0737,
+   "y": 0.864
+  },
+  "cano": {
+   "x": 1,
+   "y": 0.42
+  }
+ },
+ "mao_pistola": {
+  "largura": 469,
+  "altura": 367,
+  "presa": {
+   "x": 0.1002,
+   "y": 0.861
+  },
+  "cano": {
+   "x": 1,
+   "y": 0.42
+  }
+ },
+ "carregador_pistola": {
+  "largura": 150,
+  "altura": 228,
+  "presa": {
+   "x": 0.5,
+   "y": 0.9
+  }
+ },
+ "lampada_gaiola": {
+  "largura": 76,
+  "altura": 207,
+  "presa": {
+   "x": 0.5,
+   "y": 0.04
+  }
+ },
+ "lampada_pendente": {
+  "largura": 74,
+  "altura": 190,
+  "presa": {
+   "x": 0.5,
+   "y": 0.04
+  }
+ },
+ "mao_chave_inglesa": {
+  "largura": 62,
+  "altura": 96,
+  "presa": {
+   "x": 0.5,
+   "y": 0.92
+  }
+ },
+ "mao_lanterna": {
+  "largura": 97,
+  "altura": 81,
+  "presa": {
+   "x": 0.22,
+   "y": 0.55
+  },
+  "cano": {
+   "x": 1,
+   "y": 0.5
+  }
+ },
+ "lampada_teto": {
+  "largura": 107,
+  "altura": 76,
+  "presa": {
+   "x": 0.5,
+   "y": 0.12
+  }
+ },
+ "lampada_tubular": {
+  "largura": 185,
+  "altura": 63,
+  "presa": {
+   "x": 0.5,
+   "y": 0.15
+  }
+ },
+ "projetil_pistola": {
+  "largura": 98,
+  "altura": 50,
+  "presa": {
+   "x": 0.5,
+   "y": 0.5
+  }
+ }
+}

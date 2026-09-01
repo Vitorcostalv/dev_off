@@ -5,12 +5,13 @@ import { formatarDinheiro } from '../game/dinheiro';
 import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
 import { lojasDoMapa } from '../game/loja';
-import { MAPA_DA_CASA, MAPA_DOS_NPCS, MAPAS, buscarMapa } from '../game/mapas';
+import { MAPA_DA_CASA, MAPA_PADRAO, MAPAS, buscarMapa } from '../game/mapas';
+import type { DefinicaoMapa } from '../game/mapas';
 import { CATALOGO_MOBILIA, buscarExpansao, buscarMovelDeLoja } from '../game/casa';
 import { requisitosDoMovel } from '../game/casa';
 import type { DefinicaoExpansao, RequisitoMaterial } from '../game/casa';
 import type { MedidaDeMovel, MovelPosto } from '../game/casa';
-import { buscarNpc, LOCAIS_CIDADE } from '../game/npcs';
+import { buscarNpc, LOCAIS_CIDADE, NPCS } from '../game/npcs';
 import type { PerfilNpc } from '../game/npcs';
 import { atividadeAtual, buscarMorador, MORADORES } from '../game/moradores';
 import type { Morador } from '../game/moradores';
@@ -39,6 +40,42 @@ import type {
   ZonaReservada,
 } from '../game/tipos';
 import type { UIScene } from './UIScene';
+import { CamadaRepresa } from './CamadaRepresa';
+import {
+  PERDA_POR_DERROTA,
+  PONTO_DE_RESGATE,
+  SETOR_DE_RESGATE,
+  buscarPainel,
+  iniciarPainel,
+  naRepresa,
+  opcoesAtuais,
+  perguntaAtual,
+  responderPainel,
+  setorDaRepresa,
+} from '../game/represa';
+import type { ProgressoPainel } from '../game/represa';
+import {
+  buscarTabelaDeSucata,
+  ehSucata,
+  marcaDeRaridade,
+  precoDeRevenda,
+  sortearSucata,
+  venderSucata,
+} from '../game/sucata';
+import { ITENS_DE_LEITURA } from '../game/avisos';
+import { MaoDoJogador } from './MaoDoJogador';
+import { comportamentoDe, zonaPerigosa } from '../game/equipar';
+import { ATAQUE_DO_JOGADOR } from '../game/inimigos';
+import { buscarArma, direcaoDaMira } from '../game/armas';
+import {
+  ANDARES,
+  ANDARES_DE_PARADA,
+  andarDoMapaDef,
+  buscarAndar,
+  flagDeCheckpoint,
+  mapaDoAndar,
+} from '../game/andares';
+import { fichaDoAndar } from '../game/fichas';
 
 /**
  * Quantos tiles cabem na largura da tela. E daqui que sai o zoom da camera:
@@ -123,34 +160,105 @@ const TIPOS_VALIDOS: TipoInteragivel[] = [
   'expansao',
   'mobilia',
   'obra',
+  // classes da represa
+  'painel',
+  'sucata',
+  'revenda',
+  'elevador',
 ];
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
   'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
   'oficina', 'escola', 'biblioteca', 'quadra', 'terreno', 'servico',
   'madeireira', 'pedreira', 'fazenda',
+  'represa', 'mirante',
 ];
 const USOS_ZONA_VALIDOS: UsoZona[] = ['moradia', 'comercio', 'misto', 'praca', 'vago'];
 
 /**
- * Texto de exame dos predios FECHADOS — os que tem fachada de pe e nenhuma
- * porta que abra. Sao os dois lotes `vago` com construcao: a casinha inicial
- * desativada nesta leva e a Central Telefonica do Mapa 2.
+ * Texto de exame de todo objeto `placa` que carrega um `aviso`: predio fechado,
+ * placa de estrada, interdicao de obra e os documentos de manutencao da represa.
+ *
+ * A tabela mora em src/game/avisos.ts e nao aqui porque e la que as RESPOSTAS
+ * dos enigmas da usina estao escritas, e `npm run verificar-represa` le aquele
+ * arquivo pra provar duas coisas: que nenhuma resposta ficou so na cabeca de
+ * quem escreveu o painel, e que nenhum aviso posto no mundo ficou sem texto.
  */
-const AVISOS_DE_PREDIO: Record<string, string[]> = {
-  casa_1: [
-    'A porta esta fechada com um cadeado velho.',
-    'Local desativado. Ninguem mora aqui agora.',
-  ],
-  central: [
-    'Central Telefonica Municipal — parece abandonada ha muitos anos.',
-  ],
-};
+const AVISOS_DE_PREDIO: Record<string, string[]> = ITENS_DE_LEITURA;
 
 /**
  * Quanto o ponteiro pode ficar longe do jogador, em TILES, pra soltar um movel.
  * Sem isto daria pra mobiliar um comodo do outro lado da casa sem sair do lugar.
  */
 const ALCANCE_DE_MOBILIA = 6;
+/**
+ * Motivo de cada trava de porta da represa. A mensagem existe pra a trava ser
+ * LIDA e nao esbarrada: porta que nao abre sem explicacao le como bug.
+ */
+const MOTIVO_DE_TRAVA: Record<string, string[]> = {
+  represaEnergiaGaleria: [
+    'O alcapao tem trava eletrica e o LED dela esta apagado.',
+    'Sem os geradores da galeria em marcha, isto nao destrava.',
+  ],
+  represaComportaAberta: [
+    'A comporta de servico esta fechada e a pressao do outro lado ainda esta alta.',
+    'A mesa de comportas fica aqui mesmo, nas galerias inferiores.',
+  ],
+  represaAtalhoManutencao: [
+    'Porta de servico, tranca mecanica de barra. Ela abre por DENTRO, do lado de la.',
+    'Se um dia voce chegar naquele lado, da pra destravar de vez.',
+  ],
+  represaElevadorLiberado: [
+    'O elevador de servico esta morto. Nem o botao acende.',
+    'Ele responde a placa mestre, e a placa mestre esta desligada.',
+  ],
+};
+
+/** Flag da lanterna de manutencao — o que dobra o raio de luz no escuro. */
+const FLAG_DA_LANTERNA = 'represaLanterna';
+
+/** Fala de painel que o jogador ja resolveu. */
+const FALA_PAINEL_RESOLVIDO = 'Ja esta feito. O painel mostra tudo em verde.';
+
+/**
+ * Tile da CAIXA DE DESPACHO na oficina do protagonista, o ponto de revenda de
+ * salvado. Canto sudoeste da oficina, ao lado da caixa de ferramenta — tile
+ * livre e alcancavel (conferido contra o tilemap gerado).
+ */
+/**
+ * Onde a cabine do elevador para em cada andar de parada.
+ *
+ * Os andares 1 e 5 sao os setores desenhados a mao, e os tiles deles vem das
+ * saidas `elevador_0` e `elevador_4` de `PLANTAS_REPRESA`. Do 10 em diante o
+ * tile e o `elevador` do template do andar (ver `PLANTAS_DE_ANDAR`).
+ *
+ * A tabela existe porque o `spawnTile` do mapa e o alcapao de CHEGADA, que e
+ * outro lugar: sair do elevador pelo alcapao faria a cabine parecer estar em
+ * lugar diferente a cada viagem.
+ */
+const PARADA_DO_ANDAR: Record<number, { x: number; y: number }> = Object.fromEntries([
+  [1, { x: 3, y: 15 }],
+  [5, { x: 5, y: 4 }],
+  ...ANDARES_DE_PARADA.filter((n) => n >= 10).map((n) => {
+    const def = buscarAndar(n);
+    return [n, def ? def.paradaTile : { x: 1, y: 1 }] as const;
+  }),
+]);
+
+/**
+ * O que a tecla F3 poe no inventario. So debug: nada no jogo le esta lista.
+ */
+const KIT_DE_DEBUG: readonly (readonly [string, number])[] = [
+  ['chave_inglesa', 1],
+  ['lanterna_manutencao', 1],
+  ['pistola', 1],
+  ['municao_pistola', 32],
+  ['kit_primeiros_socorros', 3],
+];
+
+const TILE_DA_REVENDA = { x: 17, y: 20 };
+
+/** Duracao do esmaecer de entrada/saida de cena de um NPC, em ms. */
+const DURACAO_FADE_NPC = 220;
 
 export class FarmScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -233,8 +341,54 @@ export class FarmScene extends Phaser.Scene {
   private camadaObjetos: Phaser.Tilemaps.TilemapLayer | null = null;
   /** Aviso fixo na tela durante o posicionamento de mobilia. */
   private avisoMobilia: Phaser.GameObjects.Text | null = null;
-  /** relogio local dos passos/pausas dos moradores novos */
-  private tempoMovimentoMoradores = 0;
+
+  /**
+   * Escuridao, inimigos e combate da represa. `null` em todo mapa que nao e da
+   * usina — e assim que nenhum mapa antigo paga por ela.
+   */
+  private represa: CamadaRepresa | null = null;
+
+  /** Painel de enigma em andamento; `null` fora de um. */
+  private painelAtivo: ProgressoPainel | null = null;
+
+  /** Tecla do golpe (a chave inglesa). */
+  private teclaAtaque!: Phaser.Input.Keyboard.Key;
+
+  /** Tecla de recarga (R). */
+  private teclaRecarga!: Phaser.Input.Keyboard.Key;
+
+  /**
+   * O item equipado desenhado na mao do jogador, mais a mira. Existe em TODO
+   * mapa (uma chave inglesa e visivel na cidade tambem) — diferente da camada da
+   * represa, que so existe na usina.
+   */
+  private mao!: MaoDoJogador;
+
+  /**
+   * Minuto de jogo observado no ultimo quadro. E o que faz a tensao da represa
+   * subir por MINUTO DE JOGO e nao por quadro — ver `SistemaRepresa.avancar`.
+   */
+  private minutoObservado = -1;
+
+  /** Escuridao por tile, montada dos comodos do tilemap. */
+  private escuridaoDoComodo: { ret: RetTiles; valor: number }[] = [];
+
+  /** Os dados com que a cena foi iniciada, pra poder reiniciar igual. */
+  private entradaAtual: { mapa?: string; x?: number; y?: number } | undefined;
+
+  /** Texto de espera enquanto um andar da represa e baixado. */
+  private avisoDeCarga: Phaser.GameObjects.Text | null = null;
+
+  /**
+   * false enquanto o `create` nao terminou.
+   *
+   * Existe por causa da carga SOB DEMANDA: quando o tilemap de um andar ainda nao
+   * chegou, o `create` para no meio e a cena fica sem `player`, sem camada e sem
+   * teclas — mas o `update` continua sendo chamado a cada quadro. Sem esta
+   * guarda, o primeiro quadro depois de pedir um andar novo estoura em
+   * `player.setDepth`.
+   */
+  private pronto = false;
 
   constructor() {
     super('FarmScene');
@@ -250,8 +404,12 @@ export class FarmScene extends Phaser.Scene {
    */
   init(dados?: { mapa?: string; x?: number; y?: number }): void {
     if (dados?.mapa) estado.mapa = dados.mapa;
+    // Guardado pra o carregamento SOB DEMANDA poder reiniciar a cena no mesmo
+    // ponto depois de o tilemap chegar (ver `garantirTilemap`).
+    this.entradaAtual = dados;
     this.spawn =
       dados?.x !== undefined && dados?.y !== undefined ? { x: dados.x, y: dados.y } : null;
+    this.pronto = false;
     this.transicionando = false;
     this.mapaAberto = false;
     this.overlayMapa = null;
@@ -277,8 +435,12 @@ export class FarmScene extends Phaser.Scene {
     this.posicionando = null;
     this.camadaObjetos = null;
     this.avisoMobilia = null;
-    this.tempoMovimentoMoradores = 0;
     this.alvo = null;
+    this.represa?.destruir();
+    this.represa = null;
+    this.painelAtivo = null;
+    this.escuridaoDoComodo = [];
+    this.minutoObservado = -1;
   }
 
   /**
@@ -332,6 +494,10 @@ export class FarmScene extends Phaser.Scene {
   create(): void {
     const def = buscarMapa(estado.mapa);
     if (!def) throw new Error(`Mapa "${estado.mapa}" nao existe em MAPAS`);
+    // ANDAR SOB DEMANDA: o tilemap pode nao estar no cache ainda. `garantirTilemap`
+    // dispara a carga e reinicia a cena quando ela termina — e por isso que ele
+    // corta o `create` aqui, antes de qualquer objeto ser criado.
+    if (!this.garantirTilemap(def)) return;
 
     const map = this.make.tilemap({ key: def.tilemapKey });
     this.tamanhoTile = map.tileWidth;
@@ -371,15 +537,22 @@ export class FarmScene extends Phaser.Scene {
 
     this.interagiveis = this.lerInterativos(map).filter((item) => {
       if (item.tipo === 'npc') return false;
-      return item.tipo !== 'item' || !estado.itensColetados.has(item.id);
+      // pickup e recipiente de salvado sao ONE-SHOT e usam o mesmo registro
+      if (item.tipo === 'item' || item.tipo === 'sucata') {
+        return !estado.itensColetados.has(item.id);
+      }
+      return true;
     });
     this.interagiveis.push(...this.lerPontosDeLoja());
     this.interagiveis.push(...this.lerPontosDeAmbientacao());
+    this.interagiveis.push(...this.lerPontoDeRevenda());
+    this.interagiveis.push(...this.lerPontosDeSucata(map));
     this.zonas = this.lerZonas(map);
     this.limparLotesDosProjetos();
     this.tilesPrivados = this.lerComodosPrivados(map);
     this.bordas = this.lerBordas(map);
     this.comodos = this.lerComodos(map);
+    this.escuridaoDoComodo = this.lerEscuridaoDosComodos(map);
 
     const nasce =
       this.spawn ??
@@ -391,6 +564,13 @@ export class FarmScene extends Phaser.Scene {
     this.configurarPersonagem(this.player);
     // hitbox menor que o sprite, so os pes -> parece melhor em top-down
     this.player.setCollideWorldBounds(true);
+
+    // SAIU DA ZONA: o que a zona nova nao permite volta pra mochila. Roda no
+    // create e nao na troca de mapa porque troca de mapa E um restart de cena —
+    // um lugar so, e vale tambem pra save carregado dentro da usina.
+    this.ajustarEquipamentoAZona();
+    this.mao = new MaoDoJogador(this, this.tamanhoTile);
+    this.mao.montar();
 
     this.criarFigurantesAmbientais();
     this.criarItensColetaveis();
@@ -404,13 +584,24 @@ export class FarmScene extends Phaser.Scene {
     // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
     // predios, moveis, arvores e pedras do mapa carregado.
     this.criarNpcs();
-    this.criarNovosMoradores();
+    // registra a TROCA DE MAPA na represa aqui, com 0 minuto: e o que fecha a
+    // corrida ao sair da usina e o que marca o nivel mais fundo alcancado.
+    // Deixar isso so pro tique de minuto perdia visita curta — descer, olhar e
+    // subir em menos de dez minutos de jogo nao contava.
+    estado.represa.avancar(estado.mapa, 0);
+    this.criarCamadaDaRepresa(map);
 
     this.physics.add.collider(this.player, objetos);
-    const moradoresMoveis = this.npcs.filter((npc) => npc.morador).map((npc) => npc.sprite);
-    if (moradoresMoveis.length > 0) {
-      this.physics.add.collider(moradoresMoveis, objetos);
-      if (this.obstaculos.length > 0) this.physics.add.collider(moradoresMoveis, this.obstaculos);
+    if (this.represa) {
+      const monstros = this.represa.spritesDeInimigo;
+      if (monstros.length > 0) {
+        // o inimigo respeita parede e movel como o jogador: sem isto ele
+        // atravessa a alvenaria e persegue em linha reta pelo mapa inteiro
+        this.physics.add.collider(monstros, objetos);
+        this.physics.add.collider(monstros, monstros);
+        this.physics.add.collider(this.player, monstros);
+        if (this.obstaculos.length > 0) this.physics.add.collider(monstros, this.obstaculos);
+      }
     }
     if (this.npcs.length > 0) {
       this.physics.add.collider(this.player, this.npcs.map((npc) => npc.sprite));
@@ -449,6 +640,14 @@ export class FarmScene extends Phaser.Scene {
     // M abre/fecha o mapa da cidade.
     this.input.keyboard!.on('keydown-M', () => this.alternarMapa());
 
+    // ESPACO golpeia com a chave inglesa. So faz algo dentro da represa: a
+    // cidade nao tem com quem brigar, e a tecla continua livre lá.
+    this.teclaAtaque = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.input.keyboard!.addCapture('SPACE');
+
+    // R recarrega a arma de fogo equipada.
+    this.teclaRecarga = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+
     // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
     this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
 
@@ -460,9 +659,16 @@ export class FarmScene extends Phaser.Scene {
       console.info(`[tempo] avancado para ${estado.relogio.texto}`);
     });
 
-    // F2/F3 continuam uteis para testar capacidade sem depender do mapa.
+    // F2 continua util para testar capacidade sem depender do mapa.
     this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('cabo_usb', 1));
-    this.input.keyboard!.on('keydown-F3', () => estado.inventario.adicionar('bateria', 1));
+    // F3 da o KIT DE EXPLORACAO. Substituiu o "adiciona uma bateria" porque
+    // testar o ciclo da represa a mao — descer, achar a pistola no cofre da
+    // portaria, comprar municao na madeireira, voltar — leva dez minutos de
+    // jogo a cada tentativa, e o que se quer testar e o combate, nao a coleta.
+    this.input.keyboard!.on('keydown-F3', () => {
+      for (const [id, qtd] of KIT_DE_DEBUG) estado.inventario.adicionar(id, qtd);
+      this.ui.avisoRapido('Kit de exploracao no inventario (F3).', UI.sucesso);
+    });
 
     // F9 salva na hora (debug); no jogo, quem salva e o dormir
     this.input.keyboard!.on('keydown-F9', () => {
@@ -480,20 +686,34 @@ export class FarmScene extends Phaser.Scene {
       this.physics.world.drawDebug = !this.physics.world.drawDebug;
       if (!this.physics.world.drawDebug) this.physics.world.debugGraphic?.clear();
     });
+
+    this.pronto = true;
   }
 
   update(_tempo: number, delta: number): void {
+    // O `create` pode ter parado no meio esperando o tilemap de um andar (ver
+    // `garantirTilemap`): nesse quadro nao ha player, nem camada, nem teclas.
+    if (!this.pronto) return;
     // reordena o player entre as arvores conforme ele anda
     this.player.setDepth(this.player.y);
 
     if (!this.ui.bloqueado && !this.transicionando) {
       estado.dia += estado.relogio.avancar(delta);
+      estado.vida.atualizar(delta);
+      // a tensao da represa conta MINUTO DE JOGO, entao ela so avanca quando o
+      // relogio vira — nao a cada quadro
+      if (this.minutoObservado !== estado.relogio.minutos) {
+        const antes = this.minutoObservado;
+        this.minutoObservado = estado.relogio.minutos;
+        estado.represa.avancar(estado.mapa, antes < 0 ? 0 : CONFIG_TEMPO.minutosPorTick);
+      }
       estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, delta);
       const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos);
       if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, 5800);
-      this.sincronizarNpcs(delta);
+      this.sincronizarNpcs();
     }
 
+    estado.armas.atualizar(delta);
     this.atualizarBalaoEncontro();
 
     this.atualizarFigurantesAmbientais();
@@ -502,10 +722,13 @@ export class FarmScene extends Phaser.Scene {
 
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
-      this.player.anims.play(`idle-${this.direcao}`, true);
+      this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
+      this.mao.atualizar(delta, this.player, this.direcao);
       this.atualizarMarcadoresMapa();
       return;
     }
+
+    this.represa?.atualizar(delta, this.player, this.ui.bloqueado || this.transicionando);
 
     this.atualizarAlvo();
     if (this.atravessarBordaSeEncostou()) return;
@@ -513,7 +736,37 @@ export class FarmScene extends Phaser.Scene {
     // com dialogo/menu aberto — ou com uma peca na mao — o player fica parado
     if (this.ui.bloqueado || this.transicionando || this.posicionando) {
       this.player.setVelocity(0, 0);
-      this.player.anims.play(`idle-${this.direcao}`, true);
+      this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
+      this.mao.atualizar(delta, this.player, this.direcao);
+      this.mao.atualizarMira(this.input.activePointer, false);
+      return;
+    }
+
+    // MIRA E TIRO. Com arma de fogo na mao, a direcao do personagem passa a
+    // sair do cursor e nao do movimento — e o que permite andar pra tras
+    // atirando, que e o unico jeito de a arma valer contra um bicho rapido.
+    const armaNaMao = this.armaEquipada();
+    if (armaNaMao) {
+      const p = this.input.activePointer;
+      const dx = p.worldX - this.player.x;
+      const dy = p.worldY - (this.player.y - this.tamanhoTile * 0.6);
+      if (Math.hypot(dx, dy) > 2) this.direcao = direcaoDaMira(dx, dy);
+      this.mao.atualizarMira(p, true);
+      if (p.leftButtonDown()) this.atirar(dx, dy);
+      if (Phaser.Input.Keyboard.JustDown(this.teclaRecarga)) this.recarregarArma();
+    } else {
+      this.mao.atualizarMira(this.input.activePointer, false);
+    }
+
+    // golpe: trava o movimento pela duracao da animacao, o que e o que impede
+    // andar e bater ao mesmo tempo e o que da peso ao ataque
+    if (this.represa && Phaser.Input.Keyboard.JustDown(this.teclaAtaque)) {
+      this.represa.atacar(this.player, this.direcao, this.danoDoGolpe());
+    }
+    if (this.represa?.atacando) {
+      this.player.setVelocity(0, 0);
+      this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
+      this.mao.atualizar(delta, this.player, this.direcao);
       return;
     }
 
@@ -532,13 +785,21 @@ export class FarmScene extends Phaser.Scene {
     this.player.setVelocity(v.x, v.y);
 
     if (vx !== 0 || vy !== 0) {
-      // horizontal tem prioridade na escolha da animacao
-      if (vx !== 0) this.direcao = vx > 0 ? 'right' : 'left';
-      else this.direcao = vy > 0 ? 'down' : 'up';
-      this.player.anims.play(`${correndo ? 'run' : 'walk'}-${this.direcao}`, true);
+      // Horizontal tem prioridade na escolha da animacao. Com arma de fogo na
+      // mao a direcao ja veio da MIRA lá em cima, e o movimento nao a rouba —
+      // e o que permite recuar atirando.
+      if (!armaNaMao) {
+        if (vx !== 0) this.direcao = vx > 0 ? 'right' : 'left';
+        else this.direcao = vy > 0 ? 'down' : 'up';
+      }
+      this.player.anims.play(
+        this.mao.animacaoDoCorpo(correndo ? 'run' : 'walk', this.direcao),
+        true,
+      );
     } else {
-      this.player.anims.play(`idle-${this.direcao}`, true);
+      this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
     }
+    this.mao.atualizar(delta, this.player, this.direcao);
   }
 
   /** Chamado pela UIScene quando o jogador aperta E / clica. */
@@ -572,7 +833,20 @@ export class FarmScene extends Phaser.Scene {
       case 'obra':
         this.abrirProjetoCidade(this.alvo);
         break;
+      case 'painel':
+        this.abrirPainelDaRepresa(this.alvo);
+        break;
+      case 'sucata':
+        this.recolherSucata(this.alvo);
+        break;
+      case 'elevador':
+        this.abrirElevador(this.alvo);
+        break;
+      case 'revenda':
+        this.abrirRevendaDeSucata();
+        break;
       case 'porta':
+        if (!this.portaDestrancada(this.alvo)) return;
         if (!this.portaAbertaAgora(this.alvo)) {
           this.feedbackPortaFechada(this.alvo);
           return;
@@ -680,6 +954,9 @@ export class FarmScene extends Phaser.Scene {
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       estado.dia += 1;
       estado.relogio.definir(CONFIG_TEMPO.horaAoAcordar);
+      // dormir na propria cama cura por inteiro. E a unica cura gratuita do
+      // jogo, e por isso ela custa um dia.
+      estado.vida.restaurarTudo();
       this.salvarJogo();
       this.transicionando = false;
       cam.fadeIn(400, 0, 0, 0);
@@ -730,6 +1007,11 @@ export class FarmScene extends Phaser.Scene {
       worldEvents: estado.worldEvents.serializar(),
       missoesNpc: estado.missoesNpc.serializar(),
       cidade: estado.cidade.serializar(),
+      vida: estado.vida.serializar(),
+      represa: estado.represa.serializar(),
+      equipamento: estado.equipamento.serializar(),
+      armas: estado.armas.serializar(),
+      arquivo: estado.arquivo.serializar(),
     });
   }
 
@@ -737,6 +1019,25 @@ export class FarmScene extends Phaser.Scene {
 
   private criarItensColetaveis(): void {
     for (const alvo of this.interagiveis) {
+      // Recipiente de SALVADO: caixa fechada, nao um icone de item. A cor sai
+      // da tabela e nao do conteudo — o jogador nao sabe o que tem dentro
+      // antes de abrir, e o premio de puzzle (`requer`) usa o tom quente pra
+      // se destacar de longe no escuro.
+      if (alvo.tipo === 'sucata') {
+        const premio = Boolean(alvo.props.requer);
+        const visual = this.add
+          .rectangle(
+            alvo.x,
+            alvo.y,
+            this.tamanhoTile * 0.7,
+            this.tamanhoTile * 0.55,
+            premio ? 0x8a6a3a : 0x55565a,
+          )
+          .setStrokeStyle(2, premio ? 0xe0b862 : 0x9aa0a6, 0.9)
+          .setDepth(alvo.y);
+        this.visuaisDeItens.set(alvo.id, visual);
+        continue;
+      }
       if (alvo.tipo !== 'item') continue;
       const def = ITENS[String(alvo.props.itemId)];
       if (!def) {
@@ -980,41 +1281,61 @@ export class FarmScene extends Phaser.Scene {
       if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
       sprite.anims.play(`${def.sprite ? `npc-${def.id}-` : ''}idle-down`);
       this.interagiveis.push(alvo);
-      this.npcs.push({ estado: estadoNpc, sprite, interagivel: alvo, animacao: def.sprite ? `npc-${def.id}-` : '' });
+      sprite.setVisible(false);
+      this.npcs.push({
+        estado: estadoNpc,
+        sprite,
+        interagivel: alvo,
+        animacao: def.sprite ? `npc-${def.id}-` : '',
+        visivelAplicado: false,
+      });
     }
-    this.sincronizarNpcs();
+    this.sincronizarNpcs(true);
   }
 
-  /** Os moradores dos Mapas 2/3 usam agenda declarativa entre mapas externos. */
-  private criarNovosMoradores(): void {
-    for (const morador of Object.values(MORADORES)) {
-      const alvo: Interagivel = {
-        id: `npc_${morador.id}`, tipo: 'npc', rotulo: ROTULOS.npc,
-        x: 0, y: 0, props: { npcId: morador.id },
-      };
-      const sprite = this.physics.add.sprite(0, 0, `npc-${morador.id}-sprites`, 'down-0');
-      this.configurarNpc(sprite);
-      sprite.setImmovable(true);
-      sprite.anims.play(`npc-${morador.id}-idle-down`);
-      this.interagiveis.push(alvo);
-      this.npcs.push({ morador, sprite, interagivel: alvo, animacao: `npc-${morador.id}-` });
+  /**
+   * Entrar e sair de cena com ESMAECIMENTO, e nao num quadro.
+   *
+   * A maioria dos NPCs troca de lugar sem caminhar (ver `assumir_lugar` em
+   * npcs.ts) — e o unico jeito honesto de mover quem so tem poses paradas na
+   * arte. O esmaecimento e o que faz esse aparecer/desaparecer ler como
+   * intencional em vez de falha: ninguem pisca no meio da rua.
+   *
+   * `visivelAplicado` existe porque `sprite.visible` continua true durante o
+   * esmaecimento de saida: sem ele, cada quadro reiniciaria o tween.
+   */
+  private aplicarVisibilidadeDeNpc(npc: NpcVisual, visivel: boolean, instantaneo = false): void {
+    if (npc.visivelAplicado === visivel) return;
+    npc.visivelAplicado = visivel;
+    this.tweens.killTweensOf(npc.sprite);
+    // Na montagem da cena nao ha o que esmaecer: a camera inteira ja entra com
+    // fade. Fazer isso aqui tambem deixaria o NPC em alpha 0 se o primeiro
+    // quadro demorasse.
+    if (instantaneo) {
+      npc.sprite.setVisible(visivel).setAlpha(1);
+      return;
     }
-    this.sincronizarNpcs();
+    if (visivel) {
+      npc.sprite.setVisible(true).setAlpha(0);
+      this.tweens.add({ targets: npc.sprite, alpha: 1, duration: DURACAO_FADE_NPC });
+      return;
+    }
+    this.tweens.add({
+      targets: npc.sprite,
+      alpha: 0,
+      duration: DURACAO_FADE_NPC,
+      // pode ter voltado a ser visivel no meio do caminho
+      onComplete: () => { if (!npc.visivelAplicado) npc.sprite.setVisible(false); },
+    });
   }
 
-  private sincronizarNpcs(delta = 0): void {
-    this.tempoMovimentoMoradores += Math.max(0, delta);
+  private sincronizarNpcs(instantaneo = false): void {
     for (const npc of this.npcs) {
       const { sprite, interagivel } = npc;
-      if (npc.morador) {
-        this.sincronizarMorador(npc);
-        continue;
-      }
-      const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
-      void externoAtual;
-      const posicao = this.posicaoNpcNoMapa(npc.estado!);
+      const posicao = this.posicaoNpcNoMapa(npc.estado);
       const visivel = posicao !== null;
-      sprite.setVisible(visivel).setActive(visivel);
+      this.aplicarVisibilidadeDeNpc(npc, visivel, instantaneo);
+      sprite.setActive(visivel);
       if (sprite.body) sprite.body.enable = visivel;
       if (!visivel) continue;
       const x = posicao.x * this.tamanhoTile;
@@ -1022,166 +1343,10 @@ export class FarmScene extends Phaser.Scene {
       sprite.setPosition(x, y).setDepth(y);
       interagivel.x = x;
       interagivel.y = y;
-      const movendo = npc.estado!.movendo;
-      const direcao = npc.estado!.direcao;
+      const movendo = npc.estado.movendo;
+      const direcao = npc.estado.direcao;
       sprite.anims.play(`${npc.animacao}${movendo ? 'walk' : 'idle'}-${direcao}`, true);
     }
-  }
-
-  /** Movimento local real dos moradores dos Mapas 2/3, sem teleporte por frame. */
-  private sincronizarMorador(npc: NpcVisual): void {
-    const morador = npc.morador!;
-    const padrao = atividadeAtual(morador, estado.dia, estado.relogio.minutos);
-    const atividade = atividadeComEmprego(estado.cidade, morador, estado.dia, estado.relogio.minutos, padrao);
-    const externoAtual = buscarMapa(estado.mapa)?.mapaExterno;
-    const visivel = Boolean(atividade && estado.mapa === externoAtual && atividade.mapa === externoAtual);
-    const { sprite, interagivel } = npc;
-    sprite.setVisible(visivel).setActive(visivel);
-    if (sprite.body) sprite.body.enable = visivel;
-    if (!visivel || !atividade) {
-      sprite.setVelocity(0, 0);
-      npc.atividadeChave = undefined;
-      return;
-    }
-
-    const chave = `${estado.dia}:${atividade.inicio}:${atividade.fim}:${atividade.mapa}:${atividade.x}:${atividade.y}`;
-    if (npc.atividadeChave !== chave || !npc.ancoraMorador) {
-      const inicial = this.posicaoInicialSegura(morador, atividade);
-      npc.atividadeChave = chave;
-      npc.ancoraMorador = { x: inicial.x * this.tamanhoTile, y: inicial.y * this.tamanhoTile };
-      npc.alvoMorador = null;
-      npc.proximaDecisao = this.tempoMovimentoMoradores + 450;
-      npc.passoMorador = 0;
-      npc.direcaoMorador = 'down';
-      sprite.setPosition(npc.ancoraMorador.x, npc.ancoraMorador.y).setVelocity(0, 0);
-    }
-
-    // Uma folha so de poses paradas nunca deve deslizar pelo chao. Esses NPCs
-    // continuam mudando de compromisso pela agenda, mas permanecem no posto
-    // escolhido enquanto aquela atividade estiver ativa.
-    if (morador.movimento === 'parado') {
-      sprite.setVelocity(0, 0).setDepth(sprite.y);
-      npc.alvoMorador = null;
-      interagivel.x = sprite.x;
-      interagivel.y = sprite.y;
-      sprite.anims.play(`${npc.animacao}idle-${npc.direcaoMorador ?? 'down'}`, true);
-      return;
-    }
-
-    // Nao troca o destino no meio do passo. A versao anterior decidia a cada
-    // ~1 s, antes de percorrer um tile, e a sucessao de vetores fazia os NPCs
-    // descreverem circulos em volta da ancora.
-    if (!npc.alvoMorador && this.tempoMovimentoMoradores >= (npc.proximaDecisao ?? 0)) {
-      npc.alvoMorador = this.proximoPassoDoMorador(npc);
-      npc.passoMorador = (npc.passoMorador ?? 0) + 1;
-      if (!npc.alvoMorador) npc.proximaDecisao = this.tempoMovimentoMoradores + 600;
-    }
-
-    let movendo = false;
-    const alvo = npc.alvoMorador;
-    if (alvo) {
-      const distancia = Phaser.Math.Distance.Between(sprite.x, sprite.y, alvo.x, alvo.y);
-      if (distancia <= 2.5) {
-        sprite.setPosition(alvo.x, alvo.y).setVelocity(0, 0);
-        npc.alvoMorador = null;
-        const variacao = (this.sementeMorador(morador.id) + (npc.passoMorador ?? 0) * 137) % 2200;
-        npc.proximaDecisao = this.tempoMovimentoMoradores + 1800 + variacao;
-      } else {
-        const velocidade = this.tamanhoTile * 0.78;
-        const dx = alvo.x - sprite.x;
-        const dy = alvo.y - sprite.y;
-        const vetor = new Phaser.Math.Vector2(dx, dy).normalize().scale(velocidade);
-        sprite.setVelocity(vetor.x, vetor.y);
-        npc.direcaoMorador = Math.abs(dx) >= Math.abs(dy)
-          ? (dx >= 0 ? 'right' : 'left')
-          : (dy >= 0 ? 'down' : 'up');
-        movendo = true;
-      }
-    } else sprite.setVelocity(0, 0);
-
-    sprite.setDepth(sprite.y);
-    interagivel.x = sprite.x;
-    interagivel.y = sprite.y;
-    sprite.anims.play(`${npc.animacao}${movendo ? 'walk' : 'idle'}-${npc.direcaoMorador ?? 'down'}`, true);
-  }
-
-  private sementeMorador(id: string): number {
-    return [...id].reduce((n, c) => Math.imul(n, 31) + c.charCodeAt(0), 17) >>> 0;
-  }
-
-  /** Separa quem compartilha casa/trabalho e procura o tile caminhavel mais proximo. */
-  private posicaoInicialSegura(morador: Morador, atividade: NonNullable<ReturnType<typeof atividadeAtual>>): { x: number; y: number } {
-    const iguais = Object.values(MORADORES)
-      .filter((outro) => {
-        const atual = atividadeComEmprego(
-          estado.cidade,
-          outro,
-          estado.dia,
-          estado.relogio.minutos,
-          atividadeAtual(outro, estado.dia, estado.relogio.minutos),
-        );
-        return atual?.mapa === atividade.mapa && atual.x === atividade.x && atual.y === atividade.y;
-      })
-      .map((outro) => outro.id)
-      .sort();
-    const indice = Math.max(0, iguais.indexOf(morador.id));
-    const preferencias = [
-      [0, 0], [-1, 0], [1, 0], [0, 1], [0, -1],
-      [-2, 0], [2, 0], [-1, 1], [1, 1], [-1, -1], [1, -1],
-    ];
-    const inicio = preferencias[indice % preferencias.length];
-    const candidatos = [inicio, ...preferencias.filter((p) => p !== inicio)];
-    for (let raio = 0; raio <= 5; raio++) {
-      for (const [ox, oy] of candidatos) {
-        const x = Math.round(atividade.x + ox + (raio > 0 ? Math.sign(ox || 1) * raio : 0));
-        const y = Math.round(atividade.y + oy);
-        if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y)) return { x, y };
-      }
-    }
-    console.warn(`[moradores] ${morador.id}: nenhum tile livre perto de ${atividade.x},${atividade.y}`);
-    return { x: atividade.x, y: atividade.y };
-  }
-
-  /** Um passo cardinal mantem a reta inteira em tiles livres e evita cortar paredes. */
-  private proximoPassoDoMorador(npc: NpcVisual): { x: number; y: number } | null {
-    const ancora = npc.ancoraMorador!;
-    const t = this.tamanhoTile;
-    const atualX = Math.round(npc.sprite.x / t);
-    const atualY = Math.round(npc.sprite.y / t);
-    const base = this.sementeMorador(npc.morador!.id) + (npc.passoMorador ?? 0);
-    const passos = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-    for (let i = 0; i < passos.length; i++) {
-      const [dx, dy] = passos[(base + i) % passos.length];
-      const x = atualX + dx;
-      const y = atualY + dy;
-      if (Math.abs(x * t - ancora.x) > t * 2.1 || Math.abs(y * t - ancora.y) > t * 2.1) continue;
-      if (this.tileLivreParaMorador(x, y) && !this.tileReservadoPorMorador(x, y, npc)) {
-        return { x: x * t, y: y * t };
-      }
-    }
-    return null;
-  }
-
-  /** Impede dois moradores de ocuparem ou escolherem o mesmo tile. */
-  private tileReservadoPorMorador(tx: number, ty: number, ignorar?: NpcVisual): boolean {
-    const t = this.tamanhoTile;
-    return this.npcs.some((outro) => {
-      if (outro === ignorar || !outro.morador || !outro.sprite.visible || !outro.atividadeChave) return false;
-      const atualX = Math.round(outro.sprite.x / t);
-      const atualY = Math.round(outro.sprite.y / t);
-      if (atualX === tx && atualY === ty) return true;
-      const alvo = outro.alvoMorador;
-      return Boolean(alvo && Math.round(alvo.x / t) === tx && Math.round(alvo.y / t) === ty);
-    });
-  }
-
-  private tileLivreParaMorador(tx: number, ty: number): boolean {
-    const camada = this.camadaObjetos;
-    if (!camada || tx < 1 || ty < 1 || tx >= camada.tilemap.width - 1 || ty >= camada.tilemap.height - 1) return false;
-    if (camada.getTileAt(tx, ty)?.collides) return false;
-    const x = tx * this.tamanhoTile;
-    const y = ty * this.tamanhoTile;
-    return !this.obstaculos.some((zona) => zona.getBounds().contains(x, y - this.tamanhoTile * 0.15));
   }
 
   /** O encontro sempre simula; so a camada visual depende da proximidade. */
@@ -1213,7 +1378,16 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
-    if (estado.mapa === MAPA_DOS_NPCS) return npc.visivel ? { x: npc.x, y: npc.y } : null;
+    // AO AR LIVRE: aparece so no proprio mapa externo. Cada NPC declara o seu
+    // (`DefinicaoNpc.mapa`) — antes disto havia um mapa unico de NPC, e os 24
+    // moradores dos Mapas 2/3 ficavam de fora do motor por causa disso.
+    const def = NPCS[npc.id];
+    if (!def) return null;
+    if (npc.dentro === null) {
+      return npc.visivel && estado.mapa === def.mapa ? { x: npc.x, y: npc.y } : null;
+    }
+    // DENTRO de construcao: aparece so pra quem esta no mesmo interior, venha o
+    // NPC do mapa que vier (o Rafael mora no Bairro e atende na academia).
     if (npc.dentro !== estado.mapa) return null;
     if (!LOCAIS_CIDADE[npc.dentro]) return null;
     // Dentro de comodo privado ele some da cena: o jogador ve o dono andar ate a
@@ -1395,7 +1569,10 @@ export class FarmScene extends Phaser.Scene {
     this.sincronizarNpcs();
     this.ui.iniciarDialogo(falasDe('Prefeitura', [
       `${morador.nome} agora e responsavel por ${projeto.nome}.`,
-      'Nos dias uteis, o turno acontece das 08:00 as 17:00.',
+      // A rotina de cada NPC e montada UMA vez por dia, na virada. Trocar agora
+      // reiniciaria o dia dele na frente do jogador — ver `atividadesComEmprego`
+      // em src/game/cidade.ts.
+      'O turno comeca amanha, nos dias uteis, das 08:00 as 17:00.',
     ], morador.id));
   }
 
@@ -1547,7 +1724,7 @@ export class FarmScene extends Phaser.Scene {
    */
   private get mapaExternoAtual(): string {
     const def = buscarMapa(estado.mapa);
-    return def ? def.mapaExterno : MAPA_DOS_NPCS;
+    return def ? def.mapaExterno : MAPA_PADRAO;
   }
 
   private criarOverlayMapa(): void {
@@ -1660,10 +1837,7 @@ export class FarmScene extends Phaser.Scene {
     filhos.push(this.marcadorPlayer);
     // Um retrato corporal substitui o ponto amarelo. Todos os 33 perfis ganham
     // marcador; `atualizarMarcadoresMapa` mostra apenas quem esta neste mapa.
-    const idsNpc = [...new Set([
-      ...estado.rotinasNpc.todos.map((npc) => npc.id),
-      ...Object.keys(MORADORES),
-    ])];
+    const idsNpc = estado.rotinasNpc.todos.map((npc) => npc.id);
     this.marcadoresNpc = idsNpc.map((npcId) => {
       const perfil = buscarNpc(npcId);
       const chaveTextura = perfil?.spriteParado
@@ -1707,22 +1881,10 @@ export class FarmScene extends Phaser.Scene {
 
   /** Posicao externa de qualquer NPC, mesmo se o jogador estiver num interior. */
   private posicaoNpcNoMapaAberto(npcId: string): { x: number; y: number } | null {
-    const original = estado.rotinasNpc.porId(npcId);
-    if (original) {
-      if (this.mapaExternoAtual !== MAPA_DOS_NPCS || !original.visivel) return null;
-      return { x: original.x * this.tamanhoTile, y: original.y * this.tamanhoTile };
-    }
-    const morador = MORADORES[npcId];
-    if (!morador) return null;
-    const atividade = atividadeComEmprego(
-      estado.cidade,
-      morador,
-      estado.dia,
-      estado.relogio.minutos,
-      atividadeAtual(morador, estado.dia, estado.relogio.minutos),
-    );
-    if (!atividade || atividade.mapa !== this.mapaExternoAtual) return null;
-    return { x: atividade.x * this.tamanhoTile, y: atividade.y * this.tamanhoTile };
+    const npc = estado.rotinasNpc.porId(npcId);
+    const def = NPCS[npcId];
+    if (!npc || !def || !npc.visivel || def.mapa !== this.mapaExternoAtual) return null;
+    return { x: npc.x * this.tamanhoTile, y: npc.y * this.tamanhoTile };
   }
 
   private paraCoordenadaDoMapa(x: number, y: number): [number, number] {
@@ -2591,6 +2753,708 @@ export class FarmScene extends Phaser.Scene {
     });
   }
 
+  // ======================================================== represa ==
+  /**
+   * Monta a camada da represa (escuridao + inimigos + combate) quando o mapa
+   * atual e da usina. Fora dela `montar` sai na primeira linha, entao a chamada
+   * aqui e barata em todo mapa antigo.
+   */
+  // ------------------------------------------- equipamento, arma e municao --
+  /**
+   * Ajusta o equipamento a ZONA do mapa que acabou de carregar.
+   *
+   * Roda no `create` e nao num gancho de "troca de mapa" porque trocar de mapa E
+   * um `scene.restart` — assim a regra vale tambem pra save carregado dentro da
+   * usina e pro resgate apos derrota, sem tres chamadas espalhadas.
+   *
+   * A arma NAO e apagada: ela volta pra mochila, e a municao que estava no
+   * carregador volta com ela. Sem descarregar, oito cartuchos ficariam presos
+   * num carregador de uma arma que nao esta mais na mao — e o jogador os veria
+   * desaparecer da contagem sem explicacao.
+   */
+  private ajustarEquipamentoAZona(): void {
+    const sairam = estado.equipamento.ajustarAZona(estado.mapa);
+    for (const id of sairam) {
+      const arma = comportamentoDe(id)?.arma;
+      if (arma) estado.armas.descarregar(arma, estado.inventario);
+    }
+    estado.equipamento.sincronizarCom((id) => estado.inventario.contar(id));
+    if (sairam.length > 0) {
+      const nomes = sairam.map((id) => ITENS[id]?.nome ?? id).join(', ');
+      this.ui.avisoRapido(`Guardou na mochila: ${nomes}.`);
+    }
+  }
+
+  /**
+   * true quando o clique esquerdo esta servindo pra ATIRAR.
+   *
+   * A UIScene consulta antes de tratar o clique como "interagir": sem isso, cada
+   * tiro tambem abriria a porta ou a placa que estivesse no alcance.
+   */
+  mirandoComArma(): boolean {
+    return this.armaEquipada() !== null && !this.ui.bloqueado && !this.mapaAberto;
+  }
+
+  /** A arma de fogo na mao, e so quando o mapa aceita tiro. */
+  private armaEquipada(): ReturnType<typeof buscarArma> {
+    if (!zonaPerigosa(estado.mapa)) return null;
+    return buscarArma(comportamentoDe(estado.equipamento.naMao)?.arma);
+  }
+
+  /**
+   * Dano do golpe. Sem nada na mao sai o valor base — o corpo a corpo existe
+   * desde a leva anterior e continua existindo, senao todo save antigo perderia
+   * o unico ataque que tinha.
+   */
+  private danoDoGolpe(): number {
+    return comportamentoDe(estado.equipamento.naMao)?.danoCorpoACorpo ?? ATAQUE_DO_JOGADOR.dano;
+  }
+
+  /**
+   * Um disparo. `SistemaArmas` decide se ele sai (cadencia, recarga, carregador)
+   * e a camada da represa cuida do voo — aqui so se junta a boca do cano com o
+   * resultado.
+   */
+  private atirar(dx: number, dy: number): void {
+    const arma = this.armaEquipada();
+    if (!arma || !this.represa) return;
+    const r = estado.armas.disparar(arma.id, { x: dx, y: dy }, true);
+    if (!r.ok) {
+      // so o carregador vazio merece aviso: cadencia e recarga sao o normal do
+      // uso e avisar a cada quadro entupiria a tela
+      if (r.falha === 'sem_municao') {
+        const tem = estado.inventario.contar(arma.municao);
+        this.ui.avisoRapido(
+          tem > 0 ? 'Carregador vazio. R pra recarregar.' : 'Sem municao.',
+          UI.alerta,
+        );
+      }
+      return;
+    }
+    this.mao.piscarFogonete();
+    this.represa.lancarProjetil(r.tiro, this.mao.pontaDoCano(this.player, this.direcao));
+  }
+
+  private recarregarArma(): void {
+    const arma = this.armaEquipada();
+    if (!arma) return;
+    const r = estado.armas.recarregar(arma.id, estado.inventario);
+    if (r.ok) {
+      this.ui.avisoRapido(`Recarregou ${r.carregou} cartucho(s).`, UI.sucesso);
+      return;
+    }
+    if (r.falha === 'sem_municao') this.ui.avisoRapido('Nao ha municao na mochila.', UI.alerta);
+    else if (r.falha === 'cheio') this.ui.avisoRapido('O carregador ja esta cheio.');
+  }
+
+  /**
+   * EQUIPAR pela UI. A cena e quem responde porque a regra depende do MAPA, e
+   * mapa e assunto de cena.
+   */
+  equiparItem(id: string): void {
+    if (estado.inventario.contar(id) <= 0) return;
+    const r = estado.equipamento.equipar(id, estado.mapa);
+    if (!r.ok) {
+      this.ui.avisoRapido(r.aviso ?? 'Nao da pra equipar isso.', UI.alerta);
+      return;
+    }
+    this.ui.avisoRapido(`Equipou ${ITENS[id]?.nome ?? id}.`, UI.sucesso);
+  }
+
+  desequiparItem(id: string): void {
+    const slot = estado.equipamento.desequiparItem(id);
+    if (!slot) return;
+    const arma = comportamentoDe(id)?.arma;
+    if (arma) estado.armas.descarregar(arma, estado.inventario);
+    this.ui.avisoRapido(`Guardou ${ITENS[id]?.nome ?? id}.`);
+  }
+
+  /**
+   * USAR um item. Devolve true quando o uso GASTOU uma unidade — e a UI que
+   * remove do slot, porque so ela sabe de que slot o item saiu.
+   */
+  usarItemDoInventario(id: string): { ok: boolean; consumiu: boolean; aviso: string; cor?: string } {
+    const c = comportamentoDe(id);
+    const nome = ITENS[id]?.nome ?? id;
+    if (!c?.acao) return { ok: false, consumiu: false, aviso: `${nome} nao se usa.`, cor: UI.alerta };
+    switch (c.acao.tipo) {
+      case 'curar': {
+        if (estado.vida.cheio) {
+          return { ok: false, consumiu: false, aviso: 'Voce esta sem nenhum ferimento.' };
+        }
+        const curou = estado.vida.curar(c.acao.quantidade);
+        return {
+          ok: true,
+          consumiu: !!c.consumivel,
+          aviso: `${nome}: +${curou} de vida.`,
+          cor: UI.sucesso,
+        };
+      }
+      case 'recarregar': {
+        const arma = buscarArma(comportamentoDe(estado.equipamento.naMao)?.arma);
+        if (!arma) {
+          return { ok: false, consumiu: false, aviso: 'Nenhuma arma na mao.', cor: UI.alerta };
+        }
+        const r = estado.armas.recarregar(arma.id, estado.inventario);
+        return r.ok
+          ? { ok: true, consumiu: false, aviso: `Recarregou ${r.carregou}.`, cor: UI.sucesso }
+          : { ok: false, consumiu: false, aviso: 'Nao deu pra recarregar.', cor: UI.alerta };
+      }
+      case 'alternar_luz': {
+        if (!estado.equipamento.estaEquipado(id)) {
+          return { ok: false, consumiu: false, aviso: 'Equipe a lanterna primeiro.', cor: UI.alerta };
+        }
+        const acesa = estado.equipamento.alternarLanterna();
+        return { ok: true, consumiu: false, aviso: acesa ? 'Lanterna acesa.' : 'Lanterna apagada.' };
+      }
+      case 'ler':
+        return { ok: true, consumiu: false, aviso: c.detalhe ?? ITENS[id]?.descricao ?? nome };
+    }
+  }
+
+  // ------------------------------------------- andares: carga sob demanda --
+  /**
+   * Garante que o tilemap do mapa esta no cache.
+   *
+   * Devolve `false` quando a carga acabou de comecar — nesse caso o `create`
+   * PARA aqui e a cena se reinicia sozinha quando o arquivo chega. E o preco de
+   * ter cinquenta andares sem pagar por eles no boot; o efeito em jogo e um
+   * quadro de "carregando" enquanto o alcapao termina de abrir.
+   *
+   * Os andares 1 a 5 e todo o resto do mundo NAO passam por aqui: eles vem no
+   * `preload` do BootScene como sempre, e `sobDemanda` e falso neles.
+   */
+  private garantirTilemap(def: DefinicaoMapa): boolean {
+    if (!def.sobDemanda || this.cache.tilemap.has(def.tilemapKey)) {
+      this.descarregarAndaresDistantes(def.chave);
+      return true;
+    }
+    this.avisoDeCarga = this.add
+      .text(this.scale.width / 2, this.scale.height / 2, 'Descendo...', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanhoTitulo,
+        color: UI.texto,
+        backgroundColor: '#0d0f14e0',
+        padding: { x: 8, y: 5 },
+      })
+      .setOrigin(0.5, 0.5)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_OVERLAY);
+    this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo);
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      this.avisoDeCarga?.destroy();
+      this.avisoDeCarga = null;
+      this.scene.restart(this.entradaAtual);
+    });
+    this.load.start();
+    return false;
+  }
+
+  /**
+   * Tira do cache os andares que nao sao o atual nem os vizinhos imediatos.
+   *
+   * Com cinquenta andares, uma descida inteira acumularia cinquenta tilemaps na
+   * memoria — que e exatamente o que a Parte 51 pede pra nao acontecer. Manter os
+   * vizinhos evita recarregar a cada subida e descida de um andar, que e o
+   * movimento mais comum.
+   */
+  private descarregarAndaresDistantes(atual: string): void {
+    const andar = andarDoMapaDef(atual)?.andar;
+    const vizinhos = new Set(
+      andar === undefined
+        ? []
+        : [andar - 1, andar, andar + 1].filter((n) => n >= 1 && n <= ANDARES.length).map(mapaDoAndar),
+    );
+    for (const def of Object.values(MAPAS)) {
+      if (!def.sobDemanda || vizinhos.has(def.chave)) continue;
+      if (this.cache.tilemap.has(def.tilemapKey)) this.cache.tilemap.remove(def.tilemapKey);
+    }
+  }
+
+  // --------------------------------------------------------------- elevador --
+  /**
+   * O ELEVADOR DE SERVICO. Onze paradas (andares 1, 5, 10 ... 50), e cada uma
+   * precisa ter sido ATIVADA no proprio andar antes de valer.
+   *
+   * E isso que impede o elevador de ser um pulo pro fundo: chegar na parada e o
+   * que a destrava, entao ele so encurta caminho ja andado. E o mesmo contrato
+   * do atalho de manutencao da leva anterior, com dez paradas em vez de uma.
+   */
+  private abrirElevador(alvo: Interagivel): void {
+    const aqui = Number(alvo.props.andar) || andarDoMapaDef(estado.mapa)?.andar || 1;
+    // Chegar na cabine ATIVA a parada deste andar.
+    if (!estado.worldEvents.ativa(flagDeCheckpoint(aqui))) {
+      estado.worldEvents.definir(flagDeCheckpoint(aqui), true);
+      this.ui.avisoRapido(`Parada ${buscarAndar(aqui)?.codigo ?? aqui} registrada.`, UI.sucesso);
+    }
+    const paradas = ANDARES_DE_PARADA.filter(
+      (n) => n !== aqui && estado.worldEvents.ativa(flagDeCheckpoint(n)),
+    );
+    if (paradas.length === 0) {
+      this.ui.iniciarDialogo([
+        {
+          nome: 'Elevador de servico',
+          texto:
+            'A cabine responde e o painel acende. So esta parada esta registrada — '
+            + 'as outras precisam ser alcancadas a pe primeiro.',
+        },
+      ]);
+      return;
+    }
+    this.ui.abrirMenu(
+      'Elevador de servico',
+      paradas.map((n) => {
+        const def = buscarAndar(n);
+        return {
+          rotulo: `${def?.codigo ?? n} — ${def?.rotulo ?? ''}`,
+          aoEscolher: () => this.usarElevador(n),
+        };
+      }),
+    );
+  }
+
+  private usarElevador(andar: number): void {
+    const def = buscarAndar(andar);
+    if (!def) return;
+    const destino = mapaDoAndar(andar);
+    const planta = buscarMapa(destino);
+    if (!planta) return;
+    // A cabine larga o jogador no tile de PARADA do andar de destino, e nao no
+    // alcapao de chegada: sao lugares diferentes, e sair do elevador pelo
+    // alcapao faria a cabine parecer estar em outro lugar a cada viagem.
+    const parada = PARADA_DO_ANDAR[andar] ?? planta.spawnTile;
+    this.transicionando = true;
+    this.cameras.main.fadeOut(200, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.restart({
+        mapa: destino,
+        x: (parada.x + 0.5) * this.tamanhoTile,
+        y: (parada.y + 0.5) * this.tamanhoTile,
+      });
+    });
+  }
+
+  // ----------------------------------------------------------- ficha medica --
+  /**
+   * ARQUIVA uma ficha medica ao ler.
+   *
+   * O documento fica no chao do andar (ele nao entra no inventario — sao
+   * cinquenta folhas, e a Parte 17 pede que elas nao ocupem slot). O que fica
+   * registrado e o numero: dali pra frente a ficha pode ser relida na tela de
+   * Arquivos, e a lacuna de uma que ficou pra tras aparece como `?????`.
+   */
+  private arquivarFicha(andar: number): void {
+    const ficha = fichaDoAndar(andar);
+    if (!ficha) return;
+    if (estado.arquivo.coletar(andar)) {
+      this.ui.avisoRapido(
+        `Ficha ${String(andar).padStart(3, '0')} arquivada (${estado.arquivo.quantas}/50).`,
+        UI.sucesso,
+      );
+    }
+  }
+
+  private criarCamadaDaRepresa(map: Phaser.Tilemaps.Tilemap): void {
+    if (!naRepresa(estado.mapa)) return;
+    this.represa = new CamadaRepresa(this, this.tamanhoTile, {
+      tileBloqueado: (tx, ty) => this.tileBloqueado(tx, ty),
+      escuridaoNoTile: (tx, ty) => this.escuridaoNoTile(tx, ty),
+      aoSerDerrotado: () => this.serDerrotado(),
+    });
+    this.represa.montar(map, this.player);
+    // marca a primeira visita: e o gancho pro resto do jogo saber que o jogador
+    // conhece a usina (fala de NPC, blog, missao futura)
+    estado.worldEvents.definir('represaVisitada', true);
+  }
+
+  /**
+   * Recipientes de SALVADO, da camada `sucata` dos setores.
+   *
+   * Eles vem numa camada propria e nao em `interativos` porque o gerador precisa
+   * distinguir os dois na hora de conferir (a conferencia de setor cobra coisas
+   * diferentes de porta, painel e recipiente), e porque assim `lerInterativos`
+   * continua com uma lista fechada de classes. Aqui os dois se juntam na mesma
+   * lista de alvos — pro resto da cena um recipiente e um interagivel como
+   * qualquer outro.
+   */
+  private lerPontosDeSucata(map: Phaser.Tilemaps.Tilemap): Interagivel[] {
+    const camada = map.getObjectLayer('sucata');
+    if (!camada) return [];
+    const lista: Interagivel[] = [];
+    for (const obj of camada.objects) {
+      const id = obj.name || `sucata_${lista.length}`;
+      if (estado.itensColetados.has(id)) continue;
+      lista.push({
+        id,
+        tipo: 'sucata',
+        rotulo: ROTULOS.sucata,
+        x: (obj.x ?? 0) + (obj.width ?? 0) / 2,
+        y: (obj.y ?? 0) + (obj.height ?? 0) / 2,
+        props: lerProps(obj),
+      });
+    }
+    return lista;
+  }
+
+  /**
+   * Escuridao por comodo, lida do tilemap. O valor cai pra escuridao BASE do
+   * setor nos tiles que nenhum comodo cobre (vao de parede, soleira) — sem isso
+   * atravessar um vao daria um flash de claro.
+   */
+  private lerEscuridaoDosComodos(map: Phaser.Tilemaps.Tilemap): { ret: RetTiles; valor: number }[] {
+    const camada = map.getObjectLayer('comodos');
+    if (!camada) return [];
+    const t = this.tamanhoTile;
+    const lista: { ret: RetTiles; valor: number }[] = [];
+    for (const obj of camada.objects) {
+      const props = lerProps(obj);
+      const valor = Number(props.escuridao);
+      if (!Number.isFinite(valor)) continue;
+      lista.push({
+        valor: Math.min(1, Math.max(0, valor)),
+        ret: {
+          x0: Math.round((obj.x ?? 0) / t),
+          y0: Math.round((obj.y ?? 0) / t),
+          x1: Math.round(((obj.x ?? 0) + (obj.width ?? 0)) / t),
+          y1: Math.round(((obj.y ?? 0) + (obj.height ?? 0)) / t),
+        },
+      });
+    }
+    return lista;
+  }
+
+  private escuridaoNoTile(tx: number, ty: number): number {
+    for (const comodo of this.escuridaoDoComodo) {
+      const r = comodo.ret;
+      if (tx >= r.x0 && tx < r.x1 && ty >= r.y0 && ty < r.y1) return comodo.valor;
+    }
+    return setorDaRepresa(estado.mapa)?.escuridao ?? 0;
+  }
+
+  /**
+   * Porta TRANCADA por flag (alcapao que exige setor energizado, atalho que so
+   * abre pelo outro lado, elevador que precisa da placa restaurada).
+   *
+   * Devolve false quando a porta nao abre, e nesse caso ela mesma explica o
+   * motivo — trava sem explicacao e o que faz o jogador achar que o jogo
+   * quebrou. A mensagem sai da flag, entao acrescentar uma porta trancada nova
+   * nao pede codigo novo, so uma linha em `MOTIVO_DE_TRAVA`.
+   */
+  private portaDestrancada(porta: Interagivel): boolean {
+    const flag = String(porta.props.trancada ?? '');
+    if (!flag) return true;
+    if (estado.worldEvents.ativa(flag)) return true;
+    this.ui.iniciarDialogo(
+      falasDe('Usina', MOTIVO_DE_TRAVA[flag] ?? ['Esta passagem esta travada.']),
+    );
+    return false;
+  }
+
+  // ------------------------------------------------------ paineis --
+  /**
+   * Abre um painel de enigma.
+   *
+   * A UI e o MENU que o jogo ja tem (o mesmo dos temas de conversa e dos
+   * presentes): titulo com a pergunta, uma linha por opcao. Foi de proposito —
+   * inventar um painel proprio de enigma daria uma segunda janela modal pra
+   * manter, e o menu ja resolve escolha, sequencia e digitacao de codigo (o
+   * codigo entra digito por digito, com os dez digitos como opcoes).
+   */
+  private abrirPainelDaRepresa(alvo: Interagivel): void {
+    const painel = buscarPainel(alvo.props.painel);
+    if (!painel) {
+      console.warn(`[painel] id desconhecido em "${alvo.id}":`, alvo.props.painel);
+      return;
+    }
+    if (estado.worldEvents.ativa(painel.flag)) {
+      this.ui.iniciarDialogo(falasDe(painel.nome, [FALA_PAINEL_RESOLVIDO]));
+      return;
+    }
+    this.painelAtivo = iniciarPainel(painel, estado.represa.tensao);
+    const tentativas = this.painelAtivo.tentativasRestantes;
+    this.ui.iniciarDialogo(
+      falasDe(painel.nome, [
+        painel.abertura,
+        tentativas <= 1
+          ? 'Voce esta cansado e a mao trema. Da pra uma tentativa, nao mais.'
+          : `Da pra tentar ${tentativas} vezes antes de o sistema travar.`,
+      ]),
+      () => this.desenharPainel(),
+    );
+  }
+
+  /** Desenha o passo atual do painel em andamento. */
+  private desenharPainel(): void {
+    const progresso = this.painelAtivo;
+    if (!progresso) return;
+    const opcoes = opcoesAtuais(progresso).map((rotulo, indice) => ({
+      rotulo,
+      aoEscolher: () => this.responderNoPainel(indice),
+    }));
+    this.ui.abrirMenu(perguntaAtual(progresso), opcoes, () => {
+      // desistir no meio nao pune: o painel volta do primeiro passo na proxima
+      this.painelAtivo = null;
+    });
+  }
+
+  private responderNoPainel(escolha: number): void {
+    const progresso = this.painelAtivo;
+    if (!progresso) return;
+    const nome = progresso.painel.nome;
+    const resposta = responderPainel(progresso, escolha, estado.inventario);
+    switch (resposta.resultado) {
+      case 'continua':
+      case 'passo_ok':
+        this.desenharPainel();
+        return;
+      case 'sem_peca':
+        this.painelAtivo = null;
+        this.ui.iniciarDialogo(
+          falasDe(nome, [
+            'O soquete esta vazio e nao ha nada na mochila que sirva.',
+            'Uma placa de circuito recuperada resolveria. Elas aparecem a partir da manutencao.',
+          ]),
+        );
+        return;
+      case 'errou':
+        // ERRAR CUSTA TENSAO, e tensao encurta as tentativas do proximo painel.
+        // E o eixo do tempo entrando nos enigmas: insistir na forca bruta piora
+        // a usina inteira em vez de so gastar uma chance local.
+        estado.represa.registrarErro();
+        this.ui.iniciarDialogo(
+          falasDe(nome, [
+            'Errado. O rele abre e o painel volta ao inicio.',
+            `Restam ${resposta.restantes} tentativa(s).`,
+          ]),
+          () => this.desenharPainel(),
+        );
+        return;
+      case 'travado':
+        estado.represa.registrarErro();
+        this.painelAtivo = null;
+        this.ui.iniciarDialogo(
+          falasDe(nome, [
+            'O painel travou. Um LED vermelho fica piscando e nada mais responde.',
+            'Ele destrava sozinho — mas nao enquanto voce estiver aqui embaixo.',
+          ]),
+        );
+        return;
+      case 'concluido': {
+        this.painelAtivo = null;
+        estado.worldEvents.definir(resposta.flag, true);
+        const extras = this.recompensasDoPainel(resposta.flag);
+        this.ui.iniciarDialogo(
+          falasDe(nome, [progresso.painel.conclusao, ...extras]),
+          // recarrega o setor: e o que faz o alcapao destravado, a gaveta
+          // liberada e a luz nova aparecerem sem o jogador ter de sair e voltar
+          () => this.recarregarSetor(),
+        );
+        return;
+      }
+    }
+  }
+
+  /**
+   * Efeitos colaterais de um painel resolvido que nao sao a propria flag.
+   * Hoje ha um: o quadro de disjuntores do nivel 0 revela a LANTERNA DE
+   * MANUTENCAO na gaveta que ele destrava, e e ela que dobra o raio de luz.
+   */
+  private recompensasDoPainel(flag: string): string[] {
+    if (flag !== 'represaLuzEntrada' || estado.worldEvents.ativa(FLAG_DA_LANTERNA)) return [];
+    estado.worldEvents.definir(FLAG_DA_LANTERNA, true);
+    return [
+      'Na gaveta ha uma lanterna de manutencao, daquelas de cabo de borracha. A pilha aguenta.',
+      'Dai pra frente voce ve bem mais longe no escuro.',
+    ];
+  }
+
+  /** Recarrega o setor atual preservando a posicao do jogador. */
+  private recarregarSetor(): void {
+    this.transicionando = true;
+    const x = this.player.x;
+    const y = this.player.y;
+    this.scene.restart({ mapa: estado.mapa, x, y });
+  }
+
+  // ------------------------------------------------------- sucata --
+  /**
+   * Recolhe um recipiente de salvado.
+   *
+   * Recipiente e ONE-SHOT e persiste em `estado.itensColetados`, o mesmo Set que
+   * os pickups do mundo ja usavam — nao ha um segundo registro de "ja saqueado".
+   * O que ele exige (`requer`) e uma flag de puzzle: e assim que o premio de um
+   * enigma fica no mapa em vez de cair do ceu.
+   */
+  private recolherSucata(alvo: Interagivel): void {
+    const flag = String(alvo.props.requer ?? '');
+    if (flag && !estado.worldEvents.ativa(flag)) {
+      this.ui.iniciarDialogo(
+        falasDe('Usina', ['Esta trancado. A fechadura e eletrica e nao ha tensao nela.']),
+      );
+      return;
+    }
+    const tabela = buscarTabelaDeSucata(String(alvo.props.tabela ?? ''));
+    if (!tabela) {
+      console.warn(`[sucata] tabela desconhecida em "${alvo.id}":`, alvo.props.tabela);
+      return;
+    }
+    const sorteio = sortearSucata(tabela);
+    const linhas: string[] = [];
+    let sobrou = false;
+    for (const peca of sorteio) {
+      const naoCabe = estado.inventario.adicionar(peca.id, peca.quantidade);
+      const entrou = peca.quantidade - naoCabe;
+      if (entrou > 0) {
+        estado.represa.registrarSalvado(peca.id, entrou);
+        linhas.push(`${ITENS[peca.id]?.nome ?? peca.id} x${entrou}`);
+      }
+      if (naoCabe > 0) sobrou = true;
+    }
+    // marca como saqueado ANTES de qualquer coisa poder falhar depois: um
+    // recipiente que rende metade e melhor que um que rende duas vezes
+    estado.itensColetados.add(alvo.id);
+    this.visuaisDeItens.get(alvo.id)?.destroy();
+    this.visuaisDeItens.delete(alvo.id);
+    this.interagiveis = this.interagiveis.filter((item) => item !== alvo);
+    this.ui.iniciarDialogo(
+      falasDe('Salvado', [
+        linhas.length > 0 ? `Recolhido: ${linhas.join(', ')}.` : 'So poeira e parafuso quebrado.',
+        ...(sobrou ? ['A mochila encheu e o resto ficou pra tras.'] : []),
+      ]),
+    );
+  }
+
+  /**
+   * Caixa de despacho da oficina: o ponto de REVENDA do salvado.
+   *
+   * Fica na oficina do protagonista e nao numa loja da cidade porque e assim que
+   * o ciclo fecha onde ele comeca — preparar, subir, descer, voltar, despachar.
+   * Vem daqui e nao do tilemap pelo mesmo motivo dos pontos de loja: a planta da
+   * oficina nao emite objeto dessa classe (ver `lerPontosDeLoja`).
+   */
+  private lerPontoDeRevenda(): Interagivel[] {
+    if (estado.mapa !== MAPA_DA_CASA) return [];
+    const t = this.tamanhoTile;
+    const tile = TILE_DA_REVENDA;
+    const x = (tile.x + 0.5) * t;
+    const y = (tile.y + 0.5) * t;
+    this.add
+      .rectangle(x, y, t * 0.8, t * 0.6, 0x5c5348)
+      .setStrokeStyle(2, 0xa39785)
+      .setDepth(y)
+      .setName('caixa_de_despacho');
+    return [
+      {
+        id: 'revenda_oficina',
+        tipo: 'revenda' as const,
+        rotulo: ROTULOS.revenda,
+        x,
+        y,
+        props: {},
+      },
+    ];
+  }
+
+  /**
+   * Menu de revenda: uma linha por tipo de salvado no inventario, com o total
+   * que ele paga. Vende a PILHA INTEIRA de uma vez — vender unidade por unidade
+   * daria dezenas de acionamentos pra esvaziar uma mochila de volta da usina.
+   */
+  private abrirRevendaDeSucata(): void {
+    const lotes = estado.inventario
+      .serializar()
+      .flatMap((slot) => (slot && ehSucata(slot.id) ? [slot] : []))
+      .reduce((mapa, slot) => {
+        mapa.set(slot.id, (mapa.get(slot.id) ?? 0) + slot.qtd);
+        return mapa;
+      }, new Map<string, number>());
+
+    if (lotes.size === 0) {
+      this.ui.iniciarDialogo(
+        falasDe('Caixa de despacho', [
+          'A caixa esta vazia. Nao ha salvado nenhum na mochila pra despachar.',
+        ]),
+      );
+      return;
+    }
+
+    const opcoes = [...lotes].map(([id, qtd]) => ({
+      // a marca de raridade (*, **, ***) fica na frente: quem volta com dez
+      // lotes decide o que despachar primeiro sem abrir o inventario
+      rotulo:
+        `${marcaDeRaridade(id)} ${ITENS[id]?.nome ?? id} x${qtd}` +
+        ` — ${formatarDinheiro(precoDeRevenda(id, qtd))}`,
+      aoEscolher: () => this.despacharSucata(id, qtd),
+    }));
+    this.ui.abrirMenu('Despachar qual lote?', opcoes);
+  }
+
+  private despacharSucata(id: string, quantidade: number): void {
+    const r = venderSucata(estado.inventario, estado.carteira, id, quantidade);
+    if (!r.ok) {
+      this.ui.iniciarDialogo(
+        falasDe('Caixa de despacho', [
+          r.motivo === 'credito'
+            ? 'A conta nao aceita mais credito. Gaste algo antes.'
+            : 'O lote nao esta mais na mochila.',
+        ]),
+      );
+      return;
+    }
+    this.ui.iniciarDialogo(
+      falasDe('Caixa de despacho', [
+        `${ITENS[id]?.nome ?? id} x${quantidade} despachado.`,
+        `Creditado: ${formatarDinheiro(r.pago)}. Saldo: ${estado.carteira.texto}.`,
+      ]),
+      // reabre o menu: quem volta da usina tem varios lotes pra despachar
+      () => this.abrirRevendaDeSucata(),
+    );
+  }
+
+  // ------------------------------------------------------ derrota --
+  /**
+   * Vida a zero.
+   *
+   * NAO e permadeath e nao encosta em nada critico: o save fica, item de missao
+   * fica, mobilia fica, relacionamento fica, puzzle resolvido fica e atalho
+   * aberto fica. O que se perde e tempo (quatro horas de jogo) e METADE do
+   * salvado recolhido NESTA descida — ver `PERDA_POR_DERROTA` em represa.ts.
+   *
+   * O jogador acorda no nivel 0, que e a zona segura da usina, e nao em casa: a
+   * viagem de volta pela estrada e parte do custo, e acordar em casa apagaria a
+   * decisao de "volto agora ou desco mais um nivel".
+   */
+  private serDerrotado(): void {
+    if (this.transicionando) return;
+    this.transicionando = true;
+    const perda = estado.represa.perdaPorDerrota();
+    for (const item of perda) estado.inventario.remover(item.id, item.quantidade);
+    estado.vida.definir(Math.round(estado.vida.maxHp * PERDA_POR_DERROTA.fracaoDeVida));
+    estado.dia += estado.relogio.avancarMinutos(PERDA_POR_DERROTA.horas * 60);
+
+    const perdido = perda
+      .map((item) => `${ITENS[item.id]?.nome ?? item.id} x${item.quantidade}`)
+      .join(', ');
+
+    const cam = this.cameras.main;
+    cam.fadeOut(520, 0, 0, 0);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      const t = this.tamanhoTile;
+      this.ui.iniciarDialogo(
+        falasDe('...', [
+          'Voce acorda no piso da casa de forca, com a lanterna apagada do lado.',
+          `Passaram ${PERDA_POR_DERROTA.horas} horas.`,
+          perdido ? `Parte do salvado ficou lá embaixo: ${perdido}.` : 'A mochila esta como estava.',
+        ]),
+      );
+      this.scene.restart({
+        mapa: SETOR_DE_RESGATE,
+        x: (PONTO_DE_RESGATE.x + 0.5) * t,
+        y: (PONTO_DE_RESGATE.y + 0.5) * t,
+      });
+    });
+  }
+
   // ------------------------------------------------------------- exame --
 
   /**
@@ -2599,6 +3463,10 @@ export class FarmScene extends Phaser.Scene {
    * fachada mas nao tem interior — ver `AVISOS_DE_PREDIO`.
    */
   private examinarPlaca(alvo: Interagivel): void {
+    // FICHA MEDICA: o objeto tem a prop `ficha` com o numero do andar. Ler
+    // arquiva; o texto sai igual ao de qualquer placa, logo abaixo.
+    const andarDaFicha = Number(alvo.props.ficha);
+    if (Number.isInteger(andarDaFicha) && andarDaFicha > 0) this.arquivarFicha(andarDaFicha);
     if (typeof alvo.props.missaoItemId === 'string') {
       this.coletarItemDeMissao(String(alvo.props.missaoItemId));
       return;
@@ -2777,17 +3645,15 @@ export class FarmScene extends Phaser.Scene {
 
 /** O que a cena precisa saber pra montar um sprite da camada `flora`. */
 interface NpcVisual {
-  estado?: EstadoNpc;
-  morador?: Morador;
+  estado: EstadoNpc;
   sprite: Phaser.Physics.Arcade.Sprite;
   interagivel: Interagivel;
   animacao: string;
-  atividadeChave?: string;
-  ancoraMorador?: { x: number; y: number };
-  alvoMorador?: { x: number; y: number } | null;
-  proximaDecisao?: number;
-  passoMorador?: number;
-  direcaoMorador?: Direcao;
+  /**
+   * Ultima visibilidade APLICADA, que nao e a mesma coisa que `sprite.visible`
+   * durante o esmaecimento. Ver `aplicarVisibilidadeDeNpc`.
+   */
+  visivelAplicado: boolean;
 }
 
 /** Retrato de um NPC exibido sobre o mapa aberto. */
@@ -2820,6 +3686,7 @@ const TITULO_DO_MAPA: Record<string, string> = {
   farm: 'Mapa da cidade',
   bairro: 'Bairro da Estacao',
   rural: 'Zona Rural',
+  represa: 'Estrada da Represa',
 };
 
 /** Retangulo em TILES, com o canto (x0,y0) inclusivo e (x1,y1) exclusivo. */

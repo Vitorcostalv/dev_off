@@ -5,6 +5,10 @@ import type { DadosCasa } from './casa.ts';
 import type { DadosWorldEvents } from './worldEvents.ts';
 import type { DadosMissoesNpc } from './missoesNpc.ts';
 import type { DadosCidade } from './cidade.ts';
+import type { DadosVida } from './vida.ts';
+import type { DadosRepresa } from './represa.ts';
+import type { DadosEquipamento } from './equipar.ts';
+import type { DadosArmas } from './armas.ts';
 
 const CHAVE = 'meu-jogo:save';
 // 2: o tile passou de 16 pra 32 px, entao x/y gravados na versao 1 apontam
@@ -18,6 +22,11 @@ const CHAVE = 'meu-jogo:save';
 //    da `casa_1` (Mapa 1) pra `oficina` (Mapa 2). A chave de mapa gravada na
 //    versao 5 pode ser `casa_1`, que nao existe mais, e as coordenadas gravadas
 //    dentro dela nao querem dizer nada no mapa novo.
+// A leva da represa (Mapa 4) NAO subiu a versao. Ela e aditiva: nenhum lote,
+// interior ou coordenada existente mudou de lugar, e os tres campos novos
+// (`vida`, `represa` e as flags da usina dentro de `worldEvents`) chegam
+// ausentes no save v6 antigo e caem em valor vazio. O que mudou no mundo foi a
+// TOPOLOGIA das bordas — e borda nao vai pro save.
 // Subir a versao descarta os saves antigos em vez de restaurar posicao errada.
 //
 // Campo NOVO nao pede versao nova. So se sobe a versao quando o dado gravado
@@ -61,6 +70,34 @@ export interface DadosSave {
   missoesNpc?: DadosMissoesNpc;
   /** projetos urbanos construidos e seus trabalhadores; ausente em saves antigos */
   cidade?: DadosCidade;
+  /**
+   * Vida do jogador. Campo NOVO, sem subir a versao: save antigo chega sem ele e
+   * `SistemaVida.restaurar` devolve 30/30 — que e o estado certo pra quem nunca
+   * entrou na represa. Ver o comentario de VERSAO acima.
+   */
+  vida?: DadosVida;
+  /**
+   * CORRIDA atual na represa (tempo dentro, tensao e o salvado recolhido desde a
+   * ultima saida). O progresso PERMANENTE da usina nao esta aqui: puzzle
+   * resolvido e atalho aberto sao flag de `worldEvents`, e recipiente saqueado e
+   * id em `itensColetados` — os dois mecanismos que o jogo ja tinha. Ausente em
+   * save antigo, e ai a corrida comeca zerada.
+   */
+  represa?: DadosRepresa;
+  /**
+   * O que esta equipado, por slot. Campo NOVO e ADITIVO: save antigo chega sem
+   * ele e `SistemaEquipamento.restaurar` devolve os tres slots vazios, que e o
+   * estado certo pra quem nunca achou a pistola.
+   */
+  equipamento?: DadosEquipamento;
+  /** cartuchos no carregador de cada arma; ausente = carregador vazio */
+  armas?: DadosArmas;
+  /**
+   * Numeros das fichas medicas ja recolhidas na represa (1 a 50). Guarda so o
+   * numero: o texto e estatico, entao o save nao cresce com o prontuario e
+   * corrigir uma virgula numa ficha nao invalida nada. Ausente = arquivo vazio.
+   */
+  arquivo?: number[];
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

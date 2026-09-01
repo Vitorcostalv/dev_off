@@ -520,9 +520,69 @@
     "h": 150
    }
   },
-  "projeto_cafeteria": {
+  "casa_maquinas": {
    "frame": {
     "x": 5120,
+    "y": 0,
+    "w": 448,
+    "h": 182
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 448,
+    "h": 182
+   },
+   "sourceSize": {
+    "w": 448,
+    "h": 182
+   }
+  },
+  "portaria_represa": {
+   "frame": {
+    "x": 5568,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 150
+   }
+  },
+  "galpao_represa": {
+   "frame": {
+    "x": 5760,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 150
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 150
+   }
+  },
+  "projeto_cafeteria": {
+   "frame": {
+    "x": 5952,
     "y": 0,
     "w": 224,
     "h": 150
@@ -542,7 +602,7 @@
   },
   "projeto_hospital": {
    "frame": {
-    "x": 5344,
+    "x": 6176,
     "y": 0,
     "w": 192,
     "h": 150
@@ -562,7 +622,7 @@
   },
   "projeto_padaria": {
    "frame": {
-    "x": 5536,
+    "x": 6368,
     "y": 0,
     "w": 192,
     "h": 150
@@ -582,7 +642,7 @@
   },
   "projeto_ponto_onibus": {
    "frame": {
-    "x": 5728,
+    "x": 6560,
     "y": 0,
     "w": 160,
     "h": 86
@@ -599,6 +659,26 @@
     "w": 160,
     "h": 86
    }
+  },
+  "vertedouro_represa": {
+   "frame": {
+    "x": 6720,
+    "y": 0,
+    "w": 192,
+    "h": 160
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 160
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 160
+   }
   }
  },
  "meta": {
@@ -606,7 +686,7 @@
   "image": "construcoes.png",
   "format": "RGBA8888",
   "size": {
-   "w": 5888,
+   "w": 6912,
    "h": 214
   },
   "scale": "1"
