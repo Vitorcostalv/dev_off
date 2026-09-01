@@ -213,6 +213,17 @@ const FALA_PAINEL_RESOLVIDO = 'Ja esta feito. O painel mostra tudo em verde.';
  * salvado. Canto sudoeste da oficina, ao lado da caixa de ferramenta — tile
  * livre e alcancavel (conferido contra o tilemap gerado).
  */
+/**
+ * O que a tecla F3 poe no inventario. So debug: nada no jogo le esta lista.
+ */
+const KIT_DE_DEBUG: readonly (readonly [string, number])[] = [
+  ['chave_inglesa', 1],
+  ['lanterna_manutencao', 1],
+  ['pistola', 1],
+  ['municao_pistola', 32],
+  ['kit_primeiros_socorros', 3],
+];
+
 const TILE_DA_REVENDA = { x: 17, y: 20 };
 
 /** Duracao do esmaecer de entrada/saida de cena de um NPC, em ms. */
@@ -592,9 +603,16 @@ export class FarmScene extends Phaser.Scene {
       console.info(`[tempo] avancado para ${estado.relogio.texto}`);
     });
 
-    // F2/F3 continuam uteis para testar capacidade sem depender do mapa.
+    // F2 continua util para testar capacidade sem depender do mapa.
     this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('cabo_usb', 1));
-    this.input.keyboard!.on('keydown-F3', () => estado.inventario.adicionar('bateria', 1));
+    // F3 da o KIT DE EXPLORACAO. Substituiu o "adiciona uma bateria" porque
+    // testar o ciclo da represa a mao — descer, achar a pistola no cofre da
+    // portaria, comprar municao na madeireira, voltar — leva dez minutos de
+    // jogo a cada tentativa, e o que se quer testar e o combate, nao a coleta.
+    this.input.keyboard!.on('keydown-F3', () => {
+      for (const [id, qtd] of KIT_DE_DEBUG) estado.inventario.adicionar(id, qtd);
+      this.ui.avisoRapido('Kit de exploracao no inventario (F3).', UI.sucesso);
+    });
 
     // F9 salva na hora (debug); no jogo, quem salva e o dormir
     this.input.keyboard!.on('keydown-F9', () => {
@@ -644,6 +662,7 @@ export class FarmScene extends Phaser.Scene {
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
+      this.mao.atualizar(delta, this.player, this.direcao);
       this.atualizarMarcadoresMapa();
       return;
     }
@@ -657,6 +676,8 @@ export class FarmScene extends Phaser.Scene {
     if (this.ui.bloqueado || this.transicionando || this.posicionando) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
+      this.mao.atualizar(delta, this.player, this.direcao);
+      this.mao.atualizarMira(this.input.activePointer, false);
       return;
     }
 
@@ -684,6 +705,7 @@ export class FarmScene extends Phaser.Scene {
     if (this.represa?.atacando) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
+      this.mao.atualizar(delta, this.player, this.direcao);
       return;
     }
 
@@ -702,13 +724,21 @@ export class FarmScene extends Phaser.Scene {
     this.player.setVelocity(v.x, v.y);
 
     if (vx !== 0 || vy !== 0) {
-      // horizontal tem prioridade na escolha da animacao
-      if (vx !== 0) this.direcao = vx > 0 ? 'right' : 'left';
-      else this.direcao = vy > 0 ? 'down' : 'up';
-      this.player.anims.play(`${correndo ? 'run' : 'walk'}-${this.direcao}`, true);
+      // Horizontal tem prioridade na escolha da animacao. Com arma de fogo na
+      // mao a direcao ja veio da MIRA lá em cima, e o movimento nao a rouba —
+      // e o que permite recuar atirando.
+      if (!armaNaMao) {
+        if (vx !== 0) this.direcao = vx > 0 ? 'right' : 'left';
+        else this.direcao = vy > 0 ? 'down' : 'up';
+      }
+      this.player.anims.play(
+        this.mao.animacaoDoCorpo(correndo ? 'run' : 'walk', this.direcao),
+        true,
+      );
     } else {
       this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
     }
+    this.mao.atualizar(delta, this.player, this.direcao);
   }
 
   /** Chamado pela UIScene quando o jogador aperta E / clica. */

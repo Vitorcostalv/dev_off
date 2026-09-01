@@ -200,7 +200,11 @@ export const COMPORTAMENTOS: Record<string, ComportamentoItem> = {
     zonas: ['perigosa'],
     recusaDeZona: 'Voce prefere nao carregar isso pela cidade.',
     frameNaMao: 'mao_pistola',
-    alturaNaMao: 0.5,
+    // 0.36 de tile de ALTURA da arte, que inclui o carregador abaixo do punho —
+    // na pratica uns 15 px de cano no personagem de 1,5 tile. A arte de arma
+    // veio desenhada grande (469x367) e a primeira tentativa, com 0.5, deixava a
+    // pistola do tamanho do tronco.
+    alturaNaMao: 0.36,
     ajuste: APONTADA,
     arma: 'pistola',
     indestrutivel: true,
@@ -213,7 +217,7 @@ export const COMPORTAMENTOS: Record<string, ComportamentoItem> = {
   chave_inglesa: {
     slot: 'mao',
     frameNaMao: 'mao_chave_inglesa',
-    alturaNaMao: 0.62,
+    alturaNaMao: 0.5,
     ajuste: EM_PE,
     // 7 contra os 4 do golpe base. A chave inglesa nao INTRODUZ o corpo a corpo
     // (ele existe desde a leva anterior e continua funcionando de maos vazias,
@@ -226,7 +230,7 @@ export const COMPORTAMENTOS: Record<string, ComportamentoItem> = {
     slot: 'utilitario',
     acao: { tipo: 'alternar_luz' },
     frameNaMao: 'mao_lanterna',
-    alturaNaMao: 0.34,
+    alturaNaMao: 0.26,
     ajuste: {
       down: { dx: -2, dy: 1, giro: 14 },
       left: { dx: -3, dy: 0, espelhado: true },

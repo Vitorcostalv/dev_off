@@ -319,15 +319,23 @@ export class CamadaRepresa {
     this.projeteis = vivos;
   }
 
-  /** O inimigo vivo cujo corpo contem o ponto (em TILES), ou null. */
+  /**
+   * O inimigo vivo cujo CORPO contem o ponto (em TILES), ou null.
+   *
+   * O centro vertical NAO e `sprite.y`: a origem dos sprites de monstro e
+   * (0.5, 0.85), ou seja `y` e quase o pe da figura. O centro visual esta
+   * `displayHeight * (originY - 0.5)` acima dele. A primeira versao disto errou
+   * exatamente aqui e o resultado era um tiro que passava por cima da cabeca de
+   * uma impressora a cinco tiles sem tocar nela.
+   */
   private inimigoEm(tx: number, ty: number): InimigoVisual | null {
     const t = this.tamanhoTile;
     for (const alvo of this.inimigos) {
       if (alvo.runtime.hp <= 0 || !alvo.sprite.active) continue;
-      const meiaL = (alvo.sprite.displayWidth * 0.34) / t;
-      const meiaA = (alvo.sprite.displayHeight * 0.3) / t;
+      const meiaL = (alvo.sprite.displayWidth * 0.4) / t;
+      const meiaA = (alvo.sprite.displayHeight * 0.4) / t;
       const cx = alvo.sprite.x / t;
-      const cy = alvo.sprite.y / t - meiaA * 0.4;
+      const cy = (alvo.sprite.y - alvo.sprite.displayHeight * (alvo.sprite.originY - 0.5)) / t;
       if (Math.abs(tx - cx) <= meiaL && Math.abs(ty - cy) <= meiaA) return alvo;
     }
     return null;
