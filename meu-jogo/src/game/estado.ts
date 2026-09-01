@@ -12,6 +12,8 @@ import { SistemaEncontrosNpc } from './encontrosNpc.ts';
 import { atividadesComEmprego, SistemaCidade } from './cidade.ts';
 import { buscarMorador } from './moradores.ts';
 import { acoesDeAtividades } from './npcs.ts';
+import { SistemaVida } from './vida.ts';
+import { SistemaRepresa } from './represa.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
@@ -48,6 +50,10 @@ export const estado = {
   encontrosNpc: new SistemaEncontrosNpc(),
   /** predios construidos pelo jogador e trabalhadores atribuidos no bairro */
   cidade: new SistemaCidade(),
+  /** vida do jogador, independente da energia de trabalho */
+  vida: new SistemaVida(),
+  /** corrida atual dentro da represa: tempo dentro, tensao e salvado recolhido */
+  represa: new SistemaRepresa(),
 };
 
 /**

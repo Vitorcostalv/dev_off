@@ -36,6 +36,9 @@ export const ROTULOS: Record<TipoInteragivel, string> = {
   expansao: 'Ampliar casa',
   mobilia: 'Mobiliar',
   obra: 'Gerenciar obra',
+  painel: 'Operar',
+  sucata: 'Recolher',
+  revenda: 'Despachar sucata',
 };
 
 /** Cor da demarcacao de cada tipo de zona reservada (overlay de debug, F6). */
@@ -57,6 +60,9 @@ export const COR_ZONA: Record<TipoZona, number> = {
   madeireira: 0xc99a5c,
   pedreira: 0xbfc0c4,
   fazenda: 0xd7e08a,
+  // Mapa 4
+  represa: 0x8fb6d9,
+  mirante: 0xa9c7b0,
 };
 
 /** Paleta/medidas da interface, pra HUD, dialogo e inventario ficarem coerentes. */

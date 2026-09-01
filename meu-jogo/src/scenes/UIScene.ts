@@ -3,6 +3,7 @@ import { nomeDoDia } from '../game/calendario';
 import { CONFIG, UI } from '../game/config';
 import { formatarDinheiro } from '../game/dinheiro';
 import { estado } from '../game/estado';
+import { naRepresa, setorDaRepresa } from '../game/represa';
 import { ITENS } from '../game/inventario';
 import type { DefinicaoItem } from '../game/inventario';
 import type { CategoriaItem, DefinicaoItemLoja } from '../game/itens';
@@ -26,6 +27,8 @@ import type { Fala, MundoJogavel } from '../game/tipos';
  * claro (grama ao meio-dia, piso de loja).
  */
 const CAIXA = { x: 8, y: 180, w: CONFIG.largura - 16, h: 82 };
+/** Quantos blocos a barra de vida tem. 10 pra cada bloco valer 3 pontos. */
+const BARRA_DE_VIDA = 10;
 
 /** Coluna do retrato dentro da caixa de dialogo. */
 const RETRATO = { lado: 58, margem: 7 };
@@ -87,6 +90,10 @@ export class UIScene extends Phaser.Scene {
 
   private hud!: Phaser.GameObjects.Text;
   private hudSaldo!: Phaser.GameObjects.Text;
+  /** Barra de VIDA. Escondida na cidade com a vida cheia — ver `atualizarHud`. */
+  private hudVida!: Phaser.GameObjects.Text;
+  /** Setor e tensao da represa. So aparece dentro da usina. */
+  private hudRepresa!: Phaser.GameObjects.Text;
 
   private dialogo!: Phaser.GameObjects.Container;
   private dialogoNome!: Phaser.GameObjects.Text;
@@ -238,6 +245,33 @@ export class UIScene extends Phaser.Scene {
       })
       .setDepth(90);
 
+    // VIDA. Fica embaixo do saldo, com a mesma caixa escura, e NAO se confunde
+    // com a energia de trabalho: o rotulo e "HP", a barra e de blocos e a cor
+    // muda com o quanto falta. Ela some quando o jogador esta cheio e fora de
+    // area de risco — a HUD da cidade e de um jogo pacifico e nao devia carregar
+    // barra de combate o tempo todo.
+    this.hudVida = this.add
+      .text(6, 42, '', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanhoTitulo,
+        color: UI.sucesso,
+        backgroundColor: '#1a1712e0',
+        padding: { x: 5, y: 3 },
+      })
+      .setDepth(90)
+      .setVisible(false);
+
+    this.hudRepresa = this.add
+      .text(6, 60, '', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanho,
+        color: UI.textoFraco,
+        backgroundColor: '#1a1712e0',
+        padding: { x: 5, y: 3 },
+      })
+      .setDepth(90)
+      .setVisible(false);
+
     this.dialogo = this.criarCaixaDeDialogo();
     this.confirmacao = this.criarCaixaDeConfirmacao();
     this.inventario = this.criarPainelDeInventario();
@@ -295,12 +329,49 @@ export class UIScene extends Phaser.Scene {
     const visivel = !this.lojaAberta && !this.pcAberto;
     this.hud.setVisible(visivel);
     this.hudSaldo.setVisible(visivel);
-    if (!visivel) return;
+    if (!visivel) {
+      this.hudVida.setVisible(false);
+      this.hudRepresa.setVisible(false);
+      return;
+    }
 
     const texto = `${nomeDoDia(estado.dia)}  ${estado.relogio.texto}`;
     if (this.hud.text !== texto) this.hud.setText(texto);
     const saldo = estado.carteira.texto;
     if (this.hudSaldo.text !== saldo) this.hudSaldo.setText(saldo);
+    this.atualizarVida();
+  }
+
+  /**
+   * Barra de vida e leitura da represa.
+   *
+   * Regra de aparicao: a vida aparece DENTRO da represa sempre, e fora dela
+   * so quando falta vida. Assim a HUD da cidade continua sendo relogio e saldo,
+   * e a barra de combate le como "voce esta em area de risco" no momento em que
+   * aparece.
+   */
+  private atualizarVida(): void {
+    const naUsina = naRepresa(estado.mapa);
+    const mostrar = naUsina || !estado.vida.cheio;
+    this.hudVida.setVisible(mostrar);
+    if (mostrar) {
+      const cheios = Math.round(estado.vida.fracao * BARRA_DE_VIDA);
+      const barra = '█'.repeat(cheios) + '░'.repeat(BARRA_DE_VIDA - cheios);
+      const texto = `HP ${barra} ${estado.vida.hp}/${estado.vida.maxHp}`;
+      if (this.hudVida.text !== texto) this.hudVida.setText(texto);
+      const fracao = estado.vida.fracao;
+      this.hudVida.setColor(fracao > 0.6 ? UI.sucesso : fracao > 0.3 ? UI.destaque : UI.alerta);
+    }
+
+    const setor = setorDaRepresa(estado.mapa);
+    this.hudRepresa.setVisible(Boolean(setor));
+    if (!setor) return;
+    const tensao = Math.round(estado.represa.tensao * 100);
+    const texto = `${setor.rotulo}  nivel ${setor.nivel}  |  tensao ${tensao}%`;
+    if (this.hudRepresa.text !== texto) this.hudRepresa.setText(texto);
+    this.hudRepresa.setColor(
+      tensao < 34 ? UI.textoFraco : tensao < 67 ? UI.destaque : UI.alerta,
+    );
   }
 
   // -------------------------------------------------------------- prompt --

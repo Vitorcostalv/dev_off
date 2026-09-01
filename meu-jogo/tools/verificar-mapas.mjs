@@ -4,6 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { PROP_PORTA_NPC, tileBloqueia } from '../src/game/colisao.ts';
 import { MAPAS } from '../src/game/mapas.ts';
 import { EXPANSOES, buscarExpansao } from '../src/game/casa.ts';
+import { SETORES_REPRESA } from '../src/game/represa.ts';
+
+/** Chaves dos cinco setores da usina, pra `verificarInterior` desviar deles. */
+const SETORES_DA_REPRESA = new Set(SETORES_REPRESA.map((s) => s.chave));
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR_MAPAS = join(RAIZ, 'public', 'assets', 'tilemaps');
@@ -146,6 +150,12 @@ function tilesDoRetangulo(r) {
  * dentro de uma parede.
  */
 function verificarInterior(nome) {
+  // SETOR DA REPRESA nao passa por aqui. Ele nao e interior de predio: tem
+  // varias portas (a que sobe, a que desce, o atalho, o elevador), nenhuma cama
+  // e nenhum comodo privado, entao todo contrato conferido abaixo seria falso
+  // pra ele. Quem confere setor e `conferirSetoresRepresa` (geometria, na
+  // geracao) e `npm run verificar-represa` (regra de jogo).
+  if (SETORES_DA_REPRESA.has(nome)) return { nome, setorDaRepresa: true };
   const mapa = lerMapa(nome);
   const interativos = camada(mapa, 'interativos').objects ?? [];
   const saidas = interativos.filter((obj) => (obj.class || obj.type) === 'porta');

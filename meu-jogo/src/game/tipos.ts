@@ -14,7 +14,13 @@ export type TipoInteragivel =
   /** bancada da oficina: abre o catalogo de MOBILIA da casa */
   | 'mobilia'
   /** placa de projeto urbano: construir predio e atribuir trabalhador */
-  | 'obra';
+  | 'obra'
+  /** painel de enigma da represa: quadro, sinoptico, mesa de comportas */
+  | 'painel'
+  /** recipiente de salvado da represa: caixa, armario, gaveta, cofre */
+  | 'sucata'
+  /** caixa de despacho da oficina: revende o salvado da represa */
+  | 'revenda';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
 export type TipoZona =
@@ -35,7 +41,10 @@ export type TipoZona =
   // Mapa 3 — Zona Rural
   | 'madeireira'
   | 'pedreira'
-  | 'fazenda';
+  | 'fazenda'
+  // Mapa 4 — Estrada da Represa
+  | 'represa'
+  | 'mirante';
 
 /**
  * O que a construcao do lote É, independente de como ela se chama:

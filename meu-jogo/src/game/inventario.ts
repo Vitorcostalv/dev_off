@@ -103,6 +103,7 @@ const COR_DE_CATEGORIA: Record<CategoriaItem, number> = {
   normal: 0x9ad27f,
   eletronico: 0x7fa8d9,
   material: 0xa79d8c,
+  sucata: 0x8f8578,
 };
 
 /**
@@ -122,7 +123,15 @@ export const ITENS: Record<string, DefinicaoItem> = (() => {
       nome: item.nome,
       descricao: item.descricao,
       // comida e bebida se usam; materiais e eletronicos mantem tipo proprio
-      tipo: item.categoria === 'normal' ? 'consumivel' : item.categoria === 'material' ? 'material' : 'eletronico',
+      tipo: item.categoria === 'normal'
+        ? 'consumivel'
+        : item.categoria === 'material'
+          ? 'material'
+          // Salvado e COMPONENTE e nao eletronico: ele nao se usa nem se liga —
+          // ele entra em bancada ou vai pra revenda.
+          : item.categoria === 'sucata'
+            ? 'componente'
+            : 'eletronico',
       maxPilha: item.maxPilha,
       frame: item.frame,
       icone: item.icone ?? COR_DE_CATEGORIA[item.categoria],

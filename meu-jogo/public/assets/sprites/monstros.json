@@ -1,0 +1,15 @@
+{
+  "monstros": [
+    "esfera_choque",
+    "impressora",
+    "maquina_lavar",
+    "caixa_som",
+    "robo_servico",
+    "smartfone",
+    "geladeira_gelo"
+  ],
+  "semUso": [
+    "Boss_v1.png",
+    "Micro-ondas.png"
+  ]
+}

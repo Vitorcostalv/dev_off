@@ -20,7 +20,19 @@
  * frame errado em silencio).
  */
 
-export type CategoriaItem = 'normal' | 'eletronico' | 'material';
+/**
+ * De que PRATELEIRA o item vem. Nao e o mesmo que `TipoItem` (o que ele faz na
+ * mao do jogador) — categoria decide faixa de preco, cor de icone e em que
+ * ponto de loja ele aparece.
+ *
+ * `sucata` entrou com a represa. Nao deu pra reaproveitar nenhuma das tres:
+ * `material` tem envelope de tijolo (R$ 4 a R$ 12) e um modulo raro vale R$ 180;
+ * `eletronico` e prateleira de vitrine, e salvado nao esta a venda em loja
+ * nenhuma — ele so SAI do inventario, na revenda.
+ */
+import { ITENS_DE_SUCATA, PRECOS_DE_SUCATA } from './sucata.ts';
+
+export type CategoriaItem = 'normal' | 'eletronico' | 'material' | 'sucata';
 
 /** Qual folha de arte guarda a peca do icone. */
 export type FolhaDeItem = 'mercado' | 'eletronicos';
@@ -145,6 +157,10 @@ export const FAIXA_DE_PRECO: Record<CategoriaItem, readonly [number, number]> = 
     Math.max(...SECOES_ELETRONICO.map((s) => s.faixa[1])),
   ],
   material: [400, 1_200],
+  // Salvado: do ferro-velho de R$ 2 ao componente inclassificavel de R$ 280.
+  // A faixa e larga porque a PROGRESSAO por profundidade e feita de valor —
+  // ver `ENTRADAS` em src/game/sucata.ts, onde todo preco e fixo a mao.
+  sucata: [200, 30_000],
 };
 
 /**
@@ -163,6 +179,11 @@ export const PRECO_MANUAL: Record<string, number> = {
   madeira: 400,
   pedra: 600,
   concreto: 1_000,
+  // SALVADO: todo preco e fixo, e por isso todos entram aqui em vez de sair do
+  // hash. O valor do salvado E a regra de balanceamento do ciclo da represa
+  // (risco por profundidade), e sorteio nao se equilibra — um sucateado comum
+  // caro tornaria o nivel -1 mais lucrativo que o -4. Ver src/game/sucata.ts.
+  ...PRECOS_DE_SUCATA,
 };
 
 /** Hash de texto -> [0,1). Deterministico, mesma avalanche do `hash01`. */
@@ -476,6 +497,7 @@ const PILHA_PADRAO: Record<CategoriaItem, number> = {
   normal: 20,
   eletronico: 5,
   material: 99,
+  sucata: 99,
 };
 
 /** Precos fixos em centavos: material bruto nao varia por dia nem por loja. */
@@ -522,6 +544,10 @@ export const CATALOGO_ITENS: readonly DefinicaoItemLoja[] = (() => {
     ...montar(MERCADO, 'normal', 'mercado'),
     ...montar(ELETRONICOS, 'eletronico', 'eletronicos'),
     ...MATERIAIS,
+    // Salvado da represa. Entra no catalogo como qualquer item (mesmo
+    // inventario, mesma pilha, mesmo icone de cor) e por isso nao precisou de
+    // um segundo registro de item nem de outro caminho de save.
+    ...ITENS_DE_SUCATA,
   ];
   // id repetido daria dois itens diferentes com o mesmo frame e o mesmo slot de
   // inventario — melhor errar alto na carga do que descobrir jogando

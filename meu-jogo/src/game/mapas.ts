@@ -76,8 +76,11 @@ export const MAPAS: Record<string, DefinicaoMapa> = {
   // e por isso o spawn padrao dele e a porta da casa+oficina: jogo novo comeca
   // aqui (ver `estado.mapa`).
   bairro: mapa('bairro', { x: 80, y: 39 }, 'bairro'),
-  // Mapa 3 — Zona Rural, ao sul do Mapa 2, do outro lado do rio.
-  rural: mapa('rural', { x: 66, y: 4 }, 'rural'),
+  // Mapa 3 — Zona Rural, a LESTE do Mapa 1 na topologia nova.
+  rural: mapa('rural', { x: 3, y: 44 }, 'rural'),
+  // Mapa 4 — Estrada da Represa, ao NORTE do Mapa 1. Entra pela borda sul e
+  // sobe: o spawn padrao e a boca da estrada, nao o meio do mapa.
+  represa: mapa('represa', { x: 40, y: 136 }, 'represa'),
 
   // ----------------------------------------------- interiores do Mapa 1 --
   // A casa_1 (casinha inicial do protagonista) NAO esta mais aqui: o predio
@@ -122,6 +125,22 @@ export const MAPAS: Record<string, DefinicaoMapa> = {
   // Moradias da Zona Rural.
   casa_rural_1: mapa('casa_rural_1', { x: 11, y: 14 }, 'rural'),
   casa_rural_2: mapa('casa_rural_2', { x: 11, y: 16 }, 'rural'),
+
+  // ----------------------------------------------- interiores do Mapa 4 --
+  // Os cinco setores da usina. NAO sao interiores de predio: sao niveis de uma
+  // area de exploracao, ligados entre si por alcapao e elevador, com inimigo,
+  // sucata, painel de enigma e escuridao por comodo. O que os faz caber no
+  // sistema de mapa que ja existia e que eles sao tilemaps com camada
+  // `interativos` — a cena nao ganhou caminho novo por causa deles.
+  //
+  // O `spawnTile` de cada um e o alcapao de chegada. Ele quase nunca e usado:
+  // toda porta manda `destinoTx/destinoTy` explicito. Ele existe pro caso de um
+  // save antigo apontar pro setor sem coordenada valida.
+  represa_0: mapa('represa_0', { x: 14, y: 18 }, 'represa'),
+  represa_1: mapa('represa_1', { x: 25, y: 19 }, 'represa'),
+  represa_2: mapa('represa_2', { x: 30, y: 18 }, 'represa'),
+  represa_3: mapa('represa_3', { x: 16, y: 21 }, 'represa'),
+  represa_4: mapa('represa_4', { x: 13, y: 17 }, 'represa'),
 };
 
 export function buscarMapa(chave: unknown): DefinicaoMapa | null {

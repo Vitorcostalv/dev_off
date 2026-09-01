@@ -39,6 +39,22 @@ import type {
   ZonaReservada,
 } from '../game/tipos';
 import type { UIScene } from './UIScene';
+import { CamadaRepresa } from './CamadaRepresa';
+import {
+  PERDA_POR_DERROTA,
+  PONTO_DE_RESGATE,
+  SETOR_DE_RESGATE,
+  buscarPainel,
+  iniciarPainel,
+  naRepresa,
+  opcoesAtuais,
+  perguntaAtual,
+  responderPainel,
+  setorDaRepresa,
+} from '../game/represa';
+import type { ProgressoPainel } from '../game/represa';
+import { buscarTabelaDeSucata, ehSucata, precoDeRevenda, sortearSucata, venderSucata } from '../game/sucata';
+import { ITENS_DE_LEITURA } from '../game/avisos';
 
 /**
  * Quantos tiles cabem na largura da tela. E daqui que sai o zoom da camera:
@@ -123,11 +139,16 @@ const TIPOS_VALIDOS: TipoInteragivel[] = [
   'expansao',
   'mobilia',
   'obra',
+  // classes da represa
+  'painel',
+  'sucata',
+  'revenda',
 ];
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
   'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
   'oficina', 'escola', 'biblioteca', 'quadra', 'terreno', 'servico',
   'madeireira', 'pedreira', 'fazenda',
+  'represa', 'mirante',
 ];
 const USOS_ZONA_VALIDOS: UsoZona[] = ['moradia', 'comercio', 'misto', 'praca', 'vago'];
 
@@ -144,6 +165,15 @@ const AVISOS_DE_PREDIO: Record<string, string[]> = {
   central: [
     'Central Telefonica Municipal — parece abandonada ha muitos anos.',
   ],
+  // A INTERDICAO da ponta sul do Mapa 1. O texto e a unica coisa que impede a
+  // barreira de ler como bug: sem ele, uma parede no meio da estrada seria so
+  // uma parede no meio da estrada. Ver `INTERDICAO_SUL` em gerar-assets.mjs.
+  estrada_sul: [
+    'ESTRADA INTERDITADA — Obras de recuperacao da pista. Sem previsao.',
+    'Atras da barreira a estrada continua, mas o asfalto cedeu num trecho longo.',
+    'Alguem escreveu a caneta embaixo do aviso: "quando abrir, da pra chegar no distrito".',
+  ],
+  ...ITENS_DE_LEITURA,
 };
 
 /**
@@ -151,6 +181,42 @@ const AVISOS_DE_PREDIO: Record<string, string[]> = {
  * Sem isto daria pra mobiliar um comodo do outro lado da casa sem sair do lugar.
  */
 const ALCANCE_DE_MOBILIA = 6;
+/**
+ * Motivo de cada trava de porta da represa. A mensagem existe pra a trava ser
+ * LIDA e nao esbarrada: porta que nao abre sem explicacao le como bug.
+ */
+const MOTIVO_DE_TRAVA: Record<string, string[]> = {
+  represaEnergiaGaleria: [
+    'O alcapao tem trava eletrica e o LED dela esta apagado.',
+    'Sem os geradores da galeria em marcha, isto nao destrava.',
+  ],
+  represaComportaAberta: [
+    'A comporta de servico esta fechada e a pressao do outro lado ainda esta alta.',
+    'A mesa de comportas fica aqui mesmo, nas galerias inferiores.',
+  ],
+  represaAtalhoManutencao: [
+    'Porta de servico, tranca mecanica de barra. Ela abre por DENTRO, do lado de la.',
+    'Se um dia voce chegar naquele lado, da pra destravar de vez.',
+  ],
+  represaElevadorLiberado: [
+    'O elevador de servico esta morto. Nem o botao acende.',
+    'Ele responde a placa mestre, e a placa mestre esta desligada.',
+  ],
+};
+
+/** Flag da lanterna de manutencao — o que dobra o raio de luz no escuro. */
+const FLAG_DA_LANTERNA = 'represaLanterna';
+
+/** Fala de painel que o jogador ja resolveu. */
+const FALA_PAINEL_RESOLVIDO = 'Ja esta feito. O painel mostra tudo em verde.';
+
+/**
+ * Tile da CAIXA DE DESPACHO na oficina do protagonista, o ponto de revenda de
+ * salvado. Canto sudoeste da oficina, ao lado da caixa de ferramenta — tile
+ * livre e alcancavel (conferido contra o tilemap gerado).
+ */
+const TILE_DA_REVENDA = { x: 17, y: 20 };
+
 /** Duracao do esmaecer de entrada/saida de cena de um NPC, em ms. */
 const DURACAO_FADE_NPC = 220;
 
@@ -236,6 +302,27 @@ export class FarmScene extends Phaser.Scene {
   /** Aviso fixo na tela durante o posicionamento de mobilia. */
   private avisoMobilia: Phaser.GameObjects.Text | null = null;
 
+  /**
+   * Escuridao, inimigos e combate da represa. `null` em todo mapa que nao e da
+   * usina — e assim que nenhum mapa antigo paga por ela.
+   */
+  private represa: CamadaRepresa | null = null;
+
+  /** Painel de enigma em andamento; `null` fora de um. */
+  private painelAtivo: ProgressoPainel | null = null;
+
+  /** Tecla do golpe (a chave inglesa). */
+  private teclaAtaque!: Phaser.Input.Keyboard.Key;
+
+  /**
+   * Minuto de jogo observado no ultimo quadro. E o que faz a tensao da represa
+   * subir por MINUTO DE JOGO e nao por quadro — ver `SistemaRepresa.avancar`.
+   */
+  private minutoObservado = -1;
+
+  /** Escuridao por tile, montada dos comodos do tilemap. */
+  private escuridaoDoComodo: { ret: RetTiles; valor: number }[] = [];
+
   constructor() {
     super('FarmScene');
   }
@@ -278,6 +365,11 @@ export class FarmScene extends Phaser.Scene {
     this.camadaObjetos = null;
     this.avisoMobilia = null;
     this.alvo = null;
+    this.represa?.destruir();
+    this.represa = null;
+    this.painelAtivo = null;
+    this.escuridaoDoComodo = [];
+    this.minutoObservado = -1;
   }
 
   /**
@@ -370,15 +462,21 @@ export class FarmScene extends Phaser.Scene {
 
     this.interagiveis = this.lerInterativos(map).filter((item) => {
       if (item.tipo === 'npc') return false;
-      return item.tipo !== 'item' || !estado.itensColetados.has(item.id);
+      // pickup e recipiente de salvado sao ONE-SHOT e usam o mesmo registro
+      if (item.tipo === 'item' || item.tipo === 'sucata') {
+        return !estado.itensColetados.has(item.id);
+      }
+      return true;
     });
     this.interagiveis.push(...this.lerPontosDeLoja());
     this.interagiveis.push(...this.lerPontosDeAmbientacao());
+    this.interagiveis.push(...this.lerPontoDeRevenda());
     this.zonas = this.lerZonas(map);
     this.limparLotesDosProjetos();
     this.tilesPrivados = this.lerComodosPrivados(map);
     this.bordas = this.lerBordas(map);
     this.comodos = this.lerComodos(map);
+    this.escuridaoDoComodo = this.lerEscuridaoDosComodos(map);
 
     const nasce =
       this.spawn ??
@@ -403,8 +501,20 @@ export class FarmScene extends Phaser.Scene {
     // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
     // predios, moveis, arvores e pedras do mapa carregado.
     this.criarNpcs();
+    this.criarCamadaDaRepresa(map);
 
     this.physics.add.collider(this.player, objetos);
+    if (this.represa) {
+      const monstros = this.represa.spritesDeInimigo;
+      if (monstros.length > 0) {
+        // o inimigo respeita parede e movel como o jogador: sem isto ele
+        // atravessa a alvenaria e persegue em linha reta pelo mapa inteiro
+        this.physics.add.collider(monstros, objetos);
+        this.physics.add.collider(monstros, monstros);
+        this.physics.add.collider(this.player, monstros);
+        if (this.obstaculos.length > 0) this.physics.add.collider(monstros, this.obstaculos);
+      }
+    }
     if (this.npcs.length > 0) {
       this.physics.add.collider(this.player, this.npcs.map((npc) => npc.sprite));
     }
@@ -441,6 +551,11 @@ export class FarmScene extends Phaser.Scene {
 
     // M abre/fecha o mapa da cidade.
     this.input.keyboard!.on('keydown-M', () => this.alternarMapa());
+
+    // ESPACO golpeia com a chave inglesa. So faz algo dentro da represa: a
+    // cidade nao tem com quem brigar, e a tecla continua livre lá.
+    this.teclaAtaque = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.input.keyboard!.addCapture('SPACE');
 
     // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
     this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
@@ -481,6 +596,14 @@ export class FarmScene extends Phaser.Scene {
 
     if (!this.ui.bloqueado && !this.transicionando) {
       estado.dia += estado.relogio.avancar(delta);
+      estado.vida.atualizar(delta);
+      // a tensao da represa conta MINUTO DE JOGO, entao ela so avanca quando o
+      // relogio vira — nao a cada quadro
+      if (this.minutoObservado !== estado.relogio.minutos) {
+        const antes = this.minutoObservado;
+        this.minutoObservado = estado.relogio.minutos;
+        estado.represa.avancar(estado.mapa, antes < 0 ? 0 : CONFIG_TEMPO.minutosPorTick);
+      }
       estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, delta);
       const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos);
       if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, 5800);
@@ -500,11 +623,24 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
 
+    this.represa?.atualizar(delta, this.player, this.ui.bloqueado || this.transicionando);
+
     this.atualizarAlvo();
     if (this.atravessarBordaSeEncostou()) return;
 
     // com dialogo/menu aberto — ou com uma peca na mao — o player fica parado
     if (this.ui.bloqueado || this.transicionando || this.posicionando) {
+      this.player.setVelocity(0, 0);
+      this.player.anims.play(`idle-${this.direcao}`, true);
+      return;
+    }
+
+    // golpe: trava o movimento pela duracao da animacao, o que e o que impede
+    // andar e bater ao mesmo tempo e o que da peso ao ataque
+    if (this.represa && Phaser.Input.Keyboard.JustDown(this.teclaAtaque)) {
+      this.represa.atacar(this.player, this.direcao);
+    }
+    if (this.represa?.atacando) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(`idle-${this.direcao}`, true);
       return;
@@ -565,7 +701,17 @@ export class FarmScene extends Phaser.Scene {
       case 'obra':
         this.abrirProjetoCidade(this.alvo);
         break;
+      case 'painel':
+        this.abrirPainelDaRepresa(this.alvo);
+        break;
+      case 'sucata':
+        this.recolherSucata(this.alvo);
+        break;
+      case 'revenda':
+        this.abrirRevendaDeSucata();
+        break;
       case 'porta':
+        if (!this.portaDestrancada(this.alvo)) return;
         if (!this.portaAbertaAgora(this.alvo)) {
           this.feedbackPortaFechada(this.alvo);
           return;
@@ -673,6 +819,9 @@ export class FarmScene extends Phaser.Scene {
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       estado.dia += 1;
       estado.relogio.definir(CONFIG_TEMPO.horaAoAcordar);
+      // dormir na propria cama cura por inteiro. E a unica cura gratuita do
+      // jogo, e por isso ela custa um dia.
+      estado.vida.restaurarTudo();
       this.salvarJogo();
       this.transicionando = false;
       cam.fadeIn(400, 0, 0, 0);
@@ -723,6 +872,8 @@ export class FarmScene extends Phaser.Scene {
       worldEvents: estado.worldEvents.serializar(),
       missoesNpc: estado.missoesNpc.serializar(),
       cidade: estado.cidade.serializar(),
+      vida: estado.vida.serializar(),
+      represa: estado.represa.serializar(),
     });
   }
 
@@ -730,6 +881,25 @@ export class FarmScene extends Phaser.Scene {
 
   private criarItensColetaveis(): void {
     for (const alvo of this.interagiveis) {
+      // Recipiente de SALVADO: caixa fechada, nao um icone de item. A cor sai
+      // da tabela e nao do conteudo — o jogador nao sabe o que tem dentro
+      // antes de abrir, e o premio de puzzle (`requer`) usa o tom quente pra
+      // se destacar de longe no escuro.
+      if (alvo.tipo === 'sucata') {
+        const premio = Boolean(alvo.props.requer);
+        const visual = this.add
+          .rectangle(
+            alvo.x,
+            alvo.y,
+            this.tamanhoTile * 0.7,
+            this.tamanhoTile * 0.55,
+            premio ? 0x8a6a3a : 0x55565a,
+          )
+          .setStrokeStyle(2, premio ? 0xe0b862 : 0x9aa0a6, 0.9)
+          .setDepth(alvo.y);
+        this.visuaisDeItens.set(alvo.id, visual);
+        continue;
+      }
       if (alvo.tipo !== 'item') continue;
       const def = ITENS[String(alvo.props.itemId)];
       if (!def) {
@@ -2442,6 +2612,381 @@ export class FarmScene extends Phaser.Scene {
         for (let x = c.ret.x0; x < c.ret.x1; x++) if (vistos.has(`${x},${y}`)) return true;
       }
       return false;
+    });
+  }
+
+  // ======================================================== represa ==
+  /**
+   * Monta a camada da represa (escuridao + inimigos + combate) quando o mapa
+   * atual e da usina. Fora dela `montar` sai na primeira linha, entao a chamada
+   * aqui e barata em todo mapa antigo.
+   */
+  private criarCamadaDaRepresa(map: Phaser.Tilemaps.Tilemap): void {
+    if (!naRepresa(estado.mapa)) return;
+    this.represa = new CamadaRepresa(this, this.tamanhoTile, {
+      tileBloqueado: (tx, ty) => this.tileBloqueado(tx, ty),
+      escuridaoNoTile: (tx, ty) => this.escuridaoNoTile(tx, ty),
+      falar: (linhas, nome) => this.ui.iniciarDialogo(falasDe(nome ?? 'Usina', linhas)),
+      aoSerDerrotado: () => this.serDerrotado(),
+    });
+    this.represa.montar(map, this.player);
+    // marca a primeira visita: e o gancho pro resto do jogo saber que o jogador
+    // conhece a usina (fala de NPC, blog, missao futura)
+    estado.worldEvents.definir('represaVisitada', true);
+  }
+
+  /**
+   * Escuridao por comodo, lida do tilemap. O valor cai pra escuridao BASE do
+   * setor nos tiles que nenhum comodo cobre (vao de parede, soleira) — sem isso
+   * atravessar um vao daria um flash de claro.
+   */
+  private lerEscuridaoDosComodos(map: Phaser.Tilemaps.Tilemap): { ret: RetTiles; valor: number }[] {
+    const camada = map.getObjectLayer('comodos');
+    if (!camada) return [];
+    const t = this.tamanhoTile;
+    const lista: { ret: RetTiles; valor: number }[] = [];
+    for (const obj of camada.objects) {
+      const props = lerProps(obj);
+      const valor = Number(props.escuridao);
+      if (!Number.isFinite(valor)) continue;
+      lista.push({
+        valor: Math.min(1, Math.max(0, valor)),
+        ret: {
+          x0: Math.round((obj.x ?? 0) / t),
+          y0: Math.round((obj.y ?? 0) / t),
+          x1: Math.round(((obj.x ?? 0) + (obj.width ?? 0)) / t),
+          y1: Math.round(((obj.y ?? 0) + (obj.height ?? 0)) / t),
+        },
+      });
+    }
+    return lista;
+  }
+
+  private escuridaoNoTile(tx: number, ty: number): number {
+    for (const comodo of this.escuridaoDoComodo) {
+      const r = comodo.ret;
+      if (tx >= r.x0 && tx < r.x1 && ty >= r.y0 && ty < r.y1) return comodo.valor;
+    }
+    return setorDaRepresa(estado.mapa)?.escuridao ?? 0;
+  }
+
+  /**
+   * Porta TRANCADA por flag (alcapao que exige setor energizado, atalho que so
+   * abre pelo outro lado, elevador que precisa da placa restaurada).
+   *
+   * Devolve false quando a porta nao abre, e nesse caso ela mesma explica o
+   * motivo — trava sem explicacao e o que faz o jogador achar que o jogo
+   * quebrou. A mensagem sai da flag, entao acrescentar uma porta trancada nova
+   * nao pede codigo novo, so uma linha em `MOTIVO_DE_TRAVA`.
+   */
+  private portaDestrancada(porta: Interagivel): boolean {
+    const flag = String(porta.props.trancada ?? '');
+    if (!flag) return true;
+    if (estado.worldEvents.ativa(flag)) return true;
+    this.ui.iniciarDialogo(
+      falasDe('Usina', MOTIVO_DE_TRAVA[flag] ?? ['Esta passagem esta travada.']),
+    );
+    return false;
+  }
+
+  // ------------------------------------------------------ paineis --
+  /**
+   * Abre um painel de enigma.
+   *
+   * A UI e o MENU que o jogo ja tem (o mesmo dos temas de conversa e dos
+   * presentes): titulo com a pergunta, uma linha por opcao. Foi de proposito —
+   * inventar um painel proprio de enigma daria uma segunda janela modal pra
+   * manter, e o menu ja resolve escolha, sequencia e digitacao de codigo (o
+   * codigo entra digito por digito, com os dez digitos como opcoes).
+   */
+  private abrirPainelDaRepresa(alvo: Interagivel): void {
+    const painel = buscarPainel(alvo.props.painel);
+    if (!painel) {
+      console.warn(`[painel] id desconhecido em "${alvo.id}":`, alvo.props.painel);
+      return;
+    }
+    if (estado.worldEvents.ativa(painel.flag)) {
+      this.ui.iniciarDialogo(falasDe(painel.nome, [FALA_PAINEL_RESOLVIDO]));
+      return;
+    }
+    this.painelAtivo = iniciarPainel(painel, estado.represa.tensao);
+    const tentativas = this.painelAtivo.tentativasRestantes;
+    this.ui.iniciarDialogo(
+      falasDe(painel.nome, [
+        painel.abertura,
+        tentativas <= 1
+          ? 'Voce esta cansado e a mao trema. Da pra uma tentativa, nao mais.'
+          : `Da pra tentar ${tentativas} vezes antes de o sistema travar.`,
+      ]),
+      () => this.desenharPainel(),
+    );
+  }
+
+  /** Desenha o passo atual do painel em andamento. */
+  private desenharPainel(): void {
+    const progresso = this.painelAtivo;
+    if (!progresso) return;
+    const opcoes = opcoesAtuais(progresso).map((rotulo, indice) => ({
+      rotulo,
+      aoEscolher: () => this.responderNoPainel(indice),
+    }));
+    this.ui.abrirMenu(perguntaAtual(progresso), opcoes, () => {
+      // desistir no meio nao pune: o painel volta do primeiro passo na proxima
+      this.painelAtivo = null;
+    });
+  }
+
+  private responderNoPainel(escolha: number): void {
+    const progresso = this.painelAtivo;
+    if (!progresso) return;
+    const nome = progresso.painel.nome;
+    const resposta = responderPainel(progresso, escolha, estado.inventario);
+    switch (resposta.resultado) {
+      case 'continua':
+      case 'passo_ok':
+        this.desenharPainel();
+        return;
+      case 'sem_peca':
+        this.painelAtivo = null;
+        this.ui.iniciarDialogo(
+          falasDe(nome, [
+            'O soquete esta vazio e nao ha nada na mochila que sirva.',
+            'Uma placa de circuito recuperada resolveria. Elas aparecem a partir da manutencao.',
+          ]),
+        );
+        return;
+      case 'errou':
+        // ERRAR CUSTA TENSAO, e tensao encurta as tentativas do proximo painel.
+        // E o eixo do tempo entrando nos enigmas: insistir na forca bruta piora
+        // a usina inteira em vez de so gastar uma chance local.
+        estado.represa.registrarErro();
+        this.ui.iniciarDialogo(
+          falasDe(nome, [
+            'Errado. O rele abre e o painel volta ao inicio.',
+            `Restam ${resposta.restantes} tentativa(s).`,
+          ]),
+          () => this.desenharPainel(),
+        );
+        return;
+      case 'travado':
+        estado.represa.registrarErro();
+        this.painelAtivo = null;
+        this.ui.iniciarDialogo(
+          falasDe(nome, [
+            'O painel travou. Um LED vermelho fica piscando e nada mais responde.',
+            'Ele destrava sozinho — mas nao enquanto voce estiver aqui embaixo.',
+          ]),
+        );
+        return;
+      case 'concluido': {
+        this.painelAtivo = null;
+        estado.worldEvents.definir(resposta.flag, true);
+        const extras = this.recompensasDoPainel(resposta.flag);
+        this.ui.iniciarDialogo(
+          falasDe(nome, [progresso.painel.conclusao, ...extras]),
+          // recarrega o setor: e o que faz o alcapao destravado, a gaveta
+          // liberada e a luz nova aparecerem sem o jogador ter de sair e voltar
+          () => this.recarregarSetor(),
+        );
+        return;
+      }
+    }
+  }
+
+  /**
+   * Efeitos colaterais de um painel resolvido que nao sao a propria flag.
+   * Hoje ha um: o quadro de disjuntores do nivel 0 revela a LANTERNA DE
+   * MANUTENCAO na gaveta que ele destrava, e e ela que dobra o raio de luz.
+   */
+  private recompensasDoPainel(flag: string): string[] {
+    if (flag !== 'represaLuzEntrada' || estado.worldEvents.ativa(FLAG_DA_LANTERNA)) return [];
+    estado.worldEvents.definir(FLAG_DA_LANTERNA, true);
+    return [
+      'Na gaveta ha uma lanterna de manutencao, daquelas de cabo de borracha. A pilha aguenta.',
+      'Dai pra frente voce ve bem mais longe no escuro.',
+    ];
+  }
+
+  /** Recarrega o setor atual preservando a posicao do jogador. */
+  private recarregarSetor(): void {
+    this.transicionando = true;
+    const x = this.player.x;
+    const y = this.player.y;
+    this.scene.restart({ mapa: estado.mapa, x, y });
+  }
+
+  // ------------------------------------------------------- sucata --
+  /**
+   * Recolhe um recipiente de salvado.
+   *
+   * Recipiente e ONE-SHOT e persiste em `estado.itensColetados`, o mesmo Set que
+   * os pickups do mundo ja usavam — nao ha um segundo registro de "ja saqueado".
+   * O que ele exige (`requer`) e uma flag de puzzle: e assim que o premio de um
+   * enigma fica no mapa em vez de cair do ceu.
+   */
+  private recolherSucata(alvo: Interagivel): void {
+    const flag = String(alvo.props.requer ?? '');
+    if (flag && !estado.worldEvents.ativa(flag)) {
+      this.ui.iniciarDialogo(
+        falasDe('Usina', ['Esta trancado. A fechadura e eletrica e nao ha tensao nela.']),
+      );
+      return;
+    }
+    const tabela = buscarTabelaDeSucata(String(alvo.props.tabela ?? ''));
+    if (!tabela) {
+      console.warn(`[sucata] tabela desconhecida em "${alvo.id}":`, alvo.props.tabela);
+      return;
+    }
+    const sorteio = sortearSucata(tabela);
+    const linhas: string[] = [];
+    let sobrou = false;
+    for (const peca of sorteio) {
+      const naoCabe = estado.inventario.adicionar(peca.id, peca.quantidade);
+      const entrou = peca.quantidade - naoCabe;
+      if (entrou > 0) {
+        estado.represa.registrarSalvado(peca.id, entrou);
+        linhas.push(`${ITENS[peca.id]?.nome ?? peca.id} x${entrou}`);
+      }
+      if (naoCabe > 0) sobrou = true;
+    }
+    // marca como saqueado ANTES de qualquer coisa poder falhar depois: um
+    // recipiente que rende metade e melhor que um que rende duas vezes
+    estado.itensColetados.add(alvo.id);
+    this.visuaisDeItens.get(alvo.id)?.destroy();
+    this.visuaisDeItens.delete(alvo.id);
+    this.interagiveis = this.interagiveis.filter((item) => item !== alvo);
+    this.ui.iniciarDialogo(
+      falasDe('Salvado', [
+        linhas.length > 0 ? `Recolhido: ${linhas.join(', ')}.` : 'So poeira e parafuso quebrado.',
+        ...(sobrou ? ['A mochila encheu e o resto ficou pra tras.'] : []),
+      ]),
+    );
+  }
+
+  /**
+   * Caixa de despacho da oficina: o ponto de REVENDA do salvado.
+   *
+   * Fica na oficina do protagonista e nao numa loja da cidade porque e assim que
+   * o ciclo fecha onde ele comeca — preparar, subir, descer, voltar, despachar.
+   * Vem daqui e nao do tilemap pelo mesmo motivo dos pontos de loja: a planta da
+   * oficina nao emite objeto dessa classe (ver `lerPontosDeLoja`).
+   */
+  private lerPontoDeRevenda(): Interagivel[] {
+    if (estado.mapa !== MAPA_DA_CASA) return [];
+    const t = this.tamanhoTile;
+    const tile = TILE_DA_REVENDA;
+    const x = (tile.x + 0.5) * t;
+    const y = (tile.y + 0.5) * t;
+    this.add
+      .rectangle(x, y, t * 0.8, t * 0.6, 0x5c5348)
+      .setStrokeStyle(2, 0xa39785)
+      .setDepth(y)
+      .setName('caixa_de_despacho');
+    return [
+      {
+        id: 'revenda_oficina',
+        tipo: 'revenda' as const,
+        rotulo: ROTULOS.revenda,
+        x,
+        y,
+        props: {},
+      },
+    ];
+  }
+
+  /**
+   * Menu de revenda: uma linha por tipo de salvado no inventario, com o total
+   * que ele paga. Vende a PILHA INTEIRA de uma vez — vender unidade por unidade
+   * daria dezenas de acionamentos pra esvaziar uma mochila de volta da usina.
+   */
+  private abrirRevendaDeSucata(): void {
+    const lotes = estado.inventario
+      .serializar()
+      .flatMap((slot) => (slot && ehSucata(slot.id) ? [slot] : []))
+      .reduce((mapa, slot) => {
+        mapa.set(slot.id, (mapa.get(slot.id) ?? 0) + slot.qtd);
+        return mapa;
+      }, new Map<string, number>());
+
+    if (lotes.size === 0) {
+      this.ui.iniciarDialogo(
+        falasDe('Caixa de despacho', [
+          'A caixa esta vazia. Nao ha salvado nenhum na mochila pra despachar.',
+        ]),
+      );
+      return;
+    }
+
+    const opcoes = [...lotes].map(([id, qtd]) => ({
+      rotulo: `${ITENS[id]?.nome ?? id} x${qtd} — ${formatarDinheiro(precoDeRevenda(id, qtd))}`,
+      aoEscolher: () => this.despacharSucata(id, qtd),
+    }));
+    this.ui.abrirMenu('Despachar qual lote?', opcoes);
+  }
+
+  private despacharSucata(id: string, quantidade: number): void {
+    const r = venderSucata(estado.inventario, estado.carteira, id, quantidade);
+    if (!r.ok) {
+      this.ui.iniciarDialogo(
+        falasDe('Caixa de despacho', [
+          r.motivo === 'credito'
+            ? 'A conta nao aceita mais credito. Gaste algo antes.'
+            : 'O lote nao esta mais na mochila.',
+        ]),
+      );
+      return;
+    }
+    this.ui.iniciarDialogo(
+      falasDe('Caixa de despacho', [
+        `${ITENS[id]?.nome ?? id} x${quantidade} despachado.`,
+        `Creditado: ${formatarDinheiro(r.pago)}. Saldo: ${estado.carteira.texto}.`,
+      ]),
+      // reabre o menu: quem volta da usina tem varios lotes pra despachar
+      () => this.abrirRevendaDeSucata(),
+    );
+  }
+
+  // ------------------------------------------------------ derrota --
+  /**
+   * Vida a zero.
+   *
+   * NAO e permadeath e nao encosta em nada critico: o save fica, item de missao
+   * fica, mobilia fica, relacionamento fica, puzzle resolvido fica e atalho
+   * aberto fica. O que se perde e tempo (quatro horas de jogo) e METADE do
+   * salvado recolhido NESTA descida — ver `PERDA_POR_DERROTA` em represa.ts.
+   *
+   * O jogador acorda no nivel 0, que e a zona segura da usina, e nao em casa: a
+   * viagem de volta pela estrada e parte do custo, e acordar em casa apagaria a
+   * decisao de "volto agora ou desco mais um nivel".
+   */
+  private serDerrotado(): void {
+    if (this.transicionando) return;
+    this.transicionando = true;
+    const perda = estado.represa.perdaPorDerrota();
+    for (const item of perda) estado.inventario.remover(item.id, item.quantidade);
+    estado.vida.definir(Math.round(estado.vida.maxHp * PERDA_POR_DERROTA.fracaoDeVida));
+    estado.dia += estado.relogio.avancarMinutos(PERDA_POR_DERROTA.horas * 60);
+
+    const perdido = perda
+      .map((item) => `${ITENS[item.id]?.nome ?? item.id} x${item.quantidade}`)
+      .join(', ');
+
+    const cam = this.cameras.main;
+    cam.fadeOut(520, 0, 0, 0);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      const t = this.tamanhoTile;
+      this.ui.iniciarDialogo(
+        falasDe('...', [
+          'Voce acorda no piso da casa de forca, com a lanterna apagada do lado.',
+          `Passaram ${PERDA_POR_DERROTA.horas} horas.`,
+          perdido ? `Parte do salvado ficou lá embaixo: ${perdido}.` : 'A mochila esta como estava.',
+        ]),
+      );
+      this.scene.restart({
+        mapa: SETOR_DE_RESGATE,
+        x: (PONTO_DE_RESGATE.x + 0.5) * t,
+        y: (PONTO_DE_RESGATE.y + 0.5) * t,
+      });
     });
   }
 

@@ -6,6 +6,7 @@ import type { SpriteNpc } from '../game/npcs';
 import { NPCS } from '../game/npcs';
 import { MORADORES } from '../game/moradores';
 import { carregar } from '../game/save';
+import { CATALOGO_INIMIGOS } from '../game/inimigos';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
 const PLAYER_RECORTE = {
@@ -103,6 +104,15 @@ export class BootScene extends Phaser.Scene {
       if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
       if (npc.spriteParado) this.load.image(`npc-${npc.id}-parado`, npc.spriteParado.arquivo);
     }
+
+    // Monstros eletronicos da represa. As folhas saem de
+    // tools/processar-sprites-monstro.mjs no MESMO formato 4x4 das de NPC — e
+    // por isso elas passam pelo mesmo `recortarFolhaNpc` logo abaixo, sem um
+    // segundo caminho de sprite no jogo.
+    for (const id of Object.keys(CATALOGO_INIMIGOS)) {
+      this.load.image(`monstro-${id}-sprites`, `assets/sprites/${id}_andando_runtime.png`);
+      this.load.image(`monstro-${id}-parado`, `assets/sprites/${id}_parado_runtime.png`);
+    }
   }
 
   create(): void {
@@ -111,6 +121,7 @@ export class BootScene extends Phaser.Scene {
     this.criarFramesPlayer('run');
     this.criarAnimacoes();
     this.criarSpritesNpcs();
+    this.criarSpritesMonstros();
     const inicio = this.aplicarSave();
 
     // a UI roda em paralelo, por cima do mundo, na resolucao base (sem zoom).
@@ -146,6 +157,8 @@ export class BootScene extends Phaser.Scene {
     estado.worldEvents.restaurar(save.worldEvents);
     estado.missoesNpc.restaurar(save.missoesNpc);
     estado.cidade.restaurar(save.cidade);
+    estado.vida.restaurar(save.vida);
+    estado.represa.restaurar(save.represa);
     estado.itensColetados = new Set(
       Array.isArray(save.itensColetados)
         ? save.itensColetados.filter((id): id is string => typeof id === 'string')
@@ -237,6 +250,43 @@ export class BootScene extends Phaser.Scene {
         this.anims.create({
           key: `npc-${npc.id}-idle-${direcao}`,
           frames: [(parado?.[direcao] ?? frames)[0]],
+          frameRate: 1,
+        });
+      }
+    }
+  }
+
+  /**
+   * Recortes e animacoes dos monstros. Identico ao dos NPCs, com o prefixo
+   * `monstro-` em vez de `npc-`: as duas folhas ja saem do mesmo processador,
+   * na mesma grade 4x4 e na mesma ordem de direcao.
+   */
+  private criarSpritesMonstros(): void {
+    const folha: SpriteNpc = {
+      arquivo: '',
+      colunas: 4,
+      linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    };
+    for (const id of Object.keys(CATALOGO_INIMIGOS)) {
+      const andando = this.recortarFolhaNpc(`monstro-${id}-sprites`, folha);
+      const parado = this.recortarFolhaNpc(`monstro-${id}-parado`, folha);
+      for (const [direcao, quadros] of Object.entries(andando)) {
+        this.anims.create({
+          key: `monstro-${id}-walk-${direcao}`,
+          frames: quadros,
+          // um pouco mais lento que o passo humano: maquina se move em cadencia
+          frameRate: 7,
+          repeat: -1,
+        });
+        this.anims.create({
+          key: `monstro-${id}-idle-${direcao}`,
+          frames: [(parado[direcao] ?? quadros)[0]],
           frameRate: 1,
         });
       }
