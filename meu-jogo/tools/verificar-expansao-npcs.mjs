@@ -125,8 +125,10 @@ for (const morador of Object.values(MORADORES)) {
     for (const faixa of lista) {
       ok(faixa.fim > faixa.inicio, `${morador.id}: faixa "${faixa.atividade}" com fim antes do inicio`);
       ok(['bairro', 'rural', 'farm'].includes(faixa.lugar.mapa), `${morador.id}: mapa invalido em "${faixa.atividade}"`);
-      ok(!faixa.lugar.area || faixa.lugar.construcao === null, `${morador.id}: area de perambulacao dentro de construcao`);
-      ok(!faixa.lugar.area || comCaminhada.has(morador.id), `${morador.id}: perambula sem folha de caminhada`);
+      const anda = faixa.lugar.area ?? faixa.lugar.rota;
+      ok(!anda || faixa.lugar.construcao === null, `${morador.id}: perambulacao dentro de construcao`);
+      ok(!anda || comCaminhada.has(morador.id), `${morador.id}: perambula sem folha de caminhada`);
+      ok(!(faixa.lugar.area && faixa.lugar.rota), `${morador.id}: lugar com area E rota ao mesmo tempo`);
     }
   }
 }

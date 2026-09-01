@@ -9,6 +9,7 @@ import {
   NPCS,
   NPCS_DE_PRESENCA_INTERIOR,
 } from '../src/game/npcs.ts';
+import { MORADORES } from '../src/game/moradores.ts';
 
 const url = (caminho) => new URL(caminho, import.meta.url);
 const props = (o) => Object.fromEntries((o.properties ?? []).map((p) => [p.name, p.value]));
@@ -195,6 +196,47 @@ function conferirAreasDeVagar() {
   return areas;
 }
 
+/**
+ * PERCURSOS de rua dos moradores (`LugarMorador.rota`): confere o ciclo inteiro
+ * em reta, ponto a ponto, mais o trecho que fecha (ultimo -> primeiro) e a
+ * entrada (o `ponto` da faixa ate o primeiro waypoint). Diferente da `area`,
+ * aqui nao ha convexidade que garanta nada — o que garante e cada trecho.
+ *
+ * A varredura sai das AGENDAS e nao de `NPCS[].rotina` de proposito: ha
+ * `vagar_rota` que acontece DENTRO de interior (a Mari na academia, a Jaqueline
+ * no mercado), e comparar essas com a grade do mapa externo reprovaria rota
+ * correta. Na agenda o dado esta explicito: `construcao === null` e ar livre.
+ */
+function conferirPercursos() {
+  let trechos = 0;
+  for (const morador of Object.values(MORADORES)) {
+    for (const faixa of morador.atividades) {
+      const rota = faixa.lugar.rota;
+      if (!rota) continue;
+      if (faixa.lugar.construcao !== null) {
+        throw new Error(`${morador.id}: percurso dentro da construcao "${faixa.lugar.construcao}"`);
+      }
+      if (rota.length < 2) throw new Error(`${morador.id}: percurso com menos de 2 waypoints`);
+      const externo = externoDe(faixa.lugar.mapa);
+      const pares = [
+        [faixa.lugar.ponto, rota[0]],
+        ...rota.map((a, i) => [a, rota[(i + 1) % rota.length]]),
+      ];
+      for (const [a, b] of pares) {
+        const ruim = externo.trechoBloqueado(a, b);
+        if (ruim) {
+          throw new Error(
+            `percurso de ${morador.id} (${faixa.inicio}): trecho ${a.x},${a.y} -> ${b.x},${b.y} ` +
+              `passa pelo tile bloqueado ${ruim} em ${externo.chave}`,
+          );
+        }
+        trechos += 1;
+      }
+    }
+  }
+  return trechos;
+}
+
 const sistema = new SistemaRotinasNpc();
 const registros = new Map();
 const alcanceEdu = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
@@ -213,6 +255,7 @@ const areasLeticia = NPCS.leticia.rotina
   .filter((acao) => acao.tipo === 'vagar')
   .map((acao) => ({ area: acao.area, visitada: false, minutos: new Set() }));
 const areasDeVagar = conferirAreasDeVagar();
+const trechosDePercurso = conferirPercursos();
 for (let minuto = 6 * 60; minuto <= 19 * 60; minuto++) {
   for (let amostra = 0; amostra < 10; amostra++) {
     sistema.atualizar(0, minuto, 100);
@@ -351,7 +394,8 @@ if (Object.values(transicoesPorta).some((valor) => !valor)) {
 
 console.log(
   `[rotinas] ${Object.keys(NPCS).length} NPCs em ${casas.size} casas | ` +
-    `${corpos} corpos de flora no bloqueio | ${areasDeVagar} area(s) de vagar conferida(s)`,
+    `${corpos} corpos de flora no bloqueio | ${areasDeVagar} area(s) de vagar e ` +
+      `${trechosDePercurso} trecho(s) de percurso conferido(s)`,
 );
 console.log(
   `[rotinas] ${MORADIAS.length} moradias no total, ${MORADIAS_VAGAS.length} vaga(s): ` +

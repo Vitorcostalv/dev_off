@@ -31,6 +31,25 @@ export interface LugarMorador {
   mapa: MapaMorador;
   /** Ponto fixo, em tiles do interior indicado (ou do mapa externo). */
   ponto: PontoTile;
+  /**
+   * PERCURSO de rua: a polilinha que o morador percorre em ciclo durante o
+   * bloco, com pausa em cada ponta. E a alternativa a `area`, e a preferida
+   * para bloco urbano.
+   *
+   * Existe porque `area` — retangulo livre e convexo — so pode ser tao grande
+   * quanto o maior retangulo vazio perto da porta, e isso e pequeno num bairro
+   * com casa, arvore e cerca: o morador ficava indo e voltando num 10x3 na
+   * frente da propria casa. O percurso nao tem essa amarra: ele acompanha o
+   * EIXO das vias, que o gerador ja mantem livre de flora e de lote, entao da
+   * pra atravessar o bairro de ponta a ponta em reta entre waypoints — que e o
+   * unico movimento que o motor sabe fazer (nao ha pathfinding).
+   *
+   * O primeiro waypoint tem de ser alcancavel em reta a partir de `ponto`, e
+   * cada trecho entre waypoints consecutivos (mais o que fecha o ciclo, do
+   * ultimo pro primeiro) tem de estar livre. `npm run verificar-rotinas`
+   * reprova as duas coisas.
+   */
+  rota?: PontoTile[];
   /** Retangulo de perambulacao ao ar livre, para quem tem passada real. */
   area?: AreaVagar;
 }
@@ -110,6 +129,17 @@ const aoArLivre = (mapa: MapaMorador, x: number, y: number, area?: AreaVagar): L
   ({ construcao: null, mapa, ponto: { x, y }, area });
 
 /**
+ * Lugar ao ar livre com PERCURSO: o morador entra pelo primeiro waypoint e
+ * percorre a polilinha em ciclo. `pontos` sao pares [x, y] em tiles do mapa.
+ */
+const percurso = (mapa: MapaMorador, pontos: readonly (readonly [number, number])[]): LugarMorador => ({
+  construcao: null,
+  mapa,
+  ponto: { x: pontos[0][0], y: pontos[0][1] },
+  rota: pontos.map(([x, y]) => ({ x, y })),
+});
+
+/**
  * LAR de cada morador: o interior da propria casa e um ponto SEU dentro dela.
  * Cada membro da familia tem o seu porque duas pessoas nao podem ocupar o mesmo
  * tile — e porque a casa vira mais viva com gente espalhada pela sala.
@@ -186,14 +216,42 @@ const QUADRA: Record<string, LugarMorador> = {
   matheus: aoArLivre('bairro', 96.5, 62.5),
 };
 
-// Areas de PERAMBULACAO, so pra quem tem passada real. Cada retangulo foi
-// escolhido inteiramente livre e o `ponto` de entrada fica dentro dele.
-const RUA_DO_CAIO = aoArLivre('bairro', 37.5, 76.5, { min: { x: 33, y: 75 }, max: { x: 45, y: 79 } });
-const RUA_DA_JULIA = aoArLivre('bairro', 59.5, 75.5, { min: { x: 56, y: 73 }, max: { x: 68, y: 78 } });
-const CALCADA_DO_ROBERTO = aoArLivre('bairro', 78.5, 73.5, { min: { x: 76, y: 71 }, max: { x: 90, y: 76 } });
-const CALCADA_DA_ILDA = aoArLivre('bairro', 84.5, 74.5, { min: { x: 76, y: 71 }, max: { x: 90, y: 76 } });
-const RUA_DA_SAMANTA = aoArLivre('bairro', 7.5, 58.5, { min: { x: 2, y: 57 }, max: { x: 12, y: 60 } });
-const QUADRA_ABERTA = aoArLivre('bairro', 95.5, 64.5, { min: { x: 90, y: 60 }, max: { x: 102, y: 68 } });
+// PERCURSOS de rua, so pra quem tem passada real na arte.
+//
+// Antes eram RETANGULOS de perambulacao, um por morador, e o resultado era o
+// que se via em jogo: cada um andando de um lado pro outro num pedaco de
+// gramado na frente da propria porta. O retangulo tem de ser convexo e
+// inteiramente livre (o motor anda em reta), e num bairro com casa, cerca e
+// arvore o maior retangulo livre perto de uma porta e miudo — 10x3 no caso da
+// Samanta. Nao havia como aumentar sem passar por cima de alguma coisa.
+//
+// O percurso resolve por outro lado: ele acompanha o EIXO das vias do mapa, que
+// o gerador mantem livre (a flora respeita a faixa da via e nenhum lote invade
+// ela). Assim o trajeto pode ter dezenas de tiles e ainda ser feito de retas
+// livres. Cada morador ganhou um trecho que combina com o que ele faz —
+// a Julia percorre a linha do onibus, o Caio desce a rua baixa atras de
+// conserto, a Ilda faz a caminhada da tarde ate o fim da rua.
+const RUA_DO_CAIO = percurso('bairro', [
+  [37.5, 76.6], [30, 77.3], [20.5, 78.2], [30, 77.3], [44, 76.2], [55, 75.2], [44, 76.2],
+]);
+const LINHA_DA_JULIA = percurso('bairro', [
+  [59.5, 74.6], [66.2, 74.2], [66.2, 64], [66.2, 54.5], [66.2, 64], [66.2, 74.2], [52, 75.6], [66.2, 74.2],
+]);
+const CALCADA_DO_ROBERTO = percurso('bairro', [
+  [81.5, 75.4], [92.2, 76.2], [100, 74.2], [92.2, 76.2], [70, 74.4], [66.2, 74.2], [70, 74.4],
+]);
+const CAMINHADA_DA_ILDA = percurso('bairro', [
+  [84.5, 74.5], [92.2, 76.2], [100, 74.2], [108, 72.8], [100, 74.2], [92.2, 76.2], [78, 74.9], [70, 74.4], [78, 74.9],
+]);
+const RUA_DA_SAMANTA = percurso('bairro', [
+  [7.5, 58.5], [8.5, 62], [8.5, 65.8], [20.5, 66.2], [30, 64.5], [36.5, 63.2], [30, 64.5], [20.5, 66.2], [8.5, 65.8], [8.5, 62],
+]);
+const QUADRA_ABERTA = percurso('bairro', [
+  [95.5, 64.5], [91.5, 61.5], [96.5, 67.5], [96.5, 73.5], [96.5, 67.5], [101.5, 61.5], [96.5, 63],
+]);
+// A roca continua sendo AREA e nao percurso: sao 20x12 tiles de leira aberta, e
+// quem esta capinando anda mesmo sem rumo fixo. A objecao do retangulo pequeno
+// nao vale aqui — o campo e maior que a tela.
 const HORTA_DO_JOAO = aoArLivre('rural', 32.5, 50.5, { min: { x: 26, y: 46 }, max: { x: 46, y: 58 } });
 const HORTA_DA_NEIDE = aoArLivre('rural', 40.5, 54.5, { min: { x: 26, y: 46 }, max: { x: 46, y: 58 } });
 
@@ -287,10 +345,10 @@ const AGENDAS: Record<string, AtividadeMorador[]> = {
   ),
   julia: agenda(
     [[h(5, 30), LAR.julia, 'cafe antes do primeiro horario'],
-      [h(7), RUA_DA_JULIA, 'operacao da linha de onibus'],
+      [h(7), LINHA_DA_JULIA, 'operacao da linha de onibus'],
       [h(18), LAR.julia, 'jantar com Arthur e Rita']],
     [[h(8), LAR.julia, 'manha em casa'],
-      [h(12), RUA_DA_JULIA, 'fim de semana: volta no bairro'],
+      [h(12), LINHA_DA_JULIA, 'fim de semana: volta no bairro'],
       [h(18), LAR.julia, 'noite em familia']],
   ),
   arthur: agenda(
@@ -322,10 +380,10 @@ const AGENDAS: Record<string, AtividadeMorador[]> = {
     [[h(6, 30), LAR.ilda, 'cafe e correcao de prova'],
       [h(8), SALA_DE_AULA, 'aula de historia'],
       [h(12, 30), LAR.ilda, 'almoco em casa'],
-      [h(14), CALCADA_DA_ILDA, 'caminhada da tarde'],
+      [h(14), CAMINHADA_DA_ILDA, 'caminhada da tarde'],
       [h(18), LAR.ilda, 'jantar com Roberto e Ravi']],
     [[h(8), LAR.ilda, 'manha de leitura'],
-      [h(14), CALCADA_DA_ILDA, 'fim de semana: caminhada com o Ravi'],
+      [h(14), CAMINHADA_DA_ILDA, 'fim de semana: caminhada com o Ravi'],
       [h(18), LAR.ilda, 'noite em familia']],
   ),
   ravi: agenda(

@@ -967,7 +967,18 @@ export function acoesDeAtividades(atividades: readonly AtividadeMorador[]): Acao
     // A perambulacao entra no MESMO horario da chegada. `Array.prototype.sort`
     // e estavel, entao ela continua depois do `assumir_lugar` que a posiciona —
     // que e o que garante que o primeiro trecho saia de dentro da area.
-    if (faixa.lugar.area) {
+    if (faixa.lugar.rota) {
+      // PERCURSO de rua: ciclo pela polilinha, com pausa em cada ponta. Ver
+      // `LugarMorador.rota` em moradores.ts — e o que substituiu o retangulo
+      // miudo na frente de casa por um trajeto que atravessa o bairro.
+      acoes.push({
+        horario: faixa.inicio,
+        tipo: 'vagar_rota',
+        waypoints: faixa.lugar.rota,
+        pausaMinSegundos: 2,
+        pausaMaxSegundos: 7,
+      });
+    } else if (faixa.lugar.area) {
       acoes.push({
         horario: faixa.inicio,
         tipo: 'vagar',
