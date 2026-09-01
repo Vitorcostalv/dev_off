@@ -73,8 +73,23 @@ export const PONTOS_DE_LOJA: readonly PontoDeLoja[] = [
   },
   {
     id: 'loja_madeireira', mapa: 'rural', tile: { x: 115, y: 34 },
-    nome: 'Madeireira', rotulo: 'Comprar material', categorias: ['material'],
-    itemIds: ['madeira', 'concreto'],
+    nome: 'Madeireira', rotulo: 'Comprar', categorias: ['material', 'utilidade'],
+    // A madeireira de interior tambem e casa agropecuaria: chave de boca,
+    // lanterna e caixa de cartucho estao na mesma prateleira do arame e do
+    // cimento. E o que da ao ciclo da represa um SUMIDOURO de dinheiro — antes
+    // desta leva nao havia nada pra comprar que ajudasse a descer.
+    //
+    // A pistola e o cartao de acesso sao da mesma categoria e NAO estao na
+    // lista: os dois sao achados na usina, e e esta lista que os mantem fora da
+    // vitrine.
+    itemIds: ['madeira', 'concreto', 'chave_inglesa', 'lanterna_manutencao', 'municao_pistola'],
+  },
+  {
+    // Farmacia do Wendel. O balcao de atendimento e a peca [1,1] do salao, com
+    // o canto em (11,7); o ponto fica no tile da frente dele.
+    id: 'loja_farmacia', mapa: 'farmacia', tile: { x: 12, y: 8 },
+    nome: 'Farmacia', rotulo: 'Comprar remedio', categorias: ['remedio'],
+    npcDono: 'wendel',
   },
   {
     id: 'loja_pedreira', mapa: 'rural', tile: { x: 118, y: 83 },

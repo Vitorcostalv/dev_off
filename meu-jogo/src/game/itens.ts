@@ -32,10 +32,16 @@
  */
 import { ITENS_DE_SUCATA, PRECOS_DE_SUCATA } from './sucata.ts';
 
-export type CategoriaItem = 'normal' | 'eletronico' | 'material' | 'sucata';
+export type CategoriaItem =
+  | 'normal'
+  | 'eletronico'
+  | 'material'
+  | 'sucata'
+  | 'utilidade'
+  | 'remedio';
 
 /** Qual folha de arte guarda a peca do icone. */
-export type FolhaDeItem = 'mercado' | 'eletronicos';
+export type FolhaDeItem = 'mercado' | 'eletronicos' | 'represa';
 
 /** Uma linha do catalogo antes de virar `DefinicaoItemLoja`. */
 type Entrada = readonly [peca: readonly [number, number], id: string, nome: string, descricao: string];
@@ -161,6 +167,13 @@ export const FAIXA_DE_PRECO: Record<CategoriaItem, readonly [number, number]> = 
   // A faixa e larga porque a PROGRESSAO por profundidade e feita de valor —
   // ver `ENTRADAS` em src/game/sucata.ts, onde todo preco e fixo a mao.
   sucata: [200, 30_000],
+  // FERRAMENTA, ARMA e MUNICAO. Como no salvado, todo preco daqui e fixo a mao
+  // (ver `PRECO_MANUAL`): sao poucos itens e cada um e uma decisao de
+  // balanceamento — quanto custa uma descida armada na represa.
+  utilidade: [200, 40_000],
+  // REMEDIO. Faixa de farmacia de cidade pequena: o analgesico e barato, o kit
+  // completo custa uma tarde de conserto.
+  remedio: [500, 12_000],
 };
 
 /**
@@ -184,6 +197,23 @@ export const PRECO_MANUAL: Record<string, number> = {
   // (risco por profundidade), e sorteio nao se equilibra — um sucateado comum
   // caro tornaria o nivel -1 mais lucrativo que o -4. Ver src/game/sucata.ts.
   ...PRECOS_DE_SUCATA,
+  // UTILIDADE e REMEDIO: todo preco e fixo, pelo mesmo motivo do salvado — cada
+  // um destes e uma decisao de balanceamento, e nao um numero de vitrine.
+  //
+  // A conta que eles fecham: uma descida armada e abastecida custa cerca de
+  // R$ 60 (duas caixas de municao e um kit), e um so modulo de controle do
+  // nivel -4 paga R$ 144 na revenda. Descer fundo continua valendo a pena;
+  // descer fundo SEM se preparar e que fica caro.
+  chave_inglesa: 3_900, // R$ 39,00
+  lanterna_manutencao: 5_900, // R$ 59,00
+  municao_pistola: 250, // R$ 2,50 por cartucho
+  // Nao estao a venda em lugar nenhum: o preco existe pro painel de detalhes do
+  // inventario ter o que mostrar, e pra revenda saber quanto vale.
+  pistola: 38_000, // R$ 380,00
+  cartao_acesso_usina: 200, // R$ 2,00 — vale o plastico
+  kit_primeiros_socorros: 4_500, // R$ 45,00
+  analgesico: 1_200, // R$ 12,00
+  energetico: 990, // R$ 9,90
 };
 
 /** Hash de texto -> [0,1). Deterministico, mesma avalanche do `hash01`. */
@@ -492,12 +522,55 @@ const ELETRONICOS: readonly Entrada[] = SECOES_ELETRONICO.flatMap(
   (s) => ELETRONICOS_POR_SECAO[s.id],
 );
 
+/**
+ * UTILIDADE — ferramenta, arma, municao e chave de acesso.
+ *
+ * A folha e `itens_represa_v2.png`, um cartaz de 180 pecas de sobrevivencia e
+ * eletronica. Do que ela tem, entra aqui SO o que o jogo usa: nao ha item no
+ * catalogo pelo simples fato de a arte existir — cada um destes e equipavel,
+ * consumivel ou chave de porta (ver `src/game/equipar.ts`).
+ *
+ * A pistola e o cartao de acesso NAO estao a venda em ponto nenhum: os dois sao
+ * achados na usina. Eles moram nesta categoria de proposito, e o que os mantem
+ * fora da vitrine e a lista `itemIds` do ponto de loja (ver `PONTOS_DE_LOJA`).
+ */
+const UTILIDADES: readonly Entrada[] = [
+  [[9, 14], 'chave_inglesa', 'Chave Inglesa', 'Chave de boca de 24, cabo com marca de mao. Bate melhor do que aperta.'],
+  [[1, 7], 'lanterna_manutencao', 'Lanterna de Manutencao', 'Corpo de aluminio, foco ajustavel. Aguenta cair no concreto.'],
+  [[2, 0], 'pistola', 'Pistola', 'Pistola de guarda, oleada e guardada em cofre por tres anos. Ainda funciona.'],
+  [[3, 0], 'municao_pistola', 'Municao 9 mm', 'Cartucho de nove milimetros. A caixa vem com cinquenta; sobrou menos.'],
+  [[8, 11], 'cartao_acesso_usina', 'Cartao de Acesso da Usina', 'Cracha de manutencao com a foto raspada. A tarja magnetica ainda le.'],
+];
+
+/** REMEDIO — o que a farmacia do Wendel vende e o que devolve vida. */
+const REMEDIOS: readonly Entrada[] = [
+  [[3, 17], 'kit_primeiros_socorros', 'Kit de Primeiros Socorros', 'Caixa vermelha com gaze, esparadrapo e antisseptico. Resolve o que da pra resolver sozinho.'],
+  [[4, 21], 'analgesico', 'Analgesico', 'Cartela de doze. Tira a dor, nao o motivo dela.'],
+  [[4, 11], 'energetico', 'Energetico', 'Lata gelada. Meia hora de disposicao e duas de arrependimento.'],
+];
+
 /** Quantos de um item cabem num slot, pelo tamanho tipico da categoria. */
 const PILHA_PADRAO: Record<CategoriaItem, number> = {
   normal: 20,
   eletronico: 5,
   material: 99,
   sucata: 99,
+  // Municao empilha alto (99) e arma nao empilha (1). O padrao da categoria e o
+  // da municao, e as excecoes saem por `PILHA_MANUAL`.
+  utilidade: 99,
+  remedio: 20,
+};
+
+/**
+ * Pilha fixada a mao, sobrepondo a da categoria. Existe pra arma e ferramenta:
+ * cinco chaves inglesas num slot nao faz sentido, e uma pistola muito menos.
+ */
+const PILHA_MANUAL: Record<string, number> = {
+  chave_inglesa: 1,
+  lanterna_manutencao: 1,
+  pistola: 1,
+  cartao_acesso_usina: 1,
+  kit_primeiros_socorros: 5,
 };
 
 /** Precos fixos em centavos: material bruto nao varia por dia nem por loja. */
@@ -529,7 +602,7 @@ function montar(
     folha,
     peca,
     frame: frameDoItem(id),
-    maxPilha: PILHA_PADRAO[categoria],
+    maxPilha: PILHA_MANUAL[id] ?? PILHA_PADRAO[categoria],
     preco: precoDe(id, categoria),
     secao: SECAO_DE_ITEM.get(id),
   }));
@@ -543,6 +616,8 @@ export const CATALOGO_ITENS: readonly DefinicaoItemLoja[] = (() => {
   const lista = [
     ...montar(MERCADO, 'normal', 'mercado'),
     ...montar(ELETRONICOS, 'eletronico', 'eletronicos'),
+    ...montar(UTILIDADES, 'utilidade', 'represa'),
+    ...montar(REMEDIOS, 'remedio', 'represa'),
     ...MATERIAIS,
     // Salvado da represa. Entra no catalogo como qualquer item (mesmo
     // inventario, mesma pilha, mesmo icone de cor) e por isso nao precisou de

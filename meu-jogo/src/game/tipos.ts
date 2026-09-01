@@ -114,6 +114,18 @@ export interface ZonaReservada {
 /** O que a UI precisa saber da cena de mundo, sem depender da classe dela. */
 export interface MundoJogavel {
   interagir(): void;
+  /** equipa um item do inventario, respeitando a zona do mapa atual */
+  equiparItem(id: string): void;
+  desequiparItem(id: string): void;
+  /** aplica a acao de USO de um item; a UI e quem consome a unidade */
+  usarItemDoInventario(id: string): {
+    ok: boolean;
+    consumiu: boolean;
+    aviso: string;
+    cor?: string;
+  };
+  /** true quando o clique esquerdo esta servindo pra atirar, e nao pra interagir */
+  mirandoComArma(): boolean;
 }
 
 /** Um bloco de fala do dialogo. */

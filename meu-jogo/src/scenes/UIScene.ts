@@ -18,6 +18,14 @@ import {
 } from '../game/loja';
 import type { PontoDeLoja } from '../game/loja';
 import type { Fala, MundoJogavel } from '../game/tipos';
+import {
+  NOME_DO_SLOT,
+  SLOTS_DE_EQUIPAMENTO,
+  acoesDoItem,
+  comportamentoDe,
+  podeDescartar,
+} from '../game/equipar';
+import { buscarArma } from '../game/armas';
 
 /**
  * Caixa de dialogo. Subiu de 74 pra 82 px de altura e ganhou a coluna do
@@ -29,6 +37,21 @@ import type { Fala, MundoJogavel } from '../game/tipos';
 const CAIXA = { x: 8, y: 180, w: CONFIG.largura - 16, h: 82 };
 /** Quantos blocos a barra de vida tem. 10 pra cada bloco valer 3 pontos. */
 const BARRA_DE_VIDA = 10;
+
+/**
+ * Rotulo de cada acao de inventario, com a tecla.
+ *
+ * A LISTA de acoes de um item nao esta aqui — ela sai de `acoesDoItem`
+ * (equipar.ts), que le o comportamento do item. Aqui fica so como cada uma se
+ * escreve na tela, que e assunto de UI.
+ */
+const ROTULO_DE_ACAO: Record<string, string> = {
+  usar: '[U] usar',
+  equipar: '[F] equipar',
+  desequipar: '[F] guardar',
+  examinar: '[E] examinar',
+  descartar: '[X] descartar',
+};
 
 /** Coluna do retrato dentro da caixa de dialogo. */
 const RETRATO = { lado: 58, margem: 7 };
@@ -122,6 +145,21 @@ export class UIScene extends Phaser.Scene {
   private tipoItem!: Phaser.GameObjects.Text;
   private descricaoItem!: Phaser.GameObjects.Text;
   private avisoInventario!: Phaser.GameObjects.Text;
+  /** Linha do equipamento no painel de inventario ("Mao: Pistola"). */
+  private equipadoTexto!: Phaser.GameObjects.Text;
+  /** Linha das acoes disponiveis pro item selecionado. */
+  private acoesTexto!: Phaser.GameObjects.Text;
+
+  /**
+   * AVISO RAPIDO — a linha que aparece no rodape e some sozinha.
+   *
+   * Existe porque as mensagens de combate (carregador vazio, recarregou, guardou
+   * a arma na mochila) nao tem onde caber: `avisar` escreve dentro do painel de
+   * inventario, que esta fechado na hora da briga, e abrir caixa de dialogo pra
+   * "sem municao" pausaria o jogo no pior momento possivel.
+   */
+  private aviso!: Phaser.GameObjects.Text;
+  private avisoAte = 0;
 
   /**
    * O PC roda em cena propria (`ComputadorScene`). Aqui so guardamos que ele
@@ -272,6 +310,18 @@ export class UIScene extends Phaser.Scene {
       .setDepth(90)
       .setVisible(false);
 
+    this.aviso = this.add
+      .text(CONFIG.largura / 2, CONFIG.altura - 44, '', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanho,
+        color: UI.texto,
+        backgroundColor: '#1a1712dd',
+        padding: { x: 5, y: 2 },
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(95)
+      .setVisible(false);
+
     this.dialogo = this.criarCaixaDeDialogo();
     this.confirmacao = this.criarCaixaDeConfirmacao();
     this.inventario = this.criarPainelDeInventario();
@@ -299,9 +349,15 @@ export class UIScene extends Phaser.Scene {
     teclado?.on('keydown-C', () => this.alternarFiltroDaLoja());
     // acoes do inventario
     teclado?.on('keydown-U', () => this.usarSelecionado());
+    teclado?.on('keydown-F', () => this.alternarEquipado());
     teclado?.on('keydown-X', () => this.descartarSelecionado());
     teclado?.on('keydown-O', () => this.organizarInventario());
-    this.input.on('pointerdown', () => this.acionar());
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      // Com arma na mao o clique esquerdo E o tiro. Sem esta guarda, cada tiro
+      // tambem abriria a porta ou lia a placa que estivesse no alcance.
+      if (p.leftButtonDown() && this.mundo?.mirandoComArma()) return;
+      this.acionar();
+    });
     this.input.on(
       'wheel',
       (_p: unknown, _o: unknown, _dx: number, dy: number) => {
@@ -314,7 +370,29 @@ export class UIScene extends Phaser.Scene {
     );
   }
 
+  /** A cena de mundo, pela interface. `undefined` antes de ela subir. */
+  private get mundo(): MundoJogavel | undefined {
+    return this.scene.get('FarmScene') as unknown as MundoJogavel | undefined;
+  }
+
+  /**
+   * Escreve uma linha no rodape que some sozinha. Chamar de novo troca o texto e
+   * reinicia o relogio, entao dois avisos seguidos nao se empilham.
+   */
+  avisoRapido(texto: string, cor: string = UI.texto, duracaoMs = 2200): void {
+    this.aviso.setText(texto);
+    this.aviso.setColor(cor);
+    this.aviso.setVisible(true);
+    this.aviso.setAlpha(1);
+    this.avisoAte = this.time.now + duracaoMs;
+  }
+
   update(): void {
+    if (this.aviso.visible && this.time.now > this.avisoAte) {
+      const restante = (this.avisoAte + 400 - this.time.now) / 400;
+      if (restante <= 0) this.aviso.setVisible(false);
+      else this.aviso.setAlpha(restante);
+    }
     this.atualizarHud();
     if (this.inventarioAberto) this.desenharInventario();
     if (this.lojaAberta) this.desenharLoja();
@@ -826,11 +904,16 @@ export class UIScene extends Phaser.Scene {
   }
 
   /**
-   * Usa uma unidade do item selecionado.
+   * USA o item selecionado.
    *
-   * O EFEITO ainda nao existe: nao ha stat de energia/fome pra mexer. O que ha e
-   * o fluxo completo — consome a unidade e avisa — pra quando o efeito entrar
-   * ser so preencher o trecho marcado abaixo, sem mexer em UI nem em inventario.
+   * O que ele faz nao esta escrito aqui: a UI pergunta a cena
+   * (`usarItemDoInventario`), que consulta `COMPORTAMENTOS` e aplica o efeito. A
+   * UI so cuida do que e dela — gastar a unidade DO SLOT selecionado e
+   * redesenhar. Antes desta leva o efeito era um `TODO` no meio deste metodo, e
+   * era esse acoplamento que a Parte 1 pediu pra desfazer.
+   *
+   * A unidade sai DEPOIS do efeito e so quando o efeito disse que consumiu: usar
+   * um kit com a vida cheia nao gasta o kit.
    */
   private usarSelecionado(): void {
     if (!this.inventarioAberto || this.modalPorCima) return;
@@ -839,18 +922,54 @@ export class UIScene extends Phaser.Scene {
       this.avisar('Selecione um item primeiro.');
       return;
     }
-    if (alvo.def.tipo !== 'consumivel') {
-      this.avisar(`${alvo.def.nome} nao e consumivel.`, UI.alerta);
+    const r = this.mundo?.usarItemDoInventario(alvo.def.id);
+    if (!r) return;
+    if (r.ok && r.consumiu) {
+      // reconfere o slot: entre selecionar e usar o inventario pode ter mudado
+      const agora = estado.inventario.slots[alvo.indice];
+      if (agora?.id !== alvo.def.id) {
+        this.avisar('O item saiu do slot.', UI.alerta);
+        return;
+      }
+      estado.inventario.removerDoSlot(alvo.indice, 1);
+      estado.equipamento.sincronizarCom((id) => estado.inventario.contar(id));
+      if (estado.inventario.slots[alvo.indice] === null) this.itemSelecionado = null;
+    }
+    this.avisar(r.aviso, r.cor ?? (r.ok ? UI.sucesso : UI.alerta));
+    this.desenharInventario();
+  }
+
+  /**
+   * EQUIPA ou DESEQUIPA o item selecionado (tecla F).
+   *
+   * Quem decide se pode e a cena, porque a regra depende do MAPA: a pistola so
+   * equipa em zona perigosa (ver `podeEquipar` em equipar.ts).
+   */
+  private alternarEquipado(): void {
+    if (!this.inventarioAberto || this.modalPorCima) return;
+    const alvo = this.slotSelecionado;
+    if (!alvo) {
+      this.avisar('Selecione um item primeiro.');
       return;
     }
-    if (estado.inventario.removerDoSlot(alvo.indice, 1) !== 1) return;
-
-    // TODO(efeito): plugar aqui o efeito real do consumivel — recuperar energia,
-    // matar a fome, curar. Enquanto nao ha stat pra mexer, usar so gasta a
-    // unidade. O ponto de entrada e este, com `alvo.def` em maos.
-
-    this.avisar(`Voce usou ${alvo.def.nome}.`, UI.sucesso);
-    if (estado.inventario.slots[alvo.indice] === null) this.itemSelecionado = null;
+    const c = comportamentoDe(alvo.def.id);
+    if (!c?.slot) {
+      this.avisar(`${alvo.def.nome} nao e equipavel.`, UI.alerta);
+      return;
+    }
+    if (estado.equipamento.estaEquipado(alvo.def.id)) {
+      this.mundo?.desequiparItem(alvo.def.id);
+      this.avisar(`Guardou ${alvo.def.nome}.`);
+    } else {
+      this.mundo?.equiparItem(alvo.def.id);
+      const entrou = estado.equipamento.estaEquipado(alvo.def.id);
+      this.avisar(
+        entrou
+          ? `${alvo.def.nome} em ${NOME_DO_SLOT[c.slot].toLowerCase()}.`
+          : (c.recusaDeZona ?? 'Nao da pra equipar isso aqui.'),
+        entrou ? UI.sucesso : UI.alerta,
+      );
+    }
     this.desenharInventario();
   }
 
@@ -864,8 +983,13 @@ export class UIScene extends Phaser.Scene {
     }
     // item de missao nao se joga fora: descartar a encomenda deixava a entrega
     // aceita pra sempre, sem porta que a conclua e sem poder aceitar outra
-    if (alvo.def.deMissao) {
-      this.avisar(`${alvo.def.nome} e de um trabalho aceito — nao da pra jogar fora.`, UI.alerta);
+    if (!podeDescartar(alvo.def)) {
+      this.avisar(
+        alvo.def.deMissao
+          ? `${alvo.def.nome} e de um trabalho aceito — nao da pra jogar fora.`
+          : `${alvo.def.nome} e unico. Melhor nao jogar fora.`,
+        UI.alerta,
+      );
       return;
     }
     this.confirmar(`Descartar ${alvo.def.nome} x${alvo.qtd}?`, () => {
@@ -932,7 +1056,31 @@ export class UIScene extends Phaser.Scene {
     this.nomeItem.setText(def && slot ? `${def.nome} x${slot.qtd}` : 'Selecione um item');
     const preco = def?.preco === undefined ? '' : `  ${formatarDinheiro(def.preco)}`;
     this.tipoItem.setText(def ? `Tipo: ${def.tipo}${preco}` : '');
-    this.descricaoItem.setText(def?.descricao ?? '');
+    const c = def ? comportamentoDe(def.id) : null;
+    const arma = buscarArma(c?.arma);
+    const linhasDetalhe = [def?.descricao ?? ''];
+    if (arma) {
+      linhasDetalhe.push(
+        `Dano ${arma.dano} | carregador ${estado.armas.noCarregador(arma.id)}/${arma.carregador}` +
+          ` | reserva ${estado.inventario.contar(arma.municao)}`,
+      );
+    } else if (c?.danoCorpoACorpo) {
+      linhasDetalhe.push(`Dano de golpe ${c.danoCorpoACorpo}`);
+    }
+    if (c?.detalhe) linhasDetalhe.push(c.detalhe);
+    this.descricaoItem.setText(linhasDetalhe.filter(Boolean).join('\n'));
+
+    const equipados = SLOTS_DE_EQUIPAMENTO.map((sl) => ({ sl, id: estado.equipamento.equipado(sl) }))
+      .filter((e) => e.id)
+      .map((e) => `${NOME_DO_SLOT[e.sl]}: ${ITENS[e.id as string]?.nome ?? '-'}`);
+    this.equipadoTexto.setText(equipados.join('   ') || 'Nada equipado');
+    this.acoesTexto.setText(
+      def
+        ? acoesDoItem(def.id, estado.equipamento.estaEquipado(def.id))
+            .map((a) => ROTULO_DE_ACAO[a])
+            .join('   ')
+        : '',
+    );
   }
 
   private criarPainelDeInventario(): Phaser.GameObjects.Container {
@@ -942,8 +1090,9 @@ export class UIScene extends Phaser.Scene {
       h: INV.linhas * passo - INV.gap,
     };
     const largura = grade.w + INV.detalhes + INV.margem * 3;
-    // +24: as duas linhas de rodape (dicas de tecla e aviso da ultima acao)
-    const altura = grade.h + INV.margem * 2 + INV.topo + 24;
+    // +44: quatro linhas de rodape — equipamento, acoes do item selecionado,
+    // dicas fixas de tecla e o aviso da ultima acao
+    const altura = grade.h + INV.margem * 2 + INV.topo + 44;
     const x = Math.round((CONFIG.largura - largura) / 2);
     const y = Math.round((CONFIG.altura - altura) / 2);
 
@@ -1026,19 +1175,44 @@ export class UIScene extends Phaser.Scene {
       wordWrap: { width: INV.detalhes },
       lineSpacing: 3,
     });
-    const dicas = this.add.text(
-      x + INV.margem,
-      y + altura - 22,
-      '[U] usar  [X] descartar  [O] organizar',
-      { fontFamily: UI.fonte, fontSize: '9px', color: UI.textoFraco },
-    );
+    // EQUIPAMENTO. Fica no rodape e nao numa coluna propria porque a janela tem
+    // 176 px de detalhe e nada mais: uma quarta coluna deixaria a descricao com
+    // duas palavras por linha. A redesenhada da interface e que vai dar a ele o
+    // quadro visual que ele merece.
+    this.equipadoTexto = this.add.text(x + INV.margem, y + altura - 42, '', {
+      fontFamily: UI.fonte,
+      fontSize: '9px',
+      color: UI.destaque,
+      wordWrap: { width: largura - INV.margem * 2 },
+    });
+    // ACOES DO ITEM. A lista muda com o item selecionado — e a Parte 1 pedindo
+    // que as acoes dependam do item e nao de uma barra fixa de teclas.
+    this.acoesTexto = this.add.text(x + INV.margem, y + altura - 32, '', {
+      fontFamily: UI.fonte,
+      fontSize: '9px',
+      color: UI.texto,
+      wordWrap: { width: largura - INV.margem * 2 },
+    });
+    const dicas = this.add.text(x + INV.margem, y + altura - 22, '[O] organizar  [Tab] fechar', {
+      fontFamily: UI.fonte,
+      fontSize: '9px',
+      color: UI.textoFraco,
+    });
     this.avisoInventario = this.add.text(x + INV.margem, y + altura - 12, '', {
       fontFamily: UI.fonte,
       fontSize: '9px',
       color: UI.textoFraco,
       wordWrap: { width: largura - INV.margem * 2 },
     });
-    filhos.push(this.nomeItem, this.tipoItem, this.descricaoItem, dicas, this.avisoInventario);
+    filhos.push(
+      this.nomeItem,
+      this.tipoItem,
+      this.descricaoItem,
+      this.equipadoTexto,
+      this.acoesTexto,
+      dicas,
+      this.avisoInventario,
+    );
 
     return this.add.container(0, 0, filhos).setDepth(105).setVisible(false);
   }

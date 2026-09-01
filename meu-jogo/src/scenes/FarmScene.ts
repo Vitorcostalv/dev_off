@@ -62,6 +62,10 @@ import {
   venderSucata,
 } from '../game/sucata';
 import { ITENS_DE_LEITURA } from '../game/avisos';
+import { MaoDoJogador } from './MaoDoJogador';
+import { comportamentoDe, zonaPerigosa } from '../game/equipar';
+import { ATAQUE_DO_JOGADOR } from '../game/inimigos';
+import { buscarArma, direcaoDaMira } from '../game/armas';
 
 /**
  * Quantos tiles cabem na largura da tela. E daqui que sai o zoom da camera:
@@ -308,6 +312,16 @@ export class FarmScene extends Phaser.Scene {
   /** Tecla do golpe (a chave inglesa). */
   private teclaAtaque!: Phaser.Input.Keyboard.Key;
 
+  /** Tecla de recarga (R). */
+  private teclaRecarga!: Phaser.Input.Keyboard.Key;
+
+  /**
+   * O item equipado desenhado na mao do jogador, mais a mira. Existe em TODO
+   * mapa (uma chave inglesa e visivel na cidade tambem) — diferente da camada da
+   * represa, que so existe na usina.
+   */
+  private mao!: MaoDoJogador;
+
   /**
    * Minuto de jogo observado no ultimo quadro. E o que faz a tensao da represa
    * subir por MINUTO DE JOGO e nao por quadro — ver `SistemaRepresa.avancar`.
@@ -484,6 +498,13 @@ export class FarmScene extends Phaser.Scene {
     // hitbox menor que o sprite, so os pes -> parece melhor em top-down
     this.player.setCollideWorldBounds(true);
 
+    // SAIU DA ZONA: o que a zona nova nao permite volta pra mochila. Roda no
+    // create e nao na troca de mapa porque troca de mapa E um restart de cena —
+    // um lugar so, e vale tambem pra save carregado dentro da usina.
+    this.ajustarEquipamentoAZona();
+    this.mao = new MaoDoJogador(this, this.tamanhoTile);
+    this.mao.montar();
+
     this.criarFigurantesAmbientais();
     this.criarItensColetaveis();
     this.criarConstrucoes(map);
@@ -557,6 +578,9 @@ export class FarmScene extends Phaser.Scene {
     this.teclaAtaque = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard!.addCapture('SPACE');
 
+    // R recarrega a arma de fogo equipada.
+    this.teclaRecarga = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+
     // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
     this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
 
@@ -610,6 +634,7 @@ export class FarmScene extends Phaser.Scene {
       this.sincronizarNpcs();
     }
 
+    estado.armas.atualizar(delta);
     this.atualizarBalaoEncontro();
 
     this.atualizarFigurantesAmbientais();
@@ -618,7 +643,7 @@ export class FarmScene extends Phaser.Scene {
 
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
-      this.player.anims.play(`idle-${this.direcao}`, true);
+      this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
       this.atualizarMarcadoresMapa();
       return;
     }
@@ -631,18 +656,34 @@ export class FarmScene extends Phaser.Scene {
     // com dialogo/menu aberto — ou com uma peca na mao — o player fica parado
     if (this.ui.bloqueado || this.transicionando || this.posicionando) {
       this.player.setVelocity(0, 0);
-      this.player.anims.play(`idle-${this.direcao}`, true);
+      this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
       return;
+    }
+
+    // MIRA E TIRO. Com arma de fogo na mao, a direcao do personagem passa a
+    // sair do cursor e nao do movimento — e o que permite andar pra tras
+    // atirando, que e o unico jeito de a arma valer contra um bicho rapido.
+    const armaNaMao = this.armaEquipada();
+    if (armaNaMao) {
+      const p = this.input.activePointer;
+      const dx = p.worldX - this.player.x;
+      const dy = p.worldY - (this.player.y - this.tamanhoTile * 0.6);
+      if (Math.hypot(dx, dy) > 2) this.direcao = direcaoDaMira(dx, dy);
+      this.mao.atualizarMira(p, true);
+      if (p.leftButtonDown()) this.atirar(dx, dy);
+      if (Phaser.Input.Keyboard.JustDown(this.teclaRecarga)) this.recarregarArma();
+    } else {
+      this.mao.atualizarMira(this.input.activePointer, false);
     }
 
     // golpe: trava o movimento pela duracao da animacao, o que e o que impede
     // andar e bater ao mesmo tempo e o que da peso ao ataque
     if (this.represa && Phaser.Input.Keyboard.JustDown(this.teclaAtaque)) {
-      this.represa.atacar(this.player, this.direcao);
+      this.represa.atacar(this.player, this.direcao, this.danoDoGolpe());
     }
     if (this.represa?.atacando) {
       this.player.setVelocity(0, 0);
-      this.player.anims.play(`idle-${this.direcao}`, true);
+      this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
       return;
     }
 
@@ -666,7 +707,7 @@ export class FarmScene extends Phaser.Scene {
       else this.direcao = vy > 0 ? 'down' : 'up';
       this.player.anims.play(`${correndo ? 'run' : 'walk'}-${this.direcao}`, true);
     } else {
-      this.player.anims.play(`idle-${this.direcao}`, true);
+      this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
     }
   }
 
@@ -874,6 +915,8 @@ export class FarmScene extends Phaser.Scene {
       cidade: estado.cidade.serializar(),
       vida: estado.vida.serializar(),
       represa: estado.represa.serializar(),
+      equipamento: estado.equipamento.serializar(),
+      armas: estado.armas.serializar(),
     });
   }
 
@@ -2621,6 +2664,159 @@ export class FarmScene extends Phaser.Scene {
    * atual e da usina. Fora dela `montar` sai na primeira linha, entao a chamada
    * aqui e barata em todo mapa antigo.
    */
+  // ------------------------------------------- equipamento, arma e municao --
+  /**
+   * Ajusta o equipamento a ZONA do mapa que acabou de carregar.
+   *
+   * Roda no `create` e nao num gancho de "troca de mapa" porque trocar de mapa E
+   * um `scene.restart` — assim a regra vale tambem pra save carregado dentro da
+   * usina e pro resgate apos derrota, sem tres chamadas espalhadas.
+   *
+   * A arma NAO e apagada: ela volta pra mochila, e a municao que estava no
+   * carregador volta com ela. Sem descarregar, oito cartuchos ficariam presos
+   * num carregador de uma arma que nao esta mais na mao — e o jogador os veria
+   * desaparecer da contagem sem explicacao.
+   */
+  private ajustarEquipamentoAZona(): void {
+    const sairam = estado.equipamento.ajustarAZona(estado.mapa);
+    for (const id of sairam) {
+      const arma = comportamentoDe(id)?.arma;
+      if (arma) estado.armas.descarregar(arma, estado.inventario);
+    }
+    estado.equipamento.sincronizarCom((id) => estado.inventario.contar(id));
+    if (sairam.length > 0) {
+      const nomes = sairam.map((id) => ITENS[id]?.nome ?? id).join(', ');
+      this.ui.avisoRapido(`Guardou na mochila: ${nomes}.`);
+    }
+  }
+
+  /**
+   * true quando o clique esquerdo esta servindo pra ATIRAR.
+   *
+   * A UIScene consulta antes de tratar o clique como "interagir": sem isso, cada
+   * tiro tambem abriria a porta ou a placa que estivesse no alcance.
+   */
+  mirandoComArma(): boolean {
+    return this.armaEquipada() !== null && !this.ui.bloqueado && !this.mapaAberto;
+  }
+
+  /** A arma de fogo na mao, e so quando o mapa aceita tiro. */
+  private armaEquipada(): ReturnType<typeof buscarArma> {
+    if (!zonaPerigosa(estado.mapa)) return null;
+    return buscarArma(comportamentoDe(estado.equipamento.naMao)?.arma);
+  }
+
+  /**
+   * Dano do golpe. Sem nada na mao sai o valor base — o corpo a corpo existe
+   * desde a leva anterior e continua existindo, senao todo save antigo perderia
+   * o unico ataque que tinha.
+   */
+  private danoDoGolpe(): number {
+    return comportamentoDe(estado.equipamento.naMao)?.danoCorpoACorpo ?? ATAQUE_DO_JOGADOR.dano;
+  }
+
+  /**
+   * Um disparo. `SistemaArmas` decide se ele sai (cadencia, recarga, carregador)
+   * e a camada da represa cuida do voo — aqui so se junta a boca do cano com o
+   * resultado.
+   */
+  private atirar(dx: number, dy: number): void {
+    const arma = this.armaEquipada();
+    if (!arma || !this.represa) return;
+    const r = estado.armas.disparar(arma.id, { x: dx, y: dy }, true);
+    if (!r.ok) {
+      // so o carregador vazio merece aviso: cadencia e recarga sao o normal do
+      // uso e avisar a cada quadro entupiria a tela
+      if (r.falha === 'sem_municao') {
+        const tem = estado.inventario.contar(arma.municao);
+        this.ui.avisoRapido(
+          tem > 0 ? 'Carregador vazio. R pra recarregar.' : 'Sem municao.',
+          UI.alerta,
+        );
+      }
+      return;
+    }
+    this.mao.piscarFogonete();
+    this.represa.lancarProjetil(r.tiro, this.mao.pontaDoCano(this.player, this.direcao));
+  }
+
+  private recarregarArma(): void {
+    const arma = this.armaEquipada();
+    if (!arma) return;
+    const r = estado.armas.recarregar(arma.id, estado.inventario);
+    if (r.ok) {
+      this.ui.avisoRapido(`Recarregou ${r.carregou} cartucho(s).`, UI.sucesso);
+      return;
+    }
+    if (r.falha === 'sem_municao') this.ui.avisoRapido('Nao ha municao na mochila.', UI.alerta);
+    else if (r.falha === 'cheio') this.ui.avisoRapido('O carregador ja esta cheio.');
+  }
+
+  /**
+   * EQUIPAR pela UI. A cena e quem responde porque a regra depende do MAPA, e
+   * mapa e assunto de cena.
+   */
+  equiparItem(id: string): void {
+    if (estado.inventario.contar(id) <= 0) return;
+    const r = estado.equipamento.equipar(id, estado.mapa);
+    if (!r.ok) {
+      this.ui.avisoRapido(r.aviso ?? 'Nao da pra equipar isso.', UI.alerta);
+      return;
+    }
+    this.ui.avisoRapido(`Equipou ${ITENS[id]?.nome ?? id}.`, UI.sucesso);
+  }
+
+  desequiparItem(id: string): void {
+    const slot = estado.equipamento.desequiparItem(id);
+    if (!slot) return;
+    const arma = comportamentoDe(id)?.arma;
+    if (arma) estado.armas.descarregar(arma, estado.inventario);
+    this.ui.avisoRapido(`Guardou ${ITENS[id]?.nome ?? id}.`);
+  }
+
+  /**
+   * USAR um item. Devolve true quando o uso GASTOU uma unidade — e a UI que
+   * remove do slot, porque so ela sabe de que slot o item saiu.
+   */
+  usarItemDoInventario(id: string): { ok: boolean; consumiu: boolean; aviso: string; cor?: string } {
+    const c = comportamentoDe(id);
+    const nome = ITENS[id]?.nome ?? id;
+    if (!c?.acao) return { ok: false, consumiu: false, aviso: `${nome} nao se usa.`, cor: UI.alerta };
+    switch (c.acao.tipo) {
+      case 'curar': {
+        if (estado.vida.cheio) {
+          return { ok: false, consumiu: false, aviso: 'Voce esta sem nenhum ferimento.' };
+        }
+        const curou = estado.vida.curar(c.acao.quantidade);
+        return {
+          ok: true,
+          consumiu: !!c.consumivel,
+          aviso: `${nome}: +${curou} de vida.`,
+          cor: UI.sucesso,
+        };
+      }
+      case 'recarregar': {
+        const arma = buscarArma(comportamentoDe(estado.equipamento.naMao)?.arma);
+        if (!arma) {
+          return { ok: false, consumiu: false, aviso: 'Nenhuma arma na mao.', cor: UI.alerta };
+        }
+        const r = estado.armas.recarregar(arma.id, estado.inventario);
+        return r.ok
+          ? { ok: true, consumiu: false, aviso: `Recarregou ${r.carregou}.`, cor: UI.sucesso }
+          : { ok: false, consumiu: false, aviso: 'Nao deu pra recarregar.', cor: UI.alerta };
+      }
+      case 'alternar_luz': {
+        if (!estado.equipamento.estaEquipado(id)) {
+          return { ok: false, consumiu: false, aviso: 'Equipe a lanterna primeiro.', cor: UI.alerta };
+        }
+        const acesa = estado.equipamento.alternarLanterna();
+        return { ok: true, consumiu: false, aviso: acesa ? 'Lanterna acesa.' : 'Lanterna apagada.' };
+      }
+      case 'ler':
+        return { ok: true, consumiu: false, aviso: c.detalhe ?? ITENS[id]?.descricao ?? nome };
+    }
+  }
+
   private criarCamadaDaRepresa(map: Phaser.Tilemaps.Tilemap): void {
     if (!naRepresa(estado.mapa)) return;
     this.represa = new CamadaRepresa(this, this.tamanhoTile, {

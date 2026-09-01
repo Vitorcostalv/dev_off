@@ -98,6 +98,21 @@ export class BootScene extends Phaser.Scene {
     this.load.json('mobilia', 'assets/sprites/mobilia.json');
 
     this.load.image('player-idle-sprites', 'assets/sprites/player_sprites.png');
+    // Folha GENERICA de segurar item, ja regravada na geometria das outras tres
+    // por tools/processar-sprites-jogador.mjs — mesma celula de 200x320, mesmo
+    // centro, mesmos pes. O par dela e `maos_jogador.json`, com o ponto de
+    // presa medido em cada pose.
+    this.load.image('player-hold-sprites', 'assets/sprites/player_segurando_runtime.png');
+    this.load.json('maos-jogador', 'assets/sprites/maos_jogador.json');
+    // O que o jogador SEGURA e o que ele DISPARA, mais as lampadas da usina.
+    // Atlas a parte do de icone (`itens`) porque estes sao sprites de mundo e
+    // precisam de ponto de ancoragem — ver tools/gerar-equipamento.mjs.
+    this.load.atlas(
+      'equipamento',
+      'assets/sprites/equipamento.png',
+      'assets/sprites/equipamento.atlas.json',
+    );
+    this.load.json('equipamento-ancoras', 'assets/sprites/equipamento.ancoras.json');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
     for (const npc of [...Object.values(NPCS), ...Object.values(MORADORES)]) {
@@ -119,6 +134,7 @@ export class BootScene extends Phaser.Scene {
     this.criarFramesPlayer('idle');
     this.criarFramesPlayer('walk');
     this.criarFramesPlayer('run');
+    this.criarFramesDeSegurar();
     this.criarAnimacoes();
     this.criarSpritesNpcs();
     this.criarSpritesMonstros();
@@ -159,6 +175,12 @@ export class BootScene extends Phaser.Scene {
     estado.cidade.restaurar(save.cidade);
     estado.vida.restaurar(save.vida);
     estado.represa.restaurar(save.represa);
+    estado.equipamento.restaurar(save.equipamento);
+    estado.armas.restaurar(save.armas);
+    // O item pode ter saido do inventario por outro caminho (venda, descarte)
+    // entre gravar e carregar; sem esta linha o save traria uma arma equipada
+    // que nao esta mais na mochila.
+    estado.equipamento.sincronizarCom((id) => estado.inventario.contar(id));
     estado.itensColetados = new Set(
       Array.isArray(save.itensColetados)
         ? save.itensColetados.filter((id): id is string => typeof id === 'string')
@@ -170,6 +192,31 @@ export class BootScene extends Phaser.Scene {
         ` ${estado.carteira.texto}`,
     );
     return { mapa: mapa.chave, x: save.x, y: save.y };
+  }
+
+  /**
+   * Recortes da folha de SEGURAR. Diferente das outras tres do jogador, esta ja
+   * vem em grade uniforme (o processador a regravou assim), entao o recorte e
+   * uma multiplicacao — nao ha coluna medida a mao aqui.
+   *
+   * A ordem das LINHAS e a mesma do `PLAYER_RECORTE`: baixo, esquerda, direita,
+   * cima.
+   */
+  private criarFramesDeSegurar(): void {
+    const textura = this.textures.get('player-hold-sprites');
+    const linhas = ['down', 'left', 'right', 'up'];
+    linhas.forEach((direcao, linha) => {
+      for (let coluna = 0; coluna < 4; coluna++) {
+        textura.add(
+          `${direcao}-${coluna}`,
+          0,
+          coluna * PLAYER_FRAME.largura,
+          linha * PLAYER_FRAME.altura,
+          PLAYER_FRAME.largura,
+          PLAYER_FRAME.altura,
+        );
+      }
+    });
   }
 
   private criarAnimacoes(): void {
@@ -198,6 +245,20 @@ export class BootScene extends Phaser.Scene {
       this.anims.create({
         key: `idle-${key}`,
         frames: [{ key: PLAYER_RECORTE.idle.textura, frame: `${key}-0` }],
+        frameRate: 1,
+      });
+      // As mesmas duas na folha de SEGURAR. Nao ha `seg-run`: correr segurando
+      // uma pistola nao tem arte, e a cena cai em `seg-walk` (ver
+      // `MaoDoJogador.animacaoDoCorpo`).
+      this.anims.create({
+        key: `seg-walk-${key}`,
+        frames: [0, 1, 2, 3].map((i) => ({ key: 'player-hold-sprites', frame: `${key}-${i}` })),
+        frameRate: 8,
+        repeat: -1,
+      });
+      this.anims.create({
+        key: `seg-idle-${key}`,
+        frames: [{ key: 'player-hold-sprites', frame: `${key}-0` }],
         frameRate: 1,
       });
     }

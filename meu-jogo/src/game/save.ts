@@ -7,6 +7,8 @@ import type { DadosMissoesNpc } from './missoesNpc.ts';
 import type { DadosCidade } from './cidade.ts';
 import type { DadosVida } from './vida.ts';
 import type { DadosRepresa } from './represa.ts';
+import type { DadosEquipamento } from './equipar.ts';
+import type { DadosArmas } from './armas.ts';
 
 const CHAVE = 'meu-jogo:save';
 // 2: o tile passou de 16 pra 32 px, entao x/y gravados na versao 1 apontam
@@ -82,6 +84,14 @@ export interface DadosSave {
    * save antigo, e ai a corrida comeca zerada.
    */
   represa?: DadosRepresa;
+  /**
+   * O que esta equipado, por slot. Campo NOVO e ADITIVO: save antigo chega sem
+   * ele e `SistemaEquipamento.restaurar` devolve os tres slots vazios, que e o
+   * estado certo pra quem nunca achou a pistola.
+   */
+  equipamento?: DadosEquipamento;
+  /** cartuchos no carregador de cada arma; ausente = carregador vazio */
+  armas?: DadosArmas;
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

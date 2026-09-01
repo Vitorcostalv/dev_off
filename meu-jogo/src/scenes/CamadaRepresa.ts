@@ -10,6 +10,8 @@ import {
 } from '../game/inimigos';
 import type { DefinicaoInimigo, EstadoRuntimeInimigo } from '../game/inimigos';
 import { FLAG_LANTERNA, RAIO_DE_LUZ, naRepresa, setorDaRepresa } from '../game/represa';
+import { avancarProjetil } from '../game/armas';
+import type { EstadoProjetil, Tiro } from '../game/armas';
 import { buscarTabelaDeSucata, sortearSucata } from '../game/sucata';
 import type { Direcao } from '../game/tipos';
 
@@ -39,6 +41,12 @@ const VINHETA = { lado: 384, raioLuz: 0.18, raioCheio: 0.34 };
 
 /** Duracao do piscar do jogador ao tomar dano, em ms. */
 const PISCAR_MS = 180;
+
+/** Um projetil em voo: a regra em `armas.ts`, o sprite aqui. */
+interface ProjetilVisual {
+  runtime: EstadoProjetil;
+  sprite: Phaser.GameObjects.Image;
+}
 
 interface InimigoVisual {
   runtime: EstadoRuntimeInimigo;
@@ -73,6 +81,10 @@ export class CamadaRepresa {
   /** ms restantes da recarga do golpe */
   private recargaGolpe = 0;
   private arcoDoGolpe: Phaser.GameObjects.Graphics | null = null;
+
+  private projeteis: ProjetilVisual[] = [];
+  /** contador so pra dar id unico a cada projetil */
+  private tirosDados = 0;
 
   constructor(cena: Phaser.Scene, tamanhoTile: number, deps: DependenciasCamada) {
     this.cena = cena;
@@ -216,6 +228,8 @@ export class CamadaRepresa {
   destruir(): void {
     for (const i of this.inimigos) i.sprite.destroy();
     this.inimigos = [];
+    for (const p of this.projeteis) p.sprite.destroy();
+    this.projeteis = [];
     this.vinheta?.destroy();
     this.vinheta = null;
     this.luzes?.destroy();
@@ -244,6 +258,94 @@ export class CamadaRepresa {
       return;
     }
     this.atualizarInimigos(deltaMs, player);
+    this.atualizarProjeteis(deltaMs);
+  }
+
+  // ------------------------------------------------------------- projeteis --
+  /**
+   * Cria o sprite de um projetil ja decidido por `SistemaArmas.disparar`.
+   *
+   * `origem` vem em PIXELS (a boca do cano, calculada por `MaoDoJogador`) e e
+   * convertida em tiles aqui: a regra do projetil trabalha em tiles porque e
+   * ela que consulta a colisao do tilemap.
+   */
+  lancarProjetil(tiro: Tiro, origem: { x: number; y: number }): void {
+    const t = this.tamanhoTile;
+    this.tirosDados += 1;
+    const runtime = estado.armas.criarProjetil(
+      tiro,
+      { x: origem.x / t, y: origem.y / t },
+      `tiro_${this.tirosDados}`,
+    );
+    const sprite = this.cena.add
+      .image(origem.x, origem.y, 'equipamento', tiro.arma.frameProjetil)
+      .setDepth(89500);
+    const escala = (tiro.arma.alturaProjetil * t) / sprite.height;
+    sprite.setScale(escala);
+    sprite.setRotation(Math.atan2(runtime.dy, runtime.dx));
+    this.projeteis.push({ runtime, sprite });
+  }
+
+  private atualizarProjeteis(deltaMs: number): void {
+    if (this.projeteis.length === 0) return;
+    const t = this.tamanhoTile;
+    const vivos: ProjetilVisual[] = [];
+    for (const p of this.projeteis) {
+      const fim = avancarProjetil(p.runtime, deltaMs, (tx, ty) => this.deps.tileBloqueado(tx, ty));
+      // Acerto em INIMIGO antes de olhar parede: um bicho encostado na alvenaria
+      // tem de poder ser baleado, e a ordem inversa fazia o tiro morrer no tile
+      // da parede atras dele.
+      const alvo = this.inimigoEm(p.runtime.x, p.runtime.y);
+      if (alvo) {
+        const r = ferirInimigo(alvo.runtime, alvo.def, p.runtime.dano);
+        if (r.aplicado > 0) {
+          const arma = p.runtime.arma;
+          const empurrao = arma === 'pistola' ? 3 : 2;
+          alvo.sprite.setVelocity(p.runtime.dx * empurrao * t, p.runtime.dy * empurrao * t);
+          if (r.morreu) this.derrubar(alvo);
+        }
+        this.faiscaDeImpacto(p.runtime.x * t, p.runtime.y * t);
+        p.sprite.destroy();
+        continue;
+      }
+      if (fim.tipo !== 'voando') {
+        if (fim.tipo === 'parede') this.faiscaDeImpacto(p.runtime.x * t, p.runtime.y * t);
+        p.sprite.destroy();
+        continue;
+      }
+      p.sprite.setPosition(p.runtime.x * t, p.runtime.y * t);
+      vivos.push(p);
+    }
+    this.projeteis = vivos;
+  }
+
+  /** O inimigo vivo cujo corpo contem o ponto (em TILES), ou null. */
+  private inimigoEm(tx: number, ty: number): InimigoVisual | null {
+    const t = this.tamanhoTile;
+    for (const alvo of this.inimigos) {
+      if (alvo.runtime.hp <= 0 || !alvo.sprite.active) continue;
+      const meiaL = (alvo.sprite.displayWidth * 0.34) / t;
+      const meiaA = (alvo.sprite.displayHeight * 0.3) / t;
+      const cx = alvo.sprite.x / t;
+      const cy = alvo.sprite.y / t - meiaA * 0.4;
+      if (Math.abs(tx - cx) <= meiaL && Math.abs(ty - cy) <= meiaA) return alvo;
+    }
+    return null;
+  }
+
+  /** Faisca curta no ponto de impacto — o unico retorno de que a bala chegou. */
+  private faiscaDeImpacto(x: number, y: number): void {
+    const g = this.cena.add.graphics().setDepth(89600);
+    g.setBlendMode(Phaser.BlendModes.ADD);
+    g.fillStyle(0xffe0a0, 0.85);
+    g.fillCircle(x, y, this.tamanhoTile * 0.16);
+    this.cena.tweens.add({
+      targets: g,
+      alpha: 0,
+      scale: 1.8,
+      duration: 150,
+      onComplete: () => g.destroy(),
+    });
   }
 
   private atualizarEscuridao(deltaMs: number, player: Phaser.Physics.Arcade.Sprite): void {
@@ -352,7 +454,13 @@ export class CamadaRepresa {
    * em volta dele: girar e bater teria de acertar quem esta atras, o que faria o
    * combate virar "encoste e segure". Devolve quantos inimigos foram atingidos.
    */
-  atacar(player: Phaser.Physics.Arcade.Sprite, direcao: Direcao): number {
+  atacar(
+    player: Phaser.Physics.Arcade.Sprite,
+    direcao: Direcao,
+    // `number` explicito: `ATAQUE_DO_JOGADOR` e `as const`, entao inferir daria o
+    // tipo literal 4 e recusaria o dano da ferramenta equipada.
+    dano: number = ATAQUE_DO_JOGADOR.dano,
+  ): number {
     if (!naRepresa(estado.mapa)) return 0;
     if (this.recargaGolpe > 0 || this.golpeAtivo > 0) return 0;
     this.golpeAtivo = ATAQUE_DO_JOGADOR.duracao;
@@ -381,7 +489,7 @@ export class CamadaRepresa {
         Math.abs(alvo.sprite.x - centro.x) <= largura / 2 + alvo.sprite.displayWidth * 0.2 &&
         Math.abs(alvo.sprite.y - centro.y) <= altura / 2 + alvo.sprite.displayHeight * 0.2;
       if (!dentro) continue;
-      const r = ferirInimigo(alvo.runtime, alvo.def, ATAQUE_DO_JOGADOR.dano);
+      const r = ferirInimigo(alvo.runtime, alvo.def, dano);
       if (r.aplicado <= 0) continue;
       atingidos += 1;
       // empurrao no inimigo: mesma razao do empurrao no jogador

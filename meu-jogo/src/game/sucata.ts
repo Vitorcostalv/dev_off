@@ -28,6 +28,19 @@ interface EntradaSucata {
   valor: number;
   icone: number;
   maxPilha: number;
+  /**
+   * Endereco da peca na folha `itens_represa_v2.png`, quando o salvado tem arte
+   * propria. Ausente = a UI desenha o retangulo colorido de `icone`, como
+   * sempre fez.
+   *
+   * Dez dos quinze tem. Os CINCO de fora — parafusos, sensor, rele, placa
+   * especializada e componente inclassificavel — nao tem peca que os
+   * represente sem mentir: a folha nao traz sensor industrial nem rele de
+   * potencia, e as duas pecas raras sao inclassificaveis de proposito (a
+   * descricao delas diz que nao ha marcacao nenhuma). Icone de cor e mais
+   * honesto que reciclar o desenho de outra coisa.
+   */
+  peca?: readonly [number, number];
 }
 
 /**
@@ -45,35 +58,35 @@ interface EntradaSucata {
  */
 const ENTRADAS: readonly EntradaSucata[] = [
   // ------------------------------------------------------------- comum --
-  { id: 'ferro_velho', nome: 'Ferro-velho', raridade: 'comum', valor: 300, icone: 0x8a8f94, maxPilha: 99,
+  { id: 'ferro_velho', nome: 'Ferro-velho', raridade: 'comum', valor: 300, icone: 0x8a8f94, maxPilha: 99, peca: [9, 19],
     descricao: 'Chapa e cantoneira retorcidas. Vende por peso, nao por peca.' },
-  { id: 'fio_de_cobre', nome: 'Fio de Cobre', raridade: 'comum', valor: 700, icone: 0xc07a44, maxPilha: 99,
+  { id: 'fio_de_cobre', nome: 'Fio de Cobre', raridade: 'comum', valor: 700, icone: 0xc07a44, maxPilha: 99, peca: [9, 16],
     descricao: 'Rolo de cobre descascado da fiacao da usina. O que mais paga entre as sucatas.' },
-  { id: 'cabo_velho', nome: 'Cabo Velho', raridade: 'comum', valor: 400, icone: 0x5d5f63, maxPilha: 99,
+  { id: 'cabo_velho', nome: 'Cabo Velho', raridade: 'comum', valor: 400, icone: 0x5d5f63, maxPilha: 99, peca: [5, 3],
     descricao: 'Cabo blindado, capa rachada, condutor inteiro. Da pra reaproveitar em bancada.' },
   { id: 'parafusos', nome: 'Parafusos Sortidos', raridade: 'comum', valor: 200, icone: 0xa9aeb3, maxPilha: 99,
     descricao: 'Um punhado de parafuso, porca e arruela. Nunca do tamanho que voce precisa.' },
-  { id: 'conector_danificado', nome: 'Conector Danificado', raridade: 'comum', valor: 500, icone: 0x7f6b8f, maxPilha: 99,
+  { id: 'conector_danificado', nome: 'Conector Danificado', raridade: 'comum', valor: 500, icone: 0x7f6b8f, maxPilha: 99, peca: [5, 5],
     descricao: 'Conector industrial com pino torto. Serve pra estudar o pinout.' },
   // ----------------------------------------------------------- incomum --
-  { id: 'placa_de_circuito', nome: 'Placa de Circuito', raridade: 'incomum', valor: 2600, icone: 0x3f8f5f, maxPilha: 30,
+  { id: 'placa_de_circuito', nome: 'Placa de Circuito', raridade: 'incomum', valor: 2600, icone: 0x3f8f5f, maxPilha: 30, peca: [5, 10],
     descricao: 'Placa de controle antiga, trilha oxidada. Tem componente aproveitavel.' },
-  { id: 'motor_pequeno', nome: 'Motor Pequeno', raridade: 'incomum', valor: 3400, icone: 0x6a707a, maxPilha: 30,
+  { id: 'motor_pequeno', nome: 'Motor Pequeno', raridade: 'incomum', valor: 3400, icone: 0x6a707a, maxPilha: 30, peca: [5, 12],
     descricao: 'Motor de atuador de comporta. Gira quando se ajuda com a mao.' },
   { id: 'sensor_industrial', nome: 'Sensor Industrial', raridade: 'incomum', valor: 2900, icone: 0x4f9fbf, maxPilha: 30,
     descricao: 'Sensor de nivel com a carcaca trincada. A eletronica parece intacta.' },
-  { id: 'fonte_chaveada', nome: 'Fonte Chaveada', raridade: 'incomum', valor: 3800, icone: 0xbf8f3f, maxPilha: 30,
+  { id: 'fonte_chaveada', nome: 'Fonte Chaveada', raridade: 'incomum', valor: 3800, icone: 0xbf8f3f, maxPilha: 30, peca: [5, 4],
     descricao: 'Fonte de painel, capacitor estufado. Trocando os capacitores, volta.' },
-  { id: 'bateria_selada', nome: 'Bateria Selada', raridade: 'incomum', valor: 2200, icone: 0xd0b040, maxPilha: 30,
+  { id: 'bateria_selada', nome: 'Bateria Selada', raridade: 'incomum', valor: 2200, icone: 0xd0b040, maxPilha: 30, peca: [4, 6],
     descricao: 'Bateria de emergencia da usina. Ainda segura carga por alguns minutos.' },
   { id: 'rele_industrial', nome: 'Rele Industrial', raridade: 'incomum', valor: 1800, icone: 0x9a5f4f, maxPilha: 30,
     descricao: 'Rele de contato de potencia. Clica firme, o que e bom sinal.' },
   // -------------------------------------------------------------- raro --
-  { id: 'modulo_de_controle', nome: 'Modulo de Controle', raridade: 'raro', valor: 18000, icone: 0x3f6fbf, maxPilha: 10,
+  { id: 'modulo_de_controle', nome: 'Modulo de Controle', raridade: 'raro', valor: 18000, icone: 0x3f6fbf, maxPilha: 10, peca: [5, 14],
     descricao: 'Modulo intacto, ainda lacrado na embalagem antiestatica. Nao devia estar aqui.' },
   { id: 'placa_especializada', nome: 'Placa Especializada', raridade: 'raro', valor: 22000, icone: 0x6f4fbf, maxPilha: 10,
     descricao: 'Placa sem serigrafia de fabricante e com trilha que nao segue norma nenhuma.' },
-  { id: 'processador_antigo', nome: 'Processador Antigo', raridade: 'raro', valor: 15000, icone: 0xcfae5f, maxPilha: 10,
+  { id: 'processador_antigo', nome: 'Processador Antigo', raridade: 'raro', valor: 15000, icone: 0xcfae5f, maxPilha: 10, peca: [5, 15],
     descricao: 'Encapsulamento ceramico, pinos dourados. Colecionador paga mais que sucateiro.' },
   { id: 'componente_incomum', nome: 'Componente Inclassificavel', raridade: 'raro', valor: 28000, icone: 0xbf4f7f, maxPilha: 10,
     descricao: 'Nao ha marcacao, nao ha datasheet, e ele esquenta sozinho. Guarde com cuidado.' },
@@ -125,6 +138,12 @@ export const ITENS_DE_SUCATA: readonly DefinicaoItemLoja[] = ENTRADAS.map((e) =>
   maxPilha: e.maxPilha,
   preco: e.valor,
   icone: e.icone,
+  // O nome do frame e escrito aqui em vez de vir de `frameDoItem` de proposito:
+  // `itens.ts` JA importa este arquivo (por `PRECOS_DE_SUCATA`), e importar de
+  // volta fecharia um ciclo em que `ITENS_DE_SUCATA` seria avaliado com o
+  // `const frameDoItem` ainda na zona morta. A conferencia de inventario compara
+  // os dois lados, entao um divergir do outro reprova.
+  ...(e.peca ? { folha: 'represa' as const, peca: e.peca, frame: `item_${e.id}` } : {}),
 }));
 
 // ------------------------------------------------------------- tabelas --

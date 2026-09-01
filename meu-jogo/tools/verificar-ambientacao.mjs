@@ -21,7 +21,28 @@ for (const material of MATERIAIS) {
 const madeireira = buscarLoja('loja_madeireira');
 const pedreira = buscarLoja('loja_pedreira');
 conferir(Boolean(madeireira && pedreira), 'faltou ponto de venda rural');
-conferir(itensDaLoja(madeireira).map((i) => i.id).join(',') === 'madeira,concreto', 'oferta da madeireira incorreta');
+// A madeireira passou a vender FERRAMENTA e MUNICAO junto com o material — ela
+// tambem e casa agropecuaria. A conferencia continua exigindo os dois materiais
+// na frente da lista (a ordem sai das `categorias` do ponto) e agora cobra que a
+// pistola e o cartao de acesso NAO estejam a venda: os dois sao da mesma
+// categoria `utilidade` e sao achados na usina, nao comprados.
+const ofertaMadeireira = itensDaLoja(madeireira).map((i) => i.id);
+conferir(ofertaMadeireira.slice(0, 2).join(',') === 'madeira,concreto', 'oferta da madeireira incorreta');
+conferir(
+  ofertaMadeireira.slice(2).join(',') === 'chave_inglesa,lanterna_manutencao,municao_pistola',
+  'a prateleira de utilidade da madeireira mudou',
+);
+for (const proibido of ['pistola', 'cartao_acesso_usina']) {
+  conferir(!ofertaMadeireira.includes(proibido), `${proibido} nao pode estar a venda`);
+}
+const farmacia = buscarLoja('loja_farmacia');
+conferir(Boolean(farmacia), 'faltou o ponto de venda da farmacia');
+conferir(
+  itensDaLoja(farmacia).map((i) => i.id).join(',')
+    === 'kit_primeiros_socorros,analgesico,energetico',
+  'oferta da farmacia incorreta',
+);
+conferir(farmacia.npcDono === 'wendel', 'a farmacia devia dar desconto por relacao com o Wendel');
 conferir(itensDaLoja(pedreira).map((i) => i.id).join(',') === 'pedra,concreto', 'oferta da pedreira incorreta');
 
 for (const expansao of EXPANSOES) {

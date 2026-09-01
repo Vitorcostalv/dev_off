@@ -51,6 +51,24 @@ const FOLHAS_DE_ITEM = {
     fundo: { cor: [26, 30, 35], tolerancia: 16 },
     descartarTarja: true,
   },
+  /**
+   * A folha de sobrevivencia e eletronica da represa: 180 pecas em 10 linhas.
+   *
+   * Ela PARECE ter fundo (um degrade colorido por tras das pecas), e nao tem: o
+   * degrade esta todo em alfa 1, que fica abaixo do limiar de 16 do detector.
+   * Nao precisa de `removerFundoDeCor` — a primeira tentativa passou por lá e o
+   * resultado foi apagar a lateral escura de metade das pecas.
+   *
+   * Das 180, o catalogo usa 18 (8 de utilidade e remedio, 10 de icone de
+   * salvado). O resto fica sem uso de proposito: peca de arte nao vira item so
+   * porque existe.
+   */
+  represa: {
+    arquivo: 'itens_represa_v2.png',
+    areaMinima: 400,
+    tolerancia: 50,
+    linhas: 10,
+  },
 };
 
 /** Altura maxima de uma tarja de titulo, em px, e o quanto ela e mais larga que alta. */

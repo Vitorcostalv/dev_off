@@ -1,0 +1,214 @@
+{
+ "frames": {
+  "mao_pistola_disparo": {
+   "frame": {
+    "x": 2,
+    "y": 2,
+    "w": 638,
+    "h": 375
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 638,
+    "h": 375
+   },
+   "sourceSize": {
+    "w": 638,
+    "h": 375
+   }
+  },
+  "mao_pistola": {
+   "frame": {
+    "x": 642,
+    "y": 2,
+    "w": 469,
+    "h": 367
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 469,
+    "h": 367
+   },
+   "sourceSize": {
+    "w": 469,
+    "h": 367
+   }
+  },
+  "carregador_pistola": {
+   "frame": {
+    "x": 1113,
+    "y": 2,
+    "w": 150,
+    "h": 228
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 150,
+    "h": 228
+   },
+   "sourceSize": {
+    "w": 150,
+    "h": 228
+   }
+  },
+  "lampada_gaiola": {
+   "frame": {
+    "x": 1265,
+    "y": 2,
+    "w": 76,
+    "h": 207
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 76,
+    "h": 207
+   },
+   "sourceSize": {
+    "w": 76,
+    "h": 207
+   }
+  },
+  "lampada_pendente": {
+   "frame": {
+    "x": 1343,
+    "y": 2,
+    "w": 74,
+    "h": 190
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 74,
+    "h": 190
+   },
+   "sourceSize": {
+    "w": 74,
+    "h": 190
+   }
+  },
+  "mao_chave_inglesa": {
+   "frame": {
+    "x": 1419,
+    "y": 2,
+    "w": 62,
+    "h": 96
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 62,
+    "h": 96
+   },
+   "sourceSize": {
+    "w": 62,
+    "h": 96
+   }
+  },
+  "mao_lanterna": {
+   "frame": {
+    "x": 1483,
+    "y": 2,
+    "w": 97,
+    "h": 81
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 97,
+    "h": 81
+   },
+   "sourceSize": {
+    "w": 97,
+    "h": 81
+   }
+  },
+  "lampada_teto": {
+   "frame": {
+    "x": 1582,
+    "y": 2,
+    "w": 107,
+    "h": 76
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 107,
+    "h": 76
+   },
+   "sourceSize": {
+    "w": 107,
+    "h": 76
+   }
+  },
+  "lampada_tubular": {
+   "frame": {
+    "x": 1691,
+    "y": 2,
+    "w": 185,
+    "h": 63
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 185,
+    "h": 63
+   },
+   "sourceSize": {
+    "w": 185,
+    "h": 63
+   }
+  },
+  "projetil_pistola": {
+   "frame": {
+    "x": 1878,
+    "y": 2,
+    "w": 98,
+    "h": 50
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 98,
+    "h": 50
+   },
+   "sourceSize": {
+    "w": 98,
+    "h": 50
+   }
+  }
+ },
+ "meta": {
+  "app": "gerar-equipamento.mjs",
+  "image": "equipamento.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1978,
+   "h": 379
+  },
+  "scale": "1"
+ }
+}

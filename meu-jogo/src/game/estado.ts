@@ -14,6 +14,8 @@ import { buscarMorador } from './moradores.ts';
 import { acoesDeAtividades } from './npcs.ts';
 import { SistemaVida } from './vida.ts';
 import { SistemaRepresa } from './represa.ts';
+import { SistemaEquipamento } from './equipar.ts';
+import { SistemaArmas } from './armas.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
@@ -54,6 +56,10 @@ export const estado = {
   vida: new SistemaVida(),
   /** corrida atual dentro da represa: tempo dentro, tensao e salvado recolhido */
   represa: new SistemaRepresa(),
+  /** o que esta na mao e no cinto do jogador */
+  equipamento: new SistemaEquipamento(),
+  /** carregador, cadencia e recarga das armas de fogo */
+  armas: new SistemaArmas(),
 };
 
 /**
