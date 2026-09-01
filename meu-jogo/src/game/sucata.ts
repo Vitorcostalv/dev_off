@@ -100,6 +100,12 @@ export function raridadeDeSucata(id: string): RaridadeSucata | null {
   return POR_ID.get(id)?.raridade ?? null;
 }
 
+/** Marca curta de raridade, pro rotulo da revenda ler sem ocupar a linha. */
+export function marcaDeRaridade(id: string): string {
+  const raridade = raridadeDeSucata(id);
+  return raridade === 'raro' ? '***' : raridade === 'incomum' ? '**' : '*';
+}
+
 /** Valor de referencia do salvado, em centavos. */
 export function valorDeSucata(id: string): number {
   return POR_ID.get(id)?.valor ?? 0;

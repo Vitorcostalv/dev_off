@@ -24,8 +24,6 @@
  *    `PERDA_POR_DERROTA` e o comentario dela.
  */
 
-import type { ValorWorldEvent } from './worldEvents.ts';
-
 // --------------------------------------------------------------- setores --
 export interface SetorRepresa {
   /** chave em MAPAS */
@@ -649,13 +647,4 @@ export function opcoesAtuais(progresso: ProgressoPainel): string[] {
   if (passo.tipo === 'codigo') return ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
   if (passo.tipo === 'peca') return [`Encaixar ${passo.nomeDoItem}`, 'Deixar pra depois'];
   return [...passo.opcoes];
-}
-
-/** Todas as flags que um painel concluido escreve, pro save conferir. */
-export function flagsConcluidas(worldEvents: {
-  ativa(chave: string): boolean;
-}): Record<string, ValorWorldEvent> {
-  const saida: Record<string, ValorWorldEvent> = {};
-  for (const flag of FLAGS_DA_REPRESA) if (worldEvents.ativa(flag)) saida[flag] = true;
-  return saida;
 }

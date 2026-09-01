@@ -1,9 +1,7 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
-import { UI } from '../game/config';
 import {
   ATAQUE_DO_JOGADOR,
-  CATALOGO_INIMIGOS,
   EMPURRAO_DO_INIMIGO,
   buscarInimigo,
   criarRuntimeInimigo,
@@ -55,8 +53,6 @@ export interface DependenciasCamada {
   tileBloqueado(tx: number, ty: number): boolean;
   /** escuridao do tile, 0 a 1 (vem dos comodos do tilemap) */
   escuridaoNoTile(tx: number, ty: number): number;
-  /** mostra uma fala curta na caixa de dialogo */
-  falar(linhas: string[], nome?: string): void;
   /** chamado quando a vida chega a zero */
   aoSerDerrotado(): void;
 }
@@ -87,10 +83,6 @@ export class CamadaRepresa {
   /** true quando o jogador esta preso na animacao do golpe (nao anda). */
   get atacando(): boolean {
     return this.golpeAtivo > 0;
-  }
-
-  get temInimigos(): boolean {
-    return this.inimigos.some((i) => i.runtime.hp > 0);
   }
 
   /** Inimigos vivos, pra colisao e pra HUD. */
@@ -453,21 +445,4 @@ export class CamadaRepresa {
     }
     return saida;
   }
-
-  /** Rotulo de HUD do setor atual, ou null fora da usina. */
-  static rotuloDeSetor(): string | null {
-    const setor = setorDaRepresa(estado.mapa);
-    if (!setor) return null;
-    return `${setor.rotulo}  (nivel ${setor.nivel})`;
-  }
-
-  /** Cor do texto de tensao, pro aviso da HUD. */
-  static corDaTensao(tensao: number): string {
-    if (tensao < 0.34) return UI.textoFraco;
-    if (tensao < 0.67) return UI.destaque;
-    return UI.alerta;
-  }
 }
-
-/** Tipos de inimigo declarados no catalogo — usado pelo BootScene pra carregar. */
-export const IDS_DE_INIMIGO = Object.keys(CATALOGO_INIMIGOS);

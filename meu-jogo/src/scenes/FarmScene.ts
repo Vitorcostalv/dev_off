@@ -53,7 +53,14 @@ import {
   setorDaRepresa,
 } from '../game/represa';
 import type { ProgressoPainel } from '../game/represa';
-import { buscarTabelaDeSucata, ehSucata, precoDeRevenda, sortearSucata, venderSucata } from '../game/sucata';
+import {
+  buscarTabelaDeSucata,
+  ehSucata,
+  marcaDeRaridade,
+  precoDeRevenda,
+  sortearSucata,
+  venderSucata,
+} from '../game/sucata';
 import { ITENS_DE_LEITURA } from '../game/avisos';
 
 /**
@@ -2619,7 +2626,6 @@ export class FarmScene extends Phaser.Scene {
     this.represa = new CamadaRepresa(this, this.tamanhoTile, {
       tileBloqueado: (tx, ty) => this.tileBloqueado(tx, ty),
       escuridaoNoTile: (tx, ty) => this.escuridaoNoTile(tx, ty),
-      falar: (linhas, nome) => this.ui.iniciarDialogo(falasDe(nome ?? 'Usina', linhas)),
       aoSerDerrotado: () => this.serDerrotado(),
     });
     this.represa.montar(map, this.player);
@@ -2940,7 +2946,11 @@ export class FarmScene extends Phaser.Scene {
     }
 
     const opcoes = [...lotes].map(([id, qtd]) => ({
-      rotulo: `${ITENS[id]?.nome ?? id} x${qtd} — ${formatarDinheiro(precoDeRevenda(id, qtd))}`,
+      // a marca de raridade (*, **, ***) fica na frente: quem volta com dez
+      // lotes decide o que despachar primeiro sem abrir o inventario
+      rotulo:
+        `${marcaDeRaridade(id)} ${ITENS[id]?.nome ?? id} x${qtd}` +
+        ` — ${formatarDinheiro(precoDeRevenda(id, qtd))}`,
       aoEscolher: () => this.despacharSucata(id, qtd),
     }));
     this.ui.abrirMenu('Despachar qual lote?', opcoes);
