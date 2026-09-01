@@ -14,6 +14,13 @@ import { FOLHAS_DE_MOVEL } from '../src/game/moveis.ts';
 import { CATALOGO_MOBILIA } from '../src/game/casa.ts';
 import { PROJETOS_CIDADE } from '../src/game/cidade.ts';
 import {
+  ANDARES,
+  ANDARES_COMPOSTOS,
+  escuridaoDoAndar,
+  mapaDoAndar,
+} from '../src/game/andares.ts';
+import { plantasCompostas, DESCIDA_DO_ANDAR_5 } from './andares-represa.mjs';
+import {
   agruparEmLinhas,
   blobs,
   caixaOpaca,
@@ -4162,6 +4169,11 @@ const TIPO_DE_COMODO = {
   quadro_geral: 'oficina',
   camara: 'oficina',
   poco: 'oficina',
+  // --- comodos dos MODULOS dos andares compostos (6 a 50) ---
+  // O nome do comodo de um andar composto e `<modulo.comodo>_<indice>`, e
+  // `pecasDeCatalogo` corta o sufixo numerico antes de olhar aqui.
+  galeria: 'oficina',
+  eletrica: 'oficina',
 };
 
 // -------------------------------------------------- plantas multi-comodo --
@@ -6088,6 +6100,10 @@ const PLANTAS_REPRESA = {
   represa_0: {
     nivel: 0,
     rotulo: 'Casa de Forca — Nivel 0',
+    // A ESCURIDAO dos cinco autorais passou a sair da curva de cinquenta andares
+    // (`escuridaoDoAndar`). Eles ficaram mais claros do que eram: com 50 andares
+    // eles sao a introducao da descida, e nao o fim dela. A conferencia compara
+    // cada literal com a funcao e reprova se divergirem.
     escuridao: 0,
     parede: 'represa_faixa',
     paredePorComodo: { controle: 'represa_limpo', arquivo: 'represa_limpo' },
@@ -6179,7 +6195,7 @@ const PLANTAS_REPRESA = {
   represa_1: {
     nivel: -1,
     rotulo: 'Manutencao — Nivel -1',
-    escuridao: 0.18,
+    escuridao: 0.12,
     parede: 'represa_tecnico',
     paredePorComodo: { escada: 'represa_faixa' },
     chao: 'PISO_CONCRETO',
@@ -6198,7 +6214,7 @@ const PLANTAS_REPRESA = {
       corredor_manutencao: [1, 11, 27, 4],
       escada: [1, 17, 27, 4],
     },
-    escuridaoPorComodo: { escada: 0.1 },
+    escuridaoPorComodo: { escada: 0.09 },
     saidas: [
       { id: 'sobe_0', tx: 25, ty: 19, destino: 'represa_0', destinoTx: 25, destinoTy: 16, grelha: true, rotulo: 'Subir' },
       // descida normal: pelo ramo B
@@ -6274,7 +6290,7 @@ const PLANTAS_REPRESA = {
   represa_2: {
     nivel: -2,
     rotulo: 'Galeria das Turbinas — Nivel -2',
-    escuridao: 0.38,
+    escuridao: 0.1355,
     parede: 'represa_tubos',
     paredePorComodo: { bombas: 'represa_tecnico' },
     chao: 'PISO_CONCRETO_ESCURO',
@@ -6298,7 +6314,7 @@ const PLANTAS_REPRESA = {
       servico: [1, 13, 31, 3],
       bombas: [1, 18, 31, 3],
     },
-    escuridaoPorComodo: { servico: 0.52 },
+    escuridaoPorComodo: { servico: 0.2 },
     saidas: [
       { id: 'sobe_1', tx: 30, ty: 18, destino: 'represa_1', destinoTx: 25, destinoTy: 5, grelha: true, rotulo: 'Subir' },
       // ponta de baixo do atalho: existe dos dois lados desde sempre, e o que
@@ -6354,9 +6370,9 @@ const PLANTAS_REPRESA = {
       { id: 'camera_quebrada', tx: 2, ty: 15 },
     ],
     inimigos: [
-      { id: 'impressora_1', tipo: 'impressora', tx: 7, ty: 7, raio: 6 },
-      { id: 'impressora_2', tipo: 'impressora', tx: 27, ty: 7, raio: 6 },
-      { id: 'robo_1', tipo: 'robo_servico', tx: 18, ty: 20, raio: 7 },
+      { id: 'esfera_3a', tipo: 'esfera_choque', tx: 7, ty: 7, raio: 6 },
+      { id: 'esfera_3b', tipo: 'esfera_choque', tx: 27, ty: 7, raio: 6 },
+      { id: 'smart_3a', tipo: 'smartfone', tx: 18, ty: 20, raio: 7 },
     ],
     luzes: [
       { tx: 17, ty: 2, raio: 3 },
@@ -6375,7 +6391,7 @@ const PLANTAS_REPRESA = {
   represa_3: {
     nivel: -3,
     rotulo: 'Galerias Inferiores — Nivel -3',
-    escuridao: 0.6,
+    escuridao: 0.151,
     parede: 'represa_gasto',
     paredePorComodo: { quadro_geral: 'represa_tubos' },
     chao: 'PISO_CONCRETO_ESCURO',
@@ -6397,7 +6413,7 @@ const PLANTAS_REPRESA = {
       quadro_geral: [8, 11, 16, 4],
       galeria_sul: [1, 20, 30, 2],
     },
-    escuridaoPorComodo: { quadro_geral: 0.38, galeria_sul: 0.7 },
+    escuridaoPorComodo: { quadro_geral: 0.12, galeria_sul: 0.22 },
     saidas: [
       { id: 'sobe_2', tx: 16, ty: 21, destino: 'represa_2', destinoTx: 17, destinoTy: 4, grelha: true, rotulo: 'Subir' },
       // descida pro setor profundo: exige a comporta aberta (puzzle 5)
@@ -6443,10 +6459,10 @@ const PLANTAS_REPRESA = {
       { id: 'modificacao_estranha', tx: 3, ty: 21 },
     ],
     inimigos: [
-      { id: 'som_1', tipo: 'caixa_som', tx: 5, ty: 8, raio: 6 },
-      { id: 'som_2', tipo: 'caixa_som', tx: 28, ty: 16, raio: 6 },
-      { id: 'fone_1', tipo: 'smartfone', tx: 24, ty: 3, raio: 8 },
-      { id: 'lavar_1', tipo: 'maquina_lavar', tx: 12, ty: 21, raio: 5 },
+      { id: 'esfera_4a', tipo: 'esfera_choque', tx: 5, ty: 8, raio: 6 },
+      { id: 'smart_4a', tipo: 'smartfone', tx: 28, ty: 16, raio: 6 },
+      { id: 'smart_4b', tipo: 'smartfone', tx: 24, ty: 3, raio: 8 },
+      { id: 'esfera_4b', tipo: 'esfera_choque', tx: 12, ty: 21, raio: 5 },
     ],
     luzes: [
       { tx: 16, ty: 2, raio: 2 },
@@ -6467,7 +6483,7 @@ const PLANTAS_REPRESA = {
   represa_4: {
     nivel: -4,
     rotulo: 'Setor Profundo — Nivel -4',
-    escuridao: 0.8,
+    escuridao: 0.1665,
     parede: 'represa_escuro',
     paredePorComodo: { camara: 'represa_tubos' },
     chao: 'PISO_CONCRETO_ESCURO',
@@ -6480,11 +6496,19 @@ const PLANTAS_REPRESA = {
       camara: [1, 2, 25, 8],
       poco: [1, 12, 25, 6],
     },
-    escuridaoPorComodo: { camara: 0.7 },
+    escuridaoPorComodo: { camara: 0.14 },
     saidas: [
       { id: 'sobe_3', tx: 13, ty: 17, destino: 'represa_3', destinoTx: 16, destinoTy: 4, grelha: true, rotulo: 'Subir' },
       // ELEVADOR: atalho permanente pro nivel 0, liberado pelo puzzle profundo.
       { id: 'elevador_4', tx: 5, ty: 4, destino: 'represa_0', destinoTx: 3, destinoTy: 16, grelha: true, trancada: 'represaElevadorLiberado', rotulo: 'Elevador de servico' },
+      // DESCIDA PRO ANDAR 6 — a boca dos quarenta e cinco andares novos.
+      //
+      // Ela e travada pelo MESMO puzzle profundo que libera o elevador: quem
+      // restaura a placa mestre destranca as duas coisas. Era o fim da usina e
+      // passou a ser o meio dela; o texto do painel ja dizia que o terminal
+      // cuspia uma data de tres anos depois do desligamento, entao a continuacao
+      // nao contradiz nada do que estava escrito.
+      { id: 'desce_5', tx: 20, ty: 15, destino: 'represa_f06', destinoTx: 3, destinoTy: 17, grelha: true, trancada: 'represaPlacaRestaurada', rotulo: 'Descer' },
     ],
     mobilia: {
       camara: [
@@ -6518,10 +6542,14 @@ const PLANTAS_REPRESA = {
       { id: 'placa_fabricante', tx: 2, ty: 13 },
       { id: 'anotacao_final', tx: 22, ty: 17 },
     ],
+    // FAUNA rebalanceada pro capitulo 1. Os dois monstros mais pesados do jogo
+    // estavam aqui, no quinto de cinquenta andares — eles agora sao do capitulo
+    // 5, e este trecho passa a ter a especie de introducao. Ver `CAPITULOS` em
+    // src/game/andares.ts.
     inimigos: [
-      { id: 'gelo_1', tipo: 'geladeira_gelo', tx: 8, ty: 8, raio: 6 },
-      { id: 'lavar_2', tipo: 'maquina_lavar', tx: 20, ty: 8, raio: 6 },
-      { id: 'robo_2', tipo: 'robo_servico', tx: 14, ty: 15, raio: 7 },
+      { id: 'esfera_5a', tipo: 'esfera_choque', tx: 8, ty: 8, raio: 6 },
+      { id: 'smart_5a', tipo: 'smartfone', tx: 20, ty: 8, raio: 6 },
+      { id: 'esfera_5b', tipo: 'esfera_choque', tx: 14, ty: 15, raio: 7 },
     ],
     luzes: [
       { tx: 13, ty: 12, raio: 2 },
@@ -6544,6 +6572,26 @@ const PLANTAS_REPRESA = {
  *  3. `escuridao` gravada no mapa e por comodo;
  *  4. nenhuma cama, nenhum spawn de NPC, nenhuma expansao compravel.
  */
+/** Tamanho em TILES de uma peca do catalogo de mobilia, pelo nome dela. */
+function medirMovel(nomeDoMovel) {
+  const def = MOVEIS_CASA[nomeDoMovel];
+  if (!def) throw new Error(`movel "${nomeDoMovel}" nao existe em MOVEIS_CASA`);
+  return tamanhoDeMovel(def.folha, def.peca, def.escala);
+}
+
+/**
+ * OS QUARENTA E CINCO ANDARES COMPOSTOS entram na MESMA tabela dos cinco
+ * autorais.
+ *
+ * E a decisao central desta leva: nao ha um segundo motor de mapa pros andares
+ * novos. `gerarSetorRepresa`, `conferirSetoresRepresa` e `entradaDoInterior` nao
+ * sabem se a planta que estao lendo foi desenhada a mao ou composta por modulo —
+ * e por isso que os cinco antigos continuam gerando byte por byte o que geravam
+ * (fora a escuridao e a fauna, rebalanceadas de proposito) e os quarenta e cinco
+ * novos passam pelas mesmas conferencias que eles.
+ */
+Object.assign(PLANTAS_REPRESA, plantasCompostas({ medir: medirMovel }));
+
 function gerarSetorRepresa(nome, ts) {
   const p = PLANTAS_REPRESA[nome];
   if (!p) throw new Error(`"${nome}" nao tem planta em PLANTAS_REPRESA`);
@@ -6574,11 +6622,14 @@ function gerarSetorRepresa(nome, ts) {
     const alvo = s.destino === 'represa'
       ? { destinoTx: c.frente.x, destinoTy: c.frente.y }
       : { destinoTx: s.destinoTx, destinoTy: s.destinoTy };
-    return objeto(s.id, 'porta', s.tx, s.ty, {
+    return objeto(s.id, s.elevador ? 'elevador' : 'porta', s.tx, s.ty, {
       destino: s.destino,
       ...alvo,
       rotulo: s.rotulo,
       ...(s.trancada ? { trancada: s.trancada } : {}),
+      // ELEVADOR: a classe e outra e o `andar` diz em que parada a cabine esta.
+      // Ele nao leva a um destino fixo — abre o menu de paradas ja ativadas.
+      ...(s.elevador ? { andar: s.elevador } : {}),
     });
   });
   for (const painel of p.paineis) {
@@ -6587,8 +6638,18 @@ function gerarSetorRepresa(nome, ts) {
     }));
   }
   for (const aviso of p.avisos ?? []) {
+    // Os cinco autorais levam prefixo `represa_` no id do texto (foi assim que
+    // eles nasceram); os documentos dos andares compostos ja vem com id proprio
+    // (`ficha_017`, `pista_23`, `tubo_azul_08`) e nao levam prefixo nenhum.
+    const chave = aviso.ficha || aviso.marco || /^(ficha|pista|lote)_/.test(aviso.id)
+      ? aviso.id
+      : `represa_${aviso.id}`;
     interativos.push(objeto(`doc_${aviso.id}`, 'placa', aviso.tx, aviso.ty, {
-      aviso: `represa_${aviso.id}`,
+      aviso: chave,
+      // FICHA MEDICA: o `andar` marca o documento como uma das cinquenta fichas,
+      // e e por ele que a cena sabe arquivar em vez de so mostrar o texto.
+      ...(aviso.ficha ? { ficha: aviso.ficha } : {}),
+      ...(aviso.requer ? { requer: aviso.requer } : {}),
     }));
   }
 
@@ -6602,7 +6663,14 @@ function gerarSetorRepresa(nome, ts) {
     objeto(`inimigo_${i.id}`, 'inimigo', i.tx, i.ty, { tipo: i.tipo, raio: i.raio }),
   );
   const luzes = (p.luzes ?? []).map((l, i) =>
-    objeto(`luz_${i}`, 'luz', l.tx, l.ty, { raio: l.raio }),
+    objeto(`luz_${i}`, 'luz', l.tx, l.ty, {
+      raio: l.raio,
+      // `tipo` escolhe a luminaria no atlas `equipamento`; ausente = so o halo
+      // antigo, que e o caso dos cinco setores autorais.
+      ...(l.tipo ? { tipo: l.tipo } : {}),
+      // `circuito` liga a lampada a uma flag: apagada enquanto ela nao existir.
+      ...(l.circuito ? { circuito: l.circuito } : {}),
+    }),
   );
 
   const comodos = Object.entries(p.comodos).map(([comodo, [x, y, w, h]]) =>
@@ -6719,6 +6787,20 @@ function conferirSetoresRepresa(gerados) {
     // par de volta e ponto de chegada
     for (const s of p.saidas) {
       if (s.destino === 'represa') continue;
+      // O ELEVADOR nao e uma porta com par: ele abre um menu de paradas ja
+      // ativadas e o `destino` declarado nele e so o andar 1, que e a parada que
+      // sempre existe. Cobrar par de volta dele exigiria uma porta de elevador
+      // no andar 1 por cada uma das onze paradas.
+      if (s.elevador) {
+        const outroLado = grades.get(s.destino);
+        if (outroLado && !outroLado.livre(s.destinoTx, s.destinoTy)) {
+          throw new Error(
+            `${nome}: o elevador larga o jogador em ${s.destinoTx},${s.destinoTy} de ` +
+              `"${s.destino}", que e tile bloqueado`,
+          );
+        }
+        continue;
+      }
       const outro = grades.get(s.destino);
       if (!outro) throw new Error(`${nome}: a saida "${s.id}" aponta pro setor inexistente "${s.destino}"`);
       if (!outro.livre(s.destinoTx, s.destinoTy)) {
@@ -6757,8 +6839,12 @@ function entradaDoInterior(chave) {
   const setor = PLANTAS_REPRESA[chave];
   if (setor) {
     const rua = setor.saidas.find((s) => s.destino === 'represa');
-    if (!rua) throw new Error(`o setor "${chave}" nao tem saida pro Mapa 4`);
-    return { x: rua.tx, y: rua.ty - 1 };
+    if (rua) return { x: rua.tx, y: rua.ty - 1 };
+    // Andar COMPOSTO (6 a 50): nao ha saida pra rua nenhuma — a "entrada" dele e
+    // o alcapao por onde se chega, que e o `sobe`.
+    const sobe = setor.saidas.find((s) => s.id === 'sobe');
+    if (!sobe) throw new Error(`o andar "${chave}" nao tem alcapao de chegada`);
+    return { x: sobe.tx, y: sobe.ty };
   }
   const p = PLANTAS_CASA[chave] ?? PLANTAS_MISTO[chave] ?? PLANTAS_PROPRIAS[chave];
   if (p) return { x: p.porta, y: p.altura - 2 };

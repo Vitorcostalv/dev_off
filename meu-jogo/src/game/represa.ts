@@ -24,12 +24,21 @@
  *    `PERDA_POR_DERROTA` e o comentario dela.
  */
 
+import { ANDARES, capituloDoAndar } from './andares.ts';
+import { ENIGMAS, flagDoEnigma } from './enigmas.ts';
+
 // --------------------------------------------------------------- setores --
 export interface SetorRepresa {
   /** chave em MAPAS */
   chave: string;
+  /** andar, 1 a 50 */
+  andar: number;
+  /** profundidade: 0 no andar 1, negativa abaixo. Mantido por compatibilidade. */
   nivel: number;
   rotulo: string;
+  /** rotulo curto pra HUD, ex "A-17" */
+  codigo: string;
+  capitulo: number;
   /** escuridao base do setor, 0 a 1 (o valor por comodo vem do tilemap) */
   escuridao: number;
   /** flag que precisa estar ativa pra descer PRA CA; null = livre */
@@ -37,20 +46,51 @@ export interface SetorRepresa {
 }
 
 /**
- * Os cinco setores, do mais raso pro mais fundo.
+ * OS CINQUENTA SETORES, do mais raso pro mais fundo.
  *
- * Esta tabela e a fonte da leitura "quao fundo eu estou" — a HUD, a tensao e o
- * resgate saem dela. A escuridao esta repetida do tilemap de proposito: o jogo
- * usa o valor do COMODO quando ha um, e este e o piso do setor pra quando o
- * jogador esta num tile que nenhum comodo cobre (corredor de ligacao, vao).
+ * Esta tabela DERIVA de `ANDARES` (src/game/andares.ts) desde a leva dos
+ * cinquenta andares — ela era escrita a mao quando havia cinco. O que ela
+ * continua sendo e a fonte da leitura "quao fundo eu estou": a HUD, a tensao e o
+ * resgate saem dela.
+ *
+ * A escuridao esta repetida do tilemap de proposito: o jogo usa o valor do
+ * COMODO quando ha um, e este e o piso do andar pra quando o jogador esta num
+ * tile que nenhum comodo cobre (corredor de ligacao, vao).
+ *
+ * `exige` marca as NOVE PORTAS de verdade da usina. Os tres primeiros valores
+ * sao os da leva anterior e nao mudaram — um save que ja tinha
+ * `represaEnergiaGaleria` continua entrando no andar 4 sem refazer nada.
  */
-export const SETORES_REPRESA: readonly SetorRepresa[] = [
-  { chave: 'represa_0', nivel: 0, rotulo: 'Casa de Forca', escuridao: 0, exige: null },
-  { chave: 'represa_1', nivel: -1, rotulo: 'Manutencao', escuridao: 0.18, exige: null },
-  { chave: 'represa_2', nivel: -2, rotulo: 'Galeria das Turbinas', escuridao: 0.38, exige: null },
-  { chave: 'represa_3', nivel: -3, rotulo: 'Galerias Inferiores', escuridao: 0.6, exige: 'represaEnergiaGaleria' },
-  { chave: 'represa_4', nivel: -4, rotulo: 'Setor Profundo', escuridao: 0.8, exige: 'represaComportaAberta' },
-];
+export const SETORES_REPRESA: readonly SetorRepresa[] = ANDARES.map((a) => ({
+  chave: a.mapa,
+  andar: a.andar,
+  nivel: 1 - a.andar,
+  rotulo: a.rotulo,
+  codigo: a.codigo,
+  capitulo: a.capitulo,
+  escuridao: a.escuridao,
+  exige: exigenciaDoAndar(a.andar),
+}));
+
+/**
+ * A flag que trava a entrada num andar.
+ *
+ * Os andares 4 e 5 mantem as flags AUTORAIS da leva anterior (o sinoptico dos
+ * geradores e a mesa de comportas). Do 6 em diante a trava e o enigma do ultimo
+ * andar multiplo de cinco — a cada cinco andares ha uma porta, e as outras
+ * quatro descidas do trecho ficam livres. Ver `travaDescida` em enigmas.ts.
+ */
+function exigenciaDoAndar(andar: number): string | null {
+  if (andar === 4) return 'represaEnergiaGaleria';
+  if (andar === 5) return 'represaComportaAberta';
+  // o andar 6 e o primeiro depois dos cinco autorais: a porta dele e o painel
+  // profundo que ja existia no fundo do setor antigo
+  if (andar === 6) return 'represaPlacaRestaurada';
+  if (andar >= 7 && (andar - 1) % 5 === 0) {
+    return `represaEnigma${String(andar - 1).padStart(2, '0')}`;
+  }
+  return null;
+}
 
 const SETOR_POR_CHAVE = new Map(SETORES_REPRESA.map((s) => [s.chave, s]));
 
@@ -82,10 +122,19 @@ export const PONTO_DE_RESGATE = { x: 14, y: 17 };
  * sente: dar uma passada rapida no fundo e barato, morar la nao.
  */
 export const TENSAO = {
-  /** quanto sobe por MINUTO de jogo no nivel 0 */
-  porMinuto: 0.004,
-  /** quanto cada nivel de profundidade multiplica a subida */
-  fatorPorNivel: 0.45,
+  /** quanto sobe por MINUTO de jogo no capitulo 1 */
+  porMinuto: 0.006,
+  /**
+   * Fator de subida por CAPITULO (1 a 5).
+   *
+   * Era `fatorPorNivel: 0.45` multiplicado pela profundidade absoluta, e com
+   * cinquenta andares isso estourava: no andar 50 o fator daria 1 + 49 * 0,45 =
+   * 23, e a tensao chegaria ao teto em tres minutos de jogo. Por capitulo, o
+   * fundo continua acelerando (tres vezes mais rapido que o topo) e a conta
+   * continua fazendo sentido pro jogador — o mesmo trecho tem sempre a mesma
+   * pressa.
+   */
+  fatorPorCapitulo: [1, 1.5, 2, 2.5, 3] as const,
   /** quanto um erro em painel adiciona de uma vez */
   porErro: 0.05,
   /** teto */
@@ -145,8 +194,21 @@ export const FLAG_LANTERNA = 'represaLanterna';
 export type PassoPainel =
   /** escolher a opcao certa numa lista */
   | { tipo: 'escolha'; pergunta: string; opcoes: readonly string[]; correta: number }
-  /** escolher varias opcoes NA ORDEM certa */
-  | { tipo: 'sequencia'; pergunta: string; opcoes: readonly string[]; ordem: readonly number[] }
+  /**
+   * Escolher varias opcoes NA ORDEM certa.
+   *
+   * `limiteMs` transforma o passo em CONTRA O TEMPO (familia `temporizado`): o
+   * prazo comeca ao abrir o painel e, esgotado, a tentativa se perde. E o que
+   * obriga a ler o documento ANTES de encostar na mesa, em vez de procurar a
+   * resposta com o painel aberto.
+   */
+  | {
+      tipo: 'sequencia';
+      pergunta: string;
+      opcoes: readonly string[];
+      ordem: readonly number[];
+      limiteMs?: number;
+    }
   /** digitar um codigo numerico, digito por digito */
   | { tipo: 'codigo'; pergunta: string; codigo: string }
   /** encaixar uma peca do inventario (ela e CONSUMIDA) */
@@ -347,7 +409,19 @@ export const PAINEIS_REPRESA: readonly PainelRepresa[] = [
   },
 ];
 
-const PAINEL_POR_ID = new Map(PAINEIS_REPRESA.map((p) => [p.id, p]));
+/**
+ * Todo painel do jogo: os SETE autorais acima mais os 45 GERADOS, um por andar
+ * composto (ver enigmas.ts).
+ *
+ * O import de `enigmas.ts` aqui nao fecha ciclo: o de volta e `import type`, que
+ * o `verbatimModuleSyntax` apaga na compilacao.
+ */
+export const TODOS_OS_PAINEIS: readonly PainelRepresa[] = [
+  ...PAINEIS_REPRESA,
+  ...ENIGMAS.map((e) => e.painel),
+];
+
+const PAINEL_POR_ID = new Map(TODOS_OS_PAINEIS.map((p) => [p.id, p]));
 
 export function buscarPainel(id: unknown): PainelRepresa | null {
   return typeof id === 'string' ? (PAINEL_POR_ID.get(id) ?? null) : null;
@@ -363,6 +437,8 @@ export const ATALHOS_REPRESA = ['represaAtalhoManutencao', 'represaElevadorLiber
 /** Toda flag que a represa escreve. E o que o save tem de preservar. */
 export const FLAGS_DA_REPRESA: readonly string[] = [
   ...PAINEIS_REPRESA.map((p) => p.flag),
+  ...ANDARES.map((a) => flagDoEnigma(a.andar)),
+  ...ANDARES.filter((a) => a.parada).map((a) => `represaParada${String(a.andar).padStart(2, '0')}`),
   ...ATALHOS_REPRESA,
   FLAG_LANTERNA,
   'represaVisitada',
@@ -393,6 +469,12 @@ export interface DadosRepresa {
   corrida: { id: string; quantidade: number }[];
   /** nivel mais fundo ja alcancado, pra a UI e pro relatorio */
   nivelMaisFundo: number;
+  /**
+   * Andar mais fundo ja alcancado, 1 a 50. Campo NOVO: save antigo chega sem ele
+   * e `restaurar` o deriva de `nivelMaisFundo`, que a leva dos cinco setores ja
+   * gravava — ninguem perde a marca de ter chegado ao fundo antigo.
+   */
+  andarMaisFundo?: number;
 }
 
 /**
@@ -408,6 +490,8 @@ export class SistemaRepresa {
   private _tensao = 0;
   private corrida = new Map<string, number>();
   private _nivelMaisFundo = 0;
+  /** andar mais fundo ja alcancado, 1 a 50. E o que a HUD e o elevador leem. */
+  private _andarMaisFundo = 1;
   /** ultimo mapa observado, pra detectar entrada e saida da usina */
   private ultimoMapa: string | null = null;
 
@@ -421,6 +505,10 @@ export class SistemaRepresa {
 
   get nivelMaisFundo(): number {
     return this._nivelMaisFundo;
+  }
+
+  get andarMaisFundo(): number {
+    return this._andarMaisFundo;
   }
 
   /** Salvado recolhido na corrida atual. */
@@ -451,9 +539,10 @@ export class SistemaRepresa {
     }
     if (!setor) return;
     if (setor.nivel < this._nivelMaisFundo) this._nivelMaisFundo = setor.nivel;
+    if (setor.andar > this._andarMaisFundo) this._andarMaisFundo = setor.andar;
     if (minutos <= 0) return;
     this.minutosDentro += minutos;
-    const fator = 1 + Math.abs(setor.nivel) * TENSAO.fatorPorNivel;
+    const fator = TENSAO.fatorPorCapitulo[capituloDoAndar(setor.andar).numero - 1] ?? 1;
     this._tensao = Math.min(TENSAO.maxima, this._tensao + minutos * TENSAO.porMinuto * fator);
   }
 
@@ -502,6 +591,7 @@ export class SistemaRepresa {
       tensao: this._tensao,
       corrida: this.salvadoDaCorrida,
       nivelMaisFundo: this._nivelMaisFundo,
+      andarMaisFundo: this._andarMaisFundo,
     };
   }
 
@@ -510,6 +600,7 @@ export class SistemaRepresa {
     this._tensao = 0;
     this.corrida.clear();
     this._nivelMaisFundo = 0;
+    this._andarMaisFundo = 1;
     this.ultimoMapa = null;
     if (!bruto || typeof bruto !== 'object') return;
     const dados = bruto as Partial<DadosRepresa>;
@@ -520,6 +611,12 @@ export class SistemaRepresa {
     if (Number.isFinite(dados.nivelMaisFundo)) {
       this._nivelMaisFundo = Math.min(0, Math.round(Number(dados.nivelMaisFundo)));
     }
+    // Save da leva dos cinco setores nao tem `andarMaisFundo`: ele sai do
+    // `nivelMaisFundo`, que e a mesma informacao na notacao antiga (nivel 0 =
+    // andar 1, nivel -4 = andar 5).
+    this._andarMaisFundo = Number.isFinite(dados.andarMaisFundo)
+      ? Math.max(1, Math.min(50, Math.round(Number(dados.andarMaisFundo))))
+      : 1 - this._nivelMaisFundo;
     for (const entrada of Array.isArray(dados.corrida) ? dados.corrida : []) {
       if (typeof entrada?.id === 'string' && Number.isFinite(entrada.quantidade)) {
         this.corrida.set(entrada.id, Math.max(0, Math.floor(entrada.quantidade)));
@@ -540,16 +637,33 @@ export interface ProgressoPainel {
   parcial: number[];
   digitos: string;
   tentativasRestantes: number;
+  /**
+   * Instante (em ms do relogio do jogo) em que o passo CONTRA O TEMPO expira.
+   * `null` em todo passo sem `limiteMs`, que e a maioria.
+   */
+  prazo: number | null;
 }
 
-export function iniciarPainel(painel: PainelRepresa, tensao: number): ProgressoPainel {
+export function iniciarPainel(
+  painel: PainelRepresa,
+  tensao: number,
+  agoraMs = 0,
+): ProgressoPainel {
+  const primeiro = painel.passos[0];
   return {
     painel,
     passo: 0,
     parcial: [],
     digitos: '',
     tentativasRestantes: tentativasDe(painel, tensao),
+    prazo:
+      primeiro?.tipo === 'sequencia' && primeiro.limiteMs ? agoraMs + primeiro.limiteMs : null,
   };
+}
+
+/** Quanto falta do prazo, em ms; `null` quando o passo nao e contra o tempo. */
+export function restanteDoPrazo(progresso: ProgressoPainel, agoraMs: number): number | null {
+  return progresso.prazo === null ? null : Math.max(0, progresso.prazo - agoraMs);
 }
 
 export type RespostaPainel =
@@ -557,6 +671,8 @@ export type RespostaPainel =
   | { resultado: 'passo_ok' }
   | { resultado: 'concluido'; flag: string }
   | { resultado: 'errou'; restantes: number }
+  /** o passo contra o tempo expirou; gastou tentativa como um erro */
+  | { resultado: 'tarde'; restantes: number }
   | { resultado: 'travado' }
   | { resultado: 'sem_peca'; itemId: string };
 
@@ -570,23 +686,41 @@ export function responderPainel(
   progresso: ProgressoPainel,
   escolha: number,
   inventario?: { contar(id: string): number; remover(id: string, qtd: number): number },
+  agoraMs = 0,
 ): RespostaPainel {
   const passo = progresso.painel.passos[progresso.passo];
   if (!passo) return { resultado: 'travado' };
+
+  /** Reinicia o prazo do passo em que o painel esta. */
+  const rearmarPrazo = (): void => {
+    const atual = progresso.painel.passos[progresso.passo];
+    progresso.prazo =
+      atual?.tipo === 'sequencia' && atual.limiteMs ? agoraMs + atual.limiteMs : null;
+  };
 
   const errar = (): RespostaPainel => {
     progresso.parcial = [];
     progresso.digitos = '';
     progresso.tentativasRestantes -= 1;
+    rearmarPrazo();
     return progresso.tentativasRestantes > 0
       ? { resultado: 'errou', restantes: progresso.tentativasRestantes }
       : { resultado: 'travado' };
   };
 
+  // PRAZO ESTOURADO conta como erro, e nao como travamento: perder a janela e
+  // parte do enigma, nao punicao definitiva. A tentativa volta quando a tensao
+  // cai, que e saindo da usina (ver `tentativasDe`).
+  if (progresso.prazo !== null && agoraMs > progresso.prazo) {
+    const r = errar();
+    return r.resultado === 'errou' ? { resultado: 'tarde', restantes: r.restantes } : r;
+  }
+
   const avancar = (): RespostaPainel => {
     progresso.passo += 1;
     progresso.parcial = [];
     progresso.digitos = '';
+    rearmarPrazo();
     if (progresso.passo >= progresso.painel.passos.length) {
       return { resultado: 'concluido', flag: progresso.painel.flag };
     }

@@ -39,6 +39,7 @@ export const ROTULOS: Record<TipoInteragivel, string> = {
   painel: 'Operar',
   sucata: 'Recolher',
   revenda: 'Despachar sucata',
+  elevador: 'Chamar elevador',
 };
 
 /** Cor da demarcacao de cada tipo de zona reservada (overlay de debug, F6). */

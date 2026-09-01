@@ -1,3 +1,6 @@
+import { TEXTOS_DE_FICHA } from './fichas.ts';
+import { TEXTOS_DE_PISTA } from './enigmas.ts';
+
 /**
  * TEXTOS DE EXAME da represa — placa de estrada e documento de manutencao.
  *
@@ -22,7 +25,114 @@
  * A chave de cada entrada e o `aviso` do objeto no tilemap; os documentos dos
  * setores levam o prefixo `represa_` (ver `gerarSetorRepresa`).
  */
-export const ITENS_DE_LEITURA: Record<string, string[]> = {
+/**
+ * MARCOS DE LABIRINTO — o texto de cada ponto de referencia, por andar.
+ *
+ * Os tres labirintos autorais sao reusados em cinco andares (8, 17, 26, 34 e 43),
+ * e o mesmo marco aparece duas vezes na descida. O texto muda: no andar 8 o tubo
+ * azul e uma informacao de manutencao, no 34 ele e a mesma informacao escrita por
+ * cima de outra coisa. E o que faz o reuso de layout nao ler como reuso.
+ */
+const MARCOS_DE_LABIRINTO: Record<string, Record<number, string[]>> = {
+  tubo_azul: {
+    8: [
+      'Um tubo azul de agua de servico, com a legenda ainda legivel.',
+      'AGUA DE SERVICO — segue pro fundo da galeria. A seta aponta pra baixo e pra frente.',
+    ],
+    34: [
+      'O mesmo tubo azul, e por cima da legenda alguem escreveu com fita crepe: "ATE AQUI".',
+      'A fita e nova. A legenda de baixo continua dizendo que o tubo segue pro fundo.',
+    ],
+  },
+  tubo_vermelho: {
+    8: [
+      'Tubo vermelho de incendio, com o registro fechado e lacrado.',
+      'A legenda diz: RETORNO — sobe pra escada. Quem se perder segue o vermelho.',
+    ],
+    34: [
+      'Tubo vermelho. O lacre do registro foi cortado e refeito com arame.',
+      'A legenda de retorno continua ali, e alguem riscou a palavra "escada".',
+    ],
+  },
+  porta_numerada: {
+    8: [
+      'Porta de servico com um numero pintado a estencil: 14.',
+      'A numeracao da usina sobe no sentido do fundo. A 14 e a antepenultima deste ramal.',
+    ],
+    34: [
+      'Porta de servico numerada 14 — a mesma numeracao, no mesmo lugar do ramal.',
+      'A tinta esta fresca. A usina nao tem tinta fresca em lugar nenhum.',
+    ],
+  },
+  cabo_marcado: {
+    17: [
+      'Um feixe de cabos com anilha de identificacao a cada metro.',
+      'As anilhas contam pra cima na direcao da saida: 01 na escada, 09 no fim do ramal.',
+    ],
+    43: [
+      'O feixe de cabos, e as anilhas contando pra cima como sempre.',
+      'Depois da 09 ha uma 10, escrita a mao. O ramal deveria acabar na 09.',
+    ],
+  },
+  painel_cego: {
+    17: [
+      'Um painel de comando sem botao nenhum: chapa lisa, parafusada, sem etiqueta.',
+      'Quem instalou nao deixou registro. Serve de referencia: e o unico painel cego do andar.',
+    ],
+    43: [
+      'O painel cego. A chapa lisa agora tem um furo de fechadura no canto.',
+      'A fechadura e do tipo que a usina usa nas portas de cracha.',
+    ],
+  },
+  maquina_parada: {
+    17: [
+      'Uma bomba de recalque parada no meio do ciclo, com o eixo travado.',
+      'Ela e o marco de meio caminho do ramal leste. Da pra ouvir agua atras dela.',
+    ],
+    43: [
+      'A bomba de recalque, parada no mesmo ponto do ciclo.',
+      'O eixo esta morno, e o piso em volta dela esta seco num raio de dois metros.',
+    ],
+  },
+  baia_23: {
+    26: [
+      'Uma divisoria de baia de escritorio, com a etiqueta 23 na aba de plastico.',
+      'Nao ha escritorio nenhum nesta usina. A divisoria esta parafusada no concreto.',
+      'As baias contam de 01 a 40 e a numeracao sobe no sentido do fundo.',
+    ],
+  },
+  monitor_ligado: {
+    26: [
+      'Um monitor de tubo, ligado, sem cabo de dados nem de energia.',
+      'Na tela, uma planilha de horas com o cabecalho cortado pela borda.',
+      'A coluna da direita soma sessenta e cinco.',
+    ],
+  },
+  quadro_prazos: {
+    26: [
+      'Um quadro branco parafusado na parede, com tres datas e uma seta entre elas.',
+      'As datas nao sao de calendario nenhum que a usina use: sao de tres anos depois do ' +
+        'desligamento dela.',
+      'A ultima esta circulada duas vezes.',
+    ],
+  },
+};
+
+/**
+ * Todo texto de marco de labirinto, na chave `<id>_<andar>` que o gerador usa.
+ * Um marco sem texto pro andar em que ele aparece derruba a conferencia — e o
+ * mesmo contrato de qualquer aviso do mundo.
+ */
+const TEXTOS_DE_MARCO: Record<string, string[]> = Object.fromEntries(
+  Object.entries(MARCOS_DE_LABIRINTO).flatMap(([id, porAndar]) =>
+    Object.entries(porAndar).map(([andar, linhas]) => [
+      `${id}_${String(andar).padStart(2, '0')}`,
+      linhas,
+    ]),
+  ),
+);
+
+const AVISOS_ESCRITOS_A_MAO: Record<string, string[]> = {
   // ------------------------------------------------- predios FECHADOS --
   // Predio de pe cuja porta nao abre: no lugar dela o mapa poe um objeto de
   // exame com estes textos. Estavam na FarmScene e vieram pra ca quando a
@@ -193,3 +303,38 @@ export const ITENS_DE_LEITURA: Record<string, string[]> = {
     'A folha nao esta assinada, e a data esta rasgada.',
   ],
 };
+
+/**
+ * TODO texto de exame do jogo, num registro so.
+ *
+ * Sao quatro fontes e nenhuma quinta:
+ *
+ *   AVISOS_ESCRITOS_A_MAO   placa de rua, predio fechado, marco do Mapa 4 e os
+ *                           onze documentos autorais dos cinco primeiros andares;
+ *   TEXTOS_DE_FICHA         as cinquenta fichas medicas (src/game/fichas.ts);
+ *   TEXTOS_DE_PISTA         as pistas dos quarenta e cinco enigmas gerados, que
+ *                           nascem junto do proprio enigma (src/game/enigmas.ts);
+ *   TEXTOS_DE_MARCO         os pontos de referencia dos cinco labirintos.
+ *
+ * Chave repetida entre as fontes derruba a carga em vez de um texto sobrescrever
+ * o outro em silencio — foi por um texto sobrescrito que a placa da portaria
+ * ficou muda na leva anterior.
+ */
+export const ITENS_DE_LEITURA: Record<string, string[]> = (() => {
+  const registro: Record<string, string[]> = {};
+  const fontes: [string, Record<string, string[]>][] = [
+    ['escritos a mao', AVISOS_ESCRITOS_A_MAO],
+    ['fichas medicas', TEXTOS_DE_FICHA],
+    ['pistas de enigma', TEXTOS_DE_PISTA],
+    ['marcos de labirinto', TEXTOS_DE_MARCO],
+  ];
+  for (const [origem, fonte] of fontes) {
+    for (const [chave, linhas] of Object.entries(fonte)) {
+      if (registro[chave]) {
+        throw new Error(`[avisos] o texto "${chave}" (${origem}) ja existe em outra fonte`);
+      }
+      registro[chave] = linhas;
+    }
+  }
+  return registro;
+})();

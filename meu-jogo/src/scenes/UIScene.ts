@@ -26,6 +26,7 @@ import {
   podeDescartar,
 } from '../game/equipar';
 import { buscarArma } from '../game/armas';
+import { fichaDoAndar, linhasDaFicha, tituloDaFicha } from '../game/fichas';
 
 /**
  * Caixa de dialogo. Subiu de 74 pra 82 px de altura e ganhou a coluna do
@@ -350,6 +351,8 @@ export class UIScene extends Phaser.Scene {
     // acoes do inventario
     teclado?.on('keydown-U', () => this.usarSelecionado());
     teclado?.on('keydown-F', () => this.alternarEquipado());
+    // J abre os ARQUIVOS: as fichas medicas ja recolhidas na represa.
+    teclado?.on('keydown-J', () => this.abrirArquivo());
     teclado?.on('keydown-X', () => this.descartarSelecionado());
     teclado?.on('keydown-O', () => this.organizarInventario());
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -367,6 +370,53 @@ export class UIScene extends Phaser.Scene {
         }
         if (this.lojaAberta && !this.modalPorCima) this.moverListaDaLoja(dy > 0 ? 1 : -1);
       },
+    );
+  }
+
+  /**
+   * ARQUIVOS — as cinquenta fichas medicas recolhidas na represa.
+   *
+   * A tela reusa o MENU de escolha que os temas de conversa e os presentes ja
+   * usam, em vez de ganhar um painel proprio. Nao e economia: o menu ja rola,
+   * ja tem cursor, ja fecha com ESC e ja sabe conviver com a caixa de dialogo
+   * que abre por cima dele — e ler uma ficha e exatamente "escolher um item de
+   * uma lista e abrir o texto dele".
+   *
+   * A ficha nao recolhida aparece como `?????` de proposito: e o que faz o
+   * jogador saber que pulou um andar. Escolher uma delas nao abre nada.
+   */
+  abrirArquivo(): void {
+    if (this.modalPorCima || this.lojaAberta || this.pcAberto) return;
+    const indice = estado.arquivo.indice();
+    const total = estado.arquivo.quantas;
+    if (total === 0) {
+      this.avisoRapido('Nenhuma ficha recolhida ainda.', UI.textoFraco);
+      return;
+    }
+    this.inventario.setVisible(false);
+    this.abrirMenu(
+      `Arquivos — ${total} de ${indice.length} fichas`,
+      indice.map((linha) => ({
+        rotulo: linha.titulo,
+        aoEscolher: () => {
+          if (!linha.tem) {
+            this.avisoRapido('Esta folha ainda esta na usina.', UI.textoFraco);
+            return;
+          }
+          this.lerFicha(linha.andar);
+        },
+      })),
+    );
+  }
+
+  /** Abre o texto de uma ficha e volta pra lista ao fim da leitura. */
+  private lerFicha(andar: number): void {
+    const ficha = fichaDoAndar(andar);
+    if (!ficha) return;
+    const linhas = linhasDaFicha(ficha);
+    this.iniciarDialogo(
+      linhas.map((texto) => ({ nome: tituloDaFicha(ficha), texto })),
+      () => this.abrirArquivo(),
     );
   }
 
@@ -445,7 +495,15 @@ export class UIScene extends Phaser.Scene {
     this.hudRepresa.setVisible(Boolean(setor));
     if (!setor) return;
     const tensao = Math.round(estado.represa.tensao * 100);
-    const texto = `${setor.rotulo}  nivel ${setor.nivel}  |  tensao ${tensao}%`;
+    // O CODIGO do andar (`A-06`) no lugar do "nivel -5" antigo: com cinquenta
+    // andares a notacao negativa deixou de dizer algo — ninguem pensa "estou no
+    // nivel menos quarenta e nove".
+    const arma = buscarArma(comportamentoDe(estado.equipamento.naMao)?.arma);
+    const municao = arma
+      ? `  |  ${arma.nome} ${estado.armas.noCarregador(arma.id)}/${arma.carregador}`
+        + ` (${estado.inventario.contar(arma.municao)})`
+      : '';
+    const texto = `${setor.codigo} ${setor.rotulo}  |  tensao ${tensao}%${municao}`;
     if (this.hudRepresa.text !== texto) this.hudRepresa.setText(texto);
     this.hudRepresa.setColor(
       tensao < 34 ? UI.textoFraco : tensao < 67 ? UI.destaque : UI.alerta,

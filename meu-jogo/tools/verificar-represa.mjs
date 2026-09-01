@@ -18,6 +18,7 @@ import {
   FLAGS_DA_REPRESA,
   PAINEIS_REPRESA,
   PERDA_POR_DERROTA,
+  TODOS_OS_PAINEIS,
   SETORES_REPRESA,
   SistemaRepresa,
   TENSAO,
@@ -188,7 +189,13 @@ for (const setor of SETORES_REPRESA) {
     .filter((o) => classe(o) === 'porta')
     .map((o) => ({ nome: o.name, ...props(o) }));
   portasDoSetor.set(setor.chave, portas);
-  ok(portas.length >= 2, `${setor.chave}: setor com menos de duas portas`);
+  // O ULTIMO andar tem uma porta so: a de subir. Abaixo dele nao ha nada nesta
+  // fase, e o alcapao que levaria pro 51 nao existe de proposito.
+  const minimo = setor.andar === SETORES_REPRESA.length ? 1 : 2;
+  ok(
+    portas.length >= minimo,
+    `${setor.chave}: ${portas.length} porta(s), esperava ao menos ${minimo}`,
+  );
 }
 
 // o nivel 0 e o unico que sai pra rua
@@ -258,7 +265,17 @@ for (let i = 1; i < porProfundidade.length; i++) {
   );
 }
 
-// o valor de escuridao do tilemap bate com a tabela do jogo
+/**
+ * A escuridao do TILEMAP bate com a tabela do jogo.
+ *
+ * A checagem era "algum comodo usa exatamente a escuridao base do setor", e isso
+ * so valia enquanto as plantas eram desenhadas a mao. Nos andares compostos
+ * TODO comodo desloca a base pelo ajuste do proprio modulo (a sala de controle
+ * clareia 0,08, o tunel escurece 0,07), e nenhum cai exatamente na base. O que
+ * importa continua conferido: nenhum comodo escapa da vizinhanca da base, entao
+ * um modulo com ajuste absurdo nao passa.
+ */
+const FOLGA_DE_ESCURIDAO = 0.15;
 for (const setor of SETORES_REPRESA) {
   const comodos = objetos(lerMapa(setor.chave), 'comodos');
   ok(comodos.length > 0, `${setor.chave}: nenhum comodo na camada`);
@@ -267,10 +284,12 @@ for (const setor of SETORES_REPRESA) {
     valores.every((v) => Number.isFinite(v) && v >= 0 && v <= 1),
     `${setor.chave}: comodo com escuridao invalida`,
   );
-  ok(
-    valores.some((v) => v === setor.escuridao),
-    `${setor.chave}: nenhum comodo usa a escuridao base ${setor.escuridao} declarada em represa.ts`,
-  );
+  for (const v of valores) {
+    ok(
+      Math.abs(v - setor.escuridao) <= FOLGA_DE_ESCURIDAO,
+      `${setor.chave}: comodo com escuridao ${v}, longe da base ${setor.escuridao} do andar`,
+    );
+  }
 }
 
 // ============================================== 3. zona segura e inimigos ==
@@ -287,6 +306,10 @@ for (const chave of ['farm', 'bairro', 'rural', 'represa']) {
 ok(
   objetos(lerMapa('represa_0'), 'inimigos').length === 0,
   'represa_0 e a zona segura: nao pode ter inimigo',
+);
+ok(
+  objetos(lerMapa('represa_1'), 'inimigos').length <= 1,
+  'o andar 2 e quase seguro: no maximo um inimigo',
 );
 
 let inimigosNoMundo = 0;
@@ -435,7 +458,15 @@ for (const setor of SETORES_REPRESA) {
     paineisNoMundo.set(String(props(o).painel), setor.chave);
   }
 }
-for (const painel of PAINEIS_REPRESA) {
+/**
+ * TODO painel do jogo esta no mundo, e todo painel do mundo existe no jogo.
+ *
+ * `TODOS_OS_PAINEIS` sao os SETE autorais dos cinco primeiros andares mais os
+ * QUARENTA E CINCO gerados, um por andar composto (ver src/game/enigmas.ts). A
+ * conferencia e a mesma pros dois: quem esta na tabela tem de estar num tilemap,
+ * no setor que ele declara, e quem esta num tilemap tem de estar na tabela.
+ */
+for (const painel of TODOS_OS_PAINEIS) {
   ok(paineisNoMundo.has(painel.id), `o painel "${painel.id}" nao existe em nenhum tilemap`);
   ok(
     paineisNoMundo.get(painel.id) === painel.setor,
@@ -444,8 +475,8 @@ for (const painel of PAINEIS_REPRESA) {
 }
 for (const [id, setor] of paineisNoMundo) {
   ok(
-    PAINEIS_REPRESA.some((p) => p.id === id),
-    `${setor}: o tilemap tem um painel "${id}" que nao existe em PAINEIS_REPRESA`,
+    TODOS_OS_PAINEIS.some((p) => p.id === id),
+    `${setor}: o tilemap tem um painel "${id}" que nao existe na tabela de paineis`,
   );
 }
 // contagem por grau, como o plano pediu: 3 simples, 2 intermediarios, 1 profundo
@@ -456,8 +487,8 @@ ok(porGrau('profundo') >= 1, `esperava 1 profundo, tem ${porGrau('profundo')}`);
 // o profundo junta mais de um passo
 const profundo = PAINEIS_REPRESA.find((p) => p.grau === 'profundo');
 ok(profundo.passos.length >= 3, 'o enigma profundo tem menos de tres passos');
-// flags unicas
-const flags = PAINEIS_REPRESA.map((p) => p.flag);
+// flags unicas — nos 52 paineis, e nao so nos sete autorais
+const flags = TODOS_OS_PAINEIS.map((p) => p.flag);
 ok(new Set(flags).size === flags.length, 'dois paineis escrevem a mesma flag');
 for (const flag of [...flags, ...ATALHOS_REPRESA]) {
   ok(FLAGS_DA_REPRESA.includes(flag), `a flag "${flag}" nao esta em FLAGS_DA_REPRESA`);
@@ -764,14 +795,27 @@ ok(
 // =========================================================== 9. derrota ==
 {
   const sistema = new SistemaRepresa();
-  // 40 minutos no nivel 0 quase nao tensiona; 40 no -4 tensiona muito
+  /**
+   * 40 minutos no primeiro capitulo quase nao tensionam; 40 no ultimo tensionam
+   * muito.
+   *
+   * A comparacao era `represa_0` contra `represa_4` — os dois extremos de quando
+   * a usina tinha cinco setores. Com cinquenta andares os dois estao no CAPITULO
+   * 1 (andares 1 e 5), e a tensao passou a acelerar por capitulo e nao por
+   * profundidade absoluta: 49 vezes o fator antigo levaria a tensao ao teto em
+   * tres minutos de jogo no fundo. Ver `TENSAO.fatorPorCapitulo`.
+   */
   const raso = new SistemaRepresa();
   raso.avancar('represa_0', 0);
   for (let i = 0; i < 4; i++) raso.avancar('represa_0', 10);
   const fundo = new SistemaRepresa();
-  fundo.avancar('represa_4', 0);
-  for (let i = 0; i < 4; i++) fundo.avancar('represa_4', 10);
-  ok(fundo.tensao > raso.tensao * 2, 'a profundidade nao acelera a tensao');
+  fundo.avancar('represa_f50', 0);
+  for (let i = 0; i < 4; i++) fundo.avancar('represa_f50', 10);
+  ok(fundo.tensao > raso.tensao * 2, 'o capitulo nao acelera a tensao');
+  ok(raso.tensao < 0.25, `40 min no capitulo 1 deram tensao ${raso.tensao.toFixed(3)} (esperado < 0,25)`);
+  ok(fundo.tensao > 0.6, `40 min no capitulo 5 deram tensao ${fundo.tensao.toFixed(3)} (esperado > 0,6)`);
+  // e o andar mais fundo alcancado e registrado
+  ok(fundo.andarMaisFundo === 50, `andarMaisFundo ficou ${fundo.andarMaisFundo}, esperava 50`);
   ok(raso.tensao < 0.3, `40 min no nivel 0 tensionaram demais (${raso.tensao.toFixed(2)})`);
 
   // sair da usina zera a tensao e fecha a corrida

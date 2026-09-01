@@ -16,6 +16,7 @@ import { SistemaVida } from './vida.ts';
 import { SistemaRepresa } from './represa.ts';
 import { SistemaEquipamento } from './equipar.ts';
 import { SistemaArmas } from './armas.ts';
+import { SistemaArquivo } from './fichas.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
@@ -60,6 +61,8 @@ export const estado = {
   equipamento: new SistemaEquipamento(),
   /** carregador, cadencia e recarga das armas de fogo */
   armas: new SistemaArmas(),
+  /** quais das cinquenta fichas medicas da represa ja foram recolhidas */
+  arquivo: new SistemaArquivo(),
 };
 
 /**

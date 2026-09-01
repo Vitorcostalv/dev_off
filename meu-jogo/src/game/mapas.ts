@@ -1,3 +1,5 @@
+import { ANDARES_COMPOSTOS } from './andares.ts';
+
 export interface DefinicaoMapa {
   /** chave usada em `estado.mapa` e na propriedade `destino` das portas */
   chave: string;
@@ -29,6 +31,17 @@ export interface DefinicaoMapa {
    * predio. Nos externos, e a propria chave.
    */
   mapaExterno: string;
+  /**
+   * CARREGA SOB DEMANDA: o tilemap nao entra no `preload` do BootScene; a cena de
+   * mundo o busca quando o jogador chega nele.
+   *
+   * Existe pelos quarenta e cinco andares novos da represa. Somados, os tilemaps
+   * deles passam de um megabyte de JSON — carregar tudo no boot atrasaria a
+   * abertura do jogo pra quem nunca desceu na usina, e manter os cinquenta em
+   * memoria e exatamente o que a Parte 51 do plano proibe. Ver `garantirTilemap`
+   * na FarmScene.
+   */
+  sobDemanda?: boolean;
 }
 
 /** Todo mapa sai do mesmo gerador, entao key e arquivo derivam da chave. */
@@ -141,6 +154,21 @@ export const MAPAS: Record<string, DefinicaoMapa> = {
   represa_2: mapa('represa_2', { x: 30, y: 18 }, 'represa'),
   represa_3: mapa('represa_3', { x: 16, y: 21 }, 'represa'),
   represa_4: mapa('represa_4', { x: 13, y: 17 }, 'represa'),
+
+  // Os ANDARES 6 a 50 (`represa_f06` .. `represa_f50`). Nao estao escritos um
+  // por um: a lista sai de `ANDARES` (src/game/andares.ts), que e o registro
+  // central, e o `spawnTile` de cada um e o tile de chegada declarado no template
+  // dele. Manter quarenta e cinco linhas aqui em paralelo aquele arquivo seria
+  // manter a mesma lista em dois lugares.
+  //
+  // Todos entram como `sobDemanda`: o tilemap deles chega quando o jogador
+  // chega, e nao no boot.
+  ...Object.fromEntries(
+    ANDARES_COMPOSTOS.map((a) => [
+      a.mapa,
+      { ...mapa(a.mapa, a.entrada, 'represa'), sobDemanda: true },
+    ]),
+  ),
 };
 
 export function buscarMapa(chave: unknown): DefinicaoMapa | null {

@@ -2346,7 +2346,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.38
+       "value": 0.1355
       }
      ]
     },
@@ -2370,7 +2370,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.38
+       "value": 0.1355
       }
      ]
     },
@@ -2394,7 +2394,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.38
+       "value": 0.1355
       }
      ]
     },
@@ -2418,7 +2418,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.52
+       "value": 0.2
       }
      ]
     },
@@ -2442,7 +2442,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.38
+       "value": 0.1355
       }
      ]
     }
@@ -2576,7 +2576,7 @@
      "height": 32,
      "width": 32,
      "id": 4280,
-     "name": "inimigo_impressora_1",
+     "name": "inimigo_esfera_3a",
      "rotation": 0,
      "visible": true,
      "x": 224,
@@ -2585,7 +2585,7 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "impressora"
+       "value": "esfera_choque"
       },
       {
        "name": "raio",
@@ -2600,7 +2600,7 @@
      "height": 32,
      "width": 32,
      "id": 4281,
-     "name": "inimigo_impressora_2",
+     "name": "inimigo_esfera_3b",
      "rotation": 0,
      "visible": true,
      "x": 864,
@@ -2609,7 +2609,7 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "impressora"
+       "value": "esfera_choque"
       },
       {
        "name": "raio",
@@ -2624,7 +2624,7 @@
      "height": 32,
      "width": 32,
      "id": 4282,
-     "name": "inimigo_robo_1",
+     "name": "inimigo_smart_3a",
      "rotation": 0,
      "visible": true,
      "x": 576,
@@ -2633,7 +2633,7 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "robo_servico"
+       "value": "smartfone"
       },
       {
        "name": "raio",

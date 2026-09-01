@@ -39,8 +39,14 @@ export class BootScene extends Phaser.Scene {
     // tileset: a key ('tiles-terrain') e o que o Phaser usa;
     // o nome do tileset dentro do JSON do Tiled e 'terrain' (ver FarmScene).
     this.load.image('tiles-terrain', 'assets/tilesets/terrain.png');
-    // um tilemap por entrada de MAPAS: nao ha lista pra manter em dois lugares
+    // Um tilemap por entrada de MAPAS: nao ha lista pra manter em dois lugares.
+    //
+    // Fora os marcados `sobDemanda` — os quarenta e cinco andares novos da
+    // represa. Somados eles passam de um megabyte de JSON, e carregar tudo no
+    // boot atrasaria a abertura pra quem nunca desceu na usina. Quem os busca e a
+    // cena de mundo, ao chegar no andar (ver `garantirTilemap` na FarmScene).
     for (const def of Object.values(MAPAS)) {
+      if (def.sobDemanda) continue;
       this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo);
     }
 
@@ -177,6 +183,7 @@ export class BootScene extends Phaser.Scene {
     estado.represa.restaurar(save.represa);
     estado.equipamento.restaurar(save.equipamento);
     estado.armas.restaurar(save.armas);
+    estado.arquivo.restaurar(save.arquivo);
     // O item pode ter saido do inventario por outro caminho (venda, descarte)
     // entre gravar e carregar; sem esta linha o save traria uma arma equipada
     // que nao esta mais na mochila.

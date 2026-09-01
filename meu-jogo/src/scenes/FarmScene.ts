@@ -6,6 +6,7 @@ import { estado } from '../game/estado';
 import { ITENS } from '../game/inventario';
 import { lojasDoMapa } from '../game/loja';
 import { MAPA_DA_CASA, MAPA_PADRAO, MAPAS, buscarMapa } from '../game/mapas';
+import type { DefinicaoMapa } from '../game/mapas';
 import { CATALOGO_MOBILIA, buscarExpansao, buscarMovelDeLoja } from '../game/casa';
 import { requisitosDoMovel } from '../game/casa';
 import type { DefinicaoExpansao, RequisitoMaterial } from '../game/casa';
@@ -66,6 +67,15 @@ import { MaoDoJogador } from './MaoDoJogador';
 import { comportamentoDe, zonaPerigosa } from '../game/equipar';
 import { ATAQUE_DO_JOGADOR } from '../game/inimigos';
 import { buscarArma, direcaoDaMira } from '../game/armas';
+import {
+  ANDARES,
+  ANDARES_DE_PARADA,
+  andarDoMapaDef,
+  buscarAndar,
+  flagDeCheckpoint,
+  mapaDoAndar,
+} from '../game/andares';
+import { fichaDoAndar } from '../game/fichas';
 
 /**
  * Quantos tiles cabem na largura da tela. E daqui que sai o zoom da camera:
@@ -154,6 +164,7 @@ const TIPOS_VALIDOS: TipoInteragivel[] = [
   'painel',
   'sucata',
   'revenda',
+  'elevador',
 ];
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
   'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
@@ -213,6 +224,26 @@ const FALA_PAINEL_RESOLVIDO = 'Ja esta feito. O painel mostra tudo em verde.';
  * salvado. Canto sudoeste da oficina, ao lado da caixa de ferramenta — tile
  * livre e alcancavel (conferido contra o tilemap gerado).
  */
+/**
+ * Onde a cabine do elevador para em cada andar de parada.
+ *
+ * Os andares 1 e 5 sao os setores desenhados a mao, e os tiles deles vem das
+ * saidas `elevador_0` e `elevador_4` de `PLANTAS_REPRESA`. Do 10 em diante o
+ * tile e o `elevador` do template do andar (ver `PLANTAS_DE_ANDAR`).
+ *
+ * A tabela existe porque o `spawnTile` do mapa e o alcapao de CHEGADA, que e
+ * outro lugar: sair do elevador pelo alcapao faria a cabine parecer estar em
+ * lugar diferente a cada viagem.
+ */
+const PARADA_DO_ANDAR: Record<number, { x: number; y: number }> = Object.fromEntries([
+  [1, { x: 3, y: 15 }],
+  [5, { x: 5, y: 4 }],
+  ...ANDARES_DE_PARADA.filter((n) => n >= 10).map((n) => {
+    const def = buscarAndar(n);
+    return [n, def ? def.paradaTile : { x: 1, y: 1 }] as const;
+  }),
+]);
+
 /**
  * O que a tecla F3 poe no inventario. So debug: nada no jogo le esta lista.
  */
@@ -342,6 +373,23 @@ export class FarmScene extends Phaser.Scene {
   /** Escuridao por tile, montada dos comodos do tilemap. */
   private escuridaoDoComodo: { ret: RetTiles; valor: number }[] = [];
 
+  /** Os dados com que a cena foi iniciada, pra poder reiniciar igual. */
+  private entradaAtual: { mapa?: string; x?: number; y?: number } | undefined;
+
+  /** Texto de espera enquanto um andar da represa e baixado. */
+  private avisoDeCarga: Phaser.GameObjects.Text | null = null;
+
+  /**
+   * false enquanto o `create` nao terminou.
+   *
+   * Existe por causa da carga SOB DEMANDA: quando o tilemap de um andar ainda nao
+   * chegou, o `create` para no meio e a cena fica sem `player`, sem camada e sem
+   * teclas — mas o `update` continua sendo chamado a cada quadro. Sem esta
+   * guarda, o primeiro quadro depois de pedir um andar novo estoura em
+   * `player.setDepth`.
+   */
+  private pronto = false;
+
   constructor() {
     super('FarmScene');
   }
@@ -356,8 +404,12 @@ export class FarmScene extends Phaser.Scene {
    */
   init(dados?: { mapa?: string; x?: number; y?: number }): void {
     if (dados?.mapa) estado.mapa = dados.mapa;
+    // Guardado pra o carregamento SOB DEMANDA poder reiniciar a cena no mesmo
+    // ponto depois de o tilemap chegar (ver `garantirTilemap`).
+    this.entradaAtual = dados;
     this.spawn =
       dados?.x !== undefined && dados?.y !== undefined ? { x: dados.x, y: dados.y } : null;
+    this.pronto = false;
     this.transicionando = false;
     this.mapaAberto = false;
     this.overlayMapa = null;
@@ -442,6 +494,10 @@ export class FarmScene extends Phaser.Scene {
   create(): void {
     const def = buscarMapa(estado.mapa);
     if (!def) throw new Error(`Mapa "${estado.mapa}" nao existe em MAPAS`);
+    // ANDAR SOB DEMANDA: o tilemap pode nao estar no cache ainda. `garantirTilemap`
+    // dispara a carga e reinicia a cena quando ela termina — e por isso que ele
+    // corta o `create` aqui, antes de qualquer objeto ser criado.
+    if (!this.garantirTilemap(def)) return;
 
     const map = this.make.tilemap({ key: def.tilemapKey });
     this.tamanhoTile = map.tileWidth;
@@ -630,9 +686,14 @@ export class FarmScene extends Phaser.Scene {
       this.physics.world.drawDebug = !this.physics.world.drawDebug;
       if (!this.physics.world.drawDebug) this.physics.world.debugGraphic?.clear();
     });
+
+    this.pronto = true;
   }
 
   update(_tempo: number, delta: number): void {
+    // O `create` pode ter parado no meio esperando o tilemap de um andar (ver
+    // `garantirTilemap`): nesse quadro nao ha player, nem camada, nem teclas.
+    if (!this.pronto) return;
     // reordena o player entre as arvores conforme ele anda
     this.player.setDepth(this.player.y);
 
@@ -777,6 +838,9 @@ export class FarmScene extends Phaser.Scene {
         break;
       case 'sucata':
         this.recolherSucata(this.alvo);
+        break;
+      case 'elevador':
+        this.abrirElevador(this.alvo);
         break;
       case 'revenda':
         this.abrirRevendaDeSucata();
@@ -947,6 +1011,7 @@ export class FarmScene extends Phaser.Scene {
       represa: estado.represa.serializar(),
       equipamento: estado.equipamento.serializar(),
       armas: estado.armas.serializar(),
+      arquivo: estado.arquivo.serializar(),
     });
   }
 
@@ -2847,6 +2912,148 @@ export class FarmScene extends Phaser.Scene {
     }
   }
 
+  // ------------------------------------------- andares: carga sob demanda --
+  /**
+   * Garante que o tilemap do mapa esta no cache.
+   *
+   * Devolve `false` quando a carga acabou de comecar — nesse caso o `create`
+   * PARA aqui e a cena se reinicia sozinha quando o arquivo chega. E o preco de
+   * ter cinquenta andares sem pagar por eles no boot; o efeito em jogo e um
+   * quadro de "carregando" enquanto o alcapao termina de abrir.
+   *
+   * Os andares 1 a 5 e todo o resto do mundo NAO passam por aqui: eles vem no
+   * `preload` do BootScene como sempre, e `sobDemanda` e falso neles.
+   */
+  private garantirTilemap(def: DefinicaoMapa): boolean {
+    if (!def.sobDemanda || this.cache.tilemap.has(def.tilemapKey)) {
+      this.descarregarAndaresDistantes(def.chave);
+      return true;
+    }
+    this.avisoDeCarga = this.add
+      .text(this.scale.width / 2, this.scale.height / 2, 'Descendo...', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanhoTitulo,
+        color: UI.texto,
+        backgroundColor: '#0d0f14e0',
+        padding: { x: 8, y: 5 },
+      })
+      .setOrigin(0.5, 0.5)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_OVERLAY);
+    this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo);
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      this.avisoDeCarga?.destroy();
+      this.avisoDeCarga = null;
+      this.scene.restart(this.entradaAtual);
+    });
+    this.load.start();
+    return false;
+  }
+
+  /**
+   * Tira do cache os andares que nao sao o atual nem os vizinhos imediatos.
+   *
+   * Com cinquenta andares, uma descida inteira acumularia cinquenta tilemaps na
+   * memoria — que e exatamente o que a Parte 51 pede pra nao acontecer. Manter os
+   * vizinhos evita recarregar a cada subida e descida de um andar, que e o
+   * movimento mais comum.
+   */
+  private descarregarAndaresDistantes(atual: string): void {
+    const andar = andarDoMapaDef(atual)?.andar;
+    const vizinhos = new Set(
+      andar === undefined
+        ? []
+        : [andar - 1, andar, andar + 1].filter((n) => n >= 1 && n <= ANDARES.length).map(mapaDoAndar),
+    );
+    for (const def of Object.values(MAPAS)) {
+      if (!def.sobDemanda || vizinhos.has(def.chave)) continue;
+      if (this.cache.tilemap.has(def.tilemapKey)) this.cache.tilemap.remove(def.tilemapKey);
+    }
+  }
+
+  // --------------------------------------------------------------- elevador --
+  /**
+   * O ELEVADOR DE SERVICO. Onze paradas (andares 1, 5, 10 ... 50), e cada uma
+   * precisa ter sido ATIVADA no proprio andar antes de valer.
+   *
+   * E isso que impede o elevador de ser um pulo pro fundo: chegar na parada e o
+   * que a destrava, entao ele so encurta caminho ja andado. E o mesmo contrato
+   * do atalho de manutencao da leva anterior, com dez paradas em vez de uma.
+   */
+  private abrirElevador(alvo: Interagivel): void {
+    const aqui = Number(alvo.props.andar) || andarDoMapaDef(estado.mapa)?.andar || 1;
+    // Chegar na cabine ATIVA a parada deste andar.
+    if (!estado.worldEvents.ativa(flagDeCheckpoint(aqui))) {
+      estado.worldEvents.definir(flagDeCheckpoint(aqui), true);
+      this.ui.avisoRapido(`Parada ${buscarAndar(aqui)?.codigo ?? aqui} registrada.`, UI.sucesso);
+    }
+    const paradas = ANDARES_DE_PARADA.filter(
+      (n) => n !== aqui && estado.worldEvents.ativa(flagDeCheckpoint(n)),
+    );
+    if (paradas.length === 0) {
+      this.ui.iniciarDialogo([
+        {
+          nome: 'Elevador de servico',
+          texto:
+            'A cabine responde e o painel acende. So esta parada esta registrada — '
+            + 'as outras precisam ser alcancadas a pe primeiro.',
+        },
+      ]);
+      return;
+    }
+    this.ui.abrirMenu(
+      'Elevador de servico',
+      paradas.map((n) => {
+        const def = buscarAndar(n);
+        return {
+          rotulo: `${def?.codigo ?? n} — ${def?.rotulo ?? ''}`,
+          aoEscolher: () => this.usarElevador(n),
+        };
+      }),
+    );
+  }
+
+  private usarElevador(andar: number): void {
+    const def = buscarAndar(andar);
+    if (!def) return;
+    const destino = mapaDoAndar(andar);
+    const planta = buscarMapa(destino);
+    if (!planta) return;
+    // A cabine larga o jogador no tile de PARADA do andar de destino, e nao no
+    // alcapao de chegada: sao lugares diferentes, e sair do elevador pelo
+    // alcapao faria a cabine parecer estar em outro lugar a cada viagem.
+    const parada = PARADA_DO_ANDAR[andar] ?? planta.spawnTile;
+    this.transicionando = true;
+    this.cameras.main.fadeOut(200, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.restart({
+        mapa: destino,
+        x: (parada.x + 0.5) * this.tamanhoTile,
+        y: (parada.y + 0.5) * this.tamanhoTile,
+      });
+    });
+  }
+
+  // ----------------------------------------------------------- ficha medica --
+  /**
+   * ARQUIVA uma ficha medica ao ler.
+   *
+   * O documento fica no chao do andar (ele nao entra no inventario — sao
+   * cinquenta folhas, e a Parte 17 pede que elas nao ocupem slot). O que fica
+   * registrado e o numero: dali pra frente a ficha pode ser relida na tela de
+   * Arquivos, e a lacuna de uma que ficou pra tras aparece como `?????`.
+   */
+  private arquivarFicha(andar: number): void {
+    const ficha = fichaDoAndar(andar);
+    if (!ficha) return;
+    if (estado.arquivo.coletar(andar)) {
+      this.ui.avisoRapido(
+        `Ficha ${String(andar).padStart(3, '0')} arquivada (${estado.arquivo.quantas}/50).`,
+        UI.sucesso,
+      );
+    }
+  }
+
   private criarCamadaDaRepresa(map: Phaser.Tilemaps.Tilemap): void {
     if (!naRepresa(estado.mapa)) return;
     this.represa = new CamadaRepresa(this, this.tamanhoTile, {
@@ -3256,6 +3463,10 @@ export class FarmScene extends Phaser.Scene {
    * fachada mas nao tem interior — ver `AVISOS_DE_PREDIO`.
    */
   private examinarPlaca(alvo: Interagivel): void {
+    // FICHA MEDICA: o objeto tem a prop `ficha` com o numero do andar. Ler
+    // arquiva; o texto sai igual ao de qualquer placa, logo abaixo.
+    const andarDaFicha = Number(alvo.props.ficha);
+    if (Number.isInteger(andarDaFicha) && andarDaFicha > 0) this.arquivarFicha(andarDaFicha);
     if (typeof alvo.props.missaoItemId === 'string') {
       this.coletarItemDeMissao(String(alvo.props.missaoItemId));
       return;

@@ -20,7 +20,9 @@ export type TipoInteragivel =
   /** recipiente de salvado da represa: caixa, armario, gaveta, cofre */
   | 'sucata'
   /** caixa de despacho da oficina: revende o salvado da represa */
-  | 'revenda';
+  | 'revenda'
+  /** cabine do elevador de servico da represa: abre o menu de paradas */
+  | 'elevador';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
 export type TipoZona =

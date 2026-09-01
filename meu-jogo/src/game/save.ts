@@ -92,6 +92,12 @@ export interface DadosSave {
   equipamento?: DadosEquipamento;
   /** cartuchos no carregador de cada arma; ausente = carregador vazio */
   armas?: DadosArmas;
+  /**
+   * Numeros das fichas medicas ja recolhidas na represa (1 a 50). Guarda so o
+   * numero: o texto e estatico, entao o save nao cresce com o prontuario e
+   * corrigir uma virgula numa ficha nao invalida nada. Ausente = arquivo vazio.
+   */
+  arquivo?: number[];
 }
 
 export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {

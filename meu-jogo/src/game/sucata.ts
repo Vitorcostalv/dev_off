@@ -218,6 +218,16 @@ export const TABELAS_DE_SUCATA: readonly TabelaDeSucata[] = [
     },
   },
   {
+    // PREMIO do nivel 4 — os andares 41 a 50. Faltava: com cinco setores o
+    // nivel 4 era o fim da usina e a recompensa dele era o cofre; com cinquenta
+    // andares, dez deles usam a tabela `nivel_4` e nove tem premio de enigma.
+    id: 'nivel_4_premio', pecasMin: 3, pecasMax: 4,
+    pesos: {
+      modulo_de_controle: 24, placa_especializada: 20, processador_antigo: 20,
+      componente_incomum: 10, fonte_chaveada: 12, motor_pequeno: 10,
+    },
+  },
+  {
     // COFRE do setor profundo: a recompensa do puzzle de tres passos. E a unica
     // tabela que so tem peca rara, e a unica que garante o componente
     // inclassificavel — que e o gancho de historia da usina.

@@ -2213,7 +2213,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.6
+       "value": 0.151
       }
      ]
     },
@@ -2237,7 +2237,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.6
+       "value": 0.151
       }
      ]
     },
@@ -2261,7 +2261,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.6
+       "value": 0.151
       }
      ]
     },
@@ -2285,7 +2285,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.38
+       "value": 0.12
       }
      ]
     },
@@ -2309,7 +2309,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.7
+       "value": 0.22
       }
      ]
     }
@@ -2443,7 +2443,7 @@
      "height": 32,
      "width": 32,
      "id": 4317,
-     "name": "inimigo_som_1",
+     "name": "inimigo_esfera_4a",
      "rotation": 0,
      "visible": true,
      "x": 160,
@@ -2452,7 +2452,7 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "caixa_som"
+       "value": "esfera_choque"
       },
       {
        "name": "raio",
@@ -2467,7 +2467,7 @@
      "height": 32,
      "width": 32,
      "id": 4318,
-     "name": "inimigo_som_2",
+     "name": "inimigo_smart_4a",
      "rotation": 0,
      "visible": true,
      "x": 896,
@@ -2476,7 +2476,7 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "caixa_som"
+       "value": "smartfone"
       },
       {
        "name": "raio",
@@ -2491,7 +2491,7 @@
      "height": 32,
      "width": 32,
      "id": 4319,
-     "name": "inimigo_fone_1",
+     "name": "inimigo_smart_4b",
      "rotation": 0,
      "visible": true,
      "x": 768,
@@ -2515,7 +2515,7 @@
      "height": 32,
      "width": 32,
      "id": 4320,
-     "name": "inimigo_lavar_1",
+     "name": "inimigo_esfera_4b",
      "rotation": 0,
      "visible": true,
      "x": 384,
@@ -2524,7 +2524,7 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "maquina_lavar"
+       "value": "esfera_choque"
       },
       {
        "name": "raio",

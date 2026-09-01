@@ -6,7 +6,7 @@
  "tileheight": 32,
  "infinite": false,
  "nextlayerid": 9,
- "nextobjectid": 4367,
+ "nextobjectid": 4368,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -455,7 +455,7 @@
     199,
     199,
     199,
-    199,
+    221,
     199,
     199,
     199,
@@ -1238,11 +1238,50 @@
      ]
     },
     {
+     "class": "porta",
+     "type": "porta",
+     "height": 32,
+     "width": 32,
+     "id": 4343,
+     "name": "desce_5",
+     "rotation": 0,
+     "visible": true,
+     "x": 640,
+     "y": 480,
+     "properties": [
+      {
+       "name": "destino",
+       "type": "string",
+       "value": "represa_f06"
+      },
+      {
+       "name": "destinoTx",
+       "type": "int",
+       "value": 3
+      },
+      {
+       "name": "destinoTy",
+       "type": "int",
+       "value": 17
+      },
+      {
+       "name": "rotulo",
+       "type": "string",
+       "value": "Descer"
+      },
+      {
+       "name": "trancada",
+       "type": "string",
+       "value": "represaPlacaRestaurada"
+      }
+     ]
+    },
+    {
      "class": "painel",
      "type": "painel",
      "height": 32,
      "width": 32,
-     "id": 4343,
+     "id": 4344,
      "name": "painel_placa_controle",
      "rotation": 0,
      "visible": true,
@@ -1261,7 +1300,7 @@
      "type": "placa",
      "height": 32,
      "width": 32,
-     "id": 4344,
+     "id": 4345,
      "name": "doc_terminal_profundo",
      "rotation": 0,
      "visible": true,
@@ -1280,7 +1319,7 @@
      "type": "placa",
      "height": 32,
      "width": 32,
-     "id": 4345,
+     "id": 4346,
      "name": "doc_placa_fabricante",
      "rotation": 0,
      "visible": true,
@@ -1299,7 +1338,7 @@
      "type": "placa",
      "height": 32,
      "width": 32,
-     "id": 4346,
+     "id": 4347,
      "name": "doc_anotacao_final",
      "rotation": 0,
      "visible": true,
@@ -1331,7 +1370,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4358,
+     "id": 4359,
      "name": "movel_represa_4_0",
      "rotation": 0,
      "visible": true,
@@ -1371,7 +1410,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4359,
+     "id": 4360,
      "name": "movel_represa_4_1",
      "rotation": 0,
      "visible": true,
@@ -1411,7 +1450,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4360,
+     "id": 4361,
      "name": "movel_represa_4_2",
      "rotation": 0,
      "visible": true,
@@ -1451,7 +1490,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4361,
+     "id": 4362,
      "name": "movel_represa_4_3",
      "rotation": 0,
      "visible": true,
@@ -1491,7 +1530,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4362,
+     "id": 4363,
      "name": "movel_represa_4_4",
      "rotation": 0,
      "visible": true,
@@ -1531,7 +1570,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4363,
+     "id": 4364,
      "name": "movel_represa_4_5",
      "rotation": 0,
      "visible": true,
@@ -1571,7 +1610,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4364,
+     "id": 4365,
      "name": "movel_represa_4_6",
      "rotation": 0,
      "visible": true,
@@ -1611,7 +1650,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4365,
+     "id": 4366,
      "name": "movel_represa_4_7",
      "rotation": 0,
      "visible": true,
@@ -1651,7 +1690,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4366,
+     "id": 4367,
      "name": "movel_represa_4_8",
      "rotation": 0,
      "visible": true,
@@ -1702,7 +1741,7 @@
      "type": "comodo",
      "height": 256,
      "width": 800,
-     "id": 4356,
+     "id": 4357,
      "name": "camara",
      "rotation": 0,
      "visible": true,
@@ -1717,7 +1756,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.7
+       "value": 0.14
       }
      ]
     },
@@ -1726,7 +1765,7 @@
      "type": "comodo",
      "height": 192,
      "width": 800,
-     "id": 4357,
+     "id": 4358,
      "name": "poco",
      "rotation": 0,
      "visible": true,
@@ -1741,7 +1780,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.8
+       "value": 0.1665
       }
      ]
     }
@@ -1762,7 +1801,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 4347,
+     "id": 4348,
      "name": "sucata_caixa_poco_1",
      "rotation": 0,
      "visible": true,
@@ -1781,7 +1820,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 4348,
+     "id": 4349,
      "name": "sucata_caixa_poco_2",
      "rotation": 0,
      "visible": true,
@@ -1800,7 +1839,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 4349,
+     "id": 4350,
      "name": "sucata_caixa_camara",
      "rotation": 0,
      "visible": true,
@@ -1819,7 +1858,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 4350,
+     "id": 4351,
      "name": "sucata_cofre_profundo",
      "rotation": 0,
      "visible": true,
@@ -1855,8 +1894,8 @@
      "type": "inimigo",
      "height": 32,
      "width": 32,
-     "id": 4351,
-     "name": "inimigo_gelo_1",
+     "id": 4352,
+     "name": "inimigo_esfera_5a",
      "rotation": 0,
      "visible": true,
      "x": 256,
@@ -1865,31 +1904,7 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "geladeira_gelo"
-      },
-      {
-       "name": "raio",
-       "type": "int",
-       "value": 6
-      }
-     ]
-    },
-    {
-     "class": "inimigo",
-     "type": "inimigo",
-     "height": 32,
-     "width": 32,
-     "id": 4352,
-     "name": "inimigo_lavar_2",
-     "rotation": 0,
-     "visible": true,
-     "x": 640,
-     "y": 256,
-     "properties": [
-      {
-       "name": "tipo",
-       "type": "string",
-       "value": "maquina_lavar"
+       "value": "esfera_choque"
       },
       {
        "name": "raio",
@@ -1904,7 +1919,31 @@
      "height": 32,
      "width": 32,
      "id": 4353,
-     "name": "inimigo_robo_2",
+     "name": "inimigo_smart_5a",
+     "rotation": 0,
+     "visible": true,
+     "x": 640,
+     "y": 256,
+     "properties": [
+      {
+       "name": "tipo",
+       "type": "string",
+       "value": "smartfone"
+      },
+      {
+       "name": "raio",
+       "type": "int",
+       "value": 6
+      }
+     ]
+    },
+    {
+     "class": "inimigo",
+     "type": "inimigo",
+     "height": 32,
+     "width": 32,
+     "id": 4354,
+     "name": "inimigo_esfera_5b",
      "rotation": 0,
      "visible": true,
      "x": 448,
@@ -1913,7 +1952,7 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "robo_servico"
+       "value": "esfera_choque"
       },
       {
        "name": "raio",
@@ -1939,7 +1978,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 4354,
+     "id": 4355,
      "name": "luz_0",
      "rotation": 0,
      "visible": true,
@@ -1958,7 +1997,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 4355,
+     "id": 4356,
      "name": "luz_1",
      "rotation": 0,
      "visible": true,
