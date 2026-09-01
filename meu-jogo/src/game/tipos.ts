@@ -33,6 +33,7 @@ export type TipoZona =
   | 'parque'
   | 'bar'
   | 'farmacia'
+  | 'hospital'
   // Mapa 2 — Bairro da Estacao
   | 'oficina'
   | 'escola'

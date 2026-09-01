@@ -50,6 +50,7 @@ export const COR_ZONA: Record<TipoZona, number> = {
   parque: 0x9ee493,
   bar: 0xffa95c,
   farmacia: 0x7fe3d0,
+  hospital: 0xe8f0ff,
   // Mapa 2
   oficina: 0xd8a6ff,
   escola: 0xffc4dd,

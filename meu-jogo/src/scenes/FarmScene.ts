@@ -43,9 +43,9 @@ import type { UIScene } from './UIScene';
 import { CamadaRepresa } from './CamadaRepresa';
 import { CamadaLuz } from './CamadaLuz';
 import {
+  MAPA_DE_RESGATE,
   PERDA_POR_DERROTA,
   PONTO_DE_RESGATE,
-  SETOR_DE_RESGATE,
   buscarPainel,
   iniciarPainel,
   naRepresa,
@@ -168,7 +168,7 @@ const TIPOS_VALIDOS: TipoInteragivel[] = [
   'elevador',
 ];
 const TIPOS_ZONA_VALIDOS: TipoZona[] = [
-  'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia',
+  'casa', 'mercado', 'academia', 'parque', 'bar', 'farmacia', 'hospital',
   'oficina', 'escola', 'biblioteca', 'quadra', 'terreno', 'servico',
   'madeireira', 'pedreira', 'fazenda',
   'represa', 'mirante',
@@ -3459,12 +3459,29 @@ export class FarmScene extends Phaser.Scene {
    * viagem de volta pela estrada e parte do custo, e acordar em casa apagaria a
    * decisao de "volto agora ou desco mais um nivel".
    */
+  /**
+   * DERROTA — a vida chegou a zero dentro da usina.
+   *
+   * A sequencia, na ordem da Parte 26: congela o combate, escurece, avanca o
+   * relogio, leva o jogador pro HOSPITAL, restaura a vida e cobra a unica coisa
+   * que a derrota cobra — parte do salvado da descida atual.
+   *
+   * O QUE ELA NAO TOCA, e vale listar porque e o contrato: save, item de missao,
+   * item unico, arma, municao, mobilia, relacionamento, ficha medica arquivada,
+   * flag de enigma resolvido, parada de elevador registrada e atalho aberto.
+   * `perdaPorDerrota` so olha o registro da corrida atual, e o registro da
+   * corrida atual so tem salvado.
+   *
+   * A vida volta CHEIA (era 60%): quem acorda num hospital saiu de la atendido, e
+   * a punicao de verdade sao as horas perdidas e a volta pela estrada.
+   */
   private serDerrotado(): void {
     if (this.transicionando) return;
     this.transicionando = true;
     const perda = estado.represa.perdaPorDerrota();
     for (const item of perda) estado.inventario.remover(item.id, item.quantidade);
-    estado.vida.definir(Math.round(estado.vida.maxHp * PERDA_POR_DERROTA.fracaoDeVida));
+    estado.equipamento.sincronizarCom((id) => estado.inventario.contar(id));
+    estado.vida.restaurarTudo();
     estado.dia += estado.relogio.avancarMinutos(PERDA_POR_DERROTA.horas * 60);
 
     const perdido = perda
@@ -3477,13 +3494,16 @@ export class FarmScene extends Phaser.Scene {
       const t = this.tamanhoTile;
       this.ui.iniciarDialogo(
         falasDe('...', [
-          'Voce acorda no piso da casa de forca, com a lanterna apagada do lado.',
-          `Passaram ${PERDA_POR_DERROTA.horas} horas.`,
-          perdido ? `Parte do salvado ficou lá embaixo: ${perdido}.` : 'A mochila esta como estava.',
+          'Voce acorda na enfermaria do hospital municipal, de roupa trocada e sem lembrar '
+            + 'de ter subido a estrada.',
+          `Passaram ${PERDA_POR_DERROTA.horas} horas. Alguem passou aqui e nao esperou voce acordar.`,
+          perdido
+            ? `Parte do salvado ficou lá embaixo: ${perdido}.`
+            : 'A mochila esta como estava.',
         ]),
       );
       this.scene.restart({
-        mapa: SETOR_DE_RESGATE,
+        mapa: MAPA_DE_RESGATE,
         x: (PONTO_DE_RESGATE.x + 0.5) * t,
         y: (PONTO_DE_RESGATE.y + 0.5) * t,
       });

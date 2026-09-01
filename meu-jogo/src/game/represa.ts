@@ -103,9 +103,29 @@ export function naRepresa(mapa: string): boolean {
   return mapa === 'represa' || SETOR_POR_CHAVE.has(mapa);
 }
 
-/** Setor onde o jogador acorda depois de ser derrotado: sempre o nivel 0. */
-export const SETOR_DE_RESGATE = 'represa_0';
-export const PONTO_DE_RESGATE = { x: 14, y: 17 };
+/**
+ * ONDE O JOGADOR ACORDA depois de ser derrotado: o HOSPITAL MUNICIPAL do Mapa 1.
+ *
+ * Era o nivel 0 da propria usina, e a Parte 26 pediu a troca por um motivo que a
+ * primeira versao deixava claro em jogo: acordar dentro da represa fazia a
+ * derrota parecer um teletransporte de conveniencia, e o jogador voltava a
+ * descer no mesmo minuto. Acordar no hospital custa a volta pela estrada — e faz
+ * a derrota ter consequencia sem tirar nada permanente.
+ *
+ * A cama de recuperacao fica na enfermaria; o ponto de acordar e o tile a frente
+ * dela. `verificar-mapas` confere que ele e livre e alcancavel.
+ */
+export const MAPA_DE_RESGATE = 'hospital';
+export const PONTO_DE_RESGATE = { x: 13, y: 6 };
+
+/**
+ * O setor da usina em que o jogador acordava ANTES desta leva.
+ *
+ * Continua exportado porque a conferencia da represa o usa como referencia de
+ * zona segura — o nivel 0 e o unico andar sem inimigo nenhum, e era por isso que
+ * ele servia de resgate.
+ */
+export const SETOR_SEGURO = 'represa_0';
 
 // --------------------------------------------------------------- tensao --
 /**

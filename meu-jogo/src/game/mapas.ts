@@ -116,6 +116,10 @@ export const MAPAS: Record<string, DefinicaoMapa> = {
   bar: mapa('bar', { x: 10, y: 12 }, 'farm'),
   farmacia: mapa('farmacia', { x: 10, y: 12 }, 'farm'),
 
+  // HOSPITAL MUNICIPAL (22x16): recepcao na frente, consultorio e enfermaria
+  // atras. E o ponto de recuperacao universal da derrota na represa.
+  hospital: mapa('hospital', { x: 11, y: 14 }, 'farm'),
+
   // ----------------------------------------------- interiores do Mapa 2 --
   // Casa + oficina do protagonista (34x22): quarto, cozinha, banheiro, sala,
   // oficina e tres comodos de EXPANSAO comprados na madeireira do Mapa 3.

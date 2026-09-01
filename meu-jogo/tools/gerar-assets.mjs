@@ -1594,6 +1594,17 @@ const ZONAS = [
   // balcao e nao um salao de gondolas.
   { nome: 'bar', classe: 'bar', uso: 'misto', x: 76, y: 24, w: 10, h: 8 },
   { nome: 'farmacia', classe: 'farmacia', uso: 'misto', x: 80, y: 50, w: 10, h: 8 },
+  /**
+   * HOSPITAL MUNICIPAL. Lote livre a leste da avenida, entre a farmacia e o anel
+   * sul.
+   *
+   * Ele existe desde o comeco do jogo e NAO e o "Posto de Saude" que o jogador
+   * constroi no Mapa 2 (ver `PROJETOS_CIDADE`): sao dois predios diferentes, e
+   * a razao e de regra e nao de cenario — o hospital e o ponto de recuperacao
+   * universal da derrota (Parte 26), e ele nao pode depender de o jogador ter
+   * juntado quinze mil reais pra construir um.
+   */
+  { nome: 'hospital', classe: 'hospital', uso: 'comercio', x: 82, y: 60, w: 10, h: 8 },
 ];
 
 /** Lotes onde alguem mora: casa pura mais os mistos (casa + comercio). */
@@ -1667,6 +1678,12 @@ const CONSTRUCOES = {
   // lado, trabalho do outro, tudo no mesmo comodo) em vez do salao puro.
   bar: { pegada: { w: 8, h: 5 }, interior: 'bar', comercio: true, misto: true },
   farmacia: { pegada: { w: 8, h: 5 }, interior: 'farmacia', comercio: true, misto: true },
+  // `projeto` diz que a FACHADA sai de `comporProjetoCidade` em vez de
+  // `comporComercio`: `Paredes_hospital.png` veio sobre fundo opaco e nao se
+  // deixa segmentar por blob, mas ja esta endereçada a dedo em `ARTE_PROJETOS`
+  // (parede, letreiro e porta em retangulo de pixel). Reusar aquilo evita uma
+  // segunda descricao da mesma folha.
+  hospital: { pegada: { w: 8, h: 5 }, interior: 'hospital', comercio: true, projeto: 'hospital' },
 };
 
 /** Lotes que sao area externa: praca, sem predio e sem interior. */
@@ -2747,6 +2764,9 @@ function gerarConstrucoes() {
   const pecasFixas = CONSTRUIDAS.map((c) => {
     const larguraPx = c.w * T;
     const alturaPx = Math.round((c.h + SOBRA_TELHADO) * T);
+    if (c.projeto) {
+      return { nome: c.nome, im: comporProjetoCidade(c.projeto, larguraPx, alturaPx) };
+    }
     if (c.comercio) {
       return { nome: c.nome, im: comporComercio(ESTILOS_COMERCIO[c.nome], larguraPx, alturaPx) };
     }
@@ -4102,6 +4122,37 @@ const CATALOGO_POR_COMODO = {
     luminaria_leitura: { folha: 'quarto', peca: [2, 3], solido: false },
   },
 
+  /**
+   * HOSPITAL MUNICIPAL. Pecas de `Moveis_hospital.png`, a folha que ja estava na
+   * pasta de arte e so era usada pela fachada do Posto de Saude.
+   */
+  hospital: {
+    // --- recepcao ---
+    balcao_recepcao: { folha: 'hospital', peca: [0, 0], solido: true },
+    banco_espera: { folha: 'hospital', peca: [0, 1], solido: true },
+    banco_espera_curto: { folha: 'hospital', peca: [0, 2], solido: true },
+    cadeira_espera: { folha: 'hospital', peca: [0, 3], solido: true },
+    bebedouro_hospital: { folha: 'hospital', peca: [4, 4], solido: true },
+    mural_avisos: { folha: 'hospital', peca: [6, 8], solido: false },
+    relogio_hospital: { folha: 'hospital', peca: [6, 0], solido: false },
+    extintor_hospital: { folha: 'hospital', peca: [6, 1], solido: false },
+    planta_hospital: { folha: 'hospital', peca: [6, 6], solido: false },
+    // --- enfermaria ---
+    cama_hospital: { folha: 'hospital', peca: [1, 0], solido: true },
+    maca: { folha: 'hospital', peca: [1, 1], solido: true },
+    cadeira_de_rodas: { folha: 'hospital', peca: [1, 2], solido: true },
+    biombo: { folha: 'hospital', peca: [1, 3], solido: true },
+    suporte_de_soro: { folha: 'hospital', peca: [3, 0], solido: false },
+    monitor_de_sinais: { folha: 'hospital', peca: [3, 1], solido: true },
+    cilindro_de_oxigenio: { folha: 'hospital', peca: [4, 7], solido: true },
+    // --- consultorio ---
+    carrinho_de_medicamento: { folha: 'hospital', peca: [3, 2], solido: true },
+    armario_de_remedios: { folha: 'hospital', peca: [3, 3], solido: true },
+    pia_hospital: { folha: 'hospital', peca: [3, 4], solido: true },
+    armario_de_suprimentos: { folha: 'hospital', peca: [3, 5], solido: true },
+    lixeira_hospital: { folha: 'hospital', peca: [4, 0], solido: true },
+  },
+
   comum: {
     // chao
     tapete_marrom: { folha: 'mobilia_v2', peca: [3, 5], solido: false, chao: true, escala: 1.7 },
@@ -4171,6 +4222,10 @@ const TIPO_DE_COMODO = {
   diretoria: 'escola',
   acervo: 'biblioteca',
   leitura: 'biblioteca',
+  // --- comodos do hospital municipal ---
+  recepcao: 'hospital',
+  enfermaria: 'hospital',
+  consultorio: 'hospital',
   // --- comodos dos setores da represa ---
   // Todos entram como `oficina`: a mobilia industrial do jogo (bancada, armario
   // de pecas, estante de sucata, estante industrial) mora naquela categoria, e e
@@ -4894,6 +4949,77 @@ const PLANTAS_PROPRIAS = {
    * pesquisa/arquivo que o documento de enredo pede pro misterio da AuroraLivre
    * fica como GANCHO FUTURO: nada aqui prepara terreno pra isso alem do movel.
    */
+  /**
+   * HOSPITAL MUNICIPAL — a planta mais simples do jogo, e de proposito.
+   *
+   * Tres comodos e um corredor:
+   *
+   *   consultorio (9x6)  |  enfermaria (10x6)
+   *   ---------------------------------------
+   *   recepcao (20x5)          <- porta pra rua
+   *
+   * A Parte 27 pediu "simples mas extensivel", e o que a torna extensivel e a
+   * faixa de RESERVA a leste da enfermaria: um vao de parede ja aberto pra onde
+   * um segundo consultorio, um raio-X ou uma sala de espera infantil cabem sem
+   * mexer no resto. Nao ha NPC de equipe ainda; os postos de trabalho entram
+   * quando alguem for morar neles.
+   *
+   * NAO ha cama de dormir aqui: a cama da enfermaria e mobilia. Dormir e salvar
+   * continua sendo coisa da casa do protagonista, e a recuperacao da derrota e
+   * automatica (ver `serDerrotado` na FarmScene).
+   */
+  hospital: {
+    parede: 'liso_branco',
+    paredePorComodo: { enfermaria: 'azulejo_branco', consultorio: 'azulejo_branco' },
+    chao: 'PISO_GRANILITE',
+    pisos: { enfermaria: 'marmore', consultorio: 'marmore' },
+    largura: 22,
+    altura: 16,
+    porta: 11,
+    paredes: [
+      [10, 2, 1, 6], // divisa consultorio / enfermaria
+      [1, 8, 20, 2], // divisa das salas com a recepcao
+    ],
+    vaos: [[5, 8], [5, 9], [15, 8], [15, 9]],
+    comodos: {
+      consultorio: [1, 2, 9, 6],
+      enfermaria: [11, 2, 10, 6],
+      recepcao: [1, 10, 20, 5],
+    },
+    mobilia: {
+      consultorio: [
+        { movel: 'armario_de_remedios', tx: 1, ty: 4 },
+        { movel: 'pia_hospital', tx: 4, ty: 4 },
+        { movel: 'carrinho_de_medicamento', tx: 7, ty: 4 },
+        { movel: 'armario_de_suprimentos', tx: 1, ty: 7 },
+        { movel: 'lixeira_hospital', tx: 9, ty: 7 },
+      ],
+      enfermaria: [
+        // A CAMA DE RECUPERACAO: e nela que o jogador acorda depois de ser
+        // derrotado na represa. Fica encostada na parede oeste do comodo, e o
+        // ponto de acordar e o tile a frente dela.
+        { movel: 'cama_hospital', tx: 11, ty: 5 },
+        { movel: 'suporte_de_soro', tx: 14, ty: 5 },
+        { movel: 'monitor_de_sinais', tx: 15, ty: 4 },
+        { movel: 'biombo', tx: 17, ty: 5 },
+        { movel: 'maca', tx: 11, ty: 7 },
+        { movel: 'cilindro_de_oxigenio', tx: 20, ty: 7 },
+      ],
+      recepcao: [
+        { movel: 'balcao_recepcao', tx: 2, ty: 11 },
+        { movel: 'banco_espera', tx: 8, ty: 14 },
+        { movel: 'banco_espera_curto', tx: 13, ty: 14 },
+        { movel: 'cadeira_espera', tx: 17, ty: 14 },
+        { movel: 'bebedouro_hospital', tx: 19, ty: 11 },
+        { movel: 'cadeira_de_rodas', tx: 8, ty: 11 },
+        { movel: 'mural_avisos', tx: 11, ty: 10 },
+        { movel: 'relogio_hospital', tx: 15, ty: 10 },
+        { movel: 'extintor_hospital', tx: 17, ty: 10 },
+        { movel: 'planta_hospital', tx: 1, ty: 14 },
+      ],
+    },
+  },
+
   biblioteca: {
     parede: 'biblioteca',
     chao: 'PISO_ESPINHA_MADEIRA',
