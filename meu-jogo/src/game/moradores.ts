@@ -52,7 +52,32 @@ export interface LugarMorador {
   rota?: PontoTile[];
   /** Retangulo de perambulacao ao ar livre, para quem tem passada real. */
   area?: AreaVagar;
+  /**
+   * ONDE ESTE MORADOR FICA QUANDO CHOVE.
+   *
+   * Ausente = o lugar vale com chuva e sem chuva, que e o caso de todo lugar
+   * coberto (a maioria da agenda). Presente so nos blocos AO AR LIVRE: o
+   * percurso de rua, a quadra e a roca. Ver `naChuva` logo abaixo e
+   * `tempoDoDia` em src/game/clima.ts.
+   *
+   * A substituicao troca o LUGAR INTEIRO, entao o percurso (`rota`) e a area de
+   * perambulacao somem junto — quem estava andando na rua passa o bloco parado
+   * onde se abrigou, que e o que se quer.
+   */
+  chuva?: LugarMorador;
 }
+
+/**
+ * Marca um lugar ao ar livre com o ABRIGO dele.
+ *
+ * Existe como funcao, e nao como campo escrito em cada declaracao, porque os
+ * lugares ao ar livre nascem de tres construtores diferentes (`aoArLivre`,
+ * `percurso` e o mapa `QUADRA`) e todos eles ja recebem parametro demais.
+ */
+const comAbrigo = (lugar: LugarMorador, abrigo: LugarMorador): LugarMorador => ({
+  ...lugar,
+  chuva: abrigo,
+});
 
 export interface AtividadeMorador {
   inicio: number;
@@ -204,16 +229,19 @@ const ESCRITORIO_DA_PRISCILA = dentro('casa_rural_1', 'rural', 17.5, 5.5);
 
 // ------------------------------------------------------------- ao ar livre --
 // Postos FIXOS: quem nao tem passada real na arte fica de pe, e nao desliza.
-const PORTAO_DA_ESCOLA = aoArLivre('bairro', 36.5, 49.5);
-const PATIO_DA_CENTRAL = aoArLivre('bairro', 45.5, 62.5);
+const PORTAO_DA_ESCOLA = comAbrigo(aoArLivre('bairro', 36.5, 49.5), SALA_DE_AULA);
+const PATIO_DA_CENTRAL = comAbrigo(aoArLivre('bairro', 45.5, 62.5), BALCAO_BIBLIOTECA);
 const BALCAO_DA_MADEIREIRA = aoArLivre('rural', 116.5, 35.5);
+// A QUADRA e o unico bloco ao ar livre das criancas. Quando chove elas somem
+// dela e aparecem em casa — a biblioteca ja tem posto fixo pro Ravi e pro Lucas,
+// e encher a sala de leitura com seis criancas atropelaria a agenda de la.
 const QUADRA: Record<string, LugarMorador> = {
-  cecilia: aoArLivre('bairro', 90.5, 62.5),
-  arthur: aoArLivre('bairro', 92.5, 62.5),
-  ravi: aoArLivre('bairro', 94.5, 62.5),
-  manuela: aoArLivre('bairro', 90.5, 65.5),
-  helena: aoArLivre('bairro', 92.5, 65.5),
-  matheus: aoArLivre('bairro', 96.5, 62.5),
+  cecilia: comAbrigo(aoArLivre('bairro', 90.5, 62.5), LAR.cecilia),
+  arthur: comAbrigo(aoArLivre('bairro', 92.5, 62.5), LAR.arthur),
+  ravi: comAbrigo(aoArLivre('bairro', 94.5, 62.5), CANTO_DO_RAVI),
+  manuela: comAbrigo(aoArLivre('bairro', 90.5, 65.5), LAR.manuela),
+  helena: comAbrigo(aoArLivre('bairro', 92.5, 65.5), LAR.helena),
+  matheus: comAbrigo(aoArLivre('bairro', 96.5, 62.5), LAR.matheus),
 };
 
 // PERCURSOS de rua, so pra quem tem passada real na arte.
@@ -231,29 +259,38 @@ const QUADRA: Record<string, LugarMorador> = {
 // livres. Cada morador ganhou um trecho que combina com o que ele faz —
 // a Julia percorre a linha do onibus, o Caio desce a rua baixa atras de
 // conserto, a Ilda faz a caminhada da tarde ate o fim da rua.
-const RUA_DO_CAIO = percurso('bairro', [
+// Cada percurso e cada bloco de roca leva o ABRIGO junto: quando chove, o
+// morador passa o bloco em casa (ou na biblioteca, no caso das criancas da
+// quadra) em vez de andar na chuva. Ver `LugarMorador.chuva`.
+const RUA_DO_CAIO = comAbrigo(percurso('bairro', [
   [37.5, 76.6], [30, 77.3], [20.5, 78.2], [30, 77.3], [44, 76.2], [55, 75.2], [44, 76.2],
-]);
-const LINHA_DA_JULIA = percurso('bairro', [
+]), LAR.caio);
+const LINHA_DA_JULIA = comAbrigo(percurso('bairro', [
   [59.5, 74.6], [66.2, 74.2], [66.2, 64], [66.2, 54.5], [66.2, 64], [66.2, 74.2], [52, 75.6], [66.2, 74.2],
-]);
-const CALCADA_DO_ROBERTO = percurso('bairro', [
+]), LAR.julia);
+const CALCADA_DO_ROBERTO = comAbrigo(percurso('bairro', [
   [81.5, 75.4], [92.2, 76.2], [100, 74.2], [92.2, 76.2], [70, 74.4], [66.2, 74.2], [70, 74.4],
-]);
-const CAMINHADA_DA_ILDA = percurso('bairro', [
+]), LAR.roberto);
+const CAMINHADA_DA_ILDA = comAbrigo(percurso('bairro', [
   [84.5, 74.5], [92.2, 76.2], [100, 74.2], [108, 72.8], [100, 74.2], [92.2, 76.2], [78, 74.9], [70, 74.4], [78, 74.9],
-]);
-const RUA_DA_SAMANTA = percurso('bairro', [
+]), LAR.ilda);
+const RUA_DA_SAMANTA = comAbrigo(percurso('bairro', [
   [7.5, 58.5], [8.5, 62], [8.5, 65.8], [20.5, 66.2], [30, 64.5], [36.5, 63.2], [30, 64.5], [20.5, 66.2], [8.5, 65.8], [8.5, 62],
-]);
-const QUADRA_ABERTA = percurso('bairro', [
+]), LAR.samanta);
+const QUADRA_ABERTA = comAbrigo(percurso('bairro', [
   [95.5, 64.5], [91.5, 61.5], [96.5, 67.5], [96.5, 73.5], [96.5, 67.5], [101.5, 61.5], [96.5, 63],
-]);
+]), LAR.suzan);
 // A roca continua sendo AREA e nao percurso: sao 20x12 tiles de leira aberta, e
 // quem esta capinando anda mesmo sem rumo fixo. A objecao do retangulo pequeno
 // nao vale aqui — o campo e maior que a tela.
-const HORTA_DO_JOAO = aoArLivre('rural', 32.5, 50.5, { min: { x: 26, y: 46 }, max: { x: 46, y: 58 } });
-const HORTA_DA_NEIDE = aoArLivre('rural', 40.5, 54.5, { min: { x: 26, y: 46 }, max: { x: 46, y: 58 } });
+const HORTA_DO_JOAO = comAbrigo(
+  aoArLivre('rural', 32.5, 50.5, { min: { x: 26, y: 46 }, max: { x: 46, y: 58 } }),
+  LAR.joao,
+);
+const HORTA_DA_NEIDE = comAbrigo(
+  aoArLivre('rural', 40.5, 54.5, { min: { x: 26, y: 46 }, max: { x: 46, y: 58 } }),
+  LAR.neide,
+);
 
 /**
  * Uma agenda e uma lista de (hora de inicio, lugar, texto). O `fim` de cada
@@ -532,8 +569,33 @@ export function buscarMorador(id: unknown): Morador | null {
 }
 
 /** Atividade valida para o relogio atual; fins de semana substituem o dia util. */
+/**
+ * A agenda de um DIA: as faixas de dia util ou as de fim de semana.
+ *
+ * Estava embutida em `atividadeAtual` e saiu pra fora porque a substituicao de
+ * chuva (ver `naChuva`) precisa da lista inteira do dia, e nao da faixa que vale
+ * agora.
+ */
+export function atividadesDoDia(morador: Morador, dia: number): AtividadeMorador[] {
+  const fimDeSemana = ((dia % 7) + 7) % 7 >= 5;
+  return morador.atividades.filter((a) => Boolean(a.fimDeSemana) === fimDeSemana);
+}
+
+/**
+ * A agenda do dia COM CHUVA: cada faixa cujo lugar declara abrigo troca de
+ * lugar; o resto fica igual.
+ *
+ * Devolve `null` quando nada mudaria — assim quem chama sabe que nao precisa
+ * substituir a rotina do NPC, e o motor continua com a rotina base.
+ */
+export function naChuva(atividades: readonly AtividadeMorador[]): AtividadeMorador[] | null {
+  if (!atividades.some((a) => a.lugar.chuva)) return null;
+  return atividades.map((a) => (a.lugar.chuva
+    ? { ...a, lugar: a.lugar.chuva, atividade: `${a.atividade} (abrigado da chuva)` }
+    : a));
+}
+
 export function atividadeAtual(morador: Morador, dia: number, minutos: number): AtividadeMorador | null {
-  const fimDeSemana = dia % 7 >= 5;
-  const lista = morador.atividades.filter((a) => Boolean(a.fimDeSemana) === fimDeSemana);
+  const lista = atividadesDoDia(morador, dia);
   return lista.find((a) => minutos >= a.inicio && minutos < a.fim) ?? null;
 }

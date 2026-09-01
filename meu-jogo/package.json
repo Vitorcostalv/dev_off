@@ -19,6 +19,7 @@
     "verificar-ambientacao": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-ambientacao.mjs",
     "gerar-aparelhos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-aparelhos.mjs",
     "verificar-represa": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-represa.mjs",
+    "verificar-andares": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-andares.mjs",
     "verificar-expansao-npcs": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-expansao-npcs.mjs",
     "gerar-relatorio-relacionamentos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-relatorio-relacionamentos.mjs"
   },

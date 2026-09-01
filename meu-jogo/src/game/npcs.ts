@@ -171,6 +171,20 @@ export interface DefinicaoNpc {
    * E o que da a viagem semanal ao mercado sem espalhar `if` pelo motor.
    */
   rotinaSemanal?: Partial<Record<IndiceDiaDaSemana, AcaoRotinaNpc[]>>;
+  /**
+   * Rotina de DIA DE CHUVA. Substitui `rotina` (e `rotinaSemanal`) nos dias em
+   * que chove — ver `tempoDoDia` em src/game/clima.ts e a substituicao em
+   * src/game/estado.ts.
+   *
+   * Lista VAZIA e valida e quer dizer "nao sai de casa": sem acao nenhuma o
+   * motor deixa o NPC onde `dentroInicial` o poe. E o que Edu e Leticia fazem,
+   * que sao os dois NPCs do Mapa 1 cuja rotina inteira e ao ar livre.
+   *
+   * Os 24 MORADORES nao usam este campo: a agenda deles declara o abrigo POR
+   * FAIXA (ver `LugarMorador.chuva`), o que e mais fino — eles trocam so o bloco
+   * ao ar livre e mantem o resto do dia.
+   */
+  rotinaChuva?: AcaoRotinaNpc[];
   /** Rota publica ate a frente da casa, usada pelo fallback global das 18:00. */
   rotaCasa: PontoTile[];
 }
@@ -460,6 +474,14 @@ export const NPCS: Record<string, DefinicaoNpc> = {
       'Fui contratado remoto, entao nem preciso sair de casa...',
       'Mas saio mesmo assim.',
     ],
+    /**
+     * DIA DE CHUVA: o Edu nao sai.
+     *
+     * Ele e o contratado remoto do Mapa 1 — a fala de abertura dele e "nem
+     * preciso sair de casa... mas saio mesmo assim". Com chuva, a segunda metade
+     * da frase cai, e a rotina vazia deixa ele onde `dentroInicial` o poe.
+     */
+    rotinaChuva: [],
     rotina: [
       { horario: hora(8), tipo: 'sair_construcao', construcao: 'casa_2' },
       { horario: hora(8), tipo: 'andar_rota', waypoints: [
@@ -619,6 +641,10 @@ export const NPCS: Record<string, DefinicaoNpc> = {
     // Sem destino: dois turnos de `vagar`, um na avenida principal e outro na
     // praca do parque, ligados por uma rota. Ver a nota sobre area retangular
     // abaixo de NPCS — o retangulo tem de ser todo livre.
+    // DIA DE CHUVA: a Leticia tambem fica. A rotina dela e uma caminhada sem
+    // destino pela avenida e pela praca, e nao ha para onde deslocar isso sem
+    // inventar um interior que ela nao frequenta.
+    rotinaChuva: [],
     rotina: [
       { horario: hora(10), tipo: 'sair_construcao', construcao: 'casa_5' },
       // a casa fica entre a porta e o anel sul, entao contorna pela coluna x=34

@@ -6,7 +6,7 @@
  "tileheight": 32,
  "infinite": false,
  "nextlayerid": 9,
- "nextobjectid": 6439,
+ "nextobjectid": 6217,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -1369,7 +1369,7 @@
      "type": "porta",
      "height": 32,
      "width": 32,
-     "id": 6378,
+     "id": 6162,
      "name": "sobe",
      "rotation": 0,
      "visible": true,
@@ -1403,7 +1403,7 @@
      "type": "porta",
      "height": 32,
      "width": 32,
-     "id": 6379,
+     "id": 6163,
      "name": "desce",
      "rotation": 0,
      "visible": true,
@@ -1437,11 +1437,11 @@
      "type": "painel",
      "height": 32,
      "width": 32,
-     "id": 6380,
+     "id": 6164,
      "name": "painel_enigma_47",
      "rotation": 0,
      "visible": true,
-     "x": 448,
+     "x": 480,
      "y": 256,
      "properties": [
       {
@@ -1456,7 +1456,7 @@
      "type": "placa",
      "height": 32,
      "width": 32,
-     "id": 6381,
+     "id": 6165,
      "name": "doc_ficha_047",
      "rotation": 0,
      "visible": true,
@@ -1480,7 +1480,7 @@
      "type": "placa",
      "height": 32,
      "width": 32,
-     "id": 6382,
+     "id": 6166,
      "name": "doc_pista_47",
      "rotation": 0,
      "visible": true,
@@ -1512,7 +1512,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6408,
+     "id": 6192,
      "name": "movel_represa_f47_0",
      "rotation": 0,
      "visible": true,
@@ -1535,6 +1535,11 @@
        "value": 1.511
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.866
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1552,11 +1557,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6409,
+     "id": 6193,
      "name": "movel_represa_f47_1",
      "rotation": 0,
      "visible": true,
-     "x": 375,
+     "x": 380,
      "y": 288,
      "properties": [
       {
@@ -1575,6 +1580,11 @@
        "value": 0.716
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.732
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1592,11 +1602,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6410,
+     "id": 6194,
      "name": "movel_represa_f47_2",
      "rotation": 0,
      "visible": true,
-     "x": 457,
+     "x": 566,
      "y": 288,
      "properties": [
       {
@@ -1615,6 +1625,11 @@
        "value": 2.199
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.35
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1632,88 +1647,8 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6411,
+     "id": 6195,
      "name": "movel_represa_f47_3",
-     "rotation": 0,
-     "visible": true,
-     "x": 528,
-     "y": 288,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_mobilia_v1"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_4_5"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.453
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": false
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6412,
-     "name": "movel_represa_f47_4",
-     "rotation": 0,
-     "visible": true,
-     "x": 594,
-     "y": 288,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_cozinha"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_2_0"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 2.313
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6413,
-     "name": "movel_represa_f47_5",
      "rotation": 0,
      "visible": true,
      "x": 48,
@@ -1735,6 +1670,11 @@
        "value": 2.313
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.987
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1752,27 +1692,122 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6414,
+     "id": 6196,
+     "name": "movel_represa_f47_4",
+     "rotation": 0,
+     "visible": true,
+     "x": 118,
+     "y": 96,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v1"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_4"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.199
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.35
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 6197,
+     "name": "movel_represa_f47_5",
+     "rotation": 0,
+     "visible": true,
+     "x": 210,
+     "y": 96,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v1"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_5"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.453
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.131
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 6198,
      "name": "movel_represa_f47_6",
      "rotation": 0,
      "visible": true,
-     "x": 117,
+     "x": 304,
      "y": 96,
      "properties": [
       {
        "name": "atlas",
        "type": "string",
-       "value": "moveis_mobilia_v1"
+       "value": "moveis_cozinha"
       },
       {
        "name": "frame",
        "type": "string",
-       "value": "movel_4_4"
+       "value": "movel_2_0"
       },
       {
        "name": "alturaTiles",
        "type": "float",
-       "value": 2.199
+       "value": 2.313
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.987
       },
       {
        "name": "colide",
@@ -1792,11 +1827,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6415,
+     "id": 6199,
      "name": "movel_represa_f47_7",
      "rotation": 0,
      "visible": true,
-     "x": 189,
+     "x": 374,
      "y": 96,
      "properties": [
       {
@@ -1807,17 +1842,22 @@
       {
        "name": "frame",
        "type": "string",
-       "value": "movel_4_5"
+       "value": "movel_4_4"
       },
       {
        "name": "alturaTiles",
        "type": "float",
-       "value": 1.453
+       "value": 2.199
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.35
       },
       {
        "name": "colide",
        "type": "bool",
-       "value": false
+       "value": true
       },
       {
        "name": "chao",
@@ -1832,91 +1872,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6416,
+     "id": 6200,
      "name": "movel_represa_f47_8",
      "rotation": 0,
      "visible": true,
-     "x": 255,
-     "y": 96,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_cozinha"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_2_0"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 2.313
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6417,
-     "name": "movel_represa_f47_9",
-     "rotation": 0,
-     "visible": true,
-     "x": 324,
-     "y": 96,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_mobilia_v1"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_4_4"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 2.199
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6418,
-     "name": "movel_represa_f47_10",
-     "rotation": 0,
-     "visible": true,
-     "x": 396,
+     "x": 466,
      "y": 96,
      "properties": [
       {
@@ -1935,6 +1895,11 @@
        "value": 1.453
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.131
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1952,11 +1917,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6419,
-     "name": "movel_represa_f47_11",
+     "id": 6201,
+     "name": "movel_represa_f47_9",
      "rotation": 0,
      "visible": true,
-     "x": 468,
+     "x": 566,
      "y": 96,
      "properties": [
       {
@@ -1975,6 +1940,11 @@
        "value": 2.199
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.35
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1992,11 +1962,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6420,
-     "name": "movel_represa_f47_12",
+     "id": 6202,
+     "name": "movel_represa_f47_10",
      "rotation": 0,
      "visible": true,
-     "x": 537,
+     "x": 656,
      "y": 96,
      "properties": [
       {
@@ -2015,6 +1985,11 @@
        "value": 2.313
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.987
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -2032,11 +2007,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6421,
-     "name": "movel_represa_f47_13",
+     "id": 6203,
+     "name": "movel_represa_f47_11",
      "rotation": 0,
      "visible": true,
-     "x": 614,
+     "x": 733,
      "y": 96,
      "properties": [
       {
@@ -2055,6 +2030,11 @@
        "value": 2.726
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.8
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -2072,128 +2052,98 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6422,
+     "id": 6204,
+     "name": "movel_represa_f47_12",
+     "rotation": 0,
+     "visible": true,
+     "x": 816,
+     "y": 96,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.313
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.987
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 6205,
+     "name": "movel_represa_f47_13",
+     "rotation": 0,
+     "visible": true,
+     "x": 880,
+     "y": 96,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_2_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.313
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.987
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 6206,
      "name": "movel_represa_f47_14",
-     "rotation": 0,
-     "visible": true,
-     "x": 690,
-     "y": 96,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_cozinha"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_2_0"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 2.313
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6423,
-     "name": "movel_represa_f47_15",
-     "rotation": 0,
-     "visible": true,
-     "x": 754,
-     "y": 96,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_cozinha"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_2_0"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 2.313
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6424,
-     "name": "movel_represa_f47_16",
-     "rotation": 0,
-     "visible": true,
-     "x": 817,
-     "y": 96,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_cozinha"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_2_0"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 2.313
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6425,
-     "name": "movel_represa_f47_17",
      "rotation": 0,
      "visible": true,
      "x": 54,
@@ -2215,6 +2165,11 @@
        "value": 2.199
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.35
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -2232,11 +2187,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6426,
-     "name": "movel_represa_f47_18",
+     "id": 6207,
+     "name": "movel_represa_f47_15",
      "rotation": 0,
      "visible": true,
-     "x": 133,
+     "x": 154,
      "y": 544,
      "properties": [
       {
@@ -2255,6 +2210,11 @@
        "value": 2.692
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.596
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -2272,11 +2232,146 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6427,
+     "id": 6208,
+     "name": "movel_represa_f47_16",
+     "rotation": 0,
+     "visible": true,
+     "x": 253,
+     "y": 544,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v1"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.726
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.8
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 6209,
+     "name": "movel_represa_f47_17",
+     "rotation": 0,
+     "visible": true,
+     "x": 349,
+     "y": 544,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mobilia_v1"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.726
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.8
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 6210,
+     "name": "movel_represa_f47_18",
+     "rotation": 0,
+     "visible": true,
+     "x": 534,
+     "y": 544,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_cozinha"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_3_1"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.6
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 3.4
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 6211,
      "name": "movel_represa_f47_19",
      "rotation": 0,
      "visible": true,
-     "x": 219,
+     "x": 822,
      "y": 544,
      "properties": [
       {
@@ -2287,12 +2382,17 @@
       {
        "name": "frame",
        "type": "string",
-       "value": "movel_3_0"
+       "value": "movel_4_4"
       },
       {
        "name": "alturaTiles",
        "type": "float",
-       "value": 2.726
+       "value": 2.199
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.35
       },
       {
        "name": "colide",
@@ -2312,248 +2412,8 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6428,
+     "id": 6212,
      "name": "movel_represa_f47_20",
-     "rotation": 0,
-     "visible": true,
-     "x": 309,
-     "y": 544,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_mobilia_v1"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_3_0"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 2.726
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6429,
-     "name": "movel_represa_f47_21",
-     "rotation": 0,
-     "visible": true,
-     "x": 398,
-     "y": 544,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_eletronicos"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_2_3"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.493
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6430,
-     "name": "movel_represa_f47_22",
-     "rotation": 0,
-     "visible": true,
-     "x": 487,
-     "y": 544,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_eletronicos"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_2_3"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.493
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6431,
-     "name": "movel_represa_f47_23",
-     "rotation": 0,
-     "visible": true,
-     "x": 602,
-     "y": 544,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_cozinha"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_3_1"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.6
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6432,
-     "name": "movel_represa_f47_24",
-     "rotation": 0,
-     "visible": true,
-     "x": 717,
-     "y": 544,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_mobilia_v1"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_3_0"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 2.726
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6433,
-     "name": "movel_represa_f47_25",
-     "rotation": 0,
-     "visible": true,
-     "x": 833,
-     "y": 544,
-     "properties": [
-      {
-       "name": "atlas",
-       "type": "string",
-       "value": "moveis_cozinha"
-      },
-      {
-       "name": "frame",
-       "type": "string",
-       "value": "movel_3_1"
-      },
-      {
-       "name": "alturaTiles",
-       "type": "float",
-       "value": 1.6
-      },
-      {
-       "name": "colide",
-       "type": "bool",
-       "value": true
-      },
-      {
-       "name": "chao",
-       "type": "bool",
-       "value": false
-      }
-     ]
-    },
-    {
-     "class": "movel",
-     "type": "movel",
-     "height": 0,
-     "width": 0,
-     "point": true,
-     "id": 6434,
-     "name": "movel_represa_f47_26",
      "rotation": 0,
      "visible": true,
      "x": 50,
@@ -2575,6 +2435,11 @@
        "value": 1.453
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.131
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -2592,11 +2457,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6435,
-     "name": "movel_represa_f47_27",
+     "id": 6213,
+     "name": "movel_represa_f47_21",
      "rotation": 0,
      "visible": true,
-     "x": 122,
+     "x": 150,
      "y": 256,
      "properties": [
       {
@@ -2615,6 +2480,11 @@
        "value": 2.199
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.35
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -2632,11 +2502,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6436,
-     "name": "movel_represa_f47_28",
+     "id": 6214,
+     "name": "movel_represa_f47_22",
      "rotation": 0,
      "visible": true,
-     "x": 191,
+     "x": 240,
      "y": 256,
      "properties": [
       {
@@ -2655,6 +2525,11 @@
        "value": 2.313
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.987
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -2672,8 +2547,8 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6437,
-     "name": "movel_represa_f47_29",
+     "id": 6215,
+     "name": "movel_represa_f47_23",
      "rotation": 0,
      "visible": true,
      "x": 733,
@@ -2695,6 +2570,11 @@
        "value": 2.726
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.8
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -2712,11 +2592,11 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6438,
-     "name": "movel_represa_f47_30",
+     "id": 6216,
+     "name": "movel_represa_f47_24",
      "rotation": 0,
      "visible": true,
-     "x": 812,
+     "x": 818,
      "y": 256,
      "properties": [
       {
@@ -2733,6 +2613,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 1.453
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.131
       },
       {
        "name": "colide",
@@ -2763,7 +2648,7 @@
      "type": "comodo",
      "height": 224,
      "width": 384,
-     "id": 6403,
+     "id": 6187,
      "name": "galeria_0",
      "rotation": 0,
      "visible": true,
@@ -2787,7 +2672,7 @@
      "type": "comodo",
      "height": 160,
      "width": 864,
-     "id": 6404,
+     "id": 6188,
      "name": "corredor_manutencao_1",
      "rotation": 0,
      "visible": true,
@@ -2811,7 +2696,7 @@
      "type": "comodo",
      "height": 128,
      "width": 864,
-     "id": 6405,
+     "id": 6189,
      "name": "arquivo_2",
      "rotation": 0,
      "visible": true,
@@ -2835,7 +2720,7 @@
      "type": "comodo",
      "height": 288,
      "width": 224,
-     "id": 6406,
+     "id": 6190,
      "name": "corredor_manutencao_3",
      "rotation": 0,
      "visible": true,
@@ -2859,7 +2744,7 @@
      "type": "comodo",
      "height": 288,
      "width": 192,
-     "id": 6407,
+     "id": 6191,
      "name": "corredor_manutencao_4",
      "rotation": 0,
      "visible": true,
@@ -2895,7 +2780,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6383,
+     "id": 6167,
      "name": "sucata_caixa_47_0",
      "rotation": 0,
      "visible": true,
@@ -2914,7 +2799,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6384,
+     "id": 6168,
      "name": "sucata_caixa_47_1",
      "rotation": 0,
      "visible": true,
@@ -2933,7 +2818,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6385,
+     "id": 6169,
      "name": "sucata_caixa_47_2",
      "rotation": 0,
      "visible": true,
@@ -2952,7 +2837,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6386,
+     "id": 6170,
      "name": "sucata_caixa_47_3",
      "rotation": 0,
      "visible": true,
@@ -2971,7 +2856,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6387,
+     "id": 6171,
      "name": "sucata_caixa_47_4",
      "rotation": 0,
      "visible": true,
@@ -2990,7 +2875,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6388,
+     "id": 6172,
      "name": "sucata_premio_47",
      "rotation": 0,
      "visible": true,
@@ -3026,12 +2911,12 @@
      "type": "inimigo",
      "height": 32,
      "width": 32,
-     "id": 6389,
+     "id": 6173,
      "name": "inimigo_47_0",
      "rotation": 0,
      "visible": true,
-     "x": 320,
-     "y": 320,
+     "x": 544,
+     "y": 448,
      "properties": [
       {
        "name": "tipo",
@@ -3050,7 +2935,7 @@
      "type": "inimigo",
      "height": 32,
      "width": 32,
-     "id": 6390,
+     "id": 6174,
      "name": "inimigo_47_1",
      "rotation": 0,
      "visible": true,
@@ -3074,12 +2959,12 @@
      "type": "inimigo",
      "height": 32,
      "width": 32,
-     "id": 6391,
+     "id": 6175,
      "name": "inimigo_47_2",
      "rotation": 0,
      "visible": true,
-     "x": 640,
-     "y": 96,
+     "x": 864,
+     "y": 160,
      "properties": [
       {
        "name": "tipo",
@@ -3098,12 +2983,12 @@
      "type": "inimigo",
      "height": 32,
      "width": 32,
-     "id": 6392,
+     "id": 6176,
      "name": "inimigo_47_3",
      "rotation": 0,
      "visible": true,
-     "x": 704,
-     "y": 288,
+     "x": 736,
+     "y": 480,
      "properties": [
       {
        "name": "tipo",
@@ -3122,12 +3007,12 @@
      "type": "inimigo",
      "height": 32,
      "width": 32,
-     "id": 6393,
+     "id": 6177,
      "name": "inimigo_47_4",
      "rotation": 0,
      "visible": true,
-     "x": 320,
-     "y": 544,
+     "x": 288,
+     "y": 576,
      "properties": [
       {
        "name": "tipo",
@@ -3146,12 +3031,12 @@
      "type": "inimigo",
      "height": 32,
      "width": 32,
-     "id": 6394,
+     "id": 6178,
      "name": "inimigo_47_5",
      "rotation": 0,
      "visible": true,
-     "x": 544,
-     "y": 384,
+     "x": 608,
+     "y": 320,
      "properties": [
       {
        "name": "tipo",
@@ -3170,12 +3055,12 @@
      "type": "inimigo",
      "height": 32,
      "width": 32,
-     "id": 6395,
+     "id": 6179,
      "name": "inimigo_47_6",
      "rotation": 0,
      "visible": true,
-     "x": 608,
-     "y": 608,
+     "x": 704,
+     "y": 544,
      "properties": [
       {
        "name": "tipo",
@@ -3206,7 +3091,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 6396,
+     "id": 6180,
      "name": "luz_0",
      "rotation": 0,
      "visible": true,
@@ -3230,7 +3115,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 6397,
+     "id": 6181,
      "name": "luz_1",
      "rotation": 0,
      "visible": true,
@@ -3259,7 +3144,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 6398,
+     "id": 6182,
      "name": "luz_2",
      "rotation": 0,
      "visible": true,
@@ -3288,7 +3173,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 6399,
+     "id": 6183,
      "name": "luz_3",
      "rotation": 0,
      "visible": true,
@@ -3312,7 +3197,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 6400,
+     "id": 6184,
      "name": "luz_4",
      "rotation": 0,
      "visible": true,
@@ -3341,7 +3226,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 6401,
+     "id": 6185,
      "name": "luz_5",
      "rotation": 0,
      "visible": true,
@@ -3370,7 +3255,7 @@
      "type": "luz",
      "height": 32,
      "width": 32,
-     "id": 6402,
+     "id": 6186,
      "name": "luz_6",
      "rotation": 0,
      "visible": true,

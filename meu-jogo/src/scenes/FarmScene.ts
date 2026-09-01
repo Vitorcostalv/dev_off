@@ -42,6 +42,8 @@ import type {
 import type { UIScene } from './UIScene';
 import { CamadaRepresa } from './CamadaRepresa';
 import { CamadaLuz } from './CamadaLuz';
+import { CamadaChuva } from './CamadaChuva';
+import { CamadaPets } from './CamadaPets';
 import {
   MAPA_DE_RESGATE,
   PERDA_POR_DERROTA,
@@ -356,6 +358,15 @@ export class FarmScene extends Phaser.Scene {
    */
   private luz: CamadaLuz | null = null;
 
+  /**
+   * CHUVA. So em mapa EXTERNO — dentro de predio nao chove, e dentro da usina o
+   * tempo nao entra em nada (ver o cabecalho de src/game/clima.ts).
+   */
+  private chuva: CamadaChuva | null = null;
+
+  /** Os bichos de estimacao do mapa atual. */
+  private pets: CamadaPets | null = null;
+
   /** Painel de enigma em andamento; `null` fora de um. */
   private painelAtivo: ProgressoPainel | null = null;
 
@@ -448,6 +459,10 @@ export class FarmScene extends Phaser.Scene {
     this.represa = null;
     this.luz?.destruir();
     this.luz = null;
+    this.chuva?.destruir();
+    this.chuva = null;
+    this.pets?.destruir();
+    this.pets = null;
     this.painelAtivo = null;
     this.escuridaoDoComodo = [];
     this.minutoObservado = -1;
@@ -625,6 +640,22 @@ export class FarmScene extends Phaser.Scene {
     cam.setZoom(this.zoomDeJogo());
     cam.fadeIn(220, 0, 0, 0);
 
+    if (def.externo) {
+      this.chuva = new CamadaChuva(this);
+      this.chuva.montar();
+    }
+
+    // BICHOS: existem em mapa externo e em interior de casa, entao a camada e
+    // criada sempre. Ela sai vazia onde nao ha bicho, que e a maioria dos mapas.
+    this.pets = new CamadaPets(this, this.tamanhoTile, {
+      posicaoDoDono: (npcId) => {
+        const npc = this.npcs.find((n) => n.estado.id === npcId);
+        if (!npc || !npc.sprite.visible) return null;
+        return { x: npc.sprite.x / this.tamanhoTile, y: npc.sprite.y / this.tamanhoTile };
+      },
+    });
+    this.pets.montar(estado.relogio.minutos);
+
     this.scene.setVisible(true, 'UIScene');
     this.ui.mostrarPrompt(null);
 
@@ -724,6 +755,8 @@ export class FarmScene extends Phaser.Scene {
     }
 
     estado.armas.atualizar(delta);
+    this.chuva?.atualizar();
+    this.pets?.atualizar(delta, estado.relogio.minutos, this.ui.bloqueado || this.transicionando);
     this.atualizarBalaoEncontro();
 
     this.atualizarFigurantesAmbientais();

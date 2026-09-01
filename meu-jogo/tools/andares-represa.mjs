@@ -496,6 +496,20 @@ export function plantasCompostas({ medir }) {
     reservar(...t.entrada, 1);
     reservar(...t.descida, 1);
     if (def.parada) reservar(...t.elevador, 1);
+    /**
+     * OS VAOS entre comodos, e o tile de cada lado deles.
+     *
+     * Sem esta reserva a mobilia pousava na primeira linha do comodo — que e
+     * exatamente onde o vao desemboca — e o corpo solido dela fechava a
+     * passagem. O jogador ainda passava raspando (o corpo do movel comeca um
+     * quarto de tile abaixo da linha), mas era uma porta obstruida, e a
+     * conferencia dos andares pegou isso no andar 6.
+     */
+    for (const [vx, vy] of t.vaos) {
+      reservar(vx, vy, 0);
+      reservar(vx, vy + 1, 0);
+      reservar(vx, vy - 1, 0);
+    }
 
     /** Primeira vaga livre de uma lista, marcando-a como ocupada. */
     const pegar = (lista, sal, margem = 0) => {
@@ -638,11 +652,25 @@ export function plantasCompostas({ medir }) {
     const hostis = infos.filter((i) => !i.modulo.seguro);
     const pesoTotal = def.fauna.reduce((s, f) => s + f.peso, 0);
     for (let k = 0; k < def.inimigos && hostis.length > 0; k++) {
-      const sala = hostis[(dado(def.andar, `inim${k}`, hostis.length) + k) % hostis.length];
-      const longe = sala.vagas.piso.filter(
-        ([x, y]) => Math.hypot(x - t.entrada[0], y - t.entrada[1]) >= 6,
-      );
-      const pos = pegar(longe.length ? longe : sala.vagas.piso, `inimpos${k}`, 1);
+      /**
+       * Tenta a sala sorteada e, se ela estiver lotada, TODAS as outras.
+       *
+       * Sem o segundo laco o andar saia com menos inimigos do que o registro
+       * declara — bastava a sala sorteada ja ter documento, painel e dois
+       * recipientes pra a vaga acabar. A conferencia dos andares compara os dois
+       * numeros e foi ela que pegou isso, no andar 17.
+       */
+      let pos = null;
+      for (let tentativa = 0; tentativa < hostis.length && !pos; tentativa++) {
+        const sala = hostis[(dado(def.andar, `inim${k}`, hostis.length) + k + tentativa) % hostis.length];
+        // A DISTANCIA MINIMA da chegada e inegociavel: nascer ao lado do alcapao
+        // e o que a Parte 10 proibe, e o segundo laco existe pra achar sala com
+        // vaga, nao pra afrouxar a regra.
+        const longe = sala.vagas.piso.filter(
+          ([x, y]) => Math.hypot(x - t.entrada[0], y - t.entrada[1]) >= 6,
+        );
+        pos = pegar(longe, `inimpos${k}${tentativa}`, 1);
+      }
       if (!pos) continue;
       // especie por peso, deterministica
       let sorteio = hash(def.andar, `esp${k}`) * pesoTotal;
@@ -698,14 +726,25 @@ export function plantasCompostas({ medir }) {
       let k = 0;
       while (x < limite) {
         const nomeMovel = catalogo[(dado(def.andar, `mob${info.chave}${k}`, catalogo.length) + k) % catalogo.length];
-        const tam = medir(nomeMovel);
-        if (x + tam.w > limite) break;
-        const livre = Array.from({ length: tam.w }, (_, i) => !ocupado.has(`${x + i},${info.rect[1]}`))
+        /**
+         * A PEGADA em tiles inteiros, arredondada pra CIMA.
+         *
+         * `medir` devolve a largura real da peca em tiles, que e fracionaria
+         * (0,99 tile, 2,4 tiles). Tratar isso como contagem de tile deu dois
+         * defeitos de uma vez: o laco de reserva rodava `i < 0,99` e marcava um
+         * tile so, e o avanco `x += 0,99 + 1` tirava o `x` do inteiro — a peca
+         * seguinte pousava em 9,6 e o corpo dela invadia o tile 10, que era
+         * justamente a soleira de uma porta. A conferencia dos andares pegou isso
+         * no andar 10.
+         */
+        const largura = Math.max(1, Math.ceil(medir(nomeMovel).w));
+        if (x + largura > limite) break;
+        const livre = Array.from({ length: largura }, (_, i) => !ocupado.has(`${x + i},${info.rect[1]}`))
           .every(Boolean);
         if (livre) {
-          for (let i = 0; i < tam.w; i++) ocupado.add(`${x + i},${info.rect[1]}`);
+          for (let i = 0; i < largura; i++) ocupado.add(`${x + i},${info.rect[1]}`);
           lista.push({ movel: nomeMovel, tx: x, ty: info.rect[1] });
-          x += tam.w + 1;
+          x += largura + 1;
         } else {
           x += 1;
         }

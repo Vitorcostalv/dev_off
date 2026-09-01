@@ -6,7 +6,7 @@
  "tileheight": 32,
  "infinite": false,
  "nextlayerid": 6,
- "nextobjectid": 6608,
+ "nextobjectid": 6372,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -609,7 +609,7 @@
      "type": "porta",
      "height": 32,
      "width": 32,
-     "id": 6579,
+     "id": 6343,
      "name": "porta_saida",
      "rotation": 0,
      "visible": true,
@@ -643,7 +643,7 @@
      "type": "cama",
      "height": 32,
      "width": 32,
-     "id": 6580,
+     "id": 6344,
      "name": "cama_bar",
      "rotation": 0,
      "visible": true,
@@ -669,7 +669,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6585,
+     "id": 6349,
      "name": "movel_bar_0",
      "rotation": 0,
      "visible": true,
@@ -692,6 +692,11 @@
        "value": 1.776
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.086
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -709,7 +714,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6586,
+     "id": 6350,
      "name": "movel_bar_1",
      "rotation": 0,
      "visible": true,
@@ -732,6 +737,11 @@
        "value": 2.493
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.513
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -749,7 +759,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6587,
+     "id": 6351,
      "name": "movel_bar_2",
      "rotation": 0,
      "visible": true,
@@ -772,6 +782,11 @@
        "value": 1.288
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.923
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -789,7 +804,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6588,
+     "id": 6352,
      "name": "movel_bar_3",
      "rotation": 0,
      "visible": true,
@@ -812,6 +827,11 @@
        "value": 1.237
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.184
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -829,7 +849,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6589,
+     "id": 6353,
      "name": "movel_bar_4",
      "rotation": 0,
      "visible": true,
@@ -852,6 +872,11 @@
        "value": 1.712
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.827
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -869,7 +894,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6590,
+     "id": 6354,
      "name": "movel_bar_5",
      "rotation": 0,
      "visible": true,
@@ -892,6 +917,11 @@
        "value": 1.212
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.904
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -909,7 +939,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6591,
+     "id": 6355,
      "name": "movel_bar_6",
      "rotation": 0,
      "visible": true,
@@ -932,6 +962,11 @@
        "value": 2.692
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.596
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -949,7 +984,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6592,
+     "id": 6356,
      "name": "movel_bar_7",
      "rotation": 0,
      "visible": true,
@@ -972,6 +1007,11 @@
        "value": 1.7
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 3.923
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -989,7 +1029,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6593,
+     "id": 6357,
      "name": "movel_bar_8",
      "rotation": 0,
      "visible": true,
@@ -1012,6 +1052,11 @@
        "value": 1.135
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.058
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1029,7 +1074,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6594,
+     "id": 6358,
      "name": "movel_bar_9",
      "rotation": 0,
      "visible": true,
@@ -1052,6 +1097,11 @@
        "value": 3.275
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.633
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1069,7 +1119,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6595,
+     "id": 6359,
      "name": "movel_bar_10",
      "rotation": 0,
      "visible": true,
@@ -1092,6 +1142,11 @@
        "value": 1.125
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.3
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1109,7 +1164,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6596,
+     "id": 6360,
      "name": "movel_bar_11",
      "rotation": 0,
      "visible": true,
@@ -1132,6 +1187,11 @@
        "value": 1.283
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.017
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1149,7 +1209,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6597,
+     "id": 6361,
      "name": "movel_bar_12",
      "rotation": 0,
      "visible": true,
@@ -1172,6 +1232,11 @@
        "value": 2.067
       },
       {
+       "name": "larguraTiles",
+       "type": "int",
+       "value": 3
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1189,7 +1254,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6598,
+     "id": 6362,
      "name": "movel_bar_13",
      "rotation": 0,
      "visible": true,
@@ -1212,6 +1277,11 @@
        "value": 1.208
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.792
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1229,7 +1299,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6599,
+     "id": 6363,
      "name": "movel_bar_14",
      "rotation": 0,
      "visible": true,
@@ -1252,6 +1322,11 @@
        "value": 1.225
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.85
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1269,7 +1344,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6600,
+     "id": 6364,
      "name": "movel_bar_15",
      "rotation": 0,
      "visible": true,
@@ -1292,6 +1367,11 @@
        "value": 1.283
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.258
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1309,7 +1389,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6601,
+     "id": 6365,
      "name": "movel_bar_16",
      "rotation": 0,
      "visible": true,
@@ -1332,6 +1412,11 @@
        "value": 1.417
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.908
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1349,7 +1434,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6602,
+     "id": 6366,
      "name": "movel_bar_17",
      "rotation": 0,
      "visible": true,
@@ -1372,6 +1457,11 @@
        "value": 1.333
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.8
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1389,7 +1479,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6603,
+     "id": 6367,
      "name": "movel_bar_18",
      "rotation": 0,
      "visible": true,
@@ -1412,6 +1502,11 @@
        "value": 0.85
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.417
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1429,7 +1524,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6604,
+     "id": 6368,
      "name": "movel_bar_19",
      "rotation": 0,
      "visible": true,
@@ -1452,6 +1547,11 @@
        "value": 1.167
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.4
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1469,7 +1569,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6605,
+     "id": 6369,
      "name": "movel_bar_20",
      "rotation": 0,
      "visible": true,
@@ -1492,6 +1592,11 @@
        "value": 1.325
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.417
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1509,7 +1614,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6606,
+     "id": 6370,
      "name": "movel_bar_21",
      "rotation": 0,
      "visible": true,
@@ -1532,6 +1637,11 @@
        "value": 1.15
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.875
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1549,7 +1659,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 6607,
+     "id": 6371,
      "name": "movel_bar_22",
      "rotation": 0,
      "visible": true,
@@ -1570,6 +1680,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 1.6
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.417
       },
       {
        "name": "colide",
@@ -1600,7 +1715,7 @@
      "type": "comodo",
      "height": 160,
      "width": 256,
-     "id": 6581,
+     "id": 6345,
      "name": "quarto",
      "rotation": 0,
      "visible": true,
@@ -1619,7 +1734,7 @@
      "type": "comodo",
      "height": 32,
      "width": 256,
-     "id": 6582,
+     "id": 6346,
      "name": "corredor",
      "rotation": 0,
      "visible": true,
@@ -1638,7 +1753,7 @@
      "type": "comodo",
      "height": 96,
      "width": 256,
-     "id": 6583,
+     "id": 6347,
      "name": "sala",
      "rotation": 0,
      "visible": true,
@@ -1657,7 +1772,7 @@
      "type": "comodo",
      "height": 352,
      "width": 288,
-     "id": 6584,
+     "id": 6348,
      "name": "salao",
      "rotation": 0,
      "visible": true,

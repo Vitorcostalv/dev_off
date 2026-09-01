@@ -7,6 +7,7 @@ import { NPCS } from '../game/npcs';
 import { MORADORES } from '../game/moradores';
 import { carregar } from '../game/save';
 import { CATALOGO_INIMIGOS } from '../game/inimigos';
+import { LISTA_DE_PETS } from '../game/pets';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
 const PLAYER_RECORTE = {
@@ -134,6 +135,16 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`monstro-${id}-sprites`, `assets/sprites/${id}_andando_runtime.png`);
       this.load.image(`monstro-${id}-parado`, `assets/sprites/${id}_parado_runtime.png`);
     }
+
+    // BICHOS. Mesma grade 4x4 dos NPCs e dos monstros, celula menor (128x128) —
+    // ver tools/processar-sprites-pet.mjs. So as VARIANTES em uso sao carregadas:
+    // as folhas trazem oito racas de cachorro e oito cores de gato, e o jogo usa
+    // seis.
+    for (const variante of new Set(LISTA_DE_PETS.map((p) => p.variante))) {
+      this.load.image(`pet-${variante}-andando`, `assets/sprites/pet_${variante}_andando_runtime.png`);
+      this.load.image(`pet-${variante}-parado`, `assets/sprites/pet_${variante}_parado_runtime.png`);
+    }
+    this.load.json('pets', 'assets/sprites/pets.json');
   }
 
   create(): void {
@@ -144,6 +155,7 @@ export class BootScene extends Phaser.Scene {
     this.criarAnimacoes();
     this.criarSpritesNpcs();
     this.criarSpritesMonstros();
+    this.criarSpritesPets();
     const inicio = this.aplicarSave();
 
     // a UI roda em paralelo, por cima do mundo, na resolucao base (sem zoom).
@@ -354,6 +366,43 @@ export class BootScene extends Phaser.Scene {
         });
         this.anims.create({
           key: `monstro-${id}-idle-${direcao}`,
+          frames: [(parado[direcao] ?? quadros)[0]],
+          frameRate: 1,
+        });
+      }
+    }
+  }
+
+  /**
+   * Recortes e animacoes dos BICHOS. Mesma maquinaria dos monstros, com celula
+   * menor: `recortarFolhaNpc` divide a textura pela contagem de linhas e colunas,
+   * entao ele nao precisa saber o tamanho da celula.
+   */
+  private criarSpritesPets(): void {
+    const folha: SpriteNpc = {
+      arquivo: '',
+      colunas: 4,
+      linhas: 4,
+      frames: {
+        down: { linha: 0, colunas: [0, 1, 2, 3] },
+        up: { linha: 1, colunas: [0, 1, 2, 3] },
+        left: { linha: 2, colunas: [0, 1, 2, 3] },
+        right: { linha: 3, colunas: [0, 1, 2, 3] },
+      },
+    };
+    for (const variante of new Set(LISTA_DE_PETS.map((p) => p.variante))) {
+      const andando = this.recortarFolhaNpc(`pet-${variante}-andando`, folha);
+      const parado = this.recortarFolhaNpc(`pet-${variante}-parado`, folha);
+      for (const [direcao, quadros] of Object.entries(andando)) {
+        this.anims.create({
+          key: `pet-${variante}-walk-${direcao}`,
+          frames: quadros,
+          // passo curto de bicho pequeno: mais rapido que o humano
+          frameRate: 9,
+          repeat: -1,
+        });
+        this.anims.create({
+          key: `pet-${variante}-idle-${direcao}`,
           frames: [(parado[direcao] ?? quadros)[0]],
           frameRate: 1,
         });

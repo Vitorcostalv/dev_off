@@ -3888,6 +3888,11 @@ function objetosDeMovel(prefixo, pecas, folhaPadrao) {
       atlas: `moveis_${chave}`,
       frame: nomePeca(...p.peca),
       alturaTiles: +h.toFixed(3),
+      // A LARGURA acompanha a altura desde a leva dos cinquenta andares: sem ela
+      // a conferencia offline tinha de chutar a pegada do movel, e chutava por
+      // excesso — uma estante de tres tiles virava uma de quatro e a conferencia
+      // acusava porta obstruida onde nao havia.
+      larguraTiles: +w.toFixed(3),
       colide: p.colide !== false,
       // tapete: fica uma camada abaixo do resto, senao ele cobre o sofa que
       // deveria estar EM CIMA dele — os dois tem a base na mesma linha, e sem
@@ -6323,6 +6328,11 @@ const PLANTAS_REPRESA = {
       { id: 'log_entrada', tx: 18, ty: 4 },
       { id: 'mapa_setores', tx: 12, ty: 11 },
       { id: 'log_placa', tx: 24, ty: 8 },
+      // FICHA MEDICA do andar. Os cinco setores autorais nasceram antes do
+      // prontuario de 200 dias e por isso a ficha deles entra a mao, uma por
+      // planta, num tile livre do comodo mais tranquilo. `verificar-andares`
+      // cobra exatamente uma por andar.
+      { id: 'ficha_001', tx: 21, ty: 7, ficha: 1 },
     ],
     inimigos: [],
     luzes: [
@@ -6418,6 +6428,7 @@ const PLANTAS_REPRESA = {
     avisos: [
       { id: 'legenda_cabos', tx: 18, ty: 3 },
       { id: 'log_manutencao', tx: 5, ty: 13 },
+      { id: 'ficha_002', tx: 20, ty: 18, ficha: 2 },
     ],
     inimigos: [
       { id: 'esfera_1', tipo: 'esfera_choque', tx: 20, ty: 5, raio: 5 },
@@ -6521,6 +6532,7 @@ const PLANTAS_REPRESA = {
       { id: 'placa_turbina', tx: 26, ty: 3 },
       { id: 'log_geradores', tx: 11, ty: 5 },
       { id: 'camera_quebrada', tx: 2, ty: 15 },
+      { id: 'ficha_003', tx: 25, ty: 14, ficha: 3 },
     ],
     inimigos: [
       { id: 'esfera_3a', tipo: 'esfera_choque', tx: 7, ty: 7, raio: 6 },
@@ -6610,6 +6622,7 @@ const PLANTAS_REPRESA = {
       { id: 'log_comportas', tx: 22, ty: 12 },
       { id: 'terminal_morto', tx: 8, ty: 3 },
       { id: 'modificacao_estranha', tx: 3, ty: 21 },
+      { id: 'ficha_004', tx: 27, ty: 20, ficha: 4 },
     ],
     inimigos: [
       { id: 'esfera_4a', tipo: 'esfera_choque', tx: 5, ty: 8, raio: 6 },
@@ -6694,6 +6707,7 @@ const PLANTAS_REPRESA = {
       { id: 'terminal_profundo', tx: 16, ty: 4 },
       { id: 'placa_fabricante', tx: 2, ty: 13 },
       { id: 'anotacao_final', tx: 22, ty: 17 },
+      { id: 'ficha_005', tx: 9, ty: 3, ficha: 5 },
     ],
     // FAUNA rebalanceada pro capitulo 1. Os dois monstros mais pesados do jogo
     // estavam aqui, no quinto de cinquenta andares — eles agora sao do capitulo

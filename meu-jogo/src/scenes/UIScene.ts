@@ -1,5 +1,13 @@
 import Phaser from 'phaser';
-import { nomeDoDia } from '../game/calendario';
+import {
+  MESES,
+  dataDoDia,
+  diaAbsolutoDe,
+  diasDoMes,
+  formatarDataCompleta,
+  formatarDataCurta,
+} from '../game/calendario';
+import { tempoDoDia } from '../game/clima';
 import { CONFIG, UI } from '../game/config';
 import { formatarDinheiro } from '../game/dinheiro';
 import { estado } from '../game/estado';
@@ -118,6 +126,13 @@ export class UIScene extends Phaser.Scene {
   private hudVida!: Phaser.GameObjects.Text;
   /** Setor e tensao da represa. So aparece dentro da usina. */
   private hudRepresa!: Phaser.GameObjects.Text;
+  /** Tempo do dia; escondido quando o ceu esta limpo. */
+  private hudTempo!: Phaser.GameObjects.Text;
+
+  /** Tela de CALENDARIO (tecla C). Montada sob demanda e destruida ao fechar. */
+  private calendario: Phaser.GameObjects.Container | null = null;
+  /** Mes mostrado no calendario, como deslocamento a partir do mes atual. */
+  private mesDoCalendario = 0;
 
   private dialogo!: Phaser.GameObjects.Container;
   private dialogoNome!: Phaser.GameObjects.Text;
@@ -215,6 +230,7 @@ export class UIScene extends Phaser.Scene {
       this.dialogoAberto ||
       this.confirmacaoAberta ||
       this.inventarioAberto ||
+      this.calendarioAberto ||
       this.lojaAberta ||
       this.menuAberto ||
       this.computadorAberto
@@ -300,6 +316,18 @@ export class UIScene extends Phaser.Scene {
       .setDepth(90)
       .setVisible(false);
 
+    this.hudTempo = this.add
+      .text(CONFIG.largura - 6, 6, '', {
+        fontFamily: UI.fonte,
+        fontSize: UI.tamanho,
+        color: UI.textoFraco,
+        backgroundColor: '#1a1712e0',
+        padding: { x: 5, y: 3 },
+      })
+      .setOrigin(1, 0)
+      .setDepth(90)
+      .setVisible(false);
+
     this.hudRepresa = this.add
       .text(6, 60, '', {
         fontFamily: UI.fonte,
@@ -347,7 +375,12 @@ export class UIScene extends Phaser.Scene {
     teclado?.on('keydown-S', () => this.mover(1));
     teclado?.on('keydown-PAGE_UP', () => this.mover(-LOJA.linhas));
     teclado?.on('keydown-PAGE_DOWN', () => this.mover(LOJA.linhas));
-    teclado?.on('keydown-C', () => this.alternarFiltroDaLoja());
+    // C: filtro da loja com ela aberta, CALENDARIO com ela fechada. As duas
+    // telas nunca convivem, entao a tecla nao precisa de duas.
+    teclado?.on('keydown-C', () => {
+      if (this.lojaAberta) this.alternarFiltroDaLoja();
+      else this.alternarCalendario();
+    });
     // acoes do inventario
     teclado?.on('keydown-U', () => this.usarSelecionado());
     teclado?.on('keydown-F', () => this.alternarEquipado());
@@ -420,6 +453,132 @@ export class UIScene extends Phaser.Scene {
     );
   }
 
+  // ----------------------------------------------------------- calendario --
+  get calendarioAberto(): boolean {
+    return this.calendario !== null;
+  }
+
+  /**
+   * A TELA DE CALENDARIO: o mes inteiro, com o dia de hoje marcado.
+   *
+   * Ela e montada e destruida a cada abertura em vez de viver escondida como o
+   * inventario e a loja. Sao ~45 objetos de texto que mudam de posicao a cada mes
+   * navegado — reciclar os objetos entre meses de 28 e de 31 dias daria mais
+   * codigo do que refazer.
+   *
+   * O que ela mostra hoje: mes, ano, dia de hoje e o tempo do dia. Aniversario,
+   * evento e compromisso sao o gancho declarado da Parte 46 e ainda nao existem
+   * como dado em lugar nenhum do jogo.
+   */
+  private alternarCalendario(): void {
+    if (this.calendario) {
+      this.fecharCalendario();
+      return;
+    }
+    if (this.modalPorCima || this.pcAberto) return;
+    this.inventario.setVisible(false);
+    this.mesDoCalendario = 0;
+    this.desenharCalendario();
+  }
+
+  private fecharCalendario(): void {
+    this.calendario?.destroy(true);
+    this.calendario = null;
+    this.desenharPrompt();
+  }
+
+  /** Anda `passo` meses no calendario aberto. */
+  private navegarCalendario(passo: number): void {
+    if (!this.calendario) return;
+    this.mesDoCalendario += passo;
+    this.desenharCalendario();
+  }
+
+  private desenharCalendario(): void {
+    this.calendario?.destroy(true);
+    const hoje = dataDoDia(estado.dia);
+    // desloca `mesDoCalendario` meses a partir do mes de hoje
+    let mes = hoje.mes + this.mesDoCalendario;
+    let ano = hoje.ano;
+    while (mes > 12) {
+      mes -= 12;
+      ano += 1;
+    }
+    while (mes < 1) {
+      mes += 12;
+      ano -= 1;
+    }
+
+    const largura = 214;
+    const altura = 150;
+    const x = Math.round((CONFIG.largura - largura) / 2);
+    const y = Math.round((CONFIG.altura - altura) / 2);
+    const filhos: Phaser.GameObjects.GameObject[] = [];
+
+    const fundo = this.add.graphics();
+    fundo.fillStyle(UI.fundo, 0.96);
+    fundo.fillRect(x, y, largura, altura);
+    fundo.lineStyle(1, UI.borda, 1);
+    fundo.strokeRect(x + 0.5, y + 0.5, largura - 1, altura - 1);
+    filhos.push(fundo);
+
+    filhos.push(this.add.text(x + 10, y + 7, `${MESES[mes - 1]} de ${ano}`, {
+      fontFamily: UI.fonte, fontSize: UI.tamanhoTitulo, color: UI.destaque,
+    }));
+    filhos.push(this.add.text(x + largura - 10, y + 8, '[<] [>] mes   [C] fechar', {
+      fontFamily: UI.fonte, fontSize: '9px', color: UI.textoFraco,
+    }).setOrigin(1, 0));
+
+    // cabecalho dos dias da semana; a semana comeca na SEGUNDA, como `diaDaSemana`
+    const celula = { w: 27, h: 15 };
+    const grade = { x: x + 10, y: y + 28 };
+    ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].forEach((letra, i) => {
+      filhos.push(this.add.text(grade.x + i * celula.w + celula.w / 2, grade.y, letra, {
+        fontFamily: UI.fonte, fontSize: '9px', color: UI.textoFraco,
+      }).setOrigin(0.5, 0));
+    });
+
+    // Onde o dia 1 cai na semana. `diaAbsolutoDe` faz a ponte entre a data e o
+    // contador do jogo, e e a mesma funcao que a conferencia usa.
+    const primeiro = diaAbsolutoDe({ dia: 1, mes, ano });
+    const colunaDoPrimeiro = ((primeiro % 7) + 7) % 7;
+    const total = diasDoMes(mes, ano);
+    for (let d = 1; d <= total; d++) {
+      const indice = colunaDoPrimeiro + d - 1;
+      const cx = grade.x + (indice % 7) * celula.w;
+      const cy = grade.y + 12 + Math.floor(indice / 7) * celula.h;
+      const absoluto = primeiro + d - 1;
+      const hojeMesmo = absoluto === estado.dia;
+      const tempo = tempoDoDia(absoluto);
+      if (hojeMesmo) {
+        const marca = this.add.graphics();
+        marca.fillStyle(0xffd97d, 0.22);
+        marca.fillRect(cx + 1, cy - 2, celula.w - 2, celula.h - 2);
+        filhos.push(marca);
+      }
+      filhos.push(this.add.text(cx + celula.w / 2, cy, String(d), {
+        fontFamily: UI.fonte,
+        fontSize: '9px',
+        // dia com chuva sai na cor de agua: e a leitura rapida do mes
+        color: hojeMesmo ? UI.destaque : tempo.chuva ? '#7fb0d9' : UI.texto,
+      }).setOrigin(0.5, 0));
+    }
+
+    const tempoDeHoje = tempoDoDia(estado.dia);
+    filhos.push(this.add.text(
+      x + 10,
+      y + altura - 22,
+      `Hoje: ${formatarDataCompleta(estado.dia)}`,
+      { fontFamily: UI.fonte, fontSize: '9px', color: UI.texto },
+    ));
+    filhos.push(this.add.text(x + 10, y + altura - 12, tempoDeHoje.texto, {
+      fontFamily: UI.fonte, fontSize: '9px', color: UI.textoFraco,
+    }));
+
+    this.calendario = this.add.container(0, 0, filhos).setDepth(106);
+    this.desenharPrompt();
+  }
+
   /** A cena de mundo, pela interface. `undefined` antes de ela subir. */
   private get mundo(): MundoJogavel | undefined {
     return this.scene.get('FarmScene') as unknown as MundoJogavel | undefined;
@@ -460,11 +619,21 @@ export class UIScene extends Phaser.Scene {
     if (!visivel) {
       this.hudVida.setVisible(false);
       this.hudRepresa.setVisible(false);
+      this.hudTempo.setVisible(false);
       return;
     }
 
-    const texto = `${nomeDoDia(estado.dia)}  ${estado.relogio.texto}`;
+    // DATA COMPLETA no lugar do dia da semana solto: "Sab. 14 Mar.  10:40".
+    // O ANO nao entra — ele quase nunca muda e comeria a largura do cartao. Quem
+    // o mostra e a tela de calendario (tecla C).
+    const texto = `${formatarDataCurta(estado.dia)}  ${estado.relogio.texto}`;
     if (this.hud.text !== texto) this.hud.setText(texto);
+    // O TEMPO fica na mesma linha do saldo, a direita: com ceu limpo ele nao
+    // aparece, entao a HUD de um dia comum continua sendo data, hora e dinheiro.
+    const tempo = tempoDoDia(estado.dia);
+    const linhaDoTempo = tempo.id === 'limpo' ? '' : `  ${tempo.nome}`;
+    if (this.hudTempo.text !== linhaDoTempo) this.hudTempo.setText(linhaDoTempo);
+    this.hudTempo.setVisible(linhaDoTempo !== '');
     const saldo = estado.carteira.texto;
     if (this.hudSaldo.text !== saldo) this.hudSaldo.setText(saldo);
     this.atualizarVida();
@@ -687,6 +856,11 @@ export class UIScene extends Phaser.Scene {
    * porque ela e a janela que esta por cima.
    */
   private horizontal(passo: number, evento?: KeyboardEvent): void {
+    if (this.calendario) {
+      evento?.preventDefault();
+      this.navegarCalendario(passo);
+      return;
+    }
     if (this.confirmacaoAberta) {
       this.moverOpcao(passo);
       return;
@@ -726,6 +900,10 @@ export class UIScene extends Phaser.Scene {
   }
 
   private cancelar(): void {
+    if (this.calendario) {
+      this.fecharCalendario();
+      return;
+    }
     if (this.menuAberto) {
       this.cancelarMenu();
       return;

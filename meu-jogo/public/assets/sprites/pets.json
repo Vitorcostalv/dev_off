@@ -1,0 +1,146 @@
+{
+ "golden": {
+  "especie": "cachorro",
+  "arquivo": "pet_golden_andando_runtime.png",
+  "alturaConteudo": 84,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "labrador": {
+  "especie": "cachorro",
+  "arquivo": "pet_labrador_andando_runtime.png",
+  "alturaConteudo": 83,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "beagle": {
+  "especie": "cachorro",
+  "arquivo": "pet_beagle_andando_runtime.png",
+  "alturaConteudo": 85,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "corgi": {
+  "especie": "cachorro",
+  "arquivo": "pet_corgi_andando_runtime.png",
+  "alturaConteudo": 85,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "bichon": {
+  "especie": "cachorro",
+  "arquivo": "pet_bichon_andando_runtime.png",
+  "alturaConteudo": 91,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "salsicha": {
+  "especie": "cachorro",
+  "arquivo": "pet_salsicha_andando_runtime.png",
+  "alturaConteudo": 74,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "yorkshire": {
+  "especie": "cachorro",
+  "arquivo": "pet_yorkshire_andando_runtime.png",
+  "alturaConteudo": 97,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "dalmata": {
+  "especie": "cachorro",
+  "arquivo": "pet_dalmata_andando_runtime.png",
+  "alturaConteudo": 100,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "laranja": {
+  "especie": "gato",
+  "arquivo": "pet_laranja_andando_runtime.png",
+  "alturaConteudo": 86,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "preto": {
+  "especie": "gato",
+  "arquivo": "pet_preto_andando_runtime.png",
+  "alturaConteudo": 90,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "branco": {
+  "especie": "gato",
+  "arquivo": "pet_branco_andando_runtime.png",
+  "alturaConteudo": 90,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "cinza": {
+  "especie": "gato",
+  "arquivo": "pet_cinza_andando_runtime.png",
+  "alturaConteudo": 92,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "smoking": {
+  "especie": "gato",
+  "arquivo": "pet_smoking_andando_runtime.png",
+  "alturaConteudo": 93,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "tricolor": {
+  "especie": "gato",
+  "arquivo": "pet_tricolor_andando_runtime.png",
+  "alturaConteudo": 88,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "siames": {
+  "especie": "gato",
+  "arquivo": "pet_siames_andando_runtime.png",
+  "alturaConteudo": 84,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ },
+ "rajado": {
+  "especie": "gato",
+  "arquivo": "pet_rajado_andando_runtime.png",
+  "alturaConteudo": 90,
+  "celula": {
+   "w": 128,
+   "h": 128
+  }
+ }
+}

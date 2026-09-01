@@ -10,7 +10,8 @@ import { SistemaWorldEvents } from './worldEvents.ts';
 import { SistemaMissoesNpc } from './missoesNpc.ts';
 import { SistemaEncontrosNpc } from './encontrosNpc.ts';
 import { atividadesComEmprego, SistemaCidade } from './cidade.ts';
-import { buscarMorador } from './moradores.ts';
+import { atividadesDoDia, buscarMorador, naChuva } from './moradores.ts';
+import { chovendo } from './clima.ts';
 import { acoesDeAtividades } from './npcs.ts';
 import { SistemaVida } from './vida.ts';
 import { SistemaRepresa } from './represa.ts';
@@ -73,8 +74,19 @@ export const estado = {
  * dia; quem responde e a cidade. Ver `definirSubstituicaoDeRotina`.
  */
 estado.rotinasNpc.definirSubstituicaoDeRotina((def, dia) => {
+  const chove = chovendo(dia);
   const morador = buscarMorador(def.id);
-  if (!morador) return null;
-  const atividades = atividadesComEmprego(estado.cidade, morador, dia);
-  return atividades ? acoesDeAtividades(atividades) : null;
+
+  // NPC sem agenda de morador (os nove do Mapa 1): so a rotina de chuva vale.
+  if (!morador) return chove ? (def.rotinaChuva ?? null) : null;
+
+  // A ordem importa: o EMPREGO troca a faixa do meio do dia, e a CHUVA troca o
+  // lugar de qualquer faixa ao ar livre — inclusive a que o emprego acabou de
+  // pôr lá. Aplicar a chuva por ultimo e o que faz quem trabalha na cafeteria
+  // continuar indo trabalhar, e quem varre a rua ficar em casa.
+  const comEmprego = atividadesComEmprego(estado.cidade, morador, dia);
+  const base = comEmprego ?? atividadesDoDia(morador, dia);
+  const comChuva = chove ? naChuva(base) : null;
+  if (!comEmprego && !comChuva) return null;
+  return acoesDeAtividades(comChuva ?? base);
 });

@@ -53460,6 +53460,11 @@
        "value": 2.368
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.564
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -53498,6 +53503,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 1.621
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.6
       },
       {
        "name": "colide",
@@ -53540,6 +53550,11 @@
        "value": 1.442
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.926
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -53578,6 +53593,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 3.704
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.784
       },
       {
        "name": "colide",
@@ -53620,6 +53640,11 @@
        "value": 4.577
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.867
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -53658,6 +53683,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 3.045
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 4.274
       },
       {
        "name": "colide",
@@ -53700,6 +53730,11 @@
        "value": 1.336
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.888
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -53738,6 +53773,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 3.526
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.819
       },
       {
        "name": "colide",

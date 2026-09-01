@@ -887,6 +887,11 @@
        "value": 0.887
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.94
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -925,6 +930,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 1.6
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 3.4
       },
       {
        "name": "colide",
@@ -967,6 +977,11 @@
        "value": 2.164
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.546
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1005,6 +1020,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 0.887
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.94
       },
       {
        "name": "colide",
@@ -1047,6 +1067,11 @@
        "value": 1.6
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 3.4
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1085,6 +1110,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 2.164
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.546
       },
       {
        "name": "colide",
@@ -1127,6 +1157,11 @@
        "value": 2.164
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 2.546
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1165,6 +1200,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 2.493
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.513
       },
       {
        "name": "colide",
@@ -1207,6 +1247,11 @@
        "value": 1.6
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 3.4
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": true
@@ -1245,6 +1290,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 2.199
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.35
       },
       {
        "name": "colide",
@@ -1287,6 +1337,11 @@
        "value": 2.186
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.144
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1325,6 +1380,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 2.07
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.106
       },
       {
        "name": "colide",
@@ -1367,6 +1427,11 @@
        "value": 1.041
       },
       {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 1.029
+      },
+      {
        "name": "colide",
        "type": "bool",
        "value": false
@@ -1405,6 +1470,11 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 1.904
+      },
+      {
+       "name": "larguraTiles",
+       "type": "float",
+       "value": 0.731
       },
       {
        "name": "colide",
