@@ -54,6 +54,18 @@ function removerFundoPreto(origem, limiar = 8) {
 }
 
 /**
+ * A folha chegou CHAPADA (sem alfa nenhum)? So nesse caso ha fundo preto pra
+ * remover. A separacao e limpa nas artes deste projeto: as chapadas dao 100%
+ * de pixel opaco, as que ja vem recortadas ficam entre 21% e 53%. Nao serve
+ * olhar so a moldura: o cabelo da Helena toca as duas laterais da folha dela.
+ */
+function fundoChapado(img) {
+  let opacos = 0;
+  for (let i = 3; i < img.px.length; i += 4) if (img.px[i] > 8) opacos += 1;
+  return opacos / (img.w * img.h) >= 0.9;
+}
+
+/**
  * Separa um componente que na verdade sao DOIS sprites empilhados, encostados
  * na arte. Corta na linha de MENOR quantidade de pixel opaco dentro da faixa
  * central (25%..75% da altura): e onde os dois se tocam. Fora dessa faixa nao
@@ -178,6 +190,57 @@ function componentes(img, totalLinhas, colunas, separarEmpilhados = false) {
 }
 
 /**
+ * Projecao de pixel opaco de uma faixa da imagem, por linha (`eixo: 'y'`) ou
+ * por coluna (`eixo: 'x'`). E a materia-prima da busca de vao entre poses.
+ */
+function projecao(img, eixo, inicioA, fimA, inicioB, fimB) {
+  const conta = new Int32Array(eixo === 'y' ? img.h : img.w);
+  for (let a = inicioA; a < fimA; a++) {
+    for (let b = inicioB; b < fimB; b++) {
+      const x = eixo === 'y' ? b : a;
+      const y = eixo === 'y' ? a : b;
+      if (img.px[(y * img.w + x) * 4 + 3] > 8) conta[a] += 1;
+    }
+  }
+  return conta;
+}
+
+/**
+ * Linhas de corte de uma grade de `quantidade` celulas dentro de
+ * `[inicio, fim)`, buscadas pela projecao em vez de assumidas.
+ *
+ * As folhas de arte NAO tem as poses distribuidas em celulas iguais: na do
+ * Arthur a primeira pose ocupa 28% da altura, na da Helena os vaos caem em
+ * 0,29 / 0,54 / 0,77. Dividir em quartos exatos cortava a figura no meio, e o
+ * `maiorComponente` entao ficava com o pedaco maior do corte — o cabelo, as
+ * pernas — em vez do personagem. Aqui cada fronteira NOMINAL e movida para a
+ * posicao de MENOS pixel opaco numa janela em volta dela; empate fica com a
+ * mais proxima do nominal, por isso a varredura sai do centro pros lados.
+ *
+ * Uma folha de grade realmente regular tem zero opaco na fronteira nominal, e
+ * a busca devolve exatamente ela — o comportamento antigo continua valendo
+ * onde ele estava certo.
+ */
+function cortesPorVao(perfil, inicio, fim, quantidade, janela = 0.14) {
+  const total = fim - inicio;
+  const cortes = [inicio];
+  const raio = Math.max(2, Math.round((total / quantidade) * janela));
+  for (let i = 1; i < quantidade; i++) {
+    const nominal = inicio + Math.round((i * total) / quantidade);
+    let melhor = Math.min(fim - 1, Math.max(inicio + 1, nominal));
+    for (let passo = 1; passo <= raio; passo++) {
+      for (const candidato of [nominal - passo, nominal + passo]) {
+        if (candidato <= inicio || candidato >= fim - 1) continue;
+        if (perfil[candidato] < perfil[melhor]) melhor = candidato;
+      }
+    }
+    cortes.push(melhor);
+  }
+  cortes.push(fim);
+  return cortes;
+}
+
+/**
  * Corta uma folha pela grade declarada. Algumas artes novas tem halos opacos
  * que ligam duas poses vizinhas e confundem a deteccao por componentes.
  */
@@ -188,8 +251,16 @@ function celulasFixas(img, linhas, colunas, limites = {}) {
   const fimY = Math.floor((limites.y1 ?? 1) * img.h);
   const largura = fimX - inicioX;
   const altura = fimY - inicioY;
-  const cortesX = limites.cortesX?.map((p) => inicioX + Math.floor(p * largura));
-  const cortesY = limites.cortesY?.map((p) => inicioY + Math.floor(p * altura));
+  const cortesX = limites.cortesX
+    ? limites.cortesX.map((p) => inicioX + Math.floor(p * largura))
+    : colunas > 1
+      ? cortesPorVao(projecao(img, 'x', inicioX, fimX, inicioY, fimY), inicioX, fimX, colunas)
+      : undefined;
+  const cortesY = limites.cortesY
+    ? limites.cortesY.map((p) => inicioY + Math.floor(p * altura))
+    : linhas > 1
+      ? cortesPorVao(projecao(img, 'y', inicioY, fimY, inicioX, fimX), inicioY, fimY, linhas)
+      : undefined;
   return Array.from({ length: linhas }, (_, linhaAtual) =>
     Array.from({ length: colunas }, (_, colunaAtual) => {
       const gradeX0 = cortesX?.[colunaAtual] ?? inicioX + Math.floor((colunaAtual * largura) / colunas);
@@ -242,7 +313,13 @@ function normalizar({
   limitesGrade,
 }) {
   const lida = lerPng(join(DIR, entrada));
-  const origem = removerPreto ? removerFundoPreto(lida, limiarPreto) : lida;
+  // `removerFundoPreto` decide pela COR, ignorando o alfa: numa folha que ja
+  // vem com fundo transparente, o RGB lixo por baixo do alfa 0 e escuro, a
+  // inundacao atravessa o fundo inteiro e come o cabelo preto do personagem —
+  // foi o que apagou a pose de costas da Helena e a do Arthur.
+  const origem = removerPreto && fundoChapado(lida)
+    ? removerFundoPreto(lida, limiarPreto)
+    : lida;
   const grade = gradeFixa
     ? celulasFixas(origem, linhasOriginais, colunasOriginais, limitesGrade)
     : componentes(origem, linhasOriginais, colunasOriginais, separarEmpilhados);
@@ -250,8 +327,19 @@ function normalizar({
     img: grade[linha][coluna].img,
     flipX,
   }));
-  const maiorW = Math.max(...frames.map((frame) => frame.img.w));
-  const maiorH = Math.max(...frames.map((frame) => frame.img.h));
+  // A ESCALA SAI DA CAIXA OPACA, nunca do tamanho da imagem de origem.
+  // `reduzirPara` reamostra somente a caixa opaca; medir a escala pela imagem
+  // inteira so coincide no caminho por componentes, onde o recorte JA e a caixa.
+  // No caminho `gradeFixa` a imagem e a celula inteira da grade, e a figura
+  // dentro dela era esticada ate a proporcao da celula — foi o que achatou as
+  // folhas do Rafael, da Manuela e da Samanta.
+  const caixas = frames.map(({ img: frame }, indice) => {
+    const caixa = caixaOpaca(frame);
+    if (!caixa) throw new Error(`componente vazio no frame ${indice}`);
+    return caixa;
+  });
+  const maiorW = Math.max(...caixas.map((caixa) => caixa.w));
+  const maiorH = Math.max(...caixas.map((caixa) => caixa.h));
   const escala = Math.min(
     (FRAME.w - MARGEM.x * 2) / maiorW,
     (FRAME.h - MARGEM.y * 2) / maiorH,
@@ -259,10 +347,9 @@ function normalizar({
   const destino = new Img(FRAME.w * 4, FRAME.h * 4);
 
   frames.forEach(({ img: frame, flipX }, indice) => {
-    const w = Math.max(1, Math.round(frame.w * escala));
-    const h = Math.max(1, Math.round(frame.h * escala));
-    const caixa = caixaOpaca(frame);
-    if (!caixa) throw new Error(`componente vazio no frame ${indice}`);
+    const caixa = caixas[indice];
+    const w = Math.max(1, Math.round(caixa.w * escala));
+    const h = Math.max(1, Math.round(caixa.h * escala));
     const pixels = reduzirPara(frame, caixa, w, h);
     if (flipX) {
       for (let y = 0; y < h; y++) {
@@ -584,21 +671,28 @@ function novoComCaminhada4x4EParado1x4(id, andando, parado) {
 }
 
 /** Sem caminhada propria: usa as quatro direcoes paradas nos dois runtimes. */
-function novoSoParado4x4(id, entrada, gradeFixa = false) {
+function novoSoParado4x4(id, entrada, gradeFixa = false, limitesGrade) {
   for (const sufixo of ['andando', 'parado']) {
     normalizar({
       entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
       mapa: mapaQuatroDirecoes, removerPreto: true, limiarPreto: 24, gradeFixa,
+      limitesGrade,
     });
   }
 }
 
-/** Uma unica folha 4x4 fornece caminhada e idle; detecta poses fora da grade. */
+/**
+ * Uma unica folha 4x4 de CAMINHADA fornece os dois runtimes: a de passos sai
+ * inteira, e a de idle repete a primeira coluna de cada direcao. Sem essa
+ * repeticao o arquivo `_parado` guardaria quatro poses de passada, e "parado"
+ * passaria a significar coisas diferentes de NPC pra NPC.
+ */
 function novoSoFolha4x4(id, entrada, gradeFixa = false, limitesGrade, mapa = mapaQuatroDirecoes) {
-  for (const sufixo of ['andando', 'parado']) {
+  const parado = mapa.map((direcao) => [0, 1, 2, 3].map(() => direcao[0]));
+  for (const [sufixo, usado] of [['andando', mapa], ['parado', parado]]) {
     normalizar({
       entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
-      colunasOriginais: 4, mapa,
+      colunasOriginais: 4, mapa: usado,
       removerPreto: true, limiarPreto: 24, gradeFixa, limitesGrade,
     });
   }
@@ -616,15 +710,11 @@ function novoVertical1x4(id, entrada, limitesGrade = { maiorComponente: true }) 
   }
 }
 
-novoVertical1x4('arthur', 'Arthur_parado.png', {
-  cortesY: [0, 0.285, 0.53, 0.78, 1], maiorComponente: true,
-});
+novoVertical1x4('arthur', 'Arthur_parado.png');
 novoSoParado4x4('bruno', 'Bruno_parado_madeireira.png');
 novoComFolhas4x4('caio', 'caio_andando.png', 'Caio_parado.png', true, true);
 novoVertical1x4('cecilia', 'Cecilia_parada.png');
-novoComFolhas4x4('clara', 'Clara_andando.png', 'Clara_parada_bibliotecaria.png', false, true, false, {
-  cortesY: [0, 0.258, 0.5, 0.748, 1],
-});
+novoComFolhas4x4('clara', 'Clara_andando.png', 'Clara_parada_bibliotecaria.png', false, true);
 novoSoParado4x4('davi', 'Davi_parado.png');
 novoVertical1x4('helena', 'Helena_parada.png');
 novoComCaminhada8x4('joao', 'João_andando.png', 'João_parado.png');
@@ -635,25 +725,70 @@ novoSoFolha4x4('julia', 'Julia_andando.png', true, {
 });
 novoComCaminhada4x4EParado1x4('lucas', 'Lucas_andando.png', 'lucas_parado.png');
 novoSoParado4x4('lucia', 'Lucia_parada.png');
-novoSoParado4x4('livia', 'Lívia diretora.png');
+novoSoParado4x4('livia', 'Lívia diretora.png', true);
 novoVertical1x4('manuela', 'Manuela_parada.png');
-// A folha do Matheus e uma grade 4x4 regular, mas radio, bolsa e bone soltos
-// formam componentes separados. O corte por componentes confundia esses
-// acessorios com personagens inteiros e produzia frames sem cabeca/corpo.
-novoSoParado4x4('matheus', 'Matheus_parado.png', true);
+// A folha do Matheus e a unica em que as linhas de pose se INVADEM: numa das
+// colunas ele ergue o bastao, que sobe ate a fileira de cima, e por isso a
+// folha nao tem uma unica linha horizontal vazia. Sem vao pra achar, o corte
+// sempre atravessa alguma figura — `maiorComponente` e o que descarta o pedaco
+// invasor e mantem o policial inteiro dentro da celula.
+novoSoParado4x4('matheus', 'Matheus_parado.png', true, { maiorComponente: true });
 novoComCaminhada8x4('neide', 'Neide_andando.png', 'Neide_parada.png');
 novoSoParado4x4('priscila', 'Priscila.png');
 novoSoFolha4x4('ilda', 'Professora_ilda.png', false);
 novoSoParado4x4('rafael', 'Rafael_parado.png', true);
 novoVertical1x4('ravi', 'Ravi_parado.png');
-novoSoFolha4x4('roberto', 'Roberto_parado.png', true, {
-  x0: 0.235, x1: 0.77, cortesY: [0, 0.278, 0.53, 0.77, 1], maiorComponente: true,
+// Roberto tem DUAS folhas: `Roberto_Andando.png`, com passada de verdade, e
+// `Roberto_parado.png`, com as poses paradas. As duas trazem uma pose solta
+// fora da grade 4x4, em posicao diferente em cada uma — dai o `x0`/`x1`
+// proprio de cada chamada em vez de um `novoComFolhas4x4` compartilhado.
+normalizar({
+  entrada: 'Roberto_Andando.png', saida: 'roberto_andando_runtime.png',
+  linhasOriginais: 4, colunasOriginais: 4, mapa: mapaQuatroDirecoes,
+  removerPreto: true, limiarPreto: 24, gradeFixa: true,
+  limitesGrade: { x0: 0.05, x1: 0.75, maiorComponente: true },
+});
+normalizar({
+  entrada: 'Roberto_parado.png', saida: 'roberto_parado_runtime.png',
+  linhasOriginais: 4, colunasOriginais: 4, mapa: mapaParadoQuatroDirecoes,
+  removerPreto: true, limiarPreto: 24, gradeFixa: true,
+  limitesGrade: { x0: 0.235, x1: 0.77, maiorComponente: true },
 });
 novoSoFolha4x4('samanta', 'Samanda_andando.png', true, {
-  x0: 0.05, x1: 0.72, cortesY: [0, 0.27, 0.49, 0.74, 1], maiorComponente: true,
+  x0: 0.05, x1: 0.72, maiorComponente: true,
 }, [linha(0), linha(3), [2, 3, 2, 3].map((coluna) => ({ coluna, linha: 1 })), linha(2)]);
-novoComFolhas4x4('suzan', 'Suzan_andando.png', 'Suzan_parada.png', false, true, false, {
-  cortesY: [0, 0.26, 0.495, 0.72, 1],
-});
-novoSoParado4x4('tulio', 'Tulio_parado.png');
+novoComFolhas4x4('suzan', 'Suzan_andando.png', 'Suzan_parada.png', false, true);
+// Tulio e Livia vem em folha chapada de fundo preto. A remocao do preto abre
+// buracos no contorno e o cabelo escuro deles se desprende do corpo, entao o
+// corte por componentes entregava meia figura. As duas grades sao regulares:
+// cortar pela grade mantem a pose inteira na celula, solta ou nao.
+novoSoParado4x4('tulio', 'Tulio_parado.png', true);
 novoSoParado4x4('rita', 'Vó_rita_parada.png');
+
+// ------------------------------------------------- quem tem passada real --
+/**
+ * NPCs cuja folha de ARTE traz um ciclo de caminhada de verdade (pernas em
+ * passada), e nao quatro poses paradas diferentes.
+ *
+ * Esta lista existe porque a distincao nao da pra deduzir do arquivo gerado: o
+ * runtime de todo mundo sai numa grade 4x4 identica. E ela sai daqui, do lado
+ * das chamadas que leem cada folha, porque e aqui que se sabe qual arte foi
+ * usada — os 9 NPCs originais e os moradores entram no mesmo bolo.
+ *
+ * Vira `npc-caminhada.json`, e a conferencia de rotinas usa esse arquivo pra
+ * reprovar quem recebeu rotina de andar sem ter com que andar. Antes de mover
+ * um id pra ca, confira a folha `_andando_runtime` gerada: se as quatro
+ * colunas de uma direcao mostram a MESMA pose de pe, a arte nao tem passada.
+ */
+const CAMINHADA_REAL = [
+  // os 9 originais
+  'edu', 'mari', 'jaqueline', 'leticia', 'wendel', 'alice', 'luke', 'hiago', 'vitor',
+  // moradores com folha de caminhada propria
+  'caio', 'clara', 'ilda', 'joao', 'julia', 'lucas', 'neide', 'roberto', 'samanta', 'suzan',
+];
+
+writeFileSync(
+  join(DIR, 'npc-caminhada.json'),
+  `${JSON.stringify({ caminhada: CAMINHADA_REAL }, null, 2)}\n`,
+);
+console.log(`[npc] npc-caminhada.json: ${CAMINHADA_REAL.length} NPC(s) com passada real`);

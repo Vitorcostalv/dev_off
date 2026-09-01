@@ -78,11 +78,17 @@ for (const id of casasOcupadas) {
   ok(comodos.length >= 4, `${id}: casa sem divisao real de comodos`);
 }
 
-const moveisEsperados = new Set(['bruno', 'caio', 'clara', 'ilda', 'joao', 'julia', 'lucas', 'neide', 'samanta', 'suzan']);
+// A verdade sobre quem tem passada real fica na ARTE, e o processador de
+// sprites publica isso em `npc-caminhada.json`. Comparar o cadastro com aquele
+// arquivo — em vez de com uma lista copiada aqui — e o que impede um NPC voltar
+// a receber `vagar` sem ter folha de caminhada.
+const comCaminhada = new Set(
+  JSON.parse(readFileSync(join(raiz, 'public', 'assets', 'sprites', 'npc-caminhada.json'), 'utf8')).caminhada,
+);
 for (const morador of Object.values(MORADORES)) {
   ok(
-    morador.movimento === (moveisEsperados.has(morador.id) ? 'vagar' : 'parado'),
-    `${morador.id}: movimento nao corresponde ao tipo de folha disponivel`,
+    morador.movimento === (comCaminhada.has(morador.id) ? 'vagar' : 'parado'),
+    `${morador.id}: movimento "${morador.movimento}" nao corresponde a arte disponivel`,
   );
 }
 

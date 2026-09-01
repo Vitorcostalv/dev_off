@@ -58,8 +58,16 @@ const framesParados = {
   down: { linha: 0, colunas: [0] }, up: { linha: 1, colunas: [0] },
   left: { linha: 2, colunas: [0] }, right: { linha: 3, colunas: [0] },
 };
+/**
+ * Espelha `CAMINHADA_REAL` de tools/processar-sprites-npc.mjs, que publica a
+ * mesma lista em `assets/sprites/npc-caminhada.json` — a conferencia de rotinas
+ * compara os dois. Bruno saiu daqui: a folha dele
+ * (`Bruno_parado_madeireira.png`) traz quatro poses de pe, nao uma passada, e
+ * ele deslizava pelo pateo da madeireira. Roberto entrou: `Roberto_Andando.png`
+ * estava na pasta de arte sem ninguem usar.
+ */
 const NPCS_COM_PASSOS_REAIS = new Set([
-  'bruno', 'caio', 'clara', 'ilda', 'joao', 'julia', 'lucas', 'neide', 'samanta', 'suzan',
+  'caio', 'clara', 'ilda', 'joao', 'julia', 'lucas', 'neide', 'roberto', 'samanta', 'suzan',
 ]);
 const sprites = (id: string): Pick<Morador, 'sprite' | 'spriteParado' | 'movimento'> => ({
   movimento: NPCS_COM_PASSOS_REAIS.has(id) ? 'vagar' : 'parado',
