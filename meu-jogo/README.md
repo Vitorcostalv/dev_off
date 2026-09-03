@@ -949,7 +949,7 @@ degrau que ninguem nota.
 
 | capitulo | andares | nome | escuridao | fauna dominante |
 | --- | --- | --- | --- | --- |
-| 1 | 1-10 | Rotina | 0,00 a 0,24 | esfera de choque |
+| 1 | 1-10 | Rotina | 0,00 a 0,24 | esfera de choque e aparelho tomado |
 | 2 | 11-20 | Pressao | 0,26 a 0,40 | aparelho tomado |
 | 3 | 21-30 | Colapso | 0,41 a 0,55 | impressora arisca |
 | 4 | 31-40 | Negacao | 0,57 a 0,71 | robo de servico |
