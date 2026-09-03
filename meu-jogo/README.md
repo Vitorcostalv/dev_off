@@ -24,6 +24,12 @@ conserto.
 | Setas ou A/D | escolher Sim/Nao na confirmacao |
 | Esc | cancelar confirmacao |
 | Tab | abrir/fechar inventario (e trocar de secao na DevStore) |
+| U | usar o item selecionado no inventario |
+| F | equipar/guardar o item selecionado |
+| X | descartar a pilha selecionada |
+| O | organizar o inventario |
+| C | abrir/fechar o calendario (com a loja aberta, ele troca o filtro dela) |
+| J | abrir os Arquivos — as fichas medicas ja recolhidas na represa |
 | M | abrir/fechar o mapa do lugar onde voce esta |
 | E no computador da oficina | ligar o PC (desktop com 7 apps); Esc desliga |
 | E na bancada da oficina | abrir o catalogo de mobilia |
@@ -31,10 +37,18 @@ conserto.
 | F1 | debug das colisoes |
 | F6 | mostrar/esconder as zonas reservadas (debug) |
 | F7 | avancar uma hora para testar rotinas (debug) |
-| F2 / F3 | adicionar Cabo USB / Bateria no inventario (debug) |
+| F2 | adicionar Cabo USB no inventario (debug) |
+| F3 | kit de exploracao: chave, lanterna, pistola, municao e kits (debug) |
 | F4 | apagar o save (debug) |
-| Espaco | golpear com a chave inglesa (so faz algo dentro da represa) |
+| Espaco | golpear (so faz algo dentro da represa) |
+| Botao esquerdo | atirar, com arma de fogo na mao |
+| R | recarregar a arma |
 | F9 | salvar na hora (debug) |
+
+Com arma de fogo na mao aparece uma **mira** que segue o cursor, e a pose do
+personagem passa a sair da direcao dela — da pra recuar atirando. A arma so
+equipa **dentro da usina**; sair de la guarda ela na mochila, com a municao do
+carregador junto.
 
 ## Estrutura
 
@@ -45,7 +59,8 @@ src/
     config.ts          numeros de balanceamento + paleta da UI
     estado.ts          estado global: dia, relogio, inventario, mapa atual
     relogio.ts         tempo de jogo e formatacao da hora
-    calendario.ts      dias da semana
+    calendario.ts      dias da semana, data completa e ano bissexto
+    clima.ts           o tempo do dia, derivado da data
     inventario.ts      slots, empilhamento, catalogo de itens
     mapas.ts           registro dos mapas (keys do Phaser + spawn + mapa externo)
     casa.ts            casa do protagonista: comodos compraveis e catalogo de mobilia
@@ -58,14 +73,26 @@ src/
     vida.ts            HP do jogador (30/30) e a janela de invulnerabilidade
     inimigos.ts        catalogo dos 7 monstros e a IA — sem uma linha de Phaser
     sucata.ts          salvado da represa: itens, tabelas de sorteio e revenda
-    represa.ts         setores, escuridao, tensao, os 7 enigmas e a derrota
+    represa.ts         setores autorais, tensao, os 7 enigmas e a derrota
+    andares.ts         REGISTRO CENTRAL dos 50 andares: capitulo, fauna, planta, modulo
+    enigmas.ts         as 10 familias de enigma gerado — painel e pista na mesma funcao
+    fichas.ts          o prontuario de 200 dias e o arquivo do jogador
+    equipar.ts         o que cada item faz, os slots e a mao do jogador
+    armas.ts           catalogo de arma de fogo, carregador e o projetil
+    luzes.ts           mapa de luz por tile, luminarias e oclusao
+    pets.ts            os 6 bichos, seus donos e a agenda deles
+    tema.ts            paleta, fonte, espacamento e camadas da interface
     avisos.ts          textos de exame; e aqui que as RESPOSTAS dos enigmas moram
     save.ts            localStorage
     tipos.ts           tipos compartilhados
   scenes/
     BootScene.ts       preload, animacoes, carga do save
     FarmScene.ts       cena de mundo: tilemap, player, colisao, camera, interacao
-    CamadaRepresa.ts   componente da FarmScene: escuridao, inimigos e combate
+    CamadaRepresa.ts   componente da FarmScene: inimigos, combate e salvado
+    CamadaLuz.ts       o mapa de luz virando textura de um texel por tile
+    CamadaChuva.ts     particula de chuva, so em mapa externo
+    CamadaPets.ts      os bichos andando
+    ui.ts              pecas de desenho: painel, campo, slot, barra, aba, cartao
     UIScene.ts         HUD, prompt, dialogo, confirmacao, inventario, loja fisica
     ComputadorScene.ts o PC do protagonista: desktop de tela cheia e os apps
   pc/                  o "sistema operacional" do computador de casa
@@ -88,12 +115,17 @@ tools/
   gerar-assets.mjs     monta tileset + folhas/atlas de sprite + todos os tilemaps
   processar-sprites-npc.mjs      as folhas dos 33 NPCs
   processar-sprites-monstro.mjs  as folhas dos 7 monstros da represa
+  processar-sprites-jogador.mjs  a folha de segurar item + o ponto do punho
+  processar-sprites-pet.mjs      as folhas dos cachorros e gatos
+  gerar-equipamento.mjs          icone de item na mao + o ponto de presa
+  andares-represa.mjs            templates, labirintos e modulos dos 45 andares novos
 public/assets/
   tilemaps/            4 externos (farm, bairro, rural, represa) + um por
                        interior (casa_2..casa_6, casa_b1..b7, casa_c1/c2,
                        casa_rural_1/2, mercado, academia, bar, farmacia,
-                       oficina, escola, biblioteca) + os 5 setores da represa
-                       (represa_0..represa_4) — todos gerados
+                       oficina, escola, biblioteca, hospital) + os 50 andares
+                       da represa (represa_0..represa_4 autorais e
+                       represa_f06..represa_f50 compostos, sob demanda)
   tilesets/terrain.png tileset 32x32 montado pelo script (nao edite a mao)
   sprites/             folhas de runtime, folhas de movel geradas, spritesheets
                        do player e os atlas
@@ -122,6 +154,19 @@ entrada em `FOLHAS` — nao mova arquivo sem mexer nele.
 | `Monstros/*.png` (9 folhas) | `public/assets/Monstros/` | 7 viram folha 4x4 de runtime; `Boss_v1` e `Micro-ondas` ficaram de fora | processar-sprites-monstro |
 | `Arvores_mapa_4.png` | `arte/` | **SEM USO** — veio sobre gradiente verde opaco, que o removedor de fundo nao trata | — |
 | `Rios_v1.png` / `RIos_v2.png` | `arte/` | **SEM USO** — sao pecas de composicao de rio, nao grade de tile; a agua sai do 9-slice de `lago_v1` | — |
+| `PAredes_internas_represa_andar_50_100.png` (5 linhas uteis) | `arte/` | 5 estilos de parede do capitulo 5 (andares 41-50). As pecas com numero de andar pintado ficaram de fora | build |
+| `Paredes_internas_represa_andar_101_150.png` | `arte/` | **SEM USO** — reservada pros andares 101+, fora do escopo desta fase | — |
+| `Lampadas_v2.png` (4 luminarias) | `arte/` | atlas `lampadas`: so o frame ACESO entra; o apagado sai tingindo o mesmo frame | gerar-equipamento |
+| `Lampadas_v1.png` | `arte/` | **SEM USO** — substituida pela v2, que tem as quatro luminarias na mesma grade | — |
+| `itens_represa_v2.png` (18 icones) | `public/assets/sprites/` | atlas `itens_represa` (icone de inventario) e as pecas de mao | gerar-itens + gerar-equipamento |
+| `Itens_represa.png` | `public/assets/sprites/` | **SEM USO** — fundo totalmente opaco; substituida pela v2 | — |
+| `Pistola.png` | `public/assets/Armas/` | atlas `equipamento`: a arma na mao, o fogo do cano e o projetil | gerar-equipamento |
+| `Shotgun.png` / `M4A1.png` | `public/assets/Armas/` | **SEM USO** — so a pistola entrou nesta fase | — |
+| `Player_segurando.png` (4x4) | `public/assets/sprites/` | a folha GENERICA de segurar item; o punho de cada pose e MEDIDO, nao escrito | processar-sprites-jogador |
+| `Cachorros.png` / `Gatos_v1.png` | `public/assets/sprites/` | folhas dos 3 cachorros e dos 3 gatos | processar-sprites-pet |
+| `Gatos_v1_andando.png` | `public/assets/sprites/` | **SEM USO** — a folha parada ja cobre as quatro direcoes dos bichos | — |
+| `Moveis_hospital.png` (7 linhas) | `arte/` | folha+atlas `moveis_hospital`: mobilia do hospital municipal | build |
+| `Paredes_hospital.png` | `arte/` | fachada do hospital. Veio sobre fundo opaco e nao se segmenta por blob: parede, letreiro e porta sao retangulos enderecados a dedo em `ARTE_PROJETOS` | build |
 | `estrada_de_terra.png` (3x3) | `arte/` | autotile de estrada + terra batida | build |
 | `lago_v1.png` (3x3) | `arte/` | 9-slice de agua | build |
 | `Paredes_casa_v1.png` (6x3) | `arte/` | parede das fachadas de casa | build |
@@ -553,7 +598,9 @@ reprovando com erro alto em vez de aviso:
 | `npm run verificar-inventario` | pilha, slot, save |
 | `npm run verificar-ambientacao` | material, quadro, segredo, worldEvent |
 | `npm run verificar-expansao-npcs` | os 24 moradores, as obras, as missoes |
-| `npm run verificar-represa` | topologia em estrela, grafo dos setores, resposta de enigma escrita em documento, dano por tipo, IA, tabela de salvado, revenda, derrota |
+| `npm run verificar-represa` | topologia em estrela, grafo dos andares, resposta dos enigmas autorais escrita em documento, dano por tipo, IA, tabela de salvado, revenda, derrota |
+| `npm run verificar-andares` | os 50 andares, o prontuario de 200 dias, a resposta de cada enigma gerado, spawn de inimigo, luminaria e oclusao de luz, bichos, calendario e tempo |
+| `npm run verificar-equipamento` | id de item, arte de mao, zona da arma, cadencia, recarga, projetil sem atravessar parede, oferta das lojas |
 
 ## Determinismo
 
@@ -572,7 +619,16 @@ tile lado a lado vira uma grade visivel.
 - `CONFIG_TEMPO` em `game/relogio.ts`: hoje **10 minutos de jogo a cada 10
   segundos reais**, dia comeca 06:00 ao acordar, jogo novo comeca 07:20.
 - Passar da meia-noite acordado tambem vira o dia.
-- Dia 0 e uma segunda-feira (`game/calendario.ts`).
+- Dia 0 e **segunda-feira, 1 de setembro de 2025** (`game/calendario.ts`). O
+  calendario completo (dia, mes, ano, bissexto) e uma LEITURA de `estado.dia`,
+  o contador que sempre existiu — nao ha segundo contador e nao ha migracao de
+  save. Os 200 dias do prontuario da represa terminam em 20 de marco de 2026.
+- O **tempo** (`game/clima.ts`) tambem e derivado da data: um hash do dia,
+  pesado pela estacao do hemisferio sul, devolve limpo, nublado, chuva fraca ou
+  chuva forte. Recarregar o save no dia 137 traz a mesma chuva, em qualquer
+  maquina, sem campo nenhum no save. Chove em 27% dos dias do ano — 44% no verao
+  e 14% no inverno. A chuva aparece so em mapa externo, escurece o mundo e troca
+  o bloco ao ar livre da rotina de quem tem abrigo declarado.
 - Dormir salva, avanca um dia e reseta a hora. O save **v6** (`localStorage`,
   chave `meu-jogo:save`) guarda dia, hora, **mapa atual e posicao nele**,
   inventario, pickups coletados, dinheiro, lixeira, trabalhos, relacoes e a
@@ -581,6 +637,12 @@ tile lado a lado vira uma grade visivel.
   mapa externo pra tres e a casa do protagonista mudou de lote: a chave de mapa
   gravada na v5 pode ser `casa_1`, que nao existe mais. Save de versao diferente ou corrompido e ignorado com
   aviso no console, e o jogo comeca do zero.
+- A leva dos **cinquenta andares** NAO subiu a versao. Os campos novos
+  (`vida`, `represa`, `equipamento`, `armas`, `arquivo`) sao aditivos: eles
+  chegam ausentes num save v6 antigo e cada `restaurar` devolve o valor vazio —
+  vida cheia, nada equipado, carregador vazio, arquivo sem ficha. Campo novo
+  nao pede versao nova; so se sobe a versao quando o dado JA GRAVADO passa a
+  significar outra coisa.
 
 ## Rotinas de NPC
 
@@ -870,66 +932,172 @@ proibidos** — o miolo do reservatorio, a passarela da barragem e o rio — e
 reprova se qualquer um deles ficar alcancavel. Um furo de 1 tile na cerca nao
 passaria por uma conferencia que so olha o que E alcancavel.
 
-### Os cinco setores
+### Os cinquenta andares
 
-Cinco tilemaps desenhados a mao, ligados por alcapao e elevador. **Nao sao
-interiores de predio**: tem varias portas, nenhuma cama, nenhum comodo privado, e
-por isso `verificar-mapas` desvia deles (quem confere e a geracao e
-`verificar-represa`).
+A usina tem **50 andares**. Os cinco primeiros sao os setores desenhados a mao da
+leva anterior — mesmas chaves de mapa (`represa_0` a `represa_4`), mesmas
+plantas, mesmas flags de puzzle. Um save gravado dentro do `represa_2` continua
+abrindo no `represa_2`; **nao ha migracao**. Do 6 ao 50 as chaves sao
+`represa_f06` a `represa_f50`.
 
-| nivel | chave | escuridao | o que tem |
-| --- | --- | --- | --- |
-| 0 | `represa_0` | 0 | entrada, sala de controle e arquivo. **Zona segura**: sem inimigo, e onde o jogador acorda apos derrota |
-| -1 | `represa_1` | 0,18 | manutencao em dois ramos (A e B) e um corredor; a porta de servico do ramo A e o primeiro atalho |
-| -2 | `represa_2` | 0,38 | galeria das turbinas (tres vaos separados por pilar), corredor de servico (0,52) e casa de bombas |
-| -3 | `represa_3` | 0,60 | galerias inferiores em ANEL — da pra fugir dando a volta — e o quadro geral |
-| -4 | `represa_4` | 0,80 | poco de drenagem e a camara da placa mestre, com o cofre de peca rara |
+O **registro central** e `src/game/andares.ts`, e ele e a razao de a coisa caber
+na cabeca: nao ha `if (andar === 23)` em arquivo nenhum. Capitulo, escuridao,
+fauna, tabela de salvado, ficha medica, parada de elevador e template saem de la,
+e a maioria e DERIVADA por funcao em vez de escrita cinquenta vezes — escrever
+cinquenta numeros que seguem uma curva e o jeito mais seguro de a curva ganhar um
+degrau que ninguem nota.
 
-A escuridao mora no **tilemap, por comodo** (`comodos[].escuridao`), com o valor
-do setor como piso. Nao ha cadeia de `if` por nivel no codigo. Em jogo ela e uma
-vinheta radial centrada no jogador, com o buraco de luz do tamanho do **raio de
-lanterna** — 3,2 tiles sem lanterna, 5,6 com a lanterna de manutencao que o
-primeiro enigma libera. Lampada de emergencia e painel aceso ficam ACIMA da
-vinheta, com mistura aditiva: sao marcos de navegacao, e e o que separa escuridao
-tensa de escuridao chata.
+| capitulo | andares | nome | escuridao | fauna dominante |
+| --- | --- | --- | --- | --- |
+| 1 | 1-10 | Rotina | 0,00 a 0,24 | esfera de choque |
+| 2 | 11-20 | Pressao | 0,26 a 0,40 | aparelho tomado |
+| 3 | 21-30 | Colapso | 0,41 a 0,55 | impressora arisca |
+| 4 | 31-40 | Negacao | 0,57 a 0,71 | robo de servico |
+| 5 | 41-50 | Reconhecimento | 0,72 a 0,86 | maquina pesada |
 
-### Os dois eixos de dificuldade
+O capitulo 5 tem **parede propria**, da folha
+`PAredes_internas_represa_andar_50_100.png`: concreto rachado, vidro blindado,
+parede de painel e tubulacao. As pecas com numero de andar pintado (51-60,
+61-70...) ficaram de fora — sao dos andares que esta fase nao implementa.
 
-**Profundidade** e o eixo permanente: cada nivel escurece mais e os bichos de la
-doem mais. **Tensao** e o eixo temporario: ela sobe enquanto o jogador esta
-DENTRO dos setores e zera quando ele sai (sair pro patio da casa de forca ja
-conta como escapar).
+**Isto rebalanceou os andares 2 a 5**, e vale dizer alto: eles ficaram mais
+claros (a curva de cinquenta andares vai de 0 a 0,86, e a de cinco ia de 0 a 0,8
+em quatro passos) e os dois monstros mais pesados sairam de la pro capitulo 5.
+Eles eram o fim de uma descida de cinco; agora sao a introducao de uma de
+cinquenta.
 
-A tensao multiplica velocidade, raio de deteccao e cadencia dos inimigos —
-**nunca dano nem HP**, pra a conta de "quantos golpes eu aguento" continuar
-previsivel — e **desconta tentativas dos enigmas**. Errar num painel tambem sobe
-a tensao. Quarenta minutos de jogo no nivel 0 nao passam de 0,25; quarenta no
-nivel -4 passam de 0,8.
+### Como um andar novo e montado
+
+Os 45 andares novos sao **compostos**, e composicao nao e geracao aleatoria:
+
+- **nove geometrias escritas a mao** (`TEMPLATES` e `LABIRINTOS` em
+  `tools/andares-represa.mjs`): oito parametricas — espinha de 3 e de 5 salas,
+  cruzamento, galeria dupla, galeria com anexos, anel, poco, salao — e **tres
+  labirintos autorais**, com cada corredor declarado como um segmento, no mesmo
+  idioma de polilinha que as vias dos mapas externos usam;
+- **dezesseis modulos industriais** (sala de controle, camara de turbina,
+  corredor de manutencao, area alagada, sala eletrica, deposito, ventilacao,
+  geradores, arquivo, tunel, casa de bombas, portaria, ferramentaria,
+  servidores, galeria de cabos, baias de escritorio), cada um com piso, parede,
+  escuridao relativa e categoria de mobilia proprios;
+- **qual template e quais modulos** cada andar usa esta escrito andar por andar
+  em `andares.ts`.
+
+O que sobra pro automatico e so ONDE, dentro do comodo, cada objeto cai — e isso
+sai de um hash do numero do andar. O andar 23 e igual em toda maquina e em todo
+reload.
+
+Os 50 passam pelo **mesmo `gerarSetorRepresa`** e pela **mesma conferencia de
+geometria** dos cinco autorais: 19.276 tiles de comodo conferidos, tudo livre e
+tudo alcancavel a partir do alcapao de chegada.
+
+Os labirintos ficam nos andares **8, 17, 26, 34 e 43**, e cada um tem tres
+**marcos** de navegacao (tubo colorido, porta numerada, cabo com anilha, painel
+cego, baia numerada) — e por eles que o jogador aprende o caminho em vez de
+decorar curvas. O mesmo labirinto e reusado em dois andares, e o texto dos marcos
+muda com a profundidade, entao o reuso nao le como reuso.
 
 ### Enigmas
 
-Sete paineis: uma alavanca, tres simples, dois intermediarios e um profundo de
-tres passos. O conteudo mora em `src/game/represa.ts`; o tilemap so diz onde cada
-um esta.
+Sao **52 paineis**: os sete autorais dos cinco primeiros andares e **45 gerados**,
+um por andar composto, de **dez familias**:
 
-| painel | nivel | tipo | o que abre |
-| --- | --- | --- | --- |
-| quadro de disjuntores | 0 | sequencia de 3 | luz do hall, a gaveta do controle e a **lanterna** |
-| painel de simbolos | -1 | escolha | armario de suprimentos |
-| caixa de passagem | -1 | escolha | caixa de pecas da bomba |
-| alavanca da porta de servico | -2 | um passo | **atalho permanente** pro nivel -1 |
-| sinoptico dos geradores | -2 | sequencia de 4 | a descida pro nivel -3 |
-| mesa de comportas | -3 | sequencia de 4 + **codigo de 2 digitos** | a descida pro nivel -4 |
-| placa de controle mestre | -4 | escolha + **peca do inventario** + **codigo de 4 digitos** | o cofre de peca rara e o **elevador de servico** |
+sequencia de alavancas · roteamento de energia · travessia de labirinto ·
+codigo de terminal · sequencia de valvulas · reconexao de circuito ·
+peso e pressao · energia contra o tempo · observacao · pista de outro andar
 
-**A resposta de todo enigma esta escrita em algum documento do mapa**, e
-`verificar-represa` prova isso lendo os documentos do proprio tilemap. O enigma
-profundo junta pista de tres setores diferentes: o componente queimado esta no
-arquivo do nivel 0, a primeira metade do codigo na placa da turbina (nivel -2) e
-a segunda no terminal do nivel -4.
+O painel e a PISTA nascem da **mesma funcao** (`gerarEnigma`, em
+`src/game/enigmas.ts`). Nao existe caminho de codigo que produza um sem o outro —
+que era o risco de escrever quarenta e cinco a mao e deixar metade das respostas
+sem pista escrita em lugar nenhum.
 
-Nenhum enigma e obrigatorio pra sair da usina. Tres protegem so loot; os outros
-abrem profundidade ou atalho.
+`verificar-andares` prova, pros 45, que **cada palavra de peso da resposta esta
+escrita num documento alcancavel ate aquele andar** — nunca num andar mais fundo,
+que exigiria descer pra poder descer. As duas excecoes sao deliberadas e
+conferidas como excecao: o labirinto nao tem resposta escrita (ele tem mapa da
+secao, e o desafio e chegar), e o `multiandar` tem as duas METADES do codigo em
+andares diferentes, nunca o codigo inteiro.
+
+A cada cinco andares o enigma **trava a descida** — sao as nove portas de verdade
+da usina. Nos outros trinta e seis ele abre um recipiente de salvado melhor.
+Metade das luminarias de um andar depende do enigma dele: resolver o painel
+acende o andar e revela caminho que estava ilegivel.
+
+A curva da dificuldade e conferida: nenhum enigma profundo nos dez primeiros
+andares, nenhum simples nos dez ultimos.
+
+### O elevador de servico
+
+Onze paradas: andares **1, 5, 10, 15, 20, 25, 30, 35, 40, 45 e 50**. Cada uma
+precisa ser ATIVADA no proprio andar antes de valer — chegar na cabine e o que a
+destrava. Nao ha como pular pra andar nao visitado; o elevador so encurta caminho
+ja andado.
+
+### O prontuario de 200 dias
+
+Cada andar guarda **uma ficha medica**, cobrindo quatro dias: o andar 1 traz os
+dias 1 a 4, o 50 traz os dias 197 a 200. As cinquenta estao em
+`src/game/fichas.ts`.
+
+E ficcao: um prontuario inventado, escrito pra contar uma historia. Nao ha ali
+orientacao medica, dose, diagnostico aproveitavel nem conduta que alguem deva
+seguir.
+
+A revelacao e gradual, e a escada e conferida:
+
+| andar | o que aparece |
+| --- | --- |
+| 1 a 9 | o paciente e um numero de cadastro e mais nada |
+| 10 | as iniciais |
+| 20 | a ocupacao: desenvolvedor de software |
+| 30 | a historia comeca a bater com a do protagonista |
+| 40 | da pra concluir de quem e o prontuario |
+| 50 | nao ha mais como nao concluir |
+
+O que o andar 50 estabelece: a mudanca pra cidade pequena **nao** foi um plano de
+vida tranquila que apareceu do nada. O que ele NAO estabelece, de proposito: quem
+levou o prontuario pra dentro da usina, o que sao os monstros, por que o setor
+profundo tinha energia tres anos depois do desligamento e o que ha abaixo do
+andar 50.
+
+As fichas **nao entram no inventario** — sao cinquenta folhas, e ocupariam a
+mochila inteira. Ler uma ARQUIVA o numero dela, e dai pra frente ela pode ser
+relida na tela de **Arquivos** (tecla J). A ficha nao recolhida aparece como
+`?????`, pra quem pulou um andar saber que pulou.
+
+### Os dois eixos de dificuldade
+
+**Profundidade** e o eixo permanente: cada andar escurece mais e a fauna do
+capitulo e mais pesada. **Tensao** e o eixo temporario: ela sobe enquanto o
+jogador esta DENTRO dos andares e zera quando ele sai.
+
+A tensao acelera por **capitulo** (1x no primeiro, 3x no quinto) e nao por
+profundidade absoluta — 49 vezes o fator antigo levaria a tensao ao teto em tres
+minutos de jogo. Ela multiplica velocidade, raio de deteccao e cadencia dos
+inimigos — **nunca dano nem HP** — e **desconta tentativas dos enigmas**.
+Quarenta minutos no capitulo 1 nao passam de 0,25; quarenta no capitulo 5 passam
+de 0,6.
+
+### Iluminacao
+
+Nao ha mais vinheta. O que ha e um **mapa de luz**: um valor por tile do andar,
+somando cada luminaria acesa e a lanterna do jogador, com **linha de visao
+conferida tile por tile**. A cena transforma isso numa textura de um texel por
+tile e a desenha esticada com filtro LINEAR — e a interpolacao da GPU que faz o
+degrade, sem shader e sem borda geometrica.
+
+Os dois defeitos que isso corrige sao concretos: a luz era um circulo desenhado
+(dava pra ver a borda dele) e ela atravessava parede.
+
+- **Quatro tipos de luminaria** com arte de verdade (pendente de galpao, bulbo
+  de gaiola, luminaria tubular, plafon de teto), de `Lampadas_v2.png`. So o
+  estado ACESO entra no atlas; o apagado sai tingindo o mesmo frame, o que
+  garante que acender a luz nao troque a silhueta do objeto.
+- **Circuito**: metade das luminarias de um andar depende do enigma dele.
+- **Lanterna** com facho direcional que segue a mira, para na parede e nao tem
+  borda reta. Sem consumo de bateria.
+- O mapa estatico e calculado **uma vez por andar** e so refeito quando um
+  circuito muda — nao ha tracado de linha de visao por quadro.
 
 ### Combate, vida e derrota
 
@@ -937,71 +1105,190 @@ abrem profundidade ou atalho.
 | --- | --- |
 | vida | 30/30, independente da energia de trabalho |
 | invulnerabilidade apos dano | 750 ms |
-| golpe do jogador (chave inglesa) | 4 de dano, arco de 1,5 tile a frente, trava de 260 ms, recarga de 460 ms |
+| golpe base | 4 de dano, arco de 1,5 tile a frente, trava de 260 ms, recarga de 460 ms |
+| golpe com a chave inglesa equipada | 7 de dano |
+| **pistola** | 6 de dano, 8 tiros, 300 ms de cadencia, 1,2 s de recarga, 9 tiles de alcance |
 | inimigos | 7 tipos, 6 a 32 de HP, 2 a 8 de dano |
 
-Nenhum inimigo mata o jogador cheio em menos de tres golpes — `verificar-represa`
-cobra isso por tipo. A IA e uma maquina de estados simples (parado, patrulha,
-alerta, perseguindo, atacando, atingido, morto) com **histerese** no aggro (o
-raio de desistencia e sempre maior que o de deteccao, senao o bicho tremeria no
-limite do circulo) e **linha de visao** (sem ela ele perseguiria atravessando
-parede).
+A pistola e **so pra dentro da usina**: ela fica na mochila em qualquer lugar do
+mundo, mas so equipa em zona perigosa, e sair de la guarda ela — com a municao do
+carregador de volta pra mochila. Ela nao substitui o corpo a corpo: resolve um
+pesado em cinco tiros e acaba no meio de uma briga de tres, e ai a chave inglesa
+volta a ser a arma.
 
-A IA vive em `src/game/inimigos.ts` e **nao tem uma linha de Phaser**: e por isso
-que `verificar-represa` consegue provar sem navegador que ele persegue, desiste,
-respeita a cadencia e para de agir depois de morto.
+O projetil avanca em passos de meio tile por quadro, e por isso **nao atravessa
+parede** nem quando o quadro demora 250 ms — `verificar-equipamento` prova isso
+em quatro taxas de quadro.
 
 **Derrota nao e permadeath e nao encosta em nada critico.** Vida a zero: o
-jogador acorda no nivel 0, passam 4 horas de jogo, ele volta com 60% da vida e
-perde METADE do salvado recolhido NESTA descida (arredondando pra baixo — quem
-achou uma peca so nao perde nada). Save, item de missao, mobilia, relacionamento,
-flag de enigma e atalho aberto ficam todos intactos.
+jogador acorda na enfermaria do **hospital municipal** (Mapa 1), passam 4 horas de
+jogo, ele volta com a vida CHEIA e perde METADE do salvado recolhido NESTA
+descida. Acordar dentro da propria usina, como era antes, fazia a derrota parecer
+teletransporte de conveniencia — o jogador descia de novo no mesmo minuto.
+
+Save, item de missao, item unico, arma, municao, mobilia, relacionamento, ficha
+arquivada, enigma resolvido, parada de elevador e atalho aberto ficam todos
+intactos.
 
 ### Salvado e dinheiro
 
-15 itens de salvado em tres raridades, com **preco fixo escrito a mao** (o valor
-do salvado E a regra de balanceamento por profundidade, e sorteio nao se
-equilibra). Dez tabelas de sorteio, uma por nivel mais os premios de enigma e o
-cofre profundo — e `verificar-represa` cobra que o **valor esperado suba do nivel
-0 ao -4**, senao nada garantiria que descer valha a pena.
+15 itens de salvado em tres raridades, com **preco fixo escrito a mao**. Onze
+tabelas de sorteio, uma por faixa de dez andares mais os premios de enigma e o
+cofre profundo — e a conferencia cobra que o **valor esperado suba** com a
+profundidade.
 
-O ciclo fecha na **caixa de despacho da oficina** (o canto sudoeste, tile 17,20):
-ela revende salvado a 80% do valor de referencia. A diferenca existe pra usar a
-peca na bancada continuar sendo uma opcao. A venda remove do inventario ANTES de
-creditar, e por isso acionar de novo nao duplica dinheiro.
+O ciclo fecha na **caixa de despacho da oficina**, que revende a 80% do valor de
+referencia, e agora tem **onde gastar**: a madeireira vende chave inglesa,
+lanterna e municao, e a farmacia do Wendel vende kit de primeiros socorros,
+analgesico e energetico. Uma descida armada e abastecida custa cerca de R$ 60, e
+um so modulo de controle do fundo paga R$ 144 na revenda.
+
+### Desempenho
+
+Os 45 tilemaps novos passam de um megabyte de JSON somados. Eles **nao entram no
+boot**: `MAPAS` marca cada um como `sobDemanda`, o BootScene os pula e a cena de
+mundo busca o do andar quando o jogador chega nele. Os andares distantes saem do
+cache — so o atual e os dois vizinhos ficam.
 
 ### Arte
 
 | arte | como entrou |
 | --- | --- |
-| `Represa.png` | fachada da casa de forca, portaria e galpao, pelo sistema de PAINEL que a fachada de comercio ja usava |
-| `PAredes_internas_represa.png` | seis estilos de parede interna, um por profundidade |
-| `Grama_mapa_4.png` | so a celula do vertedouro, como sprite de marco. As seis celulas sao CENAS compostas e nao ladrilham |
-| `public/assets/Monstros/*.png` | 7 das 9 folhas, processadas pro mesmo formato 4x4 dos NPCs |
+| `Represa.png` | fachada da casa de forca, portaria e galpao |
+| `PAredes_internas_represa.png` | seis estilos de parede interna, capitulos 1 a 4 |
+| `PAredes_internas_represa_andar_50_100.png` | cinco estilos do capitulo 5 |
+| `Grama_mapa_4.png` | so a celula do vertedouro, como sprite de marco |
+| `public/assets/Monstros/*.png` | 7 das 9 folhas, no formato 4x4 dos NPCs |
+| `Lampadas_v2.png` | quatro luminarias industriais |
+| `itens_represa_v2.png` | 18 icones de item (arma, municao, ferramenta, remedio, salvado) |
+| `Pistola.png` | a arma na mao, o fogo do cano e o projetil |
+| `Player_segurando.png` | a folha generica de segurar item |
 
-Cinco tiles pintados a mais, pro que a arte nao cobre em planta baixa: patio de
-concreto, corpo da barragem, grelha de aco, cerca de tela e barreira de obra.
-
-**`Boss_v1.png` e `Micro-ondas.png` ficaram de fora**, com o motivo documentado
-em `tools/processar-sprites-monstro.mjs`: a primeira veio sobre fundo degrade (o
-removedor de fundo decide por preto chapado e nao encosta nele) e a segunda
-mistura ciclo de caminhada com quadro de morte, sopro de fogo e pecas soltas nas
-mesmas linhas. **`Arvores_mapa_4.png` tambem esta sem uso**: ela veio sobre
-gradiente verde opaco, e a mata do Mapa 4 usa o atlas de arvore que ja existia.
+**O que ficou sem uso, e por que:** `Boss_v1.png` (fundo degrade, que o removedor
+de fundo nao trata) e `Micro-ondas.png` (mistura caminhada, morte e sopro de fogo
+nas mesmas linhas) — chefe tambem estava fora de escopo; `Arvores_mapa_4.png`
+(gradiente verde opaco); `Rios_v1.png` e `RIos_v2.png` (pecas de composicao, nao
+grade de tile); `Itens_represa.png` (fundo opaco, substituida pela v2);
+`Paredes_internas_represa_andar_101_150.png`, `M4A1.png` e `Shotgun.png`
+(reservadas pra fase seguinte); `Cercas_fazenda.png` e `Paredes_fazenda.png`
+(ainda sem lote que as peca).
 
 ### Persistencia
 
-O save continua na **versao 6**: a leva e aditiva.
+O save continua na **versao 6**: a leva inteira e aditiva.
 
 | dado | onde mora |
 | --- | --- |
 | vida | campo `vida` (ausente no save antigo -> 30/30) |
-| corrida atual (tempo dentro, tensao, salvado recolhido) | campo `represa` (ausente -> zerada) |
-| enigma resolvido e atalho aberto | flag de `worldEvents` |
+| corrida atual e andar mais fundo | campo `represa` (ausente -> zerada) |
+| o que esta equipado | campo `equipamento` (ausente -> nada equipado) |
+| carregador de cada arma | campo `armas` (ausente -> vazio) |
+| fichas medicas recolhidas | campo `arquivo` (ausente -> lista vazia) |
+| enigma resolvido, atalho e parada de elevador | flag de `worldEvents` |
 | recipiente ja saqueado | id em `itensColetados`, o mesmo Set dos pickups |
 
 Nao ha um segundo sistema de save por causa da represa. Inimigo **nao** persiste
 individualmente: ele volta a cada visita, de proposito.
+
+## Itens com funcao, equipamento e a mao do jogador
+
+O inventario deixou de ser so uma lista. `src/game/equipar.ts` diz **o que cada
+item faz**, por id, em forma de dado — item que nao esta naquela tabela e inerte,
+o que continua sendo o caso das 300 pecas de mercado e de eletronico. Antes desta
+leva o efeito de "usar" era um `TODO` no meio da UIScene.
+
+**Slots:** MAO e UTILITARIO funcionam; ACESSORIO existe na tabela e nao aceita
+nada ainda — mas ja e serializado, restaurado e limpo junto com os outros, entao
+o primeiro item de acessorio nao vai pedir migracao de save.
+
+**A mao** nao e uma folha de personagem por ferramenta. Ha UMA folha
+(`Player_segurando.png`, em que o personagem segura um punho fechado vazio) e o
+item e um sprite colado no punho. Isso precisa de tres informacoes, e duas sao
+MEDIDAS e nao escritas a mao:
+
+1. onde esta o punho em cada pose — `tools/processar-sprites-jogador.mjs` acha o
+   componente de cor de pele mais compacto de cada uma das quatro poses;
+2. onde esta a presa e a boca do cano de cada item —
+   `tools/gerar-equipamento.mjs`;
+3. como o item se acomoda na mao em cada direcao — este e escrito a mao, e mora
+   junto do item.
+
+`npm run processar-sprites-jogador` e `npm run gerar-equipamento` regeneram os
+dois primeiros.
+
+## Hospital municipal (Mapa 1)
+
+Um predio novo no lote a leste da avenida: recepcao na frente, consultorio e
+enfermaria atras, 22x16. A mobilia sai de `Moveis_hospital.png`, que ja estava na
+pasta e so servia a fachada do Posto de Saude.
+
+Ele **nao** e o Posto de Saude que o jogador constroi no Mapa 2. Sao dois
+predios, e a razao e de regra: o hospital e o ponto de recuperacao universal da
+derrota, e ele nao pode depender de o jogador ter juntado quinze mil reais.
+
+A planta e simples de proposito e extensivel: ha espaco declarado pra um segundo
+consultorio e pra equipe, que entram quando alguem for morar neles.
+
+## Calendario, tempo e chuva
+
+O calendario completo (dia, mes, ano, bissexto) e uma **leitura** de
+`estado.dia` — nao ha segundo contador e nao ha migracao. Dia 0 e segunda-feira,
+1 de setembro de 2025.
+
+O **tempo** e derivado da data pelo mesmo principio: um hash do dia, pesado pela
+estacao do hemisferio sul. Recarregar o save no dia 137 traz a mesma chuva, em
+qualquer maquina, sem campo nenhum no save — deterministico e mais forte que
+persistido, porque nao ha estado pra corromper.
+
+A chuva aparece **so em mapa externo** (nunca dentro de predio, nunca dentro da
+usina — o interior da represa nao consulta o clima em lugar nenhum, e e assim que
+o tempo nunca torna um enigma impossivel). Ela troca tambem o bloco ao ar livre
+da rotina de quem tem abrigo declarado: quem anda na rua passa o bloco em casa, o
+Ravi vai pro canto dele na biblioteca, e Edu e Leticia — cuja rotina inteira e ao
+ar livre — nao saem. O emprego continua valendo: quem trabalha na cafeteria vai
+trabalhar na chuva.
+
+A tecla **C** abre o mes inteiro, com o dia de hoje marcado e os dias de chuva em
+cor de agua.
+
+## Bichos de estimacao
+
+Seis, em vinte e quatro moradias: tres cachorros e tres gatos, de
+`Cachorros.png` e `Gatos_v1.png`. Eles dormem, vagam, sentam e seguem o dono — e
+**nao brigam, nao tem relacionamento e nao entram em conta de economia nenhuma**.
+
+Eles nao usam o motor de rotina dos NPCs, e de proposito: aquele motor resolve
+caminhada entre waypoints, entrada e saida de construcao, substituicao por
+emprego e por chuva, e marcador no mapa da cidade. Um gato andando tres tiles em
+volta de um poste nao precisa de nada disso.
+
+O passinho e uma **lissajous** em volta de um ponto, sem fisica e sem colisao: o
+bicho nunca sai do circulo declarado, e `verificar-andares` prova que o circulo
+inteiro e chao livre.
+
+`npm run processar-sprites-pet` regenera as folhas.
+
+## A interface
+
+`src/game/tema.ts` guarda a paleta e o vocabulario de medida; `src/scenes/ui.ts`
+guarda as pecas de desenho (painel, campo, slot, barra, aba, divisoria, cartao).
+Nenhuma cor literal deve aparecer numa cena.
+
+A direcao e **RPG de pixel + cidade pequena + oficina**: papel amarelado, carvao,
+madeira, latao. A interface anterior era funcional e parecia protótipo — retangulo
+preto chapado, sem hierarquia, com o dinheiro e a vida soltos um do lado do outro
+e uma barra de HP com cara de medidor de depuracao. O que faltava nao era
+enfeite, era um sistema: as mesmas cores e as mesmas molduras em toda tela, pra a
+proxima tela nascer parecida com as que ja existem.
+
+| tela | o que mudou |
+| --- | --- |
+| HUD | um cartao so, com data e hora em duas linhas, saldo e — quando faz sentido — barra de vida segmentada. Some na cidade com o jogador inteiro |
+| HUD da usina | faixa propria embaixo: codigo do andar (`A-17`), nome, tensao e, com arma na mao, arma e municao |
+| Inventario | 456x238 (era 396x188), slots de 26 px (eram 22), previa grande do item, preco, equipamento e as acoes do item selecionado |
+| Calendario | tela nova (tecla C) |
+| Arquivos | tela nova (tecla J), com as fichas nao recolhidas mascaradas |
+| Dialogo, menu, confirmacao, loja | mesma moldura de painel das outras |
 
 ## Expansao de casa e mobilia
 

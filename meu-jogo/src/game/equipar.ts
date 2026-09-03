@@ -208,9 +208,9 @@ export const COMPORTAMENTOS: Record<string, ComportamentoItem> = {
     ajuste: APONTADA,
     arma: 'pistola',
     indestrutivel: true,
-    detalhe:
-      'Estava no cofre da portaria, oleada e com o carregador ao lado. Serve na represa e ' +
-      'em nenhum outro lugar — nao ha nada na cidade pra que ela sirva.',
+    // O detalhe e curto DE PROPOSITO: o poco da descricao no inventario tem
+    // tres linhas, e texto que nao cabe la e cortado pelo fim.
+    detalhe: 'Do cofre da portaria. So serve dentro da represa.',
   },
 
   // --------------------------------------------------------- ferramentas --
@@ -224,7 +224,7 @@ export const COMPORTAMENTOS: Record<string, ComportamentoItem> = {
     // senao todo save antigo perderia o unico ataque que tinha) — ela e a
     // melhoria dele, e a razao de valer os R$ 39 da madeireira.
     danoCorpoACorpo: 7,
-    detalhe: 'Equipada, o golpe passa de 4 pra 7 de dano. Sem ela o golpe continua saindo, mais fraco.',
+    detalhe: 'Sem ela o golpe continua saindo, so mais fraco.',
   },
   lanterna_manutencao: {
     slot: 'utilitario',
@@ -256,8 +256,7 @@ export const COMPORTAMENTOS: Record<string, ComportamentoItem> = {
   cartao_acesso_usina: {
     acao: { tipo: 'ler' },
     indestrutivel: true,
-    detalhe:
-      'Abre as portas de cracha da usina. Enquanto ele estiver com voce, elas nao pedem nada.',
+    detalhe: 'Abre as portas de cracha da usina.',
   },
 };
 

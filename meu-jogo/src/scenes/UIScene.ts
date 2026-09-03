@@ -8,6 +8,8 @@ import {
   formatarDataCurta,
 } from '../game/calendario';
 import { tempoDoDia } from '../game/clima';
+import { CAMADA, COR, FONTE, PECA, corDaFracao, textoDaFracao } from '../game/tema';
+import * as ui from './ui';
 import { CONFIG, UI } from '../game/config';
 import { formatarDinheiro } from '../game/dinheiro';
 import { estado } from '../game/estado';
@@ -44,8 +46,13 @@ import { fichaDoAndar, linhasDaFicha, tituloDaFicha } from '../game/fichas';
  * claro (grama ao meio-dia, piso de loja).
  */
 const CAIXA = { x: 8, y: 180, w: CONFIG.largura - 16, h: 82 };
-/** Quantos blocos a barra de vida tem. 10 pra cada bloco valer 3 pontos. */
-const BARRA_DE_VIDA = 10;
+/**
+ * Medidas do CARTAO da HUD.
+ *
+ * `hSemVida` e a altura quando a barra de vida esta escondida — na cidade, com o
+ * jogador inteiro, a HUD e so data, hora e saldo. Ver `desenharHud`.
+ */
+const HUD = { x: 6, y: 6, w: 116, h: 56, hSemVida: 34, wRepresa: 176 } as const;
 
 /**
  * Rotulo de cada acao de inventario, com a tecla.
@@ -65,14 +72,44 @@ const ROTULO_DE_ACAO: Record<string, string> = {
 /** Coluna do retrato dentro da caixa de dialogo. */
 const RETRATO = { lado: 58, margem: 7 };
 const CONFIRMA = { w: 248, h: 64 };
+/**
+ * MEDIDAS do painel de inventario.
+ *
+ * A janela antiga tinha 20 slots de 22 px espremidos a esquerda e uma coluna de
+ * detalhe de 176 px, com sobra vazia no meio — era o "retangulo escuro grande com
+ * slot miudo" que a Parte 43 apontou. A nova ocupa quase a tela toda (456x238 de
+ * 480x270), com tres blocos de leitura clara: GRADE a esquerda, ITEM no centro,
+ * EQUIPAMENTO e ACOES no rodape.
+ */
 const INV = {
   colunas: 5,
   linhas: 4,
-  slot: 22,
-  gap: 3,
-  topo: 20,
-  margem: 10,
-  detalhes: 176,
+  /** painel */
+  x: 12,
+  y: 16,
+  w: 456,
+  h: 238,
+  /** grade de slots */
+  gradeX: 24,
+  gradeY: 44,
+  /** coluna do item selecionado */
+  colunaX: 180,
+  colunaW: 276,
+  /**
+   * rodape: equipamento a esquerda, acoes a direita.
+   *
+   * O numero e o que sobra pro poco da descricao: cada ponto que ele desce e
+   * uma linha a mais de texto de item, e cada ponto que ele sobe e folga pras
+   * acoes. 176 e onde as tres linhas de descricao e as duas de acao convivem.
+   */
+  rodapeY: 176,
+  acoesX: 250,
+};
+
+/** O poco da descricao, derivado da grade — e o teto que o texto nao pode furar. */
+const POCO_DESCRICAO = {
+  y: INV.gradeY + PECA.previa + 8,
+  h: INV.rodapeY - (INV.gradeY + PECA.previa + 8) - 4,
 };
 
 /**
@@ -108,7 +145,7 @@ const MENU = {
 };
 
 /** Quanto o icone de item ocupa, em px, no slot do inventario e na lista da loja. */
-const ICONE = { inventario: INV.slot - 6, loja: 17 };
+const ICONE = { inventario: PECA.slot - 8, loja: 17, previa: PECA.previa - 10 };
 
 /**
  * Cena de interface, rodando em paralelo com a cena de mundo.
@@ -120,14 +157,36 @@ export class UIScene extends Phaser.Scene {
   private prompt!: Phaser.GameObjects.Text;
   private rotuloAtual: string | null = null;
 
-  private hud!: Phaser.GameObjects.Text;
+  /**
+   * A HUD e um CARTAO desenhado, e nao quatro caixas de texto com
+   * `backgroundColor`.
+   *
+   * O motivo e o da Parte 41: com quatro caixas independentes, data, hora, saldo
+   * e vida ficavam alinhados por coincidencia e cada um com a propria moldura —
+   * era o que dava a leitura de "quatro retangulos preto chapado" em vez de um
+   * painel. Agora o `Graphics` desenha o cartao e os textos moram dentro dele.
+   */
+  private hudFundo!: Phaser.GameObjects.Graphics;
+  private hudData!: Phaser.GameObjects.Text;
+  private hudHora!: Phaser.GameObjects.Text;
   private hudSaldo!: Phaser.GameObjects.Text;
-  /** Barra de VIDA. Escondida na cidade com a vida cheia — ver `atualizarHud`. */
+  /** Rotulo e numero da vida. A barra e desenhada em `hudFundo`. */
   private hudVida!: Phaser.GameObjects.Text;
-  /** Setor e tensao da represa. So aparece dentro da usina. */
+  /** Andar e tensao da represa. So aparece dentro da usina. */
   private hudRepresa!: Phaser.GameObjects.Text;
+  /** Arma e municao; so aparece com arma na mao. */
+  private hudArma!: Phaser.GameObjects.Text;
   /** Tempo do dia; escondido quando o ceu esta limpo. */
   private hudTempo!: Phaser.GameObjects.Text;
+  /**
+   * Assinatura do que o cartao da HUD esta mostrando.
+   *
+   * Serve pra `desenharHud` repintar so quando a FORMA muda — a faixa de vida
+   * entrar, a da represa sair, a barra perder um bloco. O texto muda muito mais
+   * vezes que o desenho, e repintar `Graphics` a sessenta quadros por segundo por
+   * causa de um relogio que virou um minuto seria desperdicio.
+   */
+  private hudAssinatura = '';
 
   /** Tela de CALENDARIO (tecla C). Montada sob demanda e destruida ao fechar. */
   private calendario: Phaser.GameObjects.Container | null = null;
@@ -151,6 +210,16 @@ export class UIScene extends Phaser.Scene {
   private aoNao: (() => void) | null = null;
 
   private inventario!: Phaser.GameObjects.Container;
+  /** Moldura, campos e slots do inventario — tudo que e desenhado, num Graphics. */
+  private inventarioFundo!: Phaser.GameObjects.Graphics;
+  /** Icone grande do item selecionado, na caixa de previa. */
+  private previaSprite!: Phaser.GameObjects.Image;
+  /** Quadrado colorido de previa, pros itens sem arte propria. */
+  private previaCor!: Phaser.GameObjects.Rectangle;
+  /** Preco do item selecionado. */
+  private precoItem!: Phaser.GameObjects.Text;
+  /** Slot selecionado desenhado por ultimo, pra nao repintar a grade por quadro. */
+  private inventarioAssinatura = '';
   private icones: Phaser.GameObjects.Rectangle[] = [];
   /** icone de arte do slot; fica escondido nos itens que so tem cor placeholder */
   private sprites: Phaser.GameObjects.Image[] = [];
@@ -278,65 +347,34 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setVisible(false);
 
-    this.hud = this.add
-      .text(6, 6, '', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanhoTitulo,
-        color: UI.texto,
-        backgroundColor: '#1a1712e0',
-        padding: { x: 5, y: 3 },
-      })
-      .setDepth(90);
-
-    // saldo logo abaixo do relogio, na mesma caixa escura e na cor de destaque:
-    // e o unico numero da HUD que o jogador muda, entao le melhor separado
-    this.hudSaldo = this.add
-      .text(6, 24, '', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanhoTitulo,
-        color: UI.destaque,
-        backgroundColor: '#1a1712e0',
-        padding: { x: 5, y: 3 },
-      })
-      .setDepth(90);
-
-    // VIDA. Fica embaixo do saldo, com a mesma caixa escura, e NAO se confunde
-    // com a energia de trabalho: o rotulo e "HP", a barra e de blocos e a cor
-    // muda com o quanto falta. Ela some quando o jogador esta cheio e fora de
-    // area de risco — a HUD da cidade e de um jogo pacifico e nao devia carregar
-    // barra de combate o tempo todo.
-    this.hudVida = this.add
-      .text(6, 42, '', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanhoTitulo,
-        color: UI.sucesso,
-        backgroundColor: '#1a1712e0',
-        padding: { x: 5, y: 3 },
-      })
-      .setDepth(90)
-      .setVisible(false);
-
-    this.hudTempo = this.add
-      .text(CONFIG.largura - 6, 6, '', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanho,
-        color: UI.textoFraco,
-        backgroundColor: '#1a1712e0',
-        padding: { x: 5, y: 3 },
-      })
+    // ------------------------------------------------------------- HUD --
+    // Um cartao so, no canto de cima a esquerda: data, hora, saldo e — quando
+    // faz sentido — vida. A faixa da represa cresce por baixo dele.
+    this.hudFundo = this.add.graphics().setDepth(CAMADA.hud);
+    this.hudData = ui.nota(this, HUD.x + 8, HUD.y + 5).setDepth(CAMADA.hud + 1);
+    this.hudHora = ui.titulo(this, HUD.x + 8, HUD.y + 14).setDepth(CAMADA.hud + 1);
+    this.hudSaldo = ui
+      .corpo(this, HUD.x + HUD.w - 8, HUD.y + 16)
       .setOrigin(1, 0)
-      .setDepth(90)
+      .setColor(COR.verdeTexto)
+      .setDepth(CAMADA.hud + 1);
+    this.hudVida = ui
+      .nota(this, HUD.x + 8, HUD.y + 32)
+      .setDepth(CAMADA.hud + 1)
       .setVisible(false);
-
-    this.hudRepresa = this.add
-      .text(6, 60, '', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanho,
-        color: UI.textoFraco,
-        backgroundColor: '#1a1712e0',
-        padding: { x: 5, y: 3 },
-      })
-      .setDepth(90)
+    this.hudRepresa = ui
+      .nota(this, HUD.x + 8, HUD.y + HUD.h + 5)
+      .setDepth(CAMADA.hud + 1)
+      .setVisible(false);
+    this.hudArma = ui
+      .nota(this, HUD.x + 8, HUD.y + HUD.h + 16)
+      .setColor(COR.lataoTexto)
+      .setDepth(CAMADA.hud + 1)
+      .setVisible(false);
+    this.hudTempo = ui
+      .nota(this, CONFIG.largura - 10, 11)
+      .setOrigin(1, 0)
+      .setDepth(CAMADA.hud + 1)
       .setVisible(false);
 
     this.aviso = this.add
@@ -516,26 +554,21 @@ export class UIScene extends Phaser.Scene {
     const filhos: Phaser.GameObjects.GameObject[] = [];
 
     const fundo = this.add.graphics();
-    fundo.fillStyle(UI.fundo, 0.96);
-    fundo.fillRect(x, y, largura, altura);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(x + 0.5, y + 0.5, largura - 1, altura - 1);
+    ui.painel(fundo, { x, y, w: largura, h: altura });
+    ui.campo(fundo, { x: x + 8, y: y + 26, w: largura - 16, h: 96 });
     filhos.push(fundo);
 
-    filhos.push(this.add.text(x + 10, y + 7, `${MESES[mes - 1]} de ${ano}`, {
-      fontFamily: UI.fonte, fontSize: UI.tamanhoTitulo, color: UI.destaque,
-    }));
-    filhos.push(this.add.text(x + largura - 10, y + 8, '[<] [>] mes   [C] fechar', {
-      fontFamily: UI.fonte, fontSize: '9px', color: UI.textoFraco,
-    }).setOrigin(1, 0));
+    filhos.push(ui.titulo(this, x + 12, y + 7, `${MESES[mes - 1]} de ${ano}`));
 
     // cabecalho dos dias da semana; a semana comeca na SEGUNDA, como `diaDaSemana`
     const celula = { w: 27, h: 15 };
     const grade = { x: x + 10, y: y + 28 };
     ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].forEach((letra, i) => {
-      filhos.push(this.add.text(grade.x + i * celula.w + celula.w / 2, grade.y, letra, {
-        fontFamily: UI.fonte, fontSize: '9px', color: UI.textoFraco,
-      }).setOrigin(0.5, 0));
+      filhos.push(
+        ui.nota(this, grade.x + i * celula.w + celula.w / 2, grade.y, letra)
+          .setOrigin(0.5, 0)
+          .setColor(COR.lataoTexto),
+      );
     });
 
     // Onde o dia 1 cai na semana. `diaAbsolutoDe` faz a ponte entre a data e o
@@ -552,30 +585,34 @@ export class UIScene extends Phaser.Scene {
       const tempo = tempoDoDia(absoluto);
       if (hojeMesmo) {
         const marca = this.add.graphics();
-        marca.fillStyle(0xffd97d, 0.22);
+        marca.fillStyle(COR.latao, 0.28);
         marca.fillRect(cx + 1, cy - 2, celula.w - 2, celula.h - 2);
+        marca.lineStyle(1, COR.lataoVivo, 1);
+        marca.strokeRect(cx + 1.5, cy - 1.5, celula.w - 3, celula.h - 3);
         filhos.push(marca);
       }
-      filhos.push(this.add.text(cx + celula.w / 2, cy, String(d), {
-        fontFamily: UI.fonte,
-        fontSize: '9px',
-        // dia com chuva sai na cor de agua: e a leitura rapida do mes
-        color: hojeMesmo ? UI.destaque : tempo.chuva ? '#7fb0d9' : UI.texto,
-      }).setOrigin(0.5, 0));
+      filhos.push(
+        ui.nota(this, cx + celula.w / 2, cy, String(d))
+          .setOrigin(0.5, 0)
+          // dia com chuva sai na cor de agua: e a leitura rapida do mes
+          .setColor(hojeMesmo ? COR.lataoVivoTexto : tempo.chuva ? COR.aguaTexto : COR.papelTexto),
+      );
     }
 
     const tempoDeHoje = tempoDoDia(estado.dia);
-    filhos.push(this.add.text(
-      x + 10,
-      y + altura - 22,
-      `Hoje: ${formatarDataCompleta(estado.dia)}`,
-      { fontFamily: UI.fonte, fontSize: '9px', color: UI.texto },
-    ));
-    filhos.push(this.add.text(x + 10, y + altura - 12, tempoDeHoje.texto, {
-      fontFamily: UI.fonte, fontSize: '9px', color: UI.textoFraco,
-    }));
+    filhos.push(
+      ui.nota(this, x + 12, y + altura - 24, `Hoje: ${formatarDataCompleta(estado.dia)}`)
+        .setColor(COR.papelTexto),
+    );
+    filhos.push(ui.nota(this, x + 12, y + altura - 13, tempoDeHoje.texto, largura - 24));
+    // A dica de tecla mora no RODAPE, nao no cabecalho: "Setembro de 2025" ja
+    // ocupa dois tercos da barra de titulo, e as duas se sobrepunham no mes de
+    // nome comprido. Aqui ela divide a linha com o tempo, que e curto.
+    filhos.push(
+      ui.nota(this, x + largura - 12, y + altura - 13, '[<][>] mes  [C] fechar').setOrigin(1, 0),
+    );
 
-    this.calendario = this.add.container(0, 0, filhos).setDepth(106);
+    this.calendario = this.add.container(0, 0, filhos).setDepth(CAMADA.sobreposto);
     this.desenharPrompt();
   }
 
@@ -611,32 +648,80 @@ export class UIScene extends Phaser.Scene {
 
   private atualizarHud(): void {
     // A janela da loja cobre quase a tela toda e ja mostra o saldo no proprio
-    // cabecalho; deixar a HUD por baixo so faz a caixa do relogio aparecer
-    // cortada pela borda de cima do painel.
+    // cabecalho; deixar a HUD por baixo so faz o cartao do relogio aparecer
+    // cortado pela borda de cima do painel.
     const visivel = !this.lojaAberta && !this.pcAberto;
-    this.hud.setVisible(visivel);
-    this.hudSaldo.setVisible(visivel);
+    for (const t of [this.hudData, this.hudHora, this.hudSaldo]) t.setVisible(visivel);
     if (!visivel) {
+      this.hudFundo.clear();
       this.hudVida.setVisible(false);
       this.hudRepresa.setVisible(false);
+      this.hudArma.setVisible(false);
       this.hudTempo.setVisible(false);
+      this.hudAssinatura = '';
       return;
     }
 
-    // DATA COMPLETA no lugar do dia da semana solto: "Sab. 14 Mar.  10:40".
-    // O ANO nao entra — ele quase nunca muda e comeria a largura do cartao. Quem
-    // o mostra e a tela de calendario (tecla C).
-    const texto = `${formatarDataCurta(estado.dia)}  ${estado.relogio.texto}`;
-    if (this.hud.text !== texto) this.hud.setText(texto);
-    // O TEMPO fica na mesma linha do saldo, a direita: com ceu limpo ele nao
-    // aparece, entao a HUD de um dia comum continua sendo data, hora e dinheiro.
-    const tempo = tempoDoDia(estado.dia);
-    const linhaDoTempo = tempo.id === 'limpo' ? '' : `  ${tempo.nome}`;
-    if (this.hudTempo.text !== linhaDoTempo) this.hudTempo.setText(linhaDoTempo);
-    this.hudTempo.setVisible(linhaDoTempo !== '');
+    // DATA e HORA em duas linhas, e nao numa so: a data e referencia e a hora e
+    // o numero que o jogador consulta toda hora. Juntas numa linha de 11 px elas
+    // competiam. O ANO nao entra — ele quase nunca muda e come a largura do
+    // cartao; quem o mostra e a tela de calendario (tecla C).
+    const data = formatarDataCurta(estado.dia);
+    if (this.hudData.text !== data) this.hudData.setText(data);
+    if (this.hudHora.text !== estado.relogio.texto) this.hudHora.setText(estado.relogio.texto);
     const saldo = estado.carteira.texto;
     if (this.hudSaldo.text !== saldo) this.hudSaldo.setText(saldo);
+
+    // O TEMPO fica no canto de cima a direita, e some com ceu limpo: a HUD de um
+    // dia comum continua sendo data, hora e dinheiro.
+    const tempo = tempoDoDia(estado.dia);
+    if (this.hudTempo.text !== tempo.nome) this.hudTempo.setText(tempo.nome);
+    this.hudTempo.setVisible(tempo.id !== 'limpo');
+
     this.atualizarVida();
+    this.desenharHud();
+  }
+
+  /**
+   * Redesenha o cartao da HUD.
+   *
+   * So repinta quando a ALTURA muda (a faixa de vida ou a da represa entra ou
+   * sai). Repintar `Graphics` a sessenta quadros por segundo por causa de um
+   * texto que mudou seria desperdicio — e a barra de vida, que muda de tamanho,
+   * e a unica coisa que precisa de repintura por dano, o que acontece poucas
+   * vezes por briga.
+   */
+  private desenharHud(): void {
+    const comVida = this.hudVida.visible;
+    const comRepresa = this.hudRepresa.visible;
+    const fracao = estado.vida.fracao;
+    const assinatura = [
+      comVida ? Math.round(fracao * 10) : 'x',
+      comRepresa ? 1 : 0,
+      this.hudArma.visible ? 1 : 0,
+      this.hudTempo.visible ? Math.round(this.hudTempo.width) : 'x',
+    ].join('|');
+    if (assinatura === this.hudAssinatura) return;
+    this.hudAssinatura = assinatura;
+    const g = this.hudFundo;
+    g.clear();
+    ui.cartao(g, { x: HUD.x, y: HUD.y, w: HUD.w, h: comVida ? HUD.h : HUD.hSemVida });
+    if (comVida) {
+      ui.barra(
+        g,
+        { x: HUD.x + 8, y: HUD.y + 42, w: HUD.w - 46, h: PECA.barra },
+        fracao,
+        corDaFracao(fracao),
+      );
+    }
+    if (comRepresa) {
+      const altura = this.hudArma.visible ? 26 : 15;
+      ui.cartao(g, { x: HUD.x, y: HUD.y + HUD.h + 2, w: HUD.wRepresa, h: altura });
+    }
+    if (this.hudTempo.visible) {
+      const largura = this.hudTempo.width + 16;
+      ui.cartao(g, { x: CONFIG.largura - 6 - largura, y: 6, w: largura, h: 20 });
+    }
   }
 
   /**
@@ -652,31 +737,38 @@ export class UIScene extends Phaser.Scene {
     const mostrar = naUsina || !estado.vida.cheio;
     this.hudVida.setVisible(mostrar);
     if (mostrar) {
-      const cheios = Math.round(estado.vida.fracao * BARRA_DE_VIDA);
-      const barra = '█'.repeat(cheios) + '░'.repeat(BARRA_DE_VIDA - cheios);
-      const texto = `HP ${barra} ${estado.vida.hp}/${estado.vida.maxHp}`;
+      // A BARRA e desenhada em `Graphics` (ver `desenharHud`); aqui fica so o
+      // numero, alinhado a direita dela. O rotulo continua sendo "HP" e nao
+      // "energia": sao dois recursos diferentes e o jogador nao pode confundir.
+      const texto = `HP  ${estado.vida.hp}/${estado.vida.maxHp}`;
       if (this.hudVida.text !== texto) this.hudVida.setText(texto);
-      const fracao = estado.vida.fracao;
-      this.hudVida.setColor(fracao > 0.6 ? UI.sucesso : fracao > 0.3 ? UI.destaque : UI.alerta);
+      this.hudVida.setColor(textoDaFracao(estado.vida.fracao));
+      this.hudVida.setPosition(HUD.x + HUD.w - 8, HUD.y + 41);
+      this.hudVida.setOrigin(1, 0);
     }
 
     const setor = setorDaRepresa(estado.mapa);
     this.hudRepresa.setVisible(Boolean(setor));
+    this.hudArma.setVisible(false);
     if (!setor) return;
     const tensao = Math.round(estado.represa.tensao * 100);
     // O CODIGO do andar (`A-06`) no lugar do "nivel -5" antigo: com cinquenta
     // andares a notacao negativa deixou de dizer algo — ninguem pensa "estou no
     // nivel menos quarenta e nove".
-    const arma = buscarArma(comportamentoDe(estado.equipamento.naMao)?.arma);
-    const municao = arma
-      ? `  |  ${arma.nome} ${estado.armas.noCarregador(arma.id)}/${arma.carregador}`
-        + ` (${estado.inventario.contar(arma.municao)})`
-      : '';
-    const texto = `${setor.codigo} ${setor.rotulo}  |  tensao ${tensao}%${municao}`;
+    const texto = `${setor.codigo}  ${setor.rotulo}   tensao ${tensao}%`;
     if (this.hudRepresa.text !== texto) this.hudRepresa.setText(texto);
     this.hudRepresa.setColor(
-      tensao < 34 ? UI.textoFraco : tensao < 67 ? UI.destaque : UI.alerta,
+      tensao < 34 ? COR.papelFracoTexto : tensao < 67 ? COR.ambarTexto : COR.alertaTexto,
     );
+
+    // ARMA E MUNICAO numa linha propria, e so com arma na mao: e a HUD tecnica
+    // que a Parte 42 pediu, sem virar painel de estatistica.
+    const arma = buscarArma(comportamentoDe(estado.equipamento.naMao)?.arma);
+    if (!arma) return;
+    const linha = `${arma.nome}  ${estado.armas.noCarregador(arma.id)} / `
+      + `${estado.inventario.contar(arma.municao)}`;
+    if (this.hudArma.text !== linha) this.hudArma.setText(linha);
+    this.hudArma.setVisible(true);
   }
 
   // -------------------------------------------------------------- prompt --
@@ -738,10 +830,7 @@ export class UIScene extends Phaser.Scene {
     const fundo = this.add.graphics();
     // opaco de verdade (era 88%): o que atrapalhava a leitura era o cenario
     // claro vazando por tras das letras
-    fundo.fillStyle(UI.fundo, 0.97);
-    fundo.fillRect(CAIXA.x, CAIXA.y, CAIXA.w, CAIXA.h);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(CAIXA.x + 0.5, CAIXA.y + 0.5, CAIXA.w - 1, CAIXA.h - 1);
+    ui.painel(fundo, { x: CAIXA.x, y: CAIXA.y, w: CAIXA.w, h: CAIXA.h }, false);
 
     // moldura do retrato, sempre desenhada; o que aparece dentro dela muda
     this.dialogoMolduraRetrato = this.add.graphics();
@@ -861,6 +950,13 @@ export class UIScene extends Phaser.Scene {
       this.navegarCalendario(passo);
       return;
     }
+    // o inventario vem antes da loja porque os dois nunca convivem, e antes da
+    // confirmacao nao: com uma pergunta na tela e ela que manda
+    if (this.inventarioAberto && !this.modalPorCima) {
+      evento?.preventDefault();
+      this.moverGradeDoInventario(passo);
+      return;
+    }
     if (this.confirmacaoAberta) {
       this.moverOpcao(passo);
       return;
@@ -924,10 +1020,7 @@ export class UIScene extends Phaser.Scene {
     const fundo = this.add.graphics();
     // opaco, nao translucido: esta caixa abre por cima da janela da loja, e
     // qualquer transparencia deixa o texto da lista vazando por tras da pergunta
-    fundo.fillStyle(UI.fundo, 1);
-    fundo.fillRect(x, y, CONFIRMA.w, CONFIRMA.h);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(x + 0.5, y + 0.5, CONFIRMA.w - 1, CONFIRMA.h - 1);
+    ui.painel(fundo, { x, y, w: CONFIRMA.w, h: CONFIRMA.h }, false);
 
     this.confirmacaoTexto = this.add
       .text(x + CONFIRMA.w / 2, y + 13, '', {
@@ -1046,10 +1139,7 @@ export class UIScene extends Phaser.Scene {
     const y = CAIXA.y - altura - 4;
 
     this.menuFundo.clear();
-    this.menuFundo.fillStyle(UI.fundo, 1);
-    this.menuFundo.fillRect(x, y, MENU.w, altura);
-    this.menuFundo.lineStyle(1, UI.borda, 1);
-    this.menuFundo.strokeRect(x + 0.5, y + 0.5, MENU.w - 1, altura - 1);
+    ui.painel(this.menuFundo, { x, y, w: MENU.w, h: altura }, false);
 
     this.menuTitulo.setPosition(x + MENU.margem, y + MENU.margem);
 
@@ -1119,9 +1209,58 @@ export class UIScene extends Phaser.Scene {
     this.inventario.setVisible(!this.inventarioAberto);
     if (this.inventarioAberto) {
       this.avisoInventario.setText('');
+      // Abrir com a grade cheia e a coluna da direita dizendo "nenhum item
+      // selecionado" le como painel quebrado. Se o cursor nao aponta pra um
+      // slot com item, ele cai no primeiro que tem.
+      if (this.slotSelecionado === null) this.itemSelecionado = this.primeiroSlotCheio();
       this.desenharInventario();
     }
     this.desenharPrompt();
+  }
+
+  /**
+   * Escreve a descricao do item SEM furar o poco dela.
+   *
+   * As linhas vem de fontes independentes (o texto do catalogo, os numeros da
+   * arma, o efeito, o detalhe) e cada uma ainda pode quebrar em duas na largura
+   * da coluna — nao da pra saber de antemao quantas cabem. Entao escreve tudo,
+   * mede, e vai tirando a ULTIMA ate caber: o que se perde e sempre o detalhe
+   * acessorio, nunca o nome nem o numero de dano. Sem isso a descricao da chave
+   * inglesa passa por cima do rotulo ACOES.
+   */
+  private escreverDescricao(linhas: string[]): void {
+    const teto = POCO_DESCRICAO.y + POCO_DESCRICAO.h - this.descricaoItem.y - 4;
+    const restantes = [...linhas];
+    while (restantes.length > 0) {
+      this.descricaoItem.setText(restantes.join('\n'));
+      if (this.descricaoItem.height <= teto) return;
+      restantes.pop();
+    }
+    this.descricaoItem.setText('');
+  }
+
+  /** O indice do primeiro slot com item, ou null se a mochila esta vazia. */
+  private primeiroSlotCheio(): number | null {
+    const i = estado.inventario.slots.findIndex((slot) => slot !== null);
+    return i === -1 ? null : i;
+  }
+
+  /**
+   * Anda com o cursor pela GRADE do inventario.
+   *
+   * O passo e em slots, e a grade e uma so lista: `+1` anda pra direita e vira
+   * a linha sozinho, `+INV.colunas` desce. O cursor nao circula — parar na
+   * borda e o que deixa segurar a tecla sem perder de vista onde se estava.
+   */
+  private moverGradeDoInventario(passo: number): void {
+    const total = estado.inventario.slots.length;
+    if (total === 0) return;
+    const partida = this.itemSelecionado ?? (passo > 0 ? -1 : total);
+    const alvo = Math.min(total - 1, Math.max(0, partida + passo));
+    if (alvo === this.itemSelecionado) return;
+    this.itemSelecionado = alvo;
+    this.avisoInventario.setText('');
+    this.desenharInventario();
   }
 
   /** Aviso curto no rodape do inventario (usar/descartar/organizar). */
@@ -1262,8 +1401,24 @@ export class UIScene extends Phaser.Scene {
     this.desenharInventario();
   }
 
+  /**
+   * Redesenha o conteudo do inventario.
+   *
+   * O DESENHO (moldura, campos, slots) sai num `Graphics` e so e repintado
+   * quando alguma coisa visivel muda — a assinatura junta o que cada slot tem e
+   * qual esta selecionado. Os textos e os icones sao objetos de cena e mudam
+   * sozinhos.
+   */
   private desenharInventario(): void {
     const slots = estado.inventario.slots;
+    const assinatura = slots
+      .map((s, i) => `${s ? `${s.id}:${s.qtd}` : '-'}${this.itemSelecionado === i ? '*' : ''}`)
+      .join(',');
+    if (assinatura !== this.inventarioAssinatura) {
+      this.inventarioAssinatura = assinatura;
+      this.desenharGradeDeSlots();
+    }
+
     for (let i = 0; i < this.icones.length; i++) {
       const slot = slots[i];
       const def = slot ? ITENS[slot.id] : undefined;
@@ -1277,111 +1432,167 @@ export class UIScene extends Phaser.Scene {
         this.sprites[i].setFrame(def.frame);
         ajustarIcone(this.sprites[i], ICONE.inventario);
       }
-
-      const qtd = slot && slot.qtd > 1 ? `x${slot.qtd}` : '';
+      const qtd = slot && slot.qtd > 1 ? `${slot.qtd}` : '';
       if (this.contadores[i].text !== qtd) this.contadores[i].setText(qtd);
-      this.seletores[i].setStrokeStyle(
-        this.itemSelecionado === i ? 2 : 1,
-        this.itemSelecionado === i ? 0xffd97d : UI.borda,
-        this.itemSelecionado === i ? 1 : 0.7,
-      );
     }
 
     const slot = this.itemSelecionado === null ? null : slots[this.itemSelecionado];
     const def = slot ? ITENS[slot.id] : undefined;
-    this.nomeItem.setText(def && slot ? `${def.nome} x${slot.qtd}` : 'Selecione um item');
-    const preco = def?.preco === undefined ? '' : `  ${formatarDinheiro(def.preco)}`;
-    this.tipoItem.setText(def ? `Tipo: ${def.tipo}${preco}` : '');
     const c = def ? comportamentoDe(def.id) : null;
     const arma = buscarArma(c?.arma);
-    const linhasDetalhe = [def?.descricao ?? ''];
+
+    // ---------------------------------------------------------- previa --
+    const comArte = Boolean(def?.frame);
+    this.previaSprite.setVisible(comArte);
+    if (def?.frame) {
+      this.previaSprite.setFrame(def.frame);
+      ajustarIcone(this.previaSprite, ICONE.previa);
+    }
+    this.previaCor.setVisible(Boolean(def) && !comArte);
+    if (def && !comArte) this.previaCor.setFillStyle(def.icone, 1);
+
+    // ------------------------------------------------------ identidade --
+    this.nomeItem.setText(def ? def.nome : 'Nenhum item selecionado');
+    this.nomeItem.setColor(def ? COR.lataoVivoTexto : COR.papelFracoTexto);
+    this.tipoItem.setText(
+      def && slot ? `${def.tipo}${slot.qtd > 1 ? `  ·  ${slot.qtd} unidades` : ''}` : '',
+    );
+    this.precoItem.setText(def?.preco === undefined ? '' : formatarDinheiro(def.preco));
+
+    // ------------------------------------------------------- descricao --
+    const linhas = [def?.descricao ?? (def ? '' : 'Escolha um item na grade a esquerda.')];
     if (arma) {
-      linhasDetalhe.push(
-        `Dano ${arma.dano} | carregador ${estado.armas.noCarregador(arma.id)}/${arma.carregador}` +
-          ` | reserva ${estado.inventario.contar(arma.municao)}`,
+      linhas.push(
+        `Dano ${arma.dano}  ·  carregador ${estado.armas.noCarregador(arma.id)}/${arma.carregador}`
+          + `  ·  reserva ${estado.inventario.contar(arma.municao)}`,
       );
     } else if (c?.danoCorpoACorpo) {
-      linhasDetalhe.push(`Dano de golpe ${c.danoCorpoACorpo}`);
+      linhas.push(`Dano de golpe ${c.danoCorpoACorpo}`);
     }
-    if (c?.detalhe) linhasDetalhe.push(c.detalhe);
-    this.descricaoItem.setText(linhasDetalhe.filter(Boolean).join('\n'));
+    if (c?.acao?.tipo === 'curar') linhas.push(`Recupera ${c.acao.quantidade} de vida.`);
+    if (c?.detalhe) linhas.push(c.detalhe);
+    this.escreverDescricao(linhas.filter(Boolean));
 
-    const equipados = SLOTS_DE_EQUIPAMENTO.map((sl) => ({ sl, id: estado.equipamento.equipado(sl) }))
-      .filter((e) => e.id)
-      .map((e) => `${NOME_DO_SLOT[e.sl]}: ${ITENS[e.id as string]?.nome ?? '-'}`);
-    this.equipadoTexto.setText(equipados.join('   ') || 'Nada equipado');
-    this.acoesTexto.setText(
-      def
-        ? acoesDoItem(def.id, estado.equipamento.estaEquipado(def.id))
-            .map((a) => ROTULO_DE_ACAO[a])
-            .join('   ')
-        : '',
+    // ----------------------------------------------------- equipamento --
+    this.equipadoTexto.setText(
+      SLOTS_DE_EQUIPAMENTO.map((sl) => {
+        const id = estado.equipamento.equipado(sl);
+        const nome = id ? (ITENS[id]?.nome ?? id) : '—';
+        return `${NOME_DO_SLOT[sl].padEnd(11)} ${nome}`;
+      }).join('\n'),
     );
+
+    // ----------------------------------------------------------- acoes --
+    if (!def) {
+      this.acoesTexto.setText('');
+      return;
+    }
+    const acoes = acoesDoItem(def.id, estado.equipamento.estaEquipado(def.id));
+    // Duas acoes por linha, em vez de uma fila unica com quebra automatica: a
+    // quebra automatica corta DENTRO do rotulo ("[X]" numa linha, "descartar"
+    // na outra), e um par por linha cai sempre no mesmo lugar, entao a tecla
+    // que o jogador procura nao muda de posicao quando o item muda.
+    const rotulos = acoes.map((acao) => ROTULO_DE_ACAO[acao]);
+    const pares: string[] = [];
+    for (let i = 0; i < rotulos.length; i += 2) pares.push(rotulos.slice(i, i + 2).join('   '));
+    this.acoesTexto.setText(pares.join('\n'));
+    // EQUIPAR fora de zona: o rotulo continua na lista, mas a razao aparece
+    // logo abaixo. Esconder a acao faria o jogador achar que a pistola nao e
+    // equipavel; mostrar sem explicacao faria ele achar que o jogo travou.
+    if (acoes.includes('equipar') && c?.zonas) {
+      const podeAqui = estado.equipamento.podeEquipar(def.id, estado.mapa).ok;
+      if (!podeAqui) this.avisar(c.recusaDeZona ?? 'So da pra equipar em area perigosa.', UI.alerta);
+    }
   }
 
-  private criarPainelDeInventario(): Phaser.GameObjects.Container {
-    const passo = INV.slot + INV.gap;
-    const grade = {
-      w: INV.colunas * passo - INV.gap,
-      h: INV.linhas * passo - INV.gap,
-    };
-    const largura = grade.w + INV.detalhes + INV.margem * 3;
-    // +44: quatro linhas de rodape — equipamento, acoes do item selecionado,
-    // dicas fixas de tecla e o aviso da ultima acao
-    const altura = grade.h + INV.margem * 2 + INV.topo + 44;
-    const x = Math.round((CONFIG.largura - largura) / 2);
-    const y = Math.round((CONFIG.altura - altura) / 2);
+  /** Repinta a moldura, os campos e os vinte slots. */
+  private desenharGradeDeSlots(): void {
+    const g = this.inventarioFundo;
+    const slots = estado.inventario.slots;
+    g.clear();
+    ui.painel(g, { x: INV.x, y: INV.y, w: INV.w, h: INV.h });
 
-    const fundo = this.add.graphics();
-    fundo.fillStyle(UI.fundo, 0.95);
-    fundo.fillRect(x, y, largura, altura);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(x + 0.5, y + 0.5, largura - 1, altura - 1);
+    const passo = PECA.slot + PECA.vaoSlot;
+    for (let i = 0; i < INV.colunas * INV.linhas; i++) {
+      const sx = INV.gradeX + (i % INV.colunas) * passo;
+      const sy = INV.gradeY + Math.floor(i / INV.colunas) * passo;
+      const estadoDoSlot = this.itemSelecionado === i
+        ? 'selecionado'
+        : slots[i]
+          ? 'cheio'
+          : 'vazio';
+      ui.slot(g, { x: sx, y: sy, w: PECA.slot, h: PECA.slot }, estadoDoSlot);
+    }
 
-    const titulo = this.add.text(x + INV.margem, y + 6, 'Inventario', {
-      fontFamily: UI.fonte,
-      fontSize: UI.tamanhoTitulo,
-      color: UI.destaque,
+    // caixa de previa e campo de descricao
+    ui.campo(g, { x: INV.colunaX, y: INV.gradeY, w: PECA.previa, h: PECA.previa }, true);
+    ui.campo(g, {
+      x: INV.colunaX,
+      y: POCO_DESCRICAO.y,
+      w: INV.colunaW,
+      h: POCO_DESCRICAO.h,
     });
-    const dica = this.add
-      .text(x + largura - INV.margem, y + 7, '[Tab] fechar', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanho,
-        color: UI.textoFraco,
-      })
-      .setOrigin(1, 0);
+    ui.divisoria(g, INV.gradeX, INV.x + INV.w - 12, INV.rodapeY);
+    // fio vertical entre EQUIPADO e ACOES
+    g.lineStyle(1, COR.madeira, 0.8);
+    g.beginPath();
+    g.moveTo(INV.acoesX - 12.5, INV.rodapeY + 6);
+    g.lineTo(INV.acoesX - 12.5, INV.rodapeY + 50);
+    g.strokePath();
+  }
 
-    const filhos: Phaser.GameObjects.GameObject[] = [fundo, titulo, dica];
+  /**
+   * Monta o painel de inventario.
+   *
+   * A janela ficou com tres blocos, e a hierarquia da Parte 43 esta neles:
+   *
+   *   GRADE (esquerda)    vinte slots de 26 px, o dobro da area de antes
+   *   ITEM (centro)       previa grande, nome, tipo, preco e descricao
+   *   RODAPE              o que esta EQUIPADO, e as acoes do item selecionado
+   *
+   * O que e desenhado (moldura, campos, slots) sai de `desenharGradeDeSlots`;
+   * aqui ficam so os objetos de cena que mudam de texto.
+   */
+  private criarPainelDeInventario(): Phaser.GameObjects.Container {
+    const filhos: Phaser.GameObjects.GameObject[] = [];
+    this.inventarioFundo = this.add.graphics();
+    filhos.push(this.inventarioFundo);
+
+    filhos.push(ui.titulo(this, INV.x + 12, INV.y + 7, 'INVENTARIO'));
+    filhos.push(
+      ui.nota(this, INV.x + INV.w - 12, INV.y + 9, '[Tab] fechar').setOrigin(1, 0),
+    );
+
+    // ------------------------------------------------------------ grade --
+    const passo = PECA.slot + PECA.vaoSlot;
     this.icones = [];
+    this.sprites = [];
     this.contadores = [];
     this.seletores = [];
-
     for (let i = 0; i < INV.colunas * INV.linhas; i++) {
-      const sx = x + INV.margem + (i % INV.colunas) * passo;
-      const sy = y + INV.margem + INV.topo + Math.floor(i / INV.colunas) * passo;
-
+      const sx = INV.gradeX + (i % INV.colunas) * passo;
+      const sy = INV.gradeY + Math.floor(i / INV.colunas) * passo;
+      // O seletor continua sendo um retangulo INVISIVEL: ele existe pro clique e
+      // pro cursor de mao. Quem desenha o slot e o `Graphics`.
       const seletor = this.add
-        .rectangle(sx, sy, INV.slot, INV.slot, 0x000000, 0.35)
+        .rectangle(sx, sy, PECA.slot, PECA.slot, 0x000000, 0)
         .setOrigin(0, 0)
-        .setStrokeStyle(1, UI.borda, 0.7)
         .setInteractive({ useHandCursor: true });
       seletor.on('pointerdown', () => {
         this.itemSelecionado = i;
         this.desenharInventario();
       });
-
       const icone = this.add
-        .rectangle(sx + INV.slot / 2, sy + INV.slot / 2, INV.slot - 8, INV.slot - 8, 0xffffff)
+        .rectangle(sx + PECA.slot / 2, sy + PECA.slot / 2, ICONE.inventario, ICONE.inventario, 0xffffff)
         .setVisible(false);
-      // icone de arte: mesma posicao do placeholder, so um dos dois aparece
       const sprite = this.add
-        .image(sx + INV.slot / 2, sy + INV.slot / 2, 'itens')
+        .image(sx + PECA.slot / 2, sy + PECA.slot / 2, 'itens')
         .setVisible(false);
       const contador = this.add
-        .text(sx + INV.slot - 2, sy + INV.slot - 2, '', {
-          fontFamily: UI.fonte,
-          fontSize: '9px',
-          color: UI.texto,
+        .text(sx + PECA.slot - 3, sy + PECA.slot - 3, '', {
+          fontFamily: FONTE.familia,
+          fontSize: FONTE.nota,
+          color: COR.papelTexto,
         })
         .setOrigin(1, 1);
 
@@ -1392,65 +1603,73 @@ export class UIScene extends Phaser.Scene {
       filhos.push(seletor, icone, sprite, contador);
     }
 
-    const detalhesX = x + INV.margem * 2 + grade.w;
-    this.nomeItem = this.add.text(detalhesX, y + INV.margem + INV.topo, '', {
-      fontFamily: UI.fonte,
-      fontSize: UI.tamanhoTitulo,
-      color: UI.destaque,
-      wordWrap: { width: INV.detalhes },
-    });
-    this.tipoItem = this.add.text(detalhesX, y + INV.margem + INV.topo + 22, '', {
-      fontFamily: UI.fonte,
-      fontSize: UI.tamanho,
-      color: UI.textoFraco,
-    });
-    this.descricaoItem = this.add.text(detalhesX, y + INV.margem + INV.topo + 42, '', {
-      fontFamily: UI.fonte,
-      fontSize: UI.tamanho,
-      color: UI.texto,
-      wordWrap: { width: INV.detalhes },
-      lineSpacing: 3,
-    });
-    // EQUIPAMENTO. Fica no rodape e nao numa coluna propria porque a janela tem
-    // 176 px de detalhe e nada mais: uma quarta coluna deixaria a descricao com
-    // duas palavras por linha. A redesenhada da interface e que vai dar a ele o
-    // quadro visual que ele merece.
-    this.equipadoTexto = this.add.text(x + INV.margem, y + altura - 42, '', {
-      fontFamily: UI.fonte,
-      fontSize: '9px',
-      color: UI.destaque,
-      wordWrap: { width: largura - INV.margem * 2 },
-    });
-    // ACOES DO ITEM. A lista muda com o item selecionado — e a Parte 1 pedindo
-    // que as acoes dependam do item e nao de uma barra fixa de teclas.
-    this.acoesTexto = this.add.text(x + INV.margem, y + altura - 32, '', {
-      fontFamily: UI.fonte,
-      fontSize: '9px',
-      color: UI.texto,
-      wordWrap: { width: largura - INV.margem * 2 },
-    });
-    const dicas = this.add.text(x + INV.margem, y + altura - 22, '[O] organizar  [Tab] fechar', {
-      fontFamily: UI.fonte,
-      fontSize: '9px',
-      color: UI.textoFraco,
-    });
-    this.avisoInventario = this.add.text(x + INV.margem, y + altura - 12, '', {
-      fontFamily: UI.fonte,
-      fontSize: '9px',
-      color: UI.textoFraco,
-      wordWrap: { width: largura - INV.margem * 2 },
-    });
+    // ------------------------------------------------------------ previa --
+    const centroPrevia = {
+      x: INV.colunaX + PECA.previa / 2,
+      y: INV.gradeY + PECA.previa / 2,
+    };
+    this.previaCor = this.add
+      .rectangle(centroPrevia.x, centroPrevia.y, ICONE.previa, ICONE.previa, 0xffffff)
+      .setVisible(false);
+    this.previaSprite = this.add.image(centroPrevia.x, centroPrevia.y, 'itens').setVisible(false);
+    filhos.push(this.previaCor, this.previaSprite);
+
+    // -------------------------------------------------------- identidade --
+    const textoX = INV.colunaX + PECA.previa + 10;
+    const larguraTexto = INV.colunaW - PECA.previa - 10;
+    this.nomeItem = ui.corpo(this, textoX, INV.gradeY + 4, '', larguraTexto);
+    this.tipoItem = ui.nota(this, textoX, INV.gradeY + 24, '', larguraTexto);
+    this.precoItem = ui
+      .corpo(this, textoX, INV.gradeY + 40)
+      .setColor(COR.verdeTexto);
+    filhos.push(this.nomeItem, this.tipoItem, this.precoItem);
+
+    this.descricaoItem = ui.miudo(
+      this,
+      INV.colunaX + 6,
+      INV.gradeY + PECA.previa + 14,
+      '',
+      INV.colunaW - 12,
+      COR.papelTexto,
+    );
+    filhos.push(this.descricaoItem);
+
+    // ------------------------------------------------------- equipamento --
+    filhos.push(ui.nota(this, INV.gradeX, INV.rodapeY + 6, 'EQUIPADO').setColor(COR.lataoTexto));
+    this.equipadoTexto = ui.miudo(this, INV.gradeX, INV.rodapeY + 18, '', 200, COR.papelTexto);
+    filhos.push(this.equipadoTexto);
+
+    // ------------------------------------------------------------ acoes --
+    filhos.push(ui.nota(this, INV.acoesX, INV.rodapeY + 6, 'ACOES').setColor(COR.lataoTexto));
+    this.acoesTexto = ui.miudo(
+      this,
+      INV.acoesX,
+      INV.rodapeY + 18,
+      '',
+      INV.x + INV.w - 12 - INV.acoesX,
+      COR.papelTexto,
+    );
+    filhos.push(this.acoesTexto);
     filhos.push(
-      this.nomeItem,
-      this.tipoItem,
-      this.descricaoItem,
-      this.equipadoTexto,
-      this.acoesTexto,
-      dicas,
-      this.avisoInventario,
+      ui.nota(
+        this,
+        INV.acoesX,
+        INV.rodapeY + 44,
+        '[O] organizar   [setas] escolher',
+        INV.x + INV.w - 12 - INV.acoesX,
+      ),
     );
 
-    return this.add.container(0, 0, filhos).setDepth(105).setVisible(false);
+    this.avisoInventario = ui.nota(
+      this,
+      INV.gradeX,
+      INV.y + INV.h - 18,
+      '',
+      INV.w - (INV.gradeX - INV.x) * 2,
+    );
+    filhos.push(this.avisoInventario);
+
+    return this.add.container(0, 0, filhos).setDepth(CAMADA.painel).setVisible(false);
   }
 
   // ---------------------------------------------------------------- loja --
@@ -1520,6 +1739,11 @@ export class UIScene extends Phaser.Scene {
   private mover(passo: number): void {
     if (this.menuAberto) {
       this.moverMenu(passo);
+      return;
+    }
+    // vertical no inventario anda uma LINHA da grade, nao um slot
+    if (this.inventarioAberto && !this.modalPorCima) {
+      this.moverGradeDoInventario(passo * INV.colunas);
       return;
     }
     this.moverListaDaLoja(passo);
@@ -1733,13 +1957,10 @@ export class UIScene extends Phaser.Scene {
   private criarPainelDeLoja(): Phaser.GameObjects.Container {
     const { x, y, w, h } = LOJA;
     const fundo = this.add.graphics();
-    fundo.fillStyle(UI.fundo, 0.96);
-    fundo.fillRect(x, y, w, h);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ui.painel(fundo, { x, y, w, h });
     // divisa entre a lista e a coluna de detalhe
     const divisa = x + LOJA.margem + LOJA.lista + 5;
-    fundo.lineStyle(1, UI.borda, 0.5);
+    fundo.lineStyle(1, COR.madeira, 0.8);
     fundo.lineBetween(divisa, y + LOJA.topo - 6, divisa, y + h - 22);
 
     this.lojaTitulo = this.add.text(x + LOJA.margem, y + 7, '', {
