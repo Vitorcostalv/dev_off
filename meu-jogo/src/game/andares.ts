@@ -356,8 +356,17 @@ export const ULTIMO_ANDAR_DESENHADO = 5;
  * crescer em vez de tres.
  */
 const ESCURIDAO_DO_ANDAR_50 = 0.86;
-/** O teto: preto puro apaga a arte, e o andar 150 tem de continuar jogavel. */
-const ESCURIDAO_MAXIMA = 0.93;
+/**
+ * O TETO.
+ *
+ * Foi 0,93 primeiro, que e o topo da faixa que o plano sugeria pro trecho 141 a
+ * 150. No navegador, no andar 150, isso apaga o proprio personagem: com a
+ * lanterna acesa dava pra ver a caixa de salvado e a silhueta do bicho, e nao
+ * dava pra saber onde o jogador estava dentro do proprio facho. 0,91 mantem o
+ * fundo mais escuro que qualquer andar acima e devolve o contorno de quem se
+ * esta controlando, que e o minimo pra o andar ser dificil em vez de ilegivel.
+ */
+const ESCURIDAO_MAXIMA = 0.91;
 
 export function escuridaoDoAndar(andar: number): number {
   if (andar <= 1) return 0;

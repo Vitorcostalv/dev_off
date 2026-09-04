@@ -22,6 +22,7 @@
     "verificar-andares": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-andares.mjs",
     "verificar-equipamento": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-equipamento.mjs",
     "gerar-decais": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-decais.mjs",
+    "verificar-dev": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-dev.mjs",
     "verificar-npcs": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-npcs.mjs",
     "verificar-expansao-npcs": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-expansao-npcs.mjs",
     "gerar-relatorio-relacionamentos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-relatorio-relacionamentos.mjs"

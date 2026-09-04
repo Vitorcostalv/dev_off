@@ -70,6 +70,7 @@ import { MaoDoJogador } from './MaoDoJogador';
 import { comportamentoDe, zonaPerigosa } from '../game/equipar';
 import { ATAQUE_DO_JOGADOR } from '../game/inimigos';
 import { buscarArma, direcaoDaMira } from '../game/armas';
+import { enigmaDoAndar, respostasDoEnigma } from '../game/enigmas';
 import {
   ANDARES,
   ANDARES_DE_PARADA,
@@ -269,6 +270,14 @@ export class FarmScene extends Phaser.Scene {
   private teclas!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private correr!: Phaser.Input.Keyboard.Key;
   private direcao: Direcao = 'down';
+  /**
+   * Chaves de depuracao do painel de desenvolvimento. Ficam aqui, e nao na
+   * DevScene, porque quem as aplica e o mundo: `drawDebug` e do motor de fisica
+   * e o raio de deteccao e desenhado pela camada da represa.
+   */
+  private depuracao: Record<ChaveDeDepuracao, boolean> = {
+    corpos: false, aggro: false, congelado: false,
+  };
 
   private interagiveis: Interagivel[] = [];
   private alvo: Interagivel | null = null;
@@ -3765,6 +3774,138 @@ export class FarmScene extends Phaser.Scene {
     }
     return lista;
   }
+
+  // ======================================================================
+  // GANCHOS DO PAINEL DE DESENVOLVIMENTO
+  //
+  // Publicos e terminados em `Dev` de proposito: quem le a classe ve pelo nome
+  // que o metodo existe pra DevScene e nao pro jogo. A cena que os chama so
+  // entra no bundle em desenvolvimento (ver main.ts), entao em producao eles
+  // ficam sem nenhum chamador.
+  //
+  // Nenhum deles mexe em progressao por conta propria: teleportar nao destrava
+  // parada, limpar inimigo nao marca andar. Quem decide isso e o item de menu,
+  // um por acao — e a unica excecao e `matarJogadorDev`, que roda a derrota DE
+  // VERDADE, porque testar a derrota pela metade nao testa nada.
+  // ======================================================================
+
+  /** Recarrega a cena num mapa, opcionalmente num tile. Nao toca em flag nenhuma. */
+  teleportarDev(mapa: string, tx?: number, ty?: number): void {
+    const planta = buscarMapa(mapa);
+    if (!planta) {
+      console.warn(`[dev] mapa "${mapa}" nao existe`);
+      return;
+    }
+    const alvo = tx !== undefined && ty !== undefined ? { x: tx, y: ty } : planta.spawnTile;
+    this.transicionando = true;
+    this.cameras.main.fadeOut(120, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.restart({
+        mapa,
+        x: (alvo.x + 0.5) * this.tamanhoTile,
+        y: (alvo.y + 0.5) * this.tamanhoTile,
+      });
+    });
+  }
+
+  /** Roda a derrota DE VERDADE: hospital, quatro horas e metade do salvado. */
+  matarJogadorDev(): void {
+    estado.vida.definir(0);
+    this.serDerrotado();
+  }
+
+  /** Onde o NPC esta agora, em texto curto. */
+  ondeEstaDev(id: string): string {
+    const npc = estado.rotinasNpc.todos.find((n) => n.id === id);
+    if (!npc) return 'fora da simulacao';
+    return `${npc.dentro ?? 'ao ar livre'} ${npc.x.toFixed(1)},${npc.y.toFixed(1)}`;
+  }
+
+  /** A animacao que o sprite do NPC esta tocando agora. */
+  animacaoDev(id: string): string {
+    const npc = this.npcs.find((n) => n.estado.id === id);
+    if (!npc) return 'sem sprite nesta cena';
+    const chave = npc.sprite.anims.currentAnim?.key ?? '—';
+    return `${chave} ${npc.estado.movendo ? '(andando)' : '(parado)'}`;
+  }
+
+  /** Poe o jogador ao lado do NPC, se ele estiver ao ar livre neste mapa. */
+  irAteNpcDev(id: string): string {
+    const npc = estado.rotinasNpc.todos.find((n) => n.id === id);
+    if (!npc) return 'NPC fora da simulacao.';
+    if (npc.dentro) return `ele esta dentro de "${npc.dentro}".`;
+    this.player.setPosition((npc.x + 1) * this.tamanhoTile, npc.y * this.tamanhoTile);
+    return `levado ate ${id}.`;
+  }
+
+  depuracaoDev(chave: ChaveDeDepuracao): boolean {
+    return this.depuracao[chave];
+  }
+
+  alternarDepuracaoDev(chave: ChaveDeDepuracao): void {
+    this.depuracao[chave] = !this.depuracao[chave];
+    this.physics.world.drawDebug = this.depuracao.corpos;
+    if (!this.depuracao.corpos) this.physics.world.debugGraphic?.clear();
+    this.represa?.definirDepuracao(this.depuracao);
+  }
+
+  limparInimigosDev(): string {
+    const n = this.represa?.limparInimigos() ?? 0;
+    return `${n} inimigo(s) removido(s) deste andar.`;
+  }
+
+  /** A resposta do enigma do andar atual, escrita. Serve pra testar o painel. */
+  respostaDoPainelDev(): string {
+    const def = andarDoMapaDef(estado.mapa);
+    if (!def) return 'este mapa nao e um andar da usina.';
+    const enigma = enigmaDoAndar(def.andar);
+    if (!enigma) return `o andar ${def.andar} nao tem enigma gerado.`;
+    return respostasDoEnigma(enigma).map((r) => `${r.rotulo}: ${r.texto}`).join('  |  ');
+  }
+
+  /** Fotografia do estado, sem gravar em lugar nenhum. */
+  saveDev(): Record<string, unknown> {
+    return {
+      dia: estado.dia,
+      minutos: estado.relogio.minutos,
+      mapa: estado.mapa,
+      inventario: estado.inventario.serializar(),
+      itensColetados: [...estado.itensColetados],
+      dinheiro: estado.carteira.serializar(),
+      relacoes: estado.relacoes.serializar(),
+      worldEvents: estado.worldEvents.serializar(),
+      vida: estado.vida.serializar(),
+      represa: estado.represa.serializar(),
+      equipamento: estado.equipamento.serializar(),
+      armas: estado.armas.serializar(),
+      arquivo: estado.arquivo.serializar(),
+    };
+  }
+
+  /** Devolve o estado a uma fotografia e recarrega a cena. */
+  restaurarDev(dados: Record<string, unknown>): void {
+    estado.dia = Number(dados.dia) || 0;
+    estado.relogio.definir(Number(dados.minutos) || 0);
+    estado.inventario.restaurar(dados.inventario);
+    estado.itensColetados.clear();
+    if (Array.isArray(dados.itensColetados)) {
+      for (const id of dados.itensColetados) estado.itensColetados.add(String(id));
+    }
+    estado.carteira.restaurar(dados.dinheiro);
+    estado.relacoes.restaurar(dados.relacoes);
+    estado.worldEvents.restaurar(dados.worldEvents);
+    estado.vida.restaurar(dados.vida);
+    estado.represa.restaurar(dados.represa);
+    estado.equipamento.restaurar(dados.equipamento);
+    estado.armas.restaurar(dados.armas);
+    estado.arquivo.restaurar(dados.arquivo);
+    this.teleportarDev(String(dados.mapa ?? estado.mapa));
+  }
+
+  salvarDev(): boolean {
+    return this.salvarJogo();
+  }
+
 }
 
 /** O que a cena precisa saber pra montar um sprite da camada `flora`. */
@@ -3812,6 +3953,9 @@ const TITULO_DO_MAPA: Record<string, string> = {
   rural: 'Zona Rural',
   represa: 'Estrada da Represa',
 };
+
+/** O que o painel de desenvolvimento pode ligar e desligar no mundo. */
+export type ChaveDeDepuracao = 'corpos' | 'aggro' | 'congelado';
 
 /** Retangulo em TILES, com o canto (x0,y0) inclusivo e (x1,y1) exclusivo. */
 interface RetTiles {

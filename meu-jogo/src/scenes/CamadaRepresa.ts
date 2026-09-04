@@ -137,7 +137,56 @@ export class CamadaRepresa {
     }
   }
 
+  // ---------------------------------------------- ganchos de depuracao --
+  /**
+   * Estado de depuracao vindo do painel de desenvolvimento.
+   *
+   * A camada guarda, mas so ela sabe o que fazer com cada chave: `aggro`
+   * desenha o raio de deteccao e `congelado` para a IA sem parar a fisica —
+   * congelar por `scene.pause` pararia tambem o jogador, que e o contrario do
+   * que se quer ao observar um inimigo parado.
+   */
+  private depuracao = { corpos: false, aggro: false, congelado: false };
+  private grafDepuracao: Phaser.GameObjects.Graphics | null = null;
+
+  definirDepuracao(estadoDeDepuracao: { corpos: boolean; aggro: boolean; congelado: boolean }): void {
+    this.depuracao = { ...estadoDeDepuracao };
+    if (!this.depuracao.aggro) {
+      this.grafDepuracao?.destroy();
+      this.grafDepuracao = null;
+    }
+  }
+
+  /** Remove os inimigos vivos do andar. Nao marca nada e nao da salvado. */
+  limparInimigos(): number {
+    const n = this.inimigos.length;
+    for (const i of this.inimigos) i.sprite.destroy();
+    this.inimigos = [];
+    return n;
+  }
+
+  /** O circulo de deteccao de cada inimigo, redesenhado por quadro. */
+  private desenharAggro(): void {
+    if (!this.depuracao.aggro) return;
+    if (!this.grafDepuracao) {
+      this.grafDepuracao = this.cena.add.graphics().setDepth(9000);
+    }
+    const g = this.grafDepuracao;
+    g.clear();
+    g.lineStyle(1, 0xff5b57, 0.7);
+    for (const i of this.inimigos) {
+      g.strokeCircle(i.sprite.x, i.sprite.y, i.def.raioAggro * 32);
+      // o circulo de DESISTENCIA sai mais fraco: e o que explica o inimigo
+      // continuar vindo depois de o jogador sair do raio de deteccao
+      g.lineStyle(1, 0xd9903f, 0.35);
+      g.strokeCircle(i.sprite.x, i.sprite.y, i.def.raioDesistencia * 32);
+      g.lineStyle(1, 0xff5b57, 0.7);
+    }
+  }
+
   destruir(): void {
+    this.grafDepuracao?.destroy();
+    this.grafDepuracao = null;
     for (const i of this.inimigos) i.sprite.destroy();
     this.inimigos = [];
     for (const p of this.projeteis) p.sprite.destroy();
@@ -160,12 +209,14 @@ export class CamadaRepresa {
     if (!naRepresa(estado.mapa)) return;
     if (this.golpeAtivo > 0) this.golpeAtivo = Math.max(0, this.golpeAtivo - deltaMs);
     if (this.recargaGolpe > 0) this.recargaGolpe = Math.max(0, this.recargaGolpe - deltaMs);
-    if (pausado) {
+    if (pausado || this.depuracao.congelado) {
       for (const i of this.inimigos) i.sprite.setVelocity(0, 0);
+      this.desenharAggro();
       return;
     }
     this.atualizarInimigos(deltaMs, player);
     this.atualizarProjeteis(deltaMs);
+    this.desenharAggro();
   }
 
   // ------------------------------------------------------------- projeteis --

@@ -2899,7 +2899,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.807
+       "value": 0.805
       }
      ]
     },
@@ -2923,7 +2923,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.827
+       "value": 0.825
       }
      ]
     },
@@ -2947,7 +2947,7 @@
       {
        "name": "escuridao",
        "type": "float",
-       "value": 0.787
+       "value": 0.785
       }
      ]
     },

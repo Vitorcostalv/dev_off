@@ -34,8 +34,21 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
-// atalhos pra depurar no console do navegador: window.game / window.estado
+/**
+ * O PAINEL DE DESENVOLVIMENTO (F10) SO EXISTE EM DESENVOLVIMENTO.
+ *
+ * O `import()` esta DENTRO do `if`, e nao no topo do arquivo, de proposito: com
+ * o import no topo o modulo entraria no bundle publicado mesmo com a cena nunca
+ * sendo adicionada, e bastaria alguem chama-la pelo console pra abrir o painel
+ * de trapaca num jogo publicado. Assim o empacotador ve que o ramo e morto em
+ * producao (`import.meta.env.DEV` vira `false` literal) e remove o modulo
+ * inteiro — nao ha o que chamar.
+ */
 if (import.meta.env.DEV) {
+  // atalhos pra depurar no console do navegador
   Object.assign(window, { game, estado });
+  void import('./scenes/DevScene').then(({ DevScene }) => {
+    game.scene.add('DevScene', DevScene, true);
+  });
 }
 

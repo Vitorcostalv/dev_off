@@ -173,12 +173,13 @@ for (let i = 1; i < ANDARES.length; i++) {
     `a escuridao nao cresce do andar ${i} pro ${i + 1}`,
   );
 }
-// TETO DE ESCURIDAO. Era 0,9 quando a usina tinha cinquenta andares; virou 0,93
-// com cento e cinquenta, que e o valor que o plano da leva pede pro trecho 141 a
-// 150. O numero nao e livre: acima disso a lanterna deixa de descolar o
-// personagem do fundo, e o andar para de ser dificil e passa a ser ilegivel.
+// TETO DE ESCURIDAO. Era 0,9 quando a usina tinha cinquenta andares. Com cento e
+// cinquenta ele subiu, e o numero saiu do NAVEGADOR e nao da tabela do plano:
+// com 0,93 o andar 150 apaga o proprio personagem, e o jogador perde o contorno
+// de quem esta controlando dentro do proprio facho da lanterna. 0,91 continua
+// mais escuro que qualquer andar acima e devolve a silhueta.
 ok(
-  ANDARES[ANDARES.length - 1].escuridao <= 0.93,
+  ANDARES[ANDARES.length - 1].escuridao <= 0.91,
   'o ultimo andar ficou escuro demais pra ser jogavel',
 );
 
