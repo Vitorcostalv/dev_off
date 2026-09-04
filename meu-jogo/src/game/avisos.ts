@@ -1,4 +1,6 @@
 import { TEXTOS_DE_FICHA } from './fichas.ts';
+import { TEXTOS_DE_DOCUMENTO } from './documentos.ts';
+import { TEXTOS_DE_DECAL } from './decais.ts';
 import { TEXTOS_DE_PISTA } from './enigmas.ts';
 
 /**
@@ -119,18 +121,94 @@ const MARCOS_DE_LABIRINTO: Record<string, Record<number, string[]>> = {
 };
 
 /**
+ * OS MARCOS DOS LABIRINTOS PROFUNDOS (andares 51 a 150).
+ *
+ * Os cinco labirintos de cima tem marco escrito a mao, um por andar, porque sao
+ * cinco. Aqui embaixo sao DEZ andares de labirinto vezes tres marcos, e o texto
+ * de cada um muda com a profundidade — trinta blocos a mao seriam trinta
+ * chances de repetir um sem ninguem notar.
+ *
+ * Entao cada marco tem a descricao do OBJETO (que nao muda: um tubo azul e um
+ * tubo azul) e uma segunda linha que sai da faixa de profundidade. A informacao
+ * de NAVEGACAO — pra que lado o marco aponta — e a mesma em toda faixa, que e o
+ * que faz o marco ensinar o caminho em vez de decorar a curva.
+ */
+const CORPO_DO_MARCO: Record<string, readonly [string, string]> = {
+  tubo_azul: [
+    'Um tubo azul de agua de servico, com a legenda ainda legivel.',
+    'AGUA DE SERVICO — segue pro fundo. A seta aponta pra baixo e pra frente.',
+  ],
+  tubo_vermelho: [
+    'Tubo vermelho de incendio, registro fechado.',
+    'RETORNO — sobe pra escada. Quem se perder segue o vermelho.',
+  ],
+  porta_numerada: [
+    'Porta de servico com um numero pintado a estencil.',
+    'A numeracao da usina sobe no sentido do fundo. Numero maior e mais fundo.',
+  ],
+  cabo_anilha: [
+    'Um feixe de cabos com anilha de cor a cada metro.',
+    'A anilha muda de cor no cruzamento. A ordem e a mesma em todo o setor: amarelo, verde, cinza.',
+  ],
+  painel_cego: [
+    'Um painel sem botao nenhum, so a moldura e o parafuso.',
+    'Painel cego marca ponta de ramal. Onde ha um, o corredor nao continua.',
+  ],
+  baia_numerada: [
+    'Uma divisoria de baia parafusada no concreto, com etiqueta numerada.',
+    'As baias contam de 01 a 40 e a numeracao sobe no sentido do fundo.',
+  ],
+};
+
+/** A terceira linha, que muda com a faixa de profundidade. */
+function fechoDoMarco(andar: number): string {
+  if (andar <= 100) {
+    return 'Alguem repassou a legenda a caneta, por cima da original. A letra e de quem '
+      + 'trabalhava aqui e nao confiava mais na placa.';
+  }
+  if (andar <= 130) {
+    return 'Abaixo da legenda ha um risco de giz de cera, na altura de quem tem sete anos. '
+      + 'Aponta pro mesmo lado.';
+  }
+  return 'A legenda foi raspada. O que restou dela e a seta, e a seta continua certa.';
+}
+
+const ANDARES_DE_LABIRINTO_PROFUNDO: Record<number, readonly string[]> = {
+  57: ['porta_numerada', 'cabo_anilha', 'painel_cego'],
+  68: ['porta_numerada', 'cabo_anilha', 'painel_cego'],
+  79: ['porta_numerada', 'cabo_anilha', 'painel_cego'],
+  91: ['porta_numerada', 'cabo_anilha', 'painel_cego'],
+  104: ['tubo_azul', 'tubo_vermelho', 'baia_numerada'],
+  111: ['porta_numerada', 'painel_cego', 'baia_numerada'],
+  118: ['tubo_azul', 'tubo_vermelho', 'baia_numerada'],
+  126: ['porta_numerada', 'painel_cego', 'baia_numerada'],
+  133: ['tubo_azul', 'tubo_vermelho', 'baia_numerada'],
+  147: ['porta_numerada', 'painel_cego', 'baia_numerada'],
+};
+
+/**
  * Todo texto de marco de labirinto, na chave `<id>_<andar>` que o gerador usa.
  * Um marco sem texto pro andar em que ele aparece derruba a conferencia — e o
  * mesmo contrato de qualquer aviso do mundo.
  */
-const TEXTOS_DE_MARCO: Record<string, string[]> = Object.fromEntries(
-  Object.entries(MARCOS_DE_LABIRINTO).flatMap(([id, porAndar]) =>
-    Object.entries(porAndar).map(([andar, linhas]) => [
-      `${id}_${String(andar).padStart(2, '0')}`,
-      linhas,
-    ]),
+const TEXTOS_DE_MARCO: Record<string, string[]> = {
+  ...Object.fromEntries(
+    Object.entries(MARCOS_DE_LABIRINTO).flatMap(([id, porAndar]) =>
+      Object.entries(porAndar).map(([andar, linhas]) => [
+        `${id}_${String(andar).padStart(2, '0')}`,
+        linhas,
+      ]),
+    ),
   ),
-);
+  ...Object.fromEntries(
+    Object.entries(ANDARES_DE_LABIRINTO_PROFUNDO).flatMap(([andar, marcos]) =>
+      marcos.map((id) => [
+        `${id}_${String(Number(andar)).padStart(2, '0')}`,
+        [...CORPO_DO_MARCO[id], fechoDoMarco(Number(andar))],
+      ]),
+    ),
+  ),
+};
 
 const AVISOS_ESCRITOS_A_MAO: Record<string, string[]> = {
   // ------------------------------------------------- predios FECHADOS --
@@ -325,6 +403,8 @@ export const ITENS_DE_LEITURA: Record<string, string[]> = (() => {
   const fontes: [string, Record<string, string[]>][] = [
     ['escritos a mao', AVISOS_ESCRITOS_A_MAO],
     ['fichas medicas', TEXTOS_DE_FICHA],
+    ['documentos de trabalho e infancia', TEXTOS_DE_DOCUMENTO],
+    ['decais de parede', TEXTOS_DE_DECAL],
     ['pistas de enigma', TEXTOS_DE_PISTA],
     ['marcos de labirinto', TEXTOS_DE_MARCO],
   ];

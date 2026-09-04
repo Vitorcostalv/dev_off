@@ -99,6 +99,12 @@ export class BootScene extends Phaser.Scene {
       'assets/sprites/aparelhos.atlas.json',
     );
 
+    // DECAIS de parede dos andares 51 a 150 (tools/gerar-decais.mjs): placa de
+    // faixa, quadro de ordens, desenho de crianca, aviso escrito a mao, marca
+    // de sangue. O JSON ao lado traz altura em tiles e proporcao de cada peca.
+    this.load.atlas('decais', 'assets/sprites/decais.png', 'assets/sprites/decais.atlas.json');
+    this.load.json('decais-meta', 'assets/sprites/decais.json');
+
     // Medidas das pecas do catalogo de mobilia compravel (atlas, frame e
     // tamanho em tiles). Sai de tools/gerar-assets.mjs lendo `CATALOGO_MOBILIA`
     // de src/game/casa.ts — ver o cabecalho de la.

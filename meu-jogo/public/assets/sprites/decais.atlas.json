@@ -1,0 +1,594 @@
+{
+ "frames": {
+  "faixa_101_110": {
+   "frame": {
+    "x": 2,
+    "y": 2,
+    "w": 170,
+    "h": 184
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 170,
+    "h": 184
+   },
+   "sourceSize": {
+    "w": 170,
+    "h": 184
+   }
+  },
+  "faixa_121_130": {
+   "frame": {
+    "x": 174,
+    "y": 2,
+    "w": 155,
+    "h": 182
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 155,
+    "h": 182
+   },
+   "sourceSize": {
+    "w": 155,
+    "h": 182
+   }
+  },
+  "faixa_141_150": {
+   "frame": {
+    "x": 331,
+    "y": 2,
+    "w": 153,
+    "h": 182
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 153,
+    "h": 182
+   },
+   "sourceSize": {
+    "w": 153,
+    "h": 182
+   }
+  },
+  "faixa_111_120": {
+   "frame": {
+    "x": 486,
+    "y": 2,
+    "w": 151,
+    "h": 182
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 151,
+    "h": 182
+   },
+   "sourceSize": {
+    "w": 151,
+    "h": 182
+   }
+  },
+  "faixa_131_140": {
+   "frame": {
+    "x": 639,
+    "y": 2,
+    "w": 150,
+    "h": 182
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 150,
+    "h": 182
+   },
+   "sourceSize": {
+    "w": 150,
+    "h": 182
+   }
+  },
+  "faixa_051_060": {
+   "frame": {
+    "x": 791,
+    "y": 2,
+    "w": 160,
+    "h": 173
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 160,
+    "h": 173
+   },
+   "sourceSize": {
+    "w": 160,
+    "h": 173
+   }
+  },
+  "faixa_081_090": {
+   "frame": {
+    "x": 953,
+    "y": 2,
+    "w": 147,
+    "h": 173
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 147,
+    "h": 173
+   },
+   "sourceSize": {
+    "w": 147,
+    "h": 173
+   }
+  },
+  "faixa_061_070": {
+   "frame": {
+    "x": 1102,
+    "y": 2,
+    "w": 146,
+    "h": 173
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 146,
+    "h": 173
+   },
+   "sourceSize": {
+    "w": 146,
+    "h": 173
+   }
+  },
+  "faixa_071_080": {
+   "frame": {
+    "x": 1250,
+    "y": 2,
+    "w": 152,
+    "h": 172
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 152,
+    "h": 172
+   },
+   "sourceSize": {
+    "w": 152,
+    "h": 172
+   }
+  },
+  "faixa_091_100": {
+   "frame": {
+    "x": 1404,
+    "y": 2,
+    "w": 145,
+    "h": 172
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 145,
+    "h": 172
+   },
+   "sourceSize": {
+    "w": 145,
+    "h": 172
+   }
+  },
+  "aviso_fim": {
+   "frame": {
+    "x": 1551,
+    "y": 2,
+    "w": 315,
+    "h": 151
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 315,
+    "h": 151
+   },
+   "sourceSize": {
+    "w": 315,
+    "h": 151
+   }
+  },
+  "quadro_mural": {
+   "frame": {
+    "x": 2,
+    "y": 188,
+    "w": 218,
+    "h": 110
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 218,
+    "h": 110
+   },
+   "sourceSize": {
+    "w": 218,
+    "h": 110
+   }
+  },
+  "quadro_mapa": {
+   "frame": {
+    "x": 222,
+    "y": 188,
+    "w": 205,
+    "h": 110
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 205,
+    "h": 110
+   },
+   "sourceSize": {
+    "w": 205,
+    "h": 110
+   }
+  },
+  "quadro_registros": {
+   "frame": {
+    "x": 429,
+    "y": 188,
+    "w": 135,
+    "h": 106
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 135,
+    "h": 106
+   },
+   "sourceSize": {
+    "w": 135,
+    "h": 106
+   }
+  },
+  "escrita_olhos": {
+   "frame": {
+    "x": 566,
+    "y": 188,
+    "w": 110,
+    "h": 105
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 110,
+    "h": 105
+   },
+   "sourceSize": {
+    "w": 110,
+    "h": 105
+   }
+  },
+  "sangue_parede": {
+   "frame": {
+    "x": 678,
+    "y": 188,
+    "w": 104,
+    "h": 105
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 104,
+    "h": 105
+   },
+   "sourceSize": {
+    "w": 104,
+    "h": 105
+   }
+  },
+  "escrita_contagem": {
+   "frame": {
+    "x": 784,
+    "y": 188,
+    "w": 98,
+    "h": 105
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 98,
+    "h": 105
+   },
+   "sourceSize": {
+    "w": 98,
+    "h": 105
+   }
+  },
+  "sangue_maos": {
+   "frame": {
+    "x": 884,
+    "y": 188,
+    "w": 93,
+    "h": 105
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 93,
+    "h": 105
+   },
+   "sourceSize": {
+    "w": 93,
+    "h": 105
+   }
+  },
+  "aviso_ouve": {
+   "frame": {
+    "x": 979,
+    "y": 188,
+    "w": 85,
+    "h": 105
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 85,
+    "h": 105
+   },
+   "sourceSize": {
+    "w": 85,
+    "h": 105
+   }
+  },
+  "aviso_saida": {
+   "frame": {
+    "x": 1066,
+    "y": 188,
+    "w": 84,
+    "h": 105
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 105
+   },
+   "sourceSize": {
+    "w": 84,
+    "h": 105
+   }
+  },
+  "desenho_familia": {
+   "frame": {
+    "x": 1152,
+    "y": 188,
+    "w": 93,
+    "h": 104
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 93,
+    "h": 104
+   },
+   "sourceSize": {
+    "w": 93,
+    "h": 104
+   }
+  },
+  "desenho_criancas": {
+   "frame": {
+    "x": 1247,
+    "y": 188,
+    "w": 127,
+    "h": 102
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 127,
+    "h": 102
+   },
+   "sourceSize": {
+    "w": 127,
+    "h": 102
+   }
+  },
+  "desenho_casa": {
+   "frame": {
+    "x": 1376,
+    "y": 188,
+    "w": 93,
+    "h": 102
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 93,
+    "h": 102
+   },
+   "sourceSize": {
+    "w": 93,
+    "h": 102
+   }
+  },
+  "placa_contencao": {
+   "frame": {
+    "x": 1471,
+    "y": 188,
+    "w": 88,
+    "h": 87
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 88,
+    "h": 87
+   },
+   "sourceSize": {
+    "w": 88,
+    "h": 87
+   }
+  },
+  "placa_nivel": {
+   "frame": {
+    "x": 1561,
+    "y": 188,
+    "w": 86,
+    "h": 87
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 86,
+    "h": 87
+   },
+   "sourceSize": {
+    "w": 86,
+    "h": 87
+   }
+  },
+  "placa_perigo": {
+   "frame": {
+    "x": 1649,
+    "y": 188,
+    "w": 87,
+    "h": 86
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 87,
+    "h": 86
+   },
+   "sourceSize": {
+    "w": 87,
+    "h": 86
+   }
+  },
+  "placa_pressao": {
+   "frame": {
+    "x": 1738,
+    "y": 188,
+    "w": 86,
+    "h": 86
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 86,
+    "h": 86
+   },
+   "sourceSize": {
+    "w": 86,
+    "h": 86
+   }
+  },
+  "placa_silencio": {
+   "frame": {
+    "x": 1826,
+    "y": 188,
+    "w": 82,
+    "h": 86
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 82,
+    "h": 86
+   },
+   "sourceSize": {
+    "w": 82,
+    "h": 86
+   }
+  },
+  "placa_sem_luz": {
+   "frame": {
+    "x": 1910,
+    "y": 188,
+    "w": 82,
+    "h": 86
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 82,
+    "h": 86
+   },
+   "sourceSize": {
+    "w": 82,
+    "h": 86
+   }
+  }
+ },
+ "meta": {
+  "app": "gerar-decais.mjs",
+  "image": "decais.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1994,
+   "h": 300
+  },
+  "scale": "1"
+ }
+}

@@ -3671,6 +3671,10 @@ export class FarmScene extends Phaser.Scene {
         continue;
       }
       const props = lerProps(obj);
+      // DECAL: quadro, placa, desenho de crianca ou marca colada na parede. O
+      // objeto continua sendo um documento de exame — o `decal` so acrescenta o
+      // que se ve. Sem o desenho ele seria um texto invisivel no meio do comodo.
+      if (typeof props.decal === 'string') this.desenharDecal(obj, props.decal);
       lista.push({
         id: obj.name || `${classe}_${lista.length}`,
         tipo: classe,
@@ -3682,6 +3686,38 @@ export class FarmScene extends Phaser.Scene {
       });
     }
     return lista;
+  }
+
+  /**
+   * Desenha um DECAL na parede.
+   *
+   * A altura sai de `decais.json`, e a largura da proporcao medida da peca: o
+   * quadro de ordens e largo e baixo, a placa e pequena, o desenho de crianca e
+   * quase quadrado, e escalar todos pela mesma altura os deixaria do mesmo
+   * tamanho — que e o que faz um conjunto de decal parecer adesivo de loja.
+   *
+   * A ancora e o TOPO do tile: decal e coisa de parede, e desenhar pelo rodape
+   * o poria no chao, atras da mobilia.
+   */
+  private desenharDecal(obj: Phaser.Types.Tilemaps.TiledObject, frame: string): void {
+    if (!this.textures.exists('decais') || !this.textures.getFrame('decais', frame)) {
+      console.warn(`[decais] frame "${frame}" nao existe no atlas — ignorado`);
+      return;
+    }
+    const meta = this.cache.json.get('decais-meta') as
+      Record<string, { alturaTiles: number; proporcao: number }> | undefined;
+    const info = meta?.[frame];
+    const alturaTiles = info?.alturaTiles ?? 1.6;
+    const x = (obj.x ?? 0) + (obj.width ?? 0) / 2;
+    const y = (obj.y ?? 0) + (obj.height ?? 0) / 2;
+    const sprite = this.add.image(x, y - this.tamanhoTile * 0.4, 'decais', frame).setOrigin(0.5, 0.5);
+    sprite.setDisplaySize(
+      alturaTiles * this.tamanhoTile * (info?.proporcao ?? 1),
+      alturaTiles * this.tamanhoTile,
+    );
+    // Fica ATRAS do jogador e da mobilia: e parede, e passar na frente dela nao
+    // pode esconder quem esta passando.
+    sprite.setDepth(y - this.tamanhoTile * 2);
   }
 
   /**

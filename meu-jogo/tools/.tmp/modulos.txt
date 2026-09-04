@@ -1,0 +1,70 @@
+
+  // ====================== TRABALHO (andares 51 a 100) ======================
+  // Os seis primeiros sao o vocabulario da Parte 3: bancada numerada, rack,
+  // terminal, ordem de servico, relogio de ponto, fila de impressao. Todos
+  // reusam um `comodo` que ja existe, porque `comodo` e o que escolhe a MOBILIA
+  // — inventar um comodo novo pediria uma tabela de movel nova pra cada um, e o
+  // que muda de verdade aqui e parede, piso, escuridao e nome.
+  {
+    id: 'estacoes', nome: 'Estacoes de manutencao', comodo: 'arquivo',
+    piso: 'granilite', parede: 'represa_limpo', paredeFunda: 'fundo_vidro', escuridaoExtra: 0.01,
+    aceitaFicha: true, luzes: 2,
+  },
+  {
+    id: 'racks', nome: 'Corredor de racks', comodo: 'eletrica',
+    piso: 'granilite', parede: 'represa_tecnico', paredeFunda: 'fundo_painel', escuridaoExtra: 0.03,
+    aceitaPainel: true, luzes: 2,
+  },
+  {
+    id: 'terminais', nome: 'Sala de terminais', comodo: 'eletrica',
+    piso: 'granilite', parede: 'represa_limpo', paredeFunda: 'fundo_painel', escuridaoExtra: -0.02,
+    aceitaPainel: true, aceitaFicha: true, luzes: 2,
+  },
+  {
+    id: 'expedicao', nome: 'Expedicao de ordens', comodo: 'deposito',
+    piso: 'concreto_escuro', parede: 'represa_faixa', paredeFunda: 'fundo_concreto', escuridaoExtra: 0.02,
+    aceitaFicha: true, luzes: 1,
+  },
+  {
+    id: 'ponto', nome: 'Sala do ponto', comodo: 'controle',
+    piso: 'granilite', parede: 'represa_faixa', paredeFunda: 'fundo_vidro', escuridaoExtra: -0.06,
+    aceitaFicha: true, seguro: true, luzes: 2,
+  },
+  {
+    id: 'impressao', nome: 'Sala de impressao', comodo: 'arquivo',
+    piso: 'granilite', parede: 'represa_limpo', paredeFunda: 'fundo_vidro', escuridaoExtra: 0.03,
+    aceitaPainel: true, luzes: 1,
+  },
+  {
+    // Sala dos monitores apagados: um dos encontros especiais da Parte 28. Nao
+    // e zona segura — o que ela tem de diferente e a densidade de tela morta.
+    id: 'monitores', nome: 'Sala dos monitores', comodo: 'eletrica',
+    piso: 'granilite', parede: 'represa_escuro', paredeFunda: 'fundo_vidro', escuridaoExtra: 0.05,
+    luzes: 1,
+  },
+
+  // ====================== INFANCIA (andares 101 a 150) =====================
+  {
+    // Sala em que toda maquina esta desligada e nenhum bicho nasce (Parte 28).
+    // O silencio dela e o efeito: o jogador para de andar sozinho.
+    id: 'sala_vazia', nome: 'Sala vazia', comodo: 'controle',
+    piso: 'granilite', parede: 'represa_limpo', paredeFunda: 'fundo_concreto', escuridaoExtra: -0.04,
+    aceitaFicha: true, seguro: true, luzes: 1,
+  },
+  {
+    // Paredao: comodo com pouca coisa no chao e muita parede a vista. E onde os
+    // decais de desenho cabem sem competir com movel.
+    id: 'paredao', nome: 'Paredao', comodo: 'corredor_manutencao',
+    piso: 'concreto_escuro', parede: 'represa_escuro', paredeFunda: 'fundo_concreto', escuridaoExtra: 0.06,
+    luzes: 1,
+  },
+  {
+    id: 'refeitorio', nome: 'Refeitorio de turno', comodo: 'deposito',
+    piso: 'marmore', parede: 'represa_faixa', paredeFunda: 'fundo_vidro', escuridaoExtra: 0.02,
+    aceitaFicha: true, luzes: 2,
+  },
+  {
+    id: 'poco_seco', nome: 'Poco seco', comodo: 'poco',
+    piso: 'concreto_escuro', parede: 'represa_gasto', paredeFunda: 'fundo_tubos', escuridaoExtra: 0.09,
+    aceitaPainel: true, luzes: 1,
+  },

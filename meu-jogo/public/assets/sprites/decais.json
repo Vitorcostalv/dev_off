@@ -1,0 +1,147 @@
+{
+ "faixa_101_110": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.9239
+ },
+ "faixa_121_130": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.8516
+ },
+ "faixa_141_150": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.8407
+ },
+ "faixa_111_120": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.8297
+ },
+ "faixa_131_140": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.8242
+ },
+ "faixa_051_060": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.9249
+ },
+ "faixa_081_090": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.8497
+ },
+ "faixa_061_070": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.8439
+ },
+ "faixa_071_080": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.8837
+ },
+ "faixa_091_100": {
+  "familia": "faixa",
+  "alturaTiles": 2.2,
+  "proporcao": 0.843
+ },
+ "aviso_fim": {
+  "familia": "aviso",
+  "alturaTiles": 2.4,
+  "proporcao": 2.0861
+ },
+ "quadro_mural": {
+  "familia": "quadro",
+  "alturaTiles": 1.9,
+  "proporcao": 1.9818
+ },
+ "quadro_mapa": {
+  "familia": "quadro",
+  "alturaTiles": 1.9,
+  "proporcao": 1.8636
+ },
+ "quadro_registros": {
+  "familia": "quadro",
+  "alturaTiles": 1.9,
+  "proporcao": 1.2736
+ },
+ "escrita_olhos": {
+  "familia": "escrita",
+  "alturaTiles": 1.8,
+  "proporcao": 1.0476
+ },
+ "sangue_parede": {
+  "familia": "sangue",
+  "alturaTiles": 2,
+  "proporcao": 0.9905
+ },
+ "escrita_contagem": {
+  "familia": "escrita",
+  "alturaTiles": 1.8,
+  "proporcao": 0.9333
+ },
+ "sangue_maos": {
+  "familia": "sangue",
+  "alturaTiles": 2,
+  "proporcao": 0.8857
+ },
+ "aviso_ouve": {
+  "familia": "aviso",
+  "alturaTiles": 1.8,
+  "proporcao": 0.8095
+ },
+ "aviso_saida": {
+  "familia": "aviso",
+  "alturaTiles": 1.8,
+  "proporcao": 0.8
+ },
+ "desenho_familia": {
+  "familia": "desenho",
+  "alturaTiles": 1.8,
+  "proporcao": 0.8942
+ },
+ "desenho_criancas": {
+  "familia": "desenho",
+  "alturaTiles": 2.1,
+  "proporcao": 1.2451
+ },
+ "desenho_casa": {
+  "familia": "desenho",
+  "alturaTiles": 1.8,
+  "proporcao": 0.9118
+ },
+ "placa_contencao": {
+  "familia": "placa",
+  "alturaTiles": 1.3,
+  "proporcao": 1.0115
+ },
+ "placa_nivel": {
+  "familia": "placa",
+  "alturaTiles": 1.3,
+  "proporcao": 0.9885
+ },
+ "placa_perigo": {
+  "familia": "placa",
+  "alturaTiles": 1.3,
+  "proporcao": 1.0116
+ },
+ "placa_pressao": {
+  "familia": "placa",
+  "alturaTiles": 1.3,
+  "proporcao": 1
+ },
+ "placa_silencio": {
+  "familia": "placa",
+  "alturaTiles": 1.3,
+  "proporcao": 0.9535
+ },
+ "placa_sem_luz": {
+  "familia": "placa",
+  "alturaTiles": 1.3,
+  "proporcao": 0.9535
+ }
+}

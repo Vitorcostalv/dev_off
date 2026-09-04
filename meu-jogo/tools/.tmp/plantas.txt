@@ -1,0 +1,79 @@
+  {
+    id: 'baias_6', nome: 'Seis baias com eixo de servico', vaos: 6,
+    entrada: [17, 3], descida: [17, 19], elevador: [17, 11],
+  },
+  {
+    id: 'corredor_longo', nome: 'Corredor comprido com quatro salas', vaos: 4,
+    entrada: [3, 14], descida: [34, 14], elevador: [18, 14],
+  },
+  {
+    id: 'duplo_anel', nome: 'Dois aneis concentricos', vaos: 4,
+    entrada: [3, 3], descida: [16, 12], elevador: [16, 20],
+  },
+  {
+    id: 'escalonado', nome: 'Quatro faixas com portas em degrau', vaos: 4,
+    entrada: [26, 3], descida: [26, 20], elevador: [26, 12],
+  },
+  {
+    id: 'atrio', nome: 'Atrio central com quatro anexos', vaos: 4,
+    entrada: [3, 4], descida: [26, 19], elevador: [14, 11],
+  },
+  {
+    id: 'espinha_7', nome: 'Corredor central com sete salas', vaos: 7,
+    entrada: [3, 14], descida: [36, 14], elevador: [19, 14],
+  },
+  {
+    id: 'pente', nome: 'Galeria com cinco dentes', vaos: 5,
+    entrada: [3, 3], descida: [29, 18], elevador: [16, 3],
+  },
+  {
+    id: 'labirinto_d', nome: 'Labirinto das baias numeradas', vaos: 4, labirinto: true,
+    entrada: [2, 2], descida: [31, 19], elevador: [16, 2],
+    marcos: [
+      { id: 'porta_numerada', tx: 12, ty: 4 },
+      { id: 'cabo_anilha', tx: 20, ty: 17 },
+      { id: 'painel_cego', tx: 28, ty: 4 },
+    ],
+  },
+  {
+    id: 'cruz_6', nome: 'Cruzamento com seis salas iguais', vaos: 6,
+    entrada: [16, 3], descida: [16, 20], elevador: [16, 12],
+  },
+  {
+    id: 'galeria_6', nome: 'Tres galerias com anexos', vaos: 6,
+    entrada: [3, 4], descida: [30, 20], elevador: [11, 13],
+  },
+  {
+    id: 'poco_duplo', nome: 'Poco de tres estagios', vaos: 3,
+    entrada: [10, 4], descida: [10, 21], elevador: [10, 13],
+  },
+  {
+    id: 'anel_partido', nome: 'Anel que nao fecha', vaos: 3,
+    entrada: [3, 3], descida: [26, 18], elevador: [14, 10],
+  },
+  {
+    id: 'corredor_duplo', nome: 'Dois corredores paralelos', vaos: 3,
+    entrada: [3, 3], descida: [28, 19], elevador: [16, 3],
+  },
+  {
+    id: 'sala_espelho', nome: 'Quatro salas em espelho', vaos: 4,
+    entrada: [3, 3], descida: [22, 18], elevador: [14, 11],
+  },
+  {
+    id: 'labirinto_e', nome: 'Espiral', vaos: 3, labirinto: true,
+    entrada: [2, 2], descida: [13, 12], elevador: [24, 21],
+    marcos: [
+      { id: 'tubo_azul', tx: 13, ty: 3 },
+      { id: 'tubo_vermelho', tx: 4, ty: 10 },
+      { id: 'baia_numerada', tx: 20, ty: 13 },
+    ],
+  },
+  {
+    id: 'labirinto_f', nome: 'Malha regular', vaos: 4, labirinto: true,
+    entrada: [2, 2], descida: [28, 21], elevador: [16, 12],
+    marcos: [
+      { id: 'porta_numerada', tx: 10, ty: 9 },
+      { id: 'painel_cego', tx: 26, ty: 15 },
+      { id: 'baia_numerada', tx: 14, ty: 19 },
+    ],
+  },

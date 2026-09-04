@@ -304,6 +304,9 @@ function novoSoParado4x4(id, entrada, gradeFixa = false, limitesGrade) {
       entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
       mapa: mapaQuatroDirecoes, removerPreto: true, limiarPreto: 24, gradeFixa,
       limitesGrade,
+      // a folha de origem nao tem passada; a de caminhada ganha o ciclo
+      // sintetico, a de parado fica como veio
+      passoSintetico: sufixo === 'andando',
     });
   }
 }
@@ -333,6 +336,7 @@ function novoVertical1x4(id, entrada, limitesGrade = { maiorComponente: true }) 
       entrada, saida: `${id}_${sufixo}_runtime.png`, linhasOriginais: 4,
       colunasOriginais: 1, mapa, removerPreto: true, limiarPreto: 48, gradeFixa: true,
       limitesGrade,
+      passoSintetico: sufixo === 'andando',
     });
   }
 }
@@ -392,6 +396,19 @@ novoComFolhas4x4('suzan', 'Suzan_andando.png', 'Suzan_parada.png', false, true);
 novoSoParado4x4('tulio', 'Tulio_parado.png', true);
 novoSoParado4x4('rita', 'Vó_rita_parada.png');
 
+/**
+ * Quem anda com PASSADA SINTETICA — a folha de arte so tem pose parada.
+ *
+ * A lista e escrita, e nao deduzida, pelo mesmo motivo da lista de passada real
+ * logo abaixo: o arquivo gerado nao conta de onde veio. Ela vai pro JSON de
+ * runtime pra a conferencia de animacao saber diferenciar "anda de mentira"
+ * (aceitavel, a arte nao existe) de "nao anda" (defeito).
+ */
+const PASSADA_SINTETICA = [
+  'arthur', 'bruno', 'cecilia', 'davi', 'helena', 'livia', 'lucia', 'manuela',
+  'matheus', 'priscila', 'rafael', 'rita', 'ravi', 'tulio',
+];
+
 // ------------------------------------------------- quem tem passada real --
 /**
  * NPCs cuja folha de ARTE traz um ciclo de caminhada de verdade (pernas em
@@ -416,6 +433,9 @@ const CAMINHADA_REAL = [
 
 writeFileSync(
   join(DIR, 'npc-caminhada.json'),
-  `${JSON.stringify({ caminhada: CAMINHADA_REAL }, null, 2)}\n`,
+  `${JSON.stringify({ caminhada: CAMINHADA_REAL, sintetica: PASSADA_SINTETICA }, null, 2)}\n`,
 );
-console.log(`[npc] npc-caminhada.json: ${CAMINHADA_REAL.length} NPC(s) com passada real`);
+console.log(
+  `[npc] npc-caminhada.json: ${CAMINHADA_REAL.length} com passada real, `
+  + `${PASSADA_SINTETICA.length} com passada sintetica`,
+);

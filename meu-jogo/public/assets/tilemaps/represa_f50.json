@@ -617,7 +617,7 @@
     219,
     219,
     219,
-    219,
+    241,
     219,
     219,
     219,
@@ -1487,11 +1487,50 @@
      ]
     },
     {
+     "class": "porta",
+     "type": "porta",
+     "height": 32,
+     "width": 32,
+     "id": 6296,
+     "name": "desce",
+     "rotation": 0,
+     "visible": true,
+     "x": 832,
+     "y": 576,
+     "properties": [
+      {
+       "name": "destino",
+       "type": "string",
+       "value": "represa_f51"
+      },
+      {
+       "name": "destinoTx",
+       "type": "int",
+       "value": 17
+      },
+      {
+       "name": "destinoTy",
+       "type": "int",
+       "value": 3
+      },
+      {
+       "name": "rotulo",
+       "type": "string",
+       "value": "Descer"
+      },
+      {
+       "name": "trancada",
+       "type": "string",
+       "value": "represaEnigma50"
+      }
+     ]
+    },
+    {
      "class": "elevador",
      "type": "elevador",
      "height": 32,
      "width": 32,
-     "id": 6296,
+     "id": 6297,
      "name": "elevador",
      "rotation": 0,
      "visible": true,
@@ -1530,7 +1569,7 @@
      "type": "painel",
      "height": 32,
      "width": 32,
-     "id": 6297,
+     "id": 6298,
      "name": "painel_enigma_50",
      "rotation": 0,
      "visible": true,
@@ -1549,7 +1588,7 @@
      "type": "placa",
      "height": 32,
      "width": 32,
-     "id": 6298,
+     "id": 6299,
      "name": "doc_ficha_050",
      "rotation": 0,
      "visible": true,
@@ -1578,7 +1617,7 @@
      "type": "placa",
      "height": 32,
      "width": 32,
-     "id": 6299,
+     "id": 6300,
      "name": "doc_pista_50",
      "rotation": 0,
      "visible": true,
@@ -2584,7 +2623,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6300,
+     "id": 6301,
      "name": "sucata_caixa_50_0",
      "rotation": 0,
      "visible": true,
@@ -2603,7 +2642,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6301,
+     "id": 6302,
      "name": "sucata_caixa_50_1",
      "rotation": 0,
      "visible": true,
@@ -2622,7 +2661,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6302,
+     "id": 6303,
      "name": "sucata_caixa_50_2",
      "rotation": 0,
      "visible": true,
@@ -2641,7 +2680,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6303,
+     "id": 6304,
      "name": "sucata_caixa_50_3",
      "rotation": 0,
      "visible": true,
@@ -2660,7 +2699,7 @@
      "type": "sucata",
      "height": 32,
      "width": 32,
-     "id": 6304,
+     "id": 6305,
      "name": "sucata_caixa_50_4",
      "rotation": 0,
      "visible": true,
@@ -2671,30 +2710,6 @@
        "name": "tabela",
        "type": "string",
        "value": "nivel_4"
-      }
-     ]
-    },
-    {
-     "class": "sucata",
-     "type": "sucata",
-     "height": 32,
-     "width": 32,
-     "id": 6305,
-     "name": "sucata_premio_50",
-     "rotation": 0,
-     "visible": true,
-     "x": 928,
-     "y": 384,
-     "properties": [
-      {
-       "name": "tabela",
-       "type": "string",
-       "value": "nivel_4_premio"
-      },
-      {
-       "name": "requer",
-       "type": "string",
-       "value": "represaEnigma50"
       }
      ]
     }

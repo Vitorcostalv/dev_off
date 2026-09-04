@@ -26,7 +26,7 @@
  * sem que nenhum deles seja decorativo.
  */
 
-import { ANDARES, buscarAndar, capituloDoAndar, idDaFicha } from './andares.ts';
+import { ANDARES, ANDARES_TOTAIS, buscarAndar, capituloDoAndar, idDaFicha } from './andares.ts';
 import type { PainelRepresa, PassoPainel } from './represa.ts';
 
 // ------------------------------------------------------------------ hash --
@@ -117,7 +117,11 @@ export function grauDoEnigma(andar: number): 'simples' | 'intermediario' | 'prof
   const cap = capituloDoAndar(andar).numero;
   const escada: ('simples' | 'intermediario' | 'profundo')[] = ['simples', 'intermediario', 'profundo'];
   const base = escada.indexOf(familia.grau);
-  const degrau = cap >= 4 ? 1 : 0;
+  // A curva da Parte 17, em degrau de capitulo em vez de tabela de 150 graus:
+  // do capitulo 4 em diante a familia sobe um degrau, e do 8 (andar 71) em
+  // diante sobe dois. E o que faz a mesma familia de alavancas pedir tres
+  // passos no andar 6, quatro no 48 e cinco no 138.
+  const degrau = cap >= 8 ? 2 : cap >= 4 ? 1 : 0;
   return escada[Math.min(2, base + degrau)];
 }
 
@@ -176,7 +180,7 @@ export const idDaPista = (andar: number): string => `pista_${String(andar).padSt
  * abaixo dele nao ha nada nesta fase.
  */
 export function travaDescida(andar: number): boolean {
-  return andar % 5 === 0 && andar < 50;
+  return andar % 5 === 0 && andar < ANDARES_TOTAIS;
 }
 
 /** Quantas tentativas base o grau da. */

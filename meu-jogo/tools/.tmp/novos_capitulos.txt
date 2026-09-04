@@ -1,0 +1,166 @@
+  // ======================================================================
+  // TRABALHO — andares 51 a 100.
+  //
+  // A usina continua uma usina: nao ha predio de escritorio aqui, e nao pode
+  // haver. O que entra e VOCABULARIO — bancada de manutencao arrumada como
+  // estacao de trabalho, monitor velho, rack, cabo em calha, quadro de prazo,
+  // ordem de servico repetida, relogio de ponto. Um lugar industrial arrumado
+  // com a logica psicologica de um escritorio, sem virar um.
+  // ======================================================================
+  {
+    numero: 6,
+    nome: 'Produtividade',
+    faixa: [51, 60],
+    ambiente:
+      'A manutencao aqui embaixo era organizada. Bancada numerada, ordem de servico em '
+      + 'pasta, quadro de turno preenchido a mao ate o fim. Tudo funciona e tudo esta um '
+      + 'pouco arrumado demais.',
+    tema: 'trabalhar mais, dar conta, aceitar tarefa extra, ser elogiado por estar sempre disponivel',
+    fauna: { primaria: 'smartfone', secundaria: 'impressora', rara: 'caixa_som' },
+    fatorDeTensao: 3.2,
+    kit: 'trabalho',
+    luzes: 0.42,
+  },
+  {
+    numero: 7,
+    nome: 'Prazos',
+    faixa: [61, 70],
+    ambiente:
+      'Mais alarme, mais quadro, mais chamado repetido. A mesma ordem de servico aparece '
+      + 'em tres pranchetas com tres datas, e nenhuma das tres esta assinada.',
+    tema: 'prazo constante, chamado que nao fecha, sono interrompido, trabalho invadindo o resto',
+    fauna: { primaria: 'impressora', secundaria: 'smartfone', rara: 'robo_servico' },
+    fatorDeTensao: 3.5,
+    kit: 'trabalho',
+    luzes: 0.38,
+  },
+  {
+    numero: 8,
+    nome: 'Falha',
+    faixa: [71, 80],
+    ambiente:
+      'Equipamento parado no meio do conserto, tampa aberta, peca no chao ao lado. Nenhum '
+      + 'reparo aqui foi terminado, e todos foram comecados.',
+    tema: 'medo de errar, falha tecnica, culpa, autocritica, achar que todo problema e seu',
+    fauna: { primaria: 'robo_servico', secundaria: 'impressora', rara: 'maquina_lavar' },
+    fatorDeTensao: 3.8,
+    kit: 'trabalho',
+    luzes: 0.33,
+  },
+  {
+    numero: 9,
+    nome: 'Sempre Ligado',
+    faixa: [81, 90],
+    ambiente:
+      'Tela acesa em corredor sem ninguem. Calha de cabo cruzando comodo que nao tem '
+      + 'equipamento. Luz de notificacao piscando em painel desligado da rede.',
+    tema: 'nao conseguir desligar, mensagem de madrugada, telefone de trabalho, folga que nao descansa',
+    fauna: { primaria: 'caixa_som', secundaria: 'smartfone', rara: 'robo_servico' },
+    fatorDeTensao: 4.1,
+    kit: 'trabalho',
+    luzes: 0.28,
+  },
+  {
+    numero: 10,
+    nome: 'Colapso',
+    faixa: [91, 100],
+    ambiente:
+      'O trecho mais pesado do capitulo do trabalho. O piso alaga, o ar fica parado e as '
+      + 'bancadas viram entulho. O andar 100 e a ultima sala em que alguem ainda escreveu.',
+    tema: 'exaustao grave, perda de concentracao, panico, recomendacao medica de parar',
+    fauna: { primaria: 'maquina_lavar', secundaria: 'robo_servico', rara: 'geladeira_gelo' },
+    fatorDeTensao: 4.4,
+    kit: 'trabalho',
+    luzes: 0.22,
+  },
+
+  // ======================================================================
+  // INFANCIA — andares 101 a 150.
+  //
+  // A usina AINDA existe: concreto, tubo, painel, comporta. O que muda e que
+  // comeca a haver nela coisa que nao tem como estar ali — risco de giz,
+  // desenho de casa com sol, marca de altura na parede, letra de caderno. No
+  // comeco e raro de proposito: o efeito depende da raridade, e parede coberta
+  // de desenho vira cenario de parque tematico.
+  // ======================================================================
+  {
+    numero: 11,
+    nome: 'Memoria',
+    faixa: [101, 110],
+    ambiente:
+      'Parede de usina, quase toda normal. De vez em quando um risco baixo, na altura de '
+      + 'quem tem sete anos, que ninguem explicou e ninguem apagou.',
+    tema: 'lembranca solta, numero escolar, desenho esquecido, coisa fora de lugar',
+    fauna: { primaria: 'esfera_choque', secundaria: 'smartfone', rara: 'impressora' },
+    fatorDeTensao: 4.6,
+    kit: 'infancia',
+    luzes: 0.2,
+    decais: [{ familia: 'desenho', quantidade: 1 }],
+  },
+  {
+    numero: 12,
+    nome: 'Expectativa',
+    faixa: [111, 120],
+    ambiente:
+      'Mais marca de infancia, e todas de registro: altura anotada, nota copiada, estrela '
+      + 'de papel colada em concreto. Alguem media alguma coisa aqui o tempo todo.',
+    tema: 'querer aprovacao, medo de decepcionar, nota, elogio por ser inteligente',
+    fauna: { primaria: 'impressora', secundaria: 'esfera_choque', rara: 'caixa_som' },
+    fatorDeTensao: 4.8,
+    kit: 'infancia',
+    luzes: 0.17,
+    decais: [{ familia: 'desenho', quantidade: 2 }, { familia: 'escrita', quantidade: 1 }],
+  },
+  {
+    numero: 13,
+    nome: 'Perfeicao',
+    faixa: [121, 130],
+    ambiente:
+      'A composicao dos comodos fica desconfortavel: sala repetida com uma diferenca so, '
+      + 'corredor que corrige a si mesmo, desenho refeito por cima do anterior.',
+    tema: 'erro tratado como fracasso, ter de fazer certo, comparacao, desempenho virando identidade',
+    fauna: { primaria: 'caixa_som', secundaria: 'impressora', rara: 'robo_servico' },
+    fatorDeTensao: 5,
+    kit: 'infancia',
+    luzes: 0.14,
+    decais: [{ familia: 'desenho', quantidade: 2 }, { familia: 'escrita', quantidade: 2 }],
+  },
+  {
+    numero: 14,
+    nome: 'Medo',
+    faixa: [131, 140],
+    ambiente:
+      'Parede arrebentada, desenho com o rosto riscado, frase repetida ate o fim da linha. '
+      + 'Sangue aparece aqui, e aparece pouco — em comodo escolhido, nunca espalhado.',
+    tema: 'esconder erro, medo de ser visto falhando, frase repetida, o que nao se conta em casa',
+    fauna: { primaria: 'robo_servico', secundaria: 'maquina_lavar', rara: 'geladeira_gelo' },
+    fatorDeTensao: 5.2,
+    kit: 'infancia',
+    luzes: 0.11,
+    decais: [
+      { familia: 'desenho', quantidade: 2 },
+      { familia: 'escrita', quantidade: 2 },
+      { familia: 'aviso', quantidade: 1 },
+      { familia: 'sangue', quantidade: 1 },
+    ],
+  },
+  {
+    numero: 15,
+    nome: 'Origem',
+    faixa: [141, 150],
+    ambiente:
+      'O trecho mais fundo que existe nesta fase. A usina e a infancia dividem o mesmo '
+      + 'concreto sem que nenhuma das duas ceda, e o andar 150 termina com uma porta que '
+      + 'nao abre.',
+    tema: 'o padrao de antes do emprego, o que ja estava ali, e a pergunta que fica',
+    fauna: { primaria: 'maquina_lavar', secundaria: 'geladeira_gelo', rara: 'esfera_choque' },
+    fatorDeTensao: 5.4,
+    kit: 'infancia',
+    luzes: 0.08,
+    decais: [
+      { familia: 'desenho', quantidade: 3 },
+      { familia: 'escrita', quantidade: 2 },
+      { familia: 'aviso', quantidade: 2 },
+      { familia: 'sangue', quantidade: 2 },
+    ],
+  },

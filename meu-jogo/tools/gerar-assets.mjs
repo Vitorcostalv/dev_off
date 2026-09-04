@@ -6808,15 +6808,18 @@ function gerarSetorRepresa(nome, ts) {
     // Os cinco autorais levam prefixo `represa_` no id do texto (foi assim que
     // eles nasceram); os documentos dos andares compostos ja vem com id proprio
     // (`ficha_017`, `pista_23`, `tubo_azul_08`) e nao levam prefixo nenhum.
-    const chave = aviso.ficha || aviso.marco || /^(ficha|pista|lote)_/.test(aviso.id)
-      ? aviso.id
-      : `represa_${aviso.id}`;
+    const proprio = aviso.ficha || aviso.marco || aviso.decal
+      || /^(ficha|pista|lote|work_record|childhood_record|decal|faixa)_/.test(aviso.id);
+    const chave = proprio ? aviso.id : `represa_${aviso.id}`;
     interativos.push(objeto(`doc_${aviso.id}`, 'placa', aviso.tx, aviso.ty, {
       aviso: chave,
       // FICHA MEDICA: o `andar` marca o documento como uma das cinquenta fichas,
       // e e por ele que a cena sabe arquivar em vez de so mostrar o texto.
       ...(aviso.ficha ? { ficha: aviso.ficha } : {}),
       ...(aviso.requer ? { requer: aviso.requer } : {}),
+      // DECAL: o frame do atlas `decais` que a cena desenha na parede. Sem ele
+      // o objeto continua sendo um documento de exame, so que invisivel.
+      ...(aviso.decal ? { decal: aviso.decal } : {}),
     }));
   }
 

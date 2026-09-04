@@ -15,6 +15,7 @@ import {
   flagDeCheckpoint,
   idDaFicha,
   mapaDoAndar,
+  secaoDoAndar,
 } from '../src/game/andares.ts';
 import {
   ENIGMAS,
@@ -26,6 +27,8 @@ import {
   travaDescida,
 } from '../src/game/enigmas.ts';
 import { FICHAS, SistemaArquivo, linhasDaFicha } from '../src/game/fichas.ts';
+import { DOCUMENTOS, FORMATOS, linhasDoDocumento } from '../src/game/documentos.ts';
+import { PECAS_POR_FAMILIA, decaisDoAndar, faixaDoAndar, textoDoDecal } from '../src/game/decais.ts';
 import { ITENS_DE_LEITURA } from '../src/game/avisos.ts';
 import { CATALOGO_INIMIGOS } from '../src/game/inimigos.ts';
 import { TIPOS_DE_LAMPADA, linhaLivreDeLuz, mapaDeLuzEstatico } from '../src/game/luzes.ts';
@@ -170,7 +173,14 @@ for (let i = 1; i < ANDARES.length; i++) {
     `a escuridao nao cresce do andar ${i} pro ${i + 1}`,
   );
 }
-ok(ANDARES[ANDARES.length - 1].escuridao <= 0.9, 'o ultimo andar ficou escuro demais pra ser jogavel');
+// TETO DE ESCURIDAO. Era 0,9 quando a usina tinha cinquenta andares; virou 0,93
+// com cento e cinquenta, que e o valor que o plano da leva pede pro trecho 141 a
+// 150. O numero nao e livre: acima disso a lanterna deixa de descolar o
+// personagem do fundo, e o andar para de ser dificil e passa a ser ilegivel.
+ok(
+  ANDARES[ANDARES.length - 1].escuridao <= 0.93,
+  'o ultimo andar ficou escuro demais pra ser jogavel',
+);
 
 // capitulos: dez andares cada, sem vao e sem sobreposicao
 {
@@ -212,8 +222,20 @@ for (const a of ANDARES) {
     ok(Number(props(cabines[0]).andar) === a.andar, `${a.codigo}: a cabine declara outro andar`);
   }
 }
-ok(ANDARES_DE_PARADA.length === 11, `esperava 11 paradas, tem ${ANDARES_DE_PARADA.length}`);
-ok(ANDARES_DE_PARADA[0] === 1 && ANDARES_DE_PARADA.at(-1) === 50, 'a primeira e a ultima parada mudaram');
+// PARADAS: o andar 1 mais uma a cada cinco, ate o fundo. Com 150 andares sao
+// 31 — e as onze antigas (1, 5, 10 ... 50) continuam exatamente onde estavam,
+// com o mesmo nome de flag, que e o que faz o save de quem ja desceu valer.
+ok(
+  ANDARES_DE_PARADA.length === 1 + ANDARES_TOTAIS / 5,
+  `esperava ${1 + ANDARES_TOTAIS / 5} paradas, tem ${ANDARES_DE_PARADA.length}`,
+);
+ok(
+  ANDARES_DE_PARADA[0] === 1 && ANDARES_DE_PARADA.at(-1) === ANDARES_TOTAIS,
+  'a primeira e a ultima parada mudaram',
+);
+for (const antiga of [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]) {
+  ok(ANDARES_DE_PARADA.includes(antiga), `a parada antiga do andar ${antiga} sumiu`);
+}
 for (const n of ANDARES_DE_PARADA) {
   ok(flagDeCheckpoint(n).startsWith('represaParada'), `flag de parada estranha no andar ${n}`);
 }
@@ -228,16 +250,20 @@ ok(
   for (const id of usados) {
     ok(MODULOS_DE_ANDAR.some((m) => m.id === id), `modulo "${id}" nao existe`);
   }
-  ok(usados.size >= 10, `so ${usados.size} modulo(s) em uso nos cinquenta andares — pouca variedade`);
+  ok(usados.size >= 20, `so ${usados.size} modulo(s) em uso nos 150 andares — pouca variedade`);
 }
 
 // ========================================================== 2. prontuario ==
-ok(FICHAS.length === ANDARES_TOTAIS, `esperava ${ANDARES_TOTAIS} fichas, tem ${FICHAS.length}`);
+// O PRONTUARIO continua com cinquenta folhas — ele fecha no andar 50 e nao
+// cresce. Os cem andares novos tem documento de outra natureza, conferido na
+// secao 2b logo abaixo.
+ok(FICHAS.length === 50, `esperava 50 fichas de prontuario, tem ${FICHAS.length}`);
 {
   const cobertos = new Set();
   for (const f of FICHAS) {
     ok(f.id === idDaFicha(f.andar), `ficha do andar ${f.andar} com id fora do padrao`);
     const dias = diasDaFicha(f.andar);
+    ok(dias !== null, `ficha ${f.id}: o andar dela nao tem intervalo de dias`);
     ok(f.dias.de === dias.de && f.dias.ate === dias.ate, `ficha ${f.id}: intervalo divergente`);
     ok(f.dias.ate - f.dias.de === 3, `ficha ${f.id} nao cobre quatro dias`);
     for (let d = f.dias.de; d <= f.dias.ate; d++) {
@@ -287,25 +313,142 @@ for (const a of ANDARES) {
   const arquivo = new SistemaArquivo();
   ok(arquivo.quantas === 0, 'arquivo novo devia estar vazio');
   ok(arquivo.coletar(7) && !arquivo.coletar(7), 'coletar duas vezes a mesma ficha deveria falhar na segunda');
-  ok(!arquivo.coletar(99), 'aceitou uma ficha que nao existe');
+  ok(!arquivo.coletar(999), 'aceitou um documento de andar que nao existe');
+  ok(arquivo.coletar(99), 'o arquivo devia aceitar documento das secoes novas');
+  ok(arquivo.coletar(140), 'o arquivo devia aceitar documento de infancia');
   ok(arquivo.tem(7) && !arquivo.tem(8), 'o arquivo perdeu a ficha recolhida');
   const outro = new SistemaArquivo();
   outro.restaurar(arquivo.serializar());
-  ok(outro.tem(7) && outro.quantas === 1, 'o arquivo nao sobreviveu ao save');
-  for (const bruto of [undefined, null, 'lixo', [999], [{}], [1.5]]) {
+  ok(outro.tem(7) && outro.tem(99) && outro.tem(140), 'o arquivo nao sobreviveu ao save');
+  ok(outro.quantas === 3, 'o arquivo perdeu ou inventou folha no save');
+  for (const bruto of [undefined, null, 'lixo', [999], [{}], [1.5], [151], [0]]) {
     const v = new SistemaArquivo();
     v.restaurar(bruto);
     ok(v.quantas === 0, `save ${JSON.stringify(bruto)} devia dar arquivo vazio`);
   }
-  ok(arquivo.indice().length === 50, 'o indice do arquivo devia ter as cinquenta linhas');
-  ok(
-    arquivo.indice().filter((l) => !l.tem).every((l) => l.titulo.includes('?????')),
-    'ficha nao recolhida devia aparecer mascarada',
+  // O INDICE E POR SECAO: cinquenta linhas em cada uma das tres.
+  for (const secao of ['prontuario', 'trabalho', 'infancia']) {
+    const linhas = arquivo.indice(secao);
+    ok(linhas.length === 50, `a secao "${secao}" devia ter cinquenta linhas, tem ${linhas.length}`);
+    ok(
+      linhas.filter((l) => !l.tem).every((l) => l.titulo.includes('?????')),
+      `folha nao recolhida da secao "${secao}" devia aparecer mascarada`,
+    );
+  }
+  ok(arquivo.quantasNaSecao('prontuario') === 1, 'contagem por secao errada no prontuario');
+  ok(arquivo.quantasNaSecao('trabalho') === 1, 'contagem por secao errada no trabalho');
+  ok(arquivo.quantasNaSecao('infancia') === 1, 'contagem por secao errada na infancia');
+}
+
+// ==================================================== 2b. os cem documentos ==
+/**
+ * As duas secoes novas do arquivo: cinquenta folhas de TRABALHO (51-100) e
+ * cinquenta de INFANCIA (101-150). O que se cobra aqui e o que quebraria em
+ * silencio: id repetido, id que nao bate com o andar, documento de andar que
+ * nao existe, campo vazio e formato inventado.
+ */
+{
+  ok(DOCUMENTOS.length === 100, `esperava 100 documentos novos, tem ${DOCUMENTOS.length}`);
+  const ids = new Set();
+  const andares = new Set();
+  for (const d of DOCUMENTOS) {
+    ok(!ids.has(d.id), `id de documento repetido: ${d.id}`);
+    ids.add(d.id);
+    ok(!andares.has(d.andar), `dois documentos no andar ${d.andar}`);
+    andares.add(d.andar);
+    ok(d.andar >= 51 && d.andar <= 150, `documento fora da faixa: andar ${d.andar}`);
+    ok(d.id === idDaFicha(d.andar), `${d.id}: id nao bate com o padrao do andar ${d.andar}`);
+    ok(d.secao === secaoDoAndar(d.andar).id, `${d.id}: secao divergente`);
+    ok(FORMATOS.some((f) => f.id === d.formato.id), `${d.id}: formato "${d.formato.id}" nao existe`);
+    ok(d.titulo.length > 3, `${d.id}: titulo curto demais`);
+    // O 4o campo pode ser vazio DE PROPOSITO: folha de diario de crianca
+    // termina no meio, e a linha em branco e o efeito. O que nao pode e o
+    // documento sair com menos de tres linhas de conteudo.
+    ok(d.corpo.every((c) => typeof c === 'string'), `${d.id}: campo de corpo nao e texto`);
+    ok(d.corpo[0].length > 0, `${d.id}: o primeiro campo do corpo esta vazio`);
+    ok(
+      d.corpo.filter((c) => c.length > 0).length >= 3,
+      `${d.id}: so ${d.corpo.filter((c) => c.length > 0).length} campo(s) com texto`,
+    );
+    const linhas = linhasDoDocumento(d);
+    ok(linhas.length >= 4, `${d.id}: o documento saiu com ${linhas.length} linha(s)`);
+    ok(linhas[1] === `Andar ${d.andar}`, `${d.id}: o cabecalho nao diz o andar certo`);
+  }
+  // NENHUM documento de andar 151 ou mais nesta fase.
+  for (let a = 151; a <= 200; a++) {
+    ok(!andares.has(a), `existe documento pro andar ${a}, que nao esta implementado`);
+  }
+  // Os cinquenta e cinquenta, por secao.
+  for (const [secao, de, ate] of [['trabalho', 51, 100], ['infancia', 101, 150]]) {
+    const n = DOCUMENTOS.filter((d) => d.secao === secao).length;
+    ok(n === 50, `a secao "${secao}" tem ${n} documento(s), esperava 50`);
+    for (let a = de; a <= ate; a++) {
+      ok(andares.has(a), `falta o documento do andar ${a}`);
+    }
+  }
+  // O total do arquivo inteiro: 50 fichas + 100 documentos.
+  ok(FICHAS.length + DOCUMENTOS.length === 150, 'o arquivo inteiro devia ter 150 folhas');
+  // Variedade de formato: uma secao inteira no mesmo formulario nao le.
+  for (const secao of ['trabalho', 'infancia']) {
+    const formatos = new Set(DOCUMENTOS.filter((d) => d.secao === secao).map((d) => d.formato.id));
+    ok(formatos.size >= 8, `a secao "${secao}" usa so ${formatos.size} formato(s) de documento`);
+  }
+}
+
+// ======================================================== 2c. os decais ==
+/**
+ * DECAIS: a marca colada na parede dos andares 51 a 150. O que se cobra e a
+ * RARIDADE (a Parte 5 depende dela), a existencia da peca no atlas e o texto de
+ * exame — um decal sem texto e um desenho que nao da pra examinar.
+ */
+{
+  const atlas = JSON.parse(
+    readFileSync(join(raiz, 'public/assets/sprites/decais.atlas.json'), 'utf8'),
   );
+  const noAtlas = new Set(Object.keys(atlas.frames));
+  for (const [familia, pecas] of Object.entries(PECAS_POR_FAMILIA)) {
+    for (const peca of pecas) {
+      ok(noAtlas.has(peca), `a peca "${peca}" (familia ${familia}) nao esta no atlas de decais`);
+      ok(textoDoDecal(peca).length >= 1, `a peca "${peca}" nao tem texto de exame`);
+    }
+  }
+  // Sangue so do capitulo 14 em diante, e pouco (Parte 7).
+  let comSangue = 0;
+  for (let a = 1; a <= ANDARES_TOTAIS; a++) {
+    const sangue = decaisDoAndar(a).filter((d) => d.familia === 'sangue');
+    if (sangue.length > 0) {
+      comSangue++;
+      ok(a >= 131, `o andar ${a} tem sangue e o primeiro capitulo com sangue e o 14 (andar 131)`);
+      ok(sangue.length <= 2, `o andar ${a} tem ${sangue.length} marcas de sangue — demais`);
+    }
+  }
+  ok(comSangue <= 20, `${comSangue} andares com sangue: a raridade se perdeu`);
+  // Desenho de crianca so na infancia, e nunca antes do andar 101.
+  for (let a = 1; a <= 100; a++) {
+    ok(
+      decaisDoAndar(a).every((d) => d.familia !== 'desenho'),
+      `o andar ${a} tem desenho de crianca antes do capitulo da infancia`,
+    );
+  }
+  // Toda placa de faixa existe e cobre o andar certo.
+  for (let a = 51; a <= ANDARES_TOTAIS; a++) {
+    const f = faixaDoAndar(a);
+    ok(typeof f === 'string' && noAtlas.has(f), `o andar ${a} nao tem placa de faixa no atlas`);
+    const m = /^faixa_(\d{3})_(\d{3})$/.exec(f);
+    ok(m && a >= Number(m[1]) && a <= Number(m[2]), `a placa do andar ${a} declara outra faixa`);
+  }
+  for (let a = 1; a <= 50; a++) {
+    ok(faixaDoAndar(a) === null, `o andar ${a} nao devia ter placa de faixa`);
+  }
 }
 
 // ============================================================ 3. enigmas ==
-ok(ENIGMAS.length === 45, `esperava 45 enigmas gerados, tem ${ENIGMAS.length}`);
+// Um enigma por andar composto: 145 (os cinco autorais tem os sete paineis a
+// mao, declarados em PAINEIS_REPRESA).
+ok(
+  ENIGMAS.length === ANDARES_TOTAIS - 5,
+  `esperava ${ANDARES_TOTAIS - 5} enigmas gerados, tem ${ENIGMAS.length}`,
+);
 {
   const familias = new Set(ENIGMAS.map((e) => e.familia));
   ok(familias.size === FAMILIAS.length, `so ${familias.size} das ${FAMILIAS.length} familias em uso`);
@@ -321,6 +464,27 @@ ok(ENIGMAS.length === 45, `esperava 45 enigmas gerados, tem ${ENIGMAS.length}`);
   ok(!grau(6, 10).includes('profundo'), 'ha enigma profundo no capitulo 1');
   ok(!grau(41, 50).includes('simples'), 'ha enigma simples no capitulo 5');
   ok(grau(41, 50).filter((g) => g === 'profundo').length >= 4, 'o capitulo 5 tem poucos enigmas profundos');
+  // A CURVA DA PARTE 17, nas faixas novas.
+  ok(!grau(51, 75).includes('simples'), 'ha enigma simples entre os andares 51 e 75');
+  ok(
+    grau(76, 100).filter((g) => g === 'profundo').length >= 8,
+    'a faixa 76-100 devia misturar intermediario e profundo',
+  );
+  ok(
+    grau(126, 150).every((g) => g === 'profundo'),
+    'a faixa 126-150 devia ser toda de enigma profundo',
+  );
+  // Nenhum trecho de dez andares repete a mesma familia mais de quatro vezes:
+  // dez terminais seguidos e um so enigma dado dez vezes.
+  for (let de = 51; de <= 141; de += 10) {
+    const contagem = {};
+    for (const e of ENIGMAS.filter((x) => x.andar >= de && x.andar <= de + 9)) {
+      contagem[e.familia] = (contagem[e.familia] ?? 0) + 1;
+    }
+    for (const [familia, n] of Object.entries(contagem)) {
+      ok(n <= 4, `a familia "${familia}" aparece ${n} vezes nos andares ${de}-${de + 9}`);
+    }
+  }
 }
 
 /**

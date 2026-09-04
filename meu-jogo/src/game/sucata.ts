@@ -171,6 +171,56 @@ export interface TabelaDeSucata {
  * garantida — todo o resto e sorte, e por isso nada critico de historia sai de
  * sorteio (ver o comentario de `sortear`).
  */
+/**
+ * AS TABELAS DOS ANDARES 51 A 150 — `nivel_5` a `nivel_14`, com premio cada.
+ *
+ * As cinco de cima sao escritas a mao porque cada uma muda de COMPOSICAO: o
+ * nivel 0 e ferro-velho, o 2 ja mistura eletronica, o 4 abre a peca rara. Da
+ * pra escrever cinco tabelas assim e conferir uma por uma.
+ *
+ * Da sexta em diante a composicao PARA de mudar: com quinze salvados no
+ * catalogo, o topo da lista ja esta todo em jogo no nivel 4, e o que ainda pode
+ * variar e so o PESO do que e raro e a quantidade de pecas. Dez tabelas
+ * escritas a mao seriam dez copias das mesmas seis linhas com numeros
+ * derivando — que e exatamente onde um digito trocado passa despercebido.
+ * Entao elas saem de uma rampa, e a rampa esta aqui, a vista.
+ *
+ * A conferencia de economia cobra o que importa de qualquer jeito: o valor
+ * esperado tem de subir de tabela pra tabela, do nivel 0 ao 14.
+ */
+function tabelasProfundas(): TabelaDeSucata[] {
+  const saida: TabelaDeSucata[] = [];
+  for (let n = 5; n <= 14; n++) {
+    const t = (n - 5) / 9; // 0 no nivel 5, 1 no nivel 14
+    const pesos = {
+      placa_de_circuito: Math.round(18 - 10 * t),
+      sensor_industrial: Math.round(16 - 8 * t),
+      fonte_chaveada: Math.round(16 - 8 * t),
+      motor_pequeno: Math.round(14 - 7 * t),
+      processador_antigo: Math.round(14 + 4 * t),
+      modulo_de_controle: Math.round(12 + 10 * t),
+      placa_especializada: Math.round(10 + 12 * t),
+      componente_incomum: Math.round(2 + 10 * t),
+    };
+    const pecas = 3 + Math.floor(t * 2); // 3 no nivel 5, 5 no nivel 14
+    saida.push({ id: `nivel_${n}`, pecasMin: pecas, pecasMax: pecas + 1, pesos });
+    // O PREMIO da faixa: mesma composicao, com o raro pesando o dobro. E a
+    // recompensa dos enigmas que nao travam descida.
+    saida.push({
+      id: `nivel_${n}_premio`,
+      pecasMin: pecas,
+      pecasMax: pecas + 1,
+      pesos: {
+        ...pesos,
+        modulo_de_controle: pesos.modulo_de_controle * 2,
+        placa_especializada: pesos.placa_especializada * 2,
+        componente_incomum: pesos.componente_incomum * 2,
+      },
+    });
+  }
+  return saida;
+}
+
 export const TABELAS_DE_SUCATA: readonly TabelaDeSucata[] = [
   {
     id: 'nivel_0', pecasMin: 1, pecasMax: 2,
@@ -234,6 +284,7 @@ export const TABELAS_DE_SUCATA: readonly TabelaDeSucata[] = [
     id: 'nivel_4_cofre', pecasMin: 3, pecasMax: 4,
     pesos: { componente_incomum: 30, placa_especializada: 26, modulo_de_controle: 24, processador_antigo: 20 },
   },
+  ...tabelasProfundas(),
 ];
 
 const TABELA_POR_ID = new Map(TABELAS_DE_SUCATA.map((t) => [t.id, t]));

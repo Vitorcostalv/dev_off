@@ -12,6 +12,12 @@ import {
   travaDescida,
 } from '../src/game/enigmas.ts';
 import { idDaFicha } from '../src/game/andares.ts';
+import { decaisDoAndar, faixaDoAndar } from '../src/game/decais.ts';
+import {
+  LABIRINTOS_FUNDOS,
+  TEMPLATES_INFANCIA,
+  TEMPLATES_TRABALHO,
+} from './andares-fundos.mjs';
 
 /**
  * OS QUARENTA E CINCO ANDARES COMPOSTOS DA REPRESA.
@@ -51,6 +57,36 @@ function hash(andar, sal) {
 }
 
 const dado = (andar, sal, n) => Math.min(n - 1, Math.floor(hash(andar, sal) * n));
+
+/** true quando o tile [x, y] cai dentro do retangulo [rx, ry, rw, rh]. */
+const dentroDoRect = ([rx, ry, rw, rh], [x, y]) =>
+  x >= rx && x < rx + rw && y >= ry && y < ry + rh;
+
+/**
+ * A PAREDE de um modulo depende do KIT do capitulo.
+ *
+ * Ate o capitulo 4 e a folha original da usina; do 5 em diante e a folha do
+ * fundo, que o usuario entregou rotulada "andar 50 a 100". Os capitulos do
+ * TRABALHO e da INFANCIA usam a mesma familia de peca do kit `fundo` — o que os
+ * separa em jogo nao e o tile de parede (que continua sendo concreto de usina,
+ * como a Parte 3 exige) e sim o DECAL colado nele e a mobilia do modulo.
+ *
+ * Foi uma escolha, e a alternativa era pior: a folha da infancia tem sangue e
+ * desenho PINTADOS na propria peca de parede, e usa-la como tile faria cada
+ * comodo do andar 104 ter desenho de crianca em toda parede. A raridade e o
+ * efeito (Parte 5), e tile nao tem como ser raro.
+ */
+function paredeDoModulo(modulo, kit) {
+  return (kit !== 'usina' && modulo.paredeFunda) || modulo.parede;
+}
+
+/** Parede da moldura externa do andar, por kit. */
+const PAREDE_DE_MOLDURA = {
+  usina: 'represa_tecnico',
+  fundo: 'fundo_concreto',
+  trabalho: 'fundo_concreto',
+  infancia: 'fundo_concreto',
+};
 
 // ---------------------------------------------------------------- templates --
 /**
@@ -387,6 +423,12 @@ function templateDoLabirinto(lab, servico) {
     // nenhum comodo cobre fica na escuridao BASE do andar, e os comodos, com o
     // ajuste do modulo, ficam mais claros. E o efeito que se quer — no
     // labirinto o corredor e o lugar tenso e a sala e o alivio.
+    //
+    // Eles saem daqui SO como lista de tile livre, pro nascimento de inimigo.
+    // Um labirinto tem tres salas pequenas e trinta metros de corredor; sem
+    // isso, o andar 104 declarava sete bichos no registro e nascia com dois, e
+    // todo o resto do andar ficava vazio.
+    corredoresLivres: [...aberto].map((k) => k.split(',').map(Number)),
   };
 }
 
@@ -404,11 +446,24 @@ function servicos(idDaPlanta) {
   };
 }
 
+/**
+ * TODAS as geometrias, num mapa so.
+ *
+ * As nove originais (andares 6-50) moram aqui em cima; as dezesseis dos andares
+ * 51-150 moram em andares-fundos.mjs, no mesmo formato. A juncao e feita uma vez
+ * so pra `templateDoAndar` continuar tendo um unico lugar onde procurar — que e
+ * o que impede um andar de sair sem geometria e ninguem notar ate o tilemap.
+ */
+const TODAS_AS_GEOMETRIAS = { ...TEMPLATES, ...TEMPLATES_TRABALHO, ...TEMPLATES_INFANCIA };
+const TODOS_OS_LABIRINTOS = { ...LABIRINTOS, ...LABIRINTOS_FUNDOS };
+
+export { TODAS_AS_GEOMETRIAS, TODOS_OS_LABIRINTOS };
+
 /** O template de um andar, seja parametrico ou labirinto, com os tiles de servico. */
 export function templateDoAndar(def) {
   const s = servicos(def.planta);
-  if (TEMPLATES[def.planta]) return { ...TEMPLATES[def.planta], ...s };
-  const lab = LABIRINTOS[def.planta];
+  if (TODAS_AS_GEOMETRIAS[def.planta]) return { ...TODAS_AS_GEOMETRIAS[def.planta], ...s };
+  const lab = TODOS_OS_LABIRINTOS[def.planta];
   if (!lab) throw new Error(`[andares] template "${def.planta}" nao existe`);
   return { ...templateDoLabirinto(lab, s), ...s };
 }
@@ -478,7 +533,7 @@ export function plantasCompostas({ medir }) {
       // CAPITULO 5: a parede vem da folha do fundo da usina. E a unica coisa
       // que muda por capitulo na geometria — o resto do andar continua sendo o
       // mesmo template com os mesmos modulos.
-      paredePorComodo[chave] = (def.capitulo === 5 && modulo.paredeFunda) || modulo.parede;
+      paredePorComodo[chave] = paredeDoModulo(modulo, def.kit);
       escuridaoPorComodo[chave] = +Math.min(
         0.9,
         Math.max(0, def.escuridao + modulo.escuridaoExtra),
@@ -610,6 +665,36 @@ export function plantasCompostas({ medir }) {
       if (!pos) throw new Error(`[${nome}] nao sobrou vaga pra pista "${pista.id}"`);
       avisos.push({ id: pista.id, tx: pos[0], ty: pos[1] });
     }
+    // ------------------------------------------------------------ decais --
+    /**
+     * A PLACA DE FAIXA vem primeiro e vai perto da chegada: e a primeira coisa
+     * que o jogador ve ao descer, e e ela que diz em que trecho ele esta sem
+     * precisar de HUD.
+     */
+    const faixa = faixaDoAndar(def.andar);
+    if (faixa) {
+      const salaDaChegada = infos.find((i) => dentroDoRect(i.rect, t.entrada)) ?? infos[0];
+      const pos = pegar(salaDaChegada.vagas.prateleira, 'faixapos', 0)
+        ?? pegar(salaDaChegada.vagas.piso, 'faixapiso', 0);
+      if (pos) {
+        avisos.push({
+          id: `faixa_${String(def.andar).padStart(3, '0')}`,
+          tx: pos[0], ty: pos[1], decal: faixa,
+        });
+      }
+    }
+    for (const decal of decaisDoAndar(def.andar)) {
+      // Prefere o comodo com mais parede a vista (`paredao`, `corredor`): um
+      // desenho de crianca atras de uma estante nao e raro, e invisivel.
+      const preferidos = infos.filter((i) => i.modulo.id === 'paredao' || i.modulo.id === 'corredor');
+      const lista = preferidos.length ? preferidos : infos;
+      const sala = lista[dado(def.andar, `${decal.id}sala`, lista.length)];
+      const pos = pegar(sala.vagas.prateleira, `${decal.id}p`, 0)
+        ?? pegar(sala.vagas.piso, `${decal.id}c`, 0);
+      if (!pos) continue; // decal e enfeite: se nao coube, nao cabe. Nada quebra.
+      avisos.push({ id: decal.id, tx: pos[0], ty: pos[1], decal: decal.peca });
+    }
+
     for (const marco of t.marcos ?? []) {
       if (ocupado.has(`${marco.tx},${marco.ty}`)) continue;
       reservar(marco.tx, marco.ty, 0);
@@ -650,6 +735,17 @@ export function plantasCompostas({ medir }) {
      */
     const inimigos = [];
     const hostis = infos.filter((i) => !i.modulo.seguro);
+    /**
+     * NO LABIRINTO o corredor tambem vale como berco.
+     *
+     * A regra de distancia da chegada continua valendo, e o `ocupado` continua
+     * barrando tile de documento, painel e recipiente — o que muda e so o
+     * conjunto de tiles candidatos.
+     */
+    const corredores = (t.corredoresLivres ?? []).filter(
+      ([x, y]) => !ocupado.has(`${x},${y}`)
+        && Math.hypot(x - t.entrada[0], y - t.entrada[1]) >= 6,
+    );
     const pesoTotal = def.fauna.reduce((s, f) => s + f.peso, 0);
     for (let k = 0; k < def.inimigos && hostis.length > 0; k++) {
       /**
@@ -670,6 +766,16 @@ export function plantasCompostas({ medir }) {
           ([x, y]) => Math.hypot(x - t.entrada[0], y - t.entrada[1]) >= 6,
         );
         pos = pegar(longe, `inimpos${k}${tentativa}`, 1);
+      }
+      if (!pos && corredores.length > 0) {
+        // sobra o corredor: mesma regra de distancia, tile ainda livre
+        for (let tentativa = 0; tentativa < corredores.length && !pos; tentativa++) {
+          const i = (dado(def.andar, `corr${k}`, corredores.length) + k + tentativa) % corredores.length;
+          const [x, y] = corredores[i];
+          if (ocupado.has(`${x},${y}`)) continue;
+          reservar(x, y, 1);
+          pos = [x, y];
+        }
       }
       if (!pos) continue;
       // especie por peso, deterministica
@@ -760,7 +866,7 @@ export function plantasCompostas({ medir }) {
       rotulo: `${def.rotulo} — ${def.codigo}`,
       escuridao: def.escuridao,
       escuridaoPorComodo,
-      parede: def.capitulo === 5 ? 'fundo_concreto' : 'represa_tecnico',
+      parede: def.kit === 'usina' ? 'represa_tecnico' : PAREDE_DE_MOLDURA[def.kit],
       paredePorComodo,
       chao: 'PISO_CONCRETO',
       pisos,

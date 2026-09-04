@@ -340,6 +340,24 @@ function normalizar({
   separarEmpilhados = false,
   gradeFixa = false,
   limitesGrade,
+  /**
+   * PASSADA SINTETICA.
+   *
+   * Quatorze NPCs — doze deles no Mapa 2 — vieram com folha de POSE PARADA e
+   * nenhuma folha de caminhada. Ate aqui o `_andando_runtime` deles era a mesma
+   * pose repetida quatro vezes, e em jogo eles DESLIZAVAM pelo bairro: andavam
+   * de um lado pro outro sem mexer uma perna.
+   *
+   * A arte de passada nao existe e nao da pra inventar desenho. O que da pra
+   * fazer e o que animador de sprite faz a mao quando so tem uma pose: deformar
+   * a propria pose em quatro fases — pernas pra frente, neutro, pernas pra tras,
+   * neutro — com um quique de um pixel no corpo. Nao vira animacao de verdade,
+   * mas para de parecer defeito, que era o que era.
+   *
+   * Ligado so onde a folha de origem NAO tem passada. Quem tem passada real
+   * nunca passa por aqui.
+   */
+  passoSintetico = false,
 }) {
   const lida = lerPng(join(dirEntrada, entrada));
   // `removerFundoPreto` decide pela COR, ignorando o alfa: numa folha que ja
@@ -391,15 +409,62 @@ function normalizar({
     }
     const coluna = indice % 4;
     const linha = Math.floor(indice / 4);
+    const fase = passoSintetico ? FASES_DO_PASSO[coluna] : 0;
+    const corpo = fase === 0 ? pixels : deformarEmPasso(pixels, w, h, fase);
     const x = coluna * FRAME.w + Math.round((FRAME.w - w) / 2);
-    const y = linha * FRAME.h + FRAME.h - MARGEM.y - h;
-    colarRet(destino, pixels, w, h, x, y);
+    // O quique sobe o corpo nas duas fases de passo. Sem ele o par de fases
+    // opostas le como o personagem gingando parado.
+    const quique = fase === 0 ? 0 : Math.round(h * 0.018);
+    const y = linha * FRAME.h + FRAME.h - MARGEM.y - h - quique;
+    colarRet(destino, corpo, w, h, x, y);
   });
 
   writeFileSync(join(DIR, saida), destino.png());
   console.log(`[npc] ${entrada} -> ${saida} (${destino.w}x${destino.h}, 4x4)`);
 }
 
+
+/**
+ * As quatro fases do ciclo sintetico, na ordem das colunas da folha de saida:
+ * neutro, perna direita a frente, neutro, perna esquerda a frente. Comecar e
+ * terminar no neutro e o que faz o ciclo fechar sem solavanco quando repete.
+ */
+const FASES_DO_PASSO = [0, 1, 0, -1];
+
+/**
+ * Deforma UMA pose em uma fase de passada.
+ *
+ * A deformacao e um cisalhamento vertical: quanto mais perto do chao, mais a
+ * linha de pixel anda pro lado. `INICIO_DAS_PERNAS` diz onde a perna comeca em
+ * fracao da altura da figura — acima disso nada se mexe, senao a cabeca balanca
+ * junto e o personagem parece estar caindo.
+ *
+ * O deslocamento maximo e proporcional a altura, e nao um numero de pixel fixo:
+ * a folha de saida e grande (256x320 por quadro) e o jogo desenha o NPC com uns
+ * 32 px de altura, entao um deslocamento fixo sumiria ou explodiria conforme a
+ * figura.
+ */
+const INICIO_DAS_PERNAS = 0.62;
+
+function deformarEmPasso(pixels, w, h, fase) {
+  // `pixels` e uma lista de PIXEL (`[r,g,b,a]`), do jeito que `reduzirPara`
+  // devolve e `colarRet` consome — nao um buffer de byte.
+  const saida = new Array(w * h).fill(null);
+  const maximo = Math.max(1, Math.round(h * 0.05));
+  const base = Math.max(1, h * (1 - INICIO_DAS_PERNAS));
+  for (let y = 0; y < h; y++) {
+    const t = y / h;
+    const desloca = t <= INICIO_DAS_PERNAS
+      ? 0
+      : Math.round((fase * maximo * (t - INICIO_DAS_PERNAS) * h) / base);
+    for (let x = 0; x < w; x++) {
+      const origem = x - desloca;
+      if (origem < 0 || origem >= w) continue;
+      saida[y * w + x] = pixels[y * w + origem];
+    }
+  }
+  return saida;
+}
 
 /** Uma linha inteira da grade de origem: as 4 colunas, na ordem. */
 export const linha = (n) => [0, 1, 2, 3].map((coluna) => ({ coluna, linha: n }));

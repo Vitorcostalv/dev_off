@@ -38,7 +38,9 @@
  * em lugar nenhum, e nao deve haver ainda.
  */
 
-import { diasDaFicha, idDaFicha } from './andares.ts';
+import { diasDaFicha, idDaFicha, SECOES_DE_ARQUIVO, secaoDoAndar } from './andares.ts';
+import type { SecaoDeArquivo } from './andares.ts';
+import { documentoDoAndar, tituloDoDocumento } from './documentos.ts';
 
 export interface FichaMedica {
   id: string;
@@ -436,10 +438,15 @@ if (LINHAS.length !== 50) {
 
 export const FICHAS: readonly FichaMedica[] = LINHAS.map((linha, i) => {
   const andar = i + 1;
+  // `diasDaFicha` devolve null fora do prontuario (andares 51 a 150, que tem
+  // documento de outra natureza). Aqui o andar e sempre 1 a 50, entao o null
+  // nao acontece — e se um dia acontecer, esta linha diz onde olhar.
+  const dias = diasDaFicha(andar);
+  if (!dias) throw new Error(`[fichas] o andar ${andar} nao tem intervalo de dias`);
   return {
     id: idDaFicha(andar),
     andar,
-    dias: diasDaFicha(andar),
+    dias,
     paciente: identificacao(andar),
     queixa: linha[0],
     sono: linha[1],
@@ -506,7 +513,7 @@ export class SistemaArquivo {
   private recolhidas = new Set<number>();
 
   coletar(andar: number): boolean {
-    if (!FICHA_POR_ANDAR.has(andar) || this.recolhidas.has(andar)) return false;
+    if (!temDocumento(andar) || this.recolhidas.has(andar)) return false;
     this.recolhidas.add(andar);
     return true;
   }
@@ -532,12 +539,26 @@ export class SistemaArquivo {
    * como `?????`. Mostrar a lacuna e o que faz o jogador saber que falta uma —
    * sem isso, quem pula um andar nunca descobre que pulou.
    */
-  indice(): { andar: number; titulo: string; tem: boolean }[] {
-    return FICHAS.map((f) => ({
-      andar: f.andar,
-      titulo: this.recolhidas.has(f.andar) ? tituloDaFicha(f) : `FICHA ${String(f.andar).padStart(3, '0')}  ?????`,
-      tem: this.recolhidas.has(f.andar),
-    }));
+  indice(secao: SecaoDeArquivo = 'prontuario'): { andar: number; titulo: string; tem: boolean }[] {
+    const def = SECOES_DE_ARQUIVO.find((s) => s.id === secao);
+    if (!def) return [];
+    const saida: { andar: number; titulo: string; tem: boolean }[] = [];
+    for (let andar = def.faixa[0]; andar <= def.faixa[1]; andar++) {
+      const tem = this.recolhidas.has(andar);
+      saida.push({ andar, titulo: tem ? tituloDeDocumento(andar) : mascara(andar), tem });
+    }
+    return saida;
+  }
+
+  /** Quantas folhas de uma secao ja foram recolhidas. */
+  quantasNaSecao(secao: SecaoDeArquivo): number {
+    const def = SECOES_DE_ARQUIVO.find((s) => s.id === secao);
+    if (!def) return 0;
+    let n = 0;
+    for (const andar of this.recolhidas) {
+      if (andar >= def.faixa[0] && andar <= def.faixa[1]) n++;
+    }
+    return n;
   }
 
   serializar(): number[] {
@@ -549,7 +570,36 @@ export class SistemaArquivo {
     if (!Array.isArray(bruto)) return;
     for (const n of bruto) {
       const andar = Number(n);
-      if (Number.isInteger(andar) && FICHA_POR_ANDAR.has(andar)) this.recolhidas.add(andar);
+      if (Number.isInteger(andar) && temDocumento(andar)) this.recolhidas.add(andar);
     }
   }
+}
+
+// ------------------------------------------------- as tres secoes juntas --
+/**
+ * O ARQUIVO tem tres secoes e um so sistema de coleta.
+ *
+ * O prontuario (1-50) mora aqui; trabalho (51-100) e infancia (101-150) moram
+ * em `documentos.ts`. O que o save guarda continua sendo so o NUMERO do andar,
+ * exatamente como antes — por isso um save que ja tinha `arquivo: [3, 17, 40]`
+ * continua valendo sem migracao nenhuma, e os numeros novos entram no mesmo
+ * array.
+ */
+export function temDocumento(andar: number): boolean {
+  return FICHA_POR_ANDAR.has(andar) || documentoDoAndar(andar) !== null;
+}
+
+/** Titulo curto do documento do andar, seja ficha ou documento das secoes novas. */
+export function tituloDeDocumento(andar: number): string {
+  const f = FICHA_POR_ANDAR.get(andar);
+  if (f) return tituloDaFicha(f);
+  const d = documentoDoAndar(andar);
+  return d ? tituloDoDocumento(d) : `${String(andar).padStart(3, '0')}  ?????`;
+}
+
+/** Como a folha NAO recolhida aparece na lista, por secao. */
+function mascara(andar: number): string {
+  const secao = secaoDoAndar(andar);
+  const n = String(andar).padStart(3, '0');
+  return secao.id === 'prontuario' ? `FICHA ${n}  ?????` : `${n}  ?????`;
 }
