@@ -71,6 +71,8 @@ import { comportamentoDe, zonaPerigosa } from '../game/equipar';
 import { ATAQUE_DO_JOGADOR } from '../game/inimigos';
 import { buscarArma, direcaoDaMira } from '../game/armas';
 import { enigmaDoAndar, respostasDoEnigma } from '../game/enigmas';
+import { CamadaMapa } from './CamadaMapa';
+import { abaDoMapa } from '../game/mapaEsquematico';
 import {
   ANDARES,
   ANDARES_DE_PARADA,
@@ -300,7 +302,8 @@ export class FarmScene extends Phaser.Scene {
   private transicionando = false;
   /** mapa da cidade aberto pelo jogador com M. */
   private mapaAberto = false;
-  private overlayMapa: Phaser.GameObjects.Container | null = null;
+  /** O mapa esquematico (abas, icones, navegador de profundidade da usina). */
+  private mapaEsquematico: CamadaMapa | null = null;
   private marcadorPlayer: Phaser.GameObjects.Arc | null = null;
   private marcadoresNpc: MarcadorNpcMapa[] = [];
   private transformMapa = { x: 0, y: 0, escala: 1 };
@@ -440,7 +443,7 @@ export class FarmScene extends Phaser.Scene {
     this.pronto = false;
     this.transicionando = false;
     this.mapaAberto = false;
-    this.overlayMapa = null;
+    this.mapaEsquematico = null;
     this.marcadorPlayer = null;
     this.marcadoresNpc = [];
     this.interagiveis = [];
@@ -689,6 +692,14 @@ export class FarmScene extends Phaser.Scene {
 
     // M abre/fecha o mapa da cidade.
     this.input.keyboard!.on('keydown-M', () => this.alternarMapa());
+    // Com o MAPA aberto ele fica com as teclas de navegacao: a UIScene esta
+    // invisivel nesse momento, e sem isso as setas continuariam andando com o
+    // cursor do inventario por baixo do mapa.
+    for (const tecla of ['Q', 'E', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'ENTER']) {
+      this.input.keyboard!.on(`keydown-${tecla}`, (evento: KeyboardEvent) => {
+        if (this.teclaDoMapa(tecla)) evento.preventDefault();
+      });
+    }
 
     // ESPACO golpeia com a chave inglesa. So faz algo dentro da represa: a
     // cidade nao tem com quem brigar, e a tecla continua livre lá.
@@ -1765,10 +1776,25 @@ export class FarmScene extends Phaser.Scene {
   private alternarMapa(): void {
     if (this.posicionando) return;
     this.mapaAberto = !this.mapaAberto;
-    if (this.mapaAberto && !this.overlayMapa) this.criarOverlayMapa();
-    this.overlayMapa?.setVisible(this.mapaAberto);
+    if (this.mapaAberto && !this.mapaEsquematico) this.criarOverlayMapa();
     this.scene.setVisible(!this.mapaAberto, 'UIScene');
-    if (this.mapaAberto) this.atualizarMarcadoresMapa();
+    if (this.mapaAberto) this.mapaEsquematico?.abrir(abaDoMapa(this.mapaExternoAtual));
+    else this.mapaEsquematico?.fechar();
+  }
+
+  /** Teclas do mapa aberto: aba, cursor e abrir faixa da usina. */
+  private teclaDoMapa(tecla: string): boolean {
+    if (!this.mapaAberto || !this.mapaEsquematico) return false;
+    switch (tecla) {
+      case 'Q': this.mapaEsquematico.trocarAba(-1); return true;
+      case 'E': this.mapaEsquematico.trocarAba(1); return true;
+      case 'UP': this.mapaEsquematico.mover(-1); return true;
+      case 'DOWN': this.mapaEsquematico.mover(1); return true;
+      case 'LEFT': this.mapaEsquematico.trocarAba(-1); return true;
+      case 'RIGHT': this.mapaEsquematico.trocarAba(1); return true;
+      case 'ENTER': this.mapaEsquematico.acionar(); return true;
+      default: return false;
+    }
   }
 
   /** Monta uma representacao leve a partir do farm.json ja carregado. */
@@ -1782,139 +1808,25 @@ export class FarmScene extends Phaser.Scene {
     return def ? def.mapaExterno : MAPA_PADRAO;
   }
 
+  /**
+   * ABRE O MAPA na camada esquematica (src/scenes/CamadaMapa.ts).
+   *
+   * O desenho antigo — o tilemap reduzido com o nome de cada zona no centro
+   * dela — saiu inteiro. Ele produzia rotulo de 8 px por cima de rotulo, e o
+   * marcador do jogador cobria justamente o nome do lugar em que ele estava.
+   */
   private criarOverlayMapa(): void {
-    const chaveExterno = this.mapaExternoAtual;
-    const tilemapKey = MAPAS[chaveExterno]?.tilemapKey ?? '';
-    const cache = this.cache.tilemap.get(tilemapKey) as { data?: MapaTiledCru } | undefined;
-    const mapa = cache?.data;
-    if (!mapa) {
-      console.warn(`[mapa] ${tilemapKey} nao esta no cache`);
-      this.mapaAberto = false;
-      return;
-    }
-
-    const margem = 16;
-    const topo = 28;
-    const larguraDisponivel = CONFIG.largura - margem * 2;
-    const alturaDisponivel = CONFIG.altura - topo - margem;
-    const larguraMundo = mapa.width * mapa.tilewidth;
-    const alturaMundo = mapa.height * mapa.tileheight;
-    const escala = Math.min(larguraDisponivel / larguraMundo, alturaDisponivel / alturaMundo);
-    const largura = larguraMundo * escala;
-    const altura = alturaMundo * escala;
-    const x = (CONFIG.largura - largura) / 2;
-    const y = topo + (alturaDisponivel - altura) / 2;
-    this.transformMapa = { x, y, escala };
-
-    const fundo = this.add.graphics().setScrollFactor(0);
-    fundo.fillStyle(UI.fundo, 0.97);
-    fundo.fillRect(0, 0, CONFIG.largura, CONFIG.altura);
-    fundo.fillStyle(0x31533a, 1);
-    fundo.fillRect(x, y, largura, altura);
-
-    const caminhos = mapa.layers.find((l) => l.name === 'caminhos');
-    if (caminhos?.data) {
-      fundo.fillStyle(0xb88b57, 0.9);
-      for (let ty = 0; ty < mapa.height; ty++) {
-        let inicio = -1;
-        for (let tx = 0; tx <= mapa.width; tx++) {
-          const ocupado = tx < mapa.width && caminhos.data[ty * mapa.width + tx] !== 0;
-          if (ocupado && inicio < 0) inicio = tx;
-          if (!ocupado && inicio >= 0) {
-            fundo.fillRect(
-              x + inicio * mapa.tilewidth * escala,
-              y + ty * mapa.tileheight * escala,
-              (tx - inicio) * mapa.tilewidth * escala,
-              mapa.tileheight * escala,
-            );
-            inicio = -1;
-          }
-        }
-      }
-    }
-
-    const filhos: Phaser.GameObjects.GameObject[] = [fundo];
-    const zonas = mapa.layers.find((l) => l.name === 'zonas')?.objects ?? [];
-    for (const zona of zonas) {
-      const cor = COR_ZONA[(zona.class || zona.type) as TipoZona] ?? 0xffffff;
-      fundo.fillStyle(cor, 0.28);
-      fundo.fillRect(
-        x + zona.x * escala,
-        y + zona.y * escala,
-        zona.width * escala,
-        zona.height * escala,
-      );
-      fundo.lineStyle(1, cor, 0.95);
-      fundo.strokeRect(
-        x + zona.x * escala,
-        y + zona.y * escala,
-        zona.width * escala,
-        zona.height * escala,
-      );
-      filhos.push(
-        this.add
-          .text(
-            x + (zona.x + zona.width / 2) * escala,
-            y + (zona.y + zona.height / 2) * escala,
-            zona.name.startsWith('casa_') ? zona.name.slice(5) : zona.name,
-            { fontFamily: UI.fonte, fontSize: '8px', color: UI.texto, align: 'center' },
-          )
-          .setOrigin(0.5)
-          .setScrollFactor(0),
-      );
-    }
-
-    filhos.push(
-      this.add.text(margem, 8, TITULO_DO_MAPA[chaveExterno] ?? 'Mapa', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanhoTitulo,
-        color: UI.destaque,
-      }).setScrollFactor(0),
-      this.add.text(CONFIG.largura - margem, 8, '[M] fechar', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanho,
-        color: UI.textoFraco,
-      }).setOrigin(1, 0).setScrollFactor(0),
-      this.add.text(
-        margem,
-        CONFIG.altura - 13,
-        'vermelho: voce   retrato: NPC',
-        {
-          fontFamily: UI.fonte,
-          fontSize: '8px',
-          color: UI.textoFraco,
-        },
-      ).setScrollFactor(0),
-    );
-
-    this.marcadorPlayer = this.add.circle(0, 0, 4, 0xff5b57).setStrokeStyle(1, 0xffffff);
-    this.marcadorPlayer.setScrollFactor(0);
-    filhos.push(this.marcadorPlayer);
-    // Um retrato corporal substitui o ponto amarelo. Todos os 33 perfis ganham
-    // marcador; `atualizarMarcadoresMapa` mostra apenas quem esta neste mapa.
-    const idsNpc = estado.rotinasNpc.todos.map((npc) => npc.id);
-    this.marcadoresNpc = idsNpc.map((npcId) => {
-      const perfil = buscarNpc(npcId);
-      const chaveTextura = perfil?.spriteParado
-        ? `npc-${npcId}-parado`
-        : perfil?.sprite
-          ? `npc-${npcId}-sprites`
-          : 'player-idle-sprites';
-      const fundoRetrato = this.add.circle(0, 0, 7, 0xfff4d0, 0.96)
-        .setStrokeStyle(1, 0x3a2b08)
-        .setScrollFactor(0);
-      const retrato = this.add.image(0, 5, chaveTextura, 'down-0')
-        .setDisplaySize(10, 13)
-        .setScrollFactor(0);
-      const marcador = this.add.container(0, 0, [fundoRetrato, retrato]).setScrollFactor(0);
-      filhos.push(marcador);
-      return { npcId, marcador };
+    this.mapaEsquematico = new CamadaMapa(this, (chave) => {
+      const tilemapKey = MAPAS[chave]?.tilemapKey ?? '';
+      const cache = this.cache.tilemap.get(tilemapKey) as { data?: MapaTiledCru } | undefined;
+      return (cache?.data as never) ?? null;
     });
-
-    this.overlayMapa = this.add
-      .container(0, 0, filhos)
-      .setDepth(DEPTH_OVERLAY + 10)
-      .setScrollFactor(0);
+    // O mapa nao sabe onde o jogador esta; quem sabe e a cena. Passar a leitura
+    // como funcao evita a camada precisar de uma referencia ao sprite dele.
+    this.mapaEsquematico.posicaoNoMundo = () => ({
+      x: this.player.x / this.tamanhoTile,
+      y: this.player.y / this.tamanhoTile,
+    });
   }
 
   private atualizarMarcadoresMapa(): void {
@@ -3946,13 +3858,6 @@ interface ObjetoTiledCru {
   properties?: { name: string; value: PropObjeto }[];
 }
 
-/** Nome que o mapa da cidade mostra no cabecalho, por mapa externo. */
-const TITULO_DO_MAPA: Record<string, string> = {
-  farm: 'Mapa da cidade',
-  bairro: 'Bairro da Estacao',
-  rural: 'Zona Rural',
-  represa: 'Estrada da Represa',
-};
 
 /** O que o painel de desenvolvimento pode ligar e desligar no mundo. */
 export type ChaveDeDepuracao = 'corpos' | 'aggro' | 'congelado';
