@@ -37,6 +37,9 @@ import {
 } from '../game/equipar';
 import { buscarArma } from '../game/armas';
 import { fichaDoAndar, linhasDaFicha, tituloDaFicha } from '../game/fichas';
+import { documentoDoAndar, linhasDoDocumento, tituloDoDocumento } from '../game/documentos';
+import { SECOES_DE_ARQUIVO } from '../game/andares';
+import type { SecaoDeArquivo } from '../game/andares';
 
 /**
  * Caixa de dialogo. Subiu de 74 pra 82 px de altura e ganhou a coluna do
@@ -511,17 +514,39 @@ export class UIScene extends Phaser.Scene {
    * A ficha nao recolhida aparece como `?????` de proposito: e o que faz o
    * jogador saber que pulou um andar. Escolher uma delas nao abre nada.
    */
+  /**
+   * A TELA DE ARQUIVOS, agora com as TRES SECOES.
+   *
+   * Ela abria so no prontuario, e as cem folhas de trabalho e de infancia nao
+   * tinham por onde ser relidas — o jogador recolhia o documento do andar 87 e
+   * ele sumia do jogo. A primeira tela e um indice das secoes; escolher uma
+   * abre as cinquenta folhas dela.
+   *
+   * Sao dois passos e nao uma lista de 150 pelo mesmo motivo do navegador de
+   * profundidade do mapa: cento e cinquenta linhas ninguem le.
+   */
   abrirArquivo(): void {
     if (this.modalPorCima || this.lojaAberta || this.pcAberto) return;
-    const indice = estado.arquivo.indice();
-    const total = estado.arquivo.quantas;
-    if (total === 0) {
-      this.avisoRapido('Nenhuma ficha recolhida ainda.', UI.textoFraco);
+    if (estado.arquivo.quantas === 0) {
+      this.avisoRapido('Nenhum documento recolhido ainda.', UI.textoFraco);
       return;
     }
     this.inventario.setVisible(false);
     this.abrirMenu(
-      `Arquivos — ${total} de ${indice.length} fichas`,
+      `Arquivos — ${estado.arquivo.quantas} de 150 folhas`,
+      SECOES_DE_ARQUIVO.map((secao) => ({
+        rotulo: `${secao.nome}  ${estado.arquivo.quantasNaSecao(secao.id)}/50`,
+        aoEscolher: () => this.abrirSecaoDoArquivo(secao.id),
+      })),
+    );
+  }
+
+  private abrirSecaoDoArquivo(secaoId: SecaoDeArquivo): void {
+    const secao = SECOES_DE_ARQUIVO.find((s) => s.id === secaoId);
+    if (!secao) return;
+    const indice = estado.arquivo.indice(secaoId);
+    this.abrirMenu(
+      `${secao.nome} — ${estado.arquivo.quantasNaSecao(secaoId)} de 50`,
       indice.map((linha) => ({
         rotulo: linha.titulo,
         aoEscolher: () => {
@@ -529,20 +554,30 @@ export class UIScene extends Phaser.Scene {
             this.avisoRapido('Esta folha ainda esta na usina.', UI.textoFraco);
             return;
           }
-          this.lerFicha(linha.andar);
+          this.lerFicha(linha.andar, secaoId);
         },
       })),
+      // ESC volta pro indice das secoes, e nao pro jogo: sair da secao errada
+      // e mais comum do que querer fechar o arquivo inteiro.
+      () => this.abrirArquivo(),
     );
   }
 
-  /** Abre o texto de uma ficha e volta pra lista ao fim da leitura. */
-  private lerFicha(andar: number): void {
+  /** Abre o texto de um documento e volta pra lista da secao ao fim da leitura. */
+  private lerFicha(andar: number, secaoId: SecaoDeArquivo = 'prontuario'): void {
     const ficha = fichaDoAndar(andar);
-    if (!ficha) return;
-    const linhas = linhasDaFicha(ficha);
+    if (ficha) {
+      this.iniciarDialogo(
+        linhasDaFicha(ficha).map((texto) => ({ nome: tituloDaFicha(ficha), texto })),
+        () => this.abrirSecaoDoArquivo(secaoId),
+      );
+      return;
+    }
+    const doc = documentoDoAndar(andar);
+    if (!doc) return;
     this.iniciarDialogo(
-      linhas.map((texto) => ({ nome: tituloDaFicha(ficha), texto })),
-      () => this.abrirArquivo(),
+      linhasDoDocumento(doc).map((texto) => ({ nome: tituloDoDocumento(doc), texto })),
+      () => this.abrirSecaoDoArquivo(secaoId),
     );
   }
 

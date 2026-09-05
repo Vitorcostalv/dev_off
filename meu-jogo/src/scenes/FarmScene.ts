@@ -77,11 +77,12 @@ import {
   ANDARES,
   ANDARES_DE_PARADA,
   andarDoMapaDef,
+  secaoDoAndar,
   buscarAndar,
   flagDeCheckpoint,
   mapaDoAndar,
 } from '../game/andares';
-import { fichaDoAndar } from '../game/fichas';
+import { temDocumento } from '../game/fichas';
 
 /**
  * Quantos tiles cabem na largura da tela. E daqui que sai o zoom da camera:
@@ -3015,15 +3016,23 @@ export class FarmScene extends Phaser.Scene {
    * registrado e o numero: dali pra frente a ficha pode ser relida na tela de
    * Arquivos, e a lacuna de uma que ficou pra tras aparece como `?????`.
    */
+  /**
+   * ARQUIVA o documento do andar.
+   *
+   * As TRES secoes passam por aqui. A versao anterior so aceitava o que
+   * `fichaDoAndar` conhecia — o prontuario — e as cem folhas de trabalho e de
+   * infancia eram recolhidas no chao e nao entravam no arquivo: o jogador lia o
+   * documento do andar 87 uma vez e ele sumia do jogo.
+   */
   private arquivarFicha(andar: number): void {
-    const ficha = fichaDoAndar(andar);
-    if (!ficha) return;
-    if (estado.arquivo.coletar(andar)) {
-      this.ui.avisoRapido(
-        `Ficha ${String(andar).padStart(3, '0')} arquivada (${estado.arquivo.quantas}/50).`,
-        UI.sucesso,
-      );
-    }
+    if (!temDocumento(andar)) return;
+    if (!estado.arquivo.coletar(andar)) return;
+    const secao = secaoDoAndar(andar);
+    this.ui.avisoRapido(
+      `${secao.nome} ${String(andar).padStart(3, '0')} arquivado `
+      + `(${estado.arquivo.quantasNaSecao(secao.id)}/50).`,
+      UI.sucesso,
+    );
   }
 
   private criarCamadaDaRepresa(map: Phaser.Tilemaps.Tilemap): void {
