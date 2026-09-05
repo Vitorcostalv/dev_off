@@ -2827,6 +2827,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma78"
       }
      ]
     },
@@ -2875,6 +2880,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma78"
       }
      ]
     },
@@ -2923,6 +2933,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma78"
       }
      ]
     },
@@ -2971,6 +2986,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma78"
       }
      ]
     }

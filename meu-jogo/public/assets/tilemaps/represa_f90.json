@@ -3170,6 +3170,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma90"
       }
      ]
     },
@@ -3218,6 +3223,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma90"
       }
      ]
     },
@@ -3266,6 +3276,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma90"
       }
      ]
     },
@@ -3314,6 +3329,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma90"
       }
      ]
     }

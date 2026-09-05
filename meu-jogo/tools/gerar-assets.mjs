@@ -6830,7 +6830,16 @@ function gerarSetorRepresa(nome, ts) {
     }),
   );
   const inimigos = (p.inimigos ?? []).map((i) =>
-    objeto(`inimigo_${i.id}`, 'inimigo', i.tx, i.ty, { tipo: i.tipo, raio: i.raio }),
+    objeto(`inimigo_${i.id}`, 'inimigo', i.tx, i.ty, {
+      tipo: i.tipo,
+      raio: i.raio,
+      // CIRCUITO: enquanto a flag estiver desligada, a maquina fica parada. E o
+      // gancho da Parte 22 — restaurar a energia acende o andar e acorda ela.
+      ...(i.circuito ? { circuito: i.circuito } : {}),
+      // GRANDE: a maquina da sala de servidores (Parte 28). Mesma especie, mais
+      // corpo e mais alcance de vista.
+      ...(i.grande ? { grande: true } : {}),
+    }),
   );
   const luzes = (p.luzes ?? []).map((l, i) =>
     objeto(`luz_${i}`, 'luz', l.tx, l.ty, {

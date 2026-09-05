@@ -2233,12 +2233,17 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "impressora"
+       "value": "robo_servico"
       },
       {
        "name": "raio",
        "type": "int",
-       "value": 4
+       "value": 7
+      },
+      {
+       "name": "grande",
+       "type": "bool",
+       "value": true
       }
      ]
     },

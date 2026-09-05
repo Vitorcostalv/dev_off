@@ -2502,6 +2502,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma18"
       }
      ]
     },
@@ -2550,6 +2555,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma18"
       }
      ]
     }

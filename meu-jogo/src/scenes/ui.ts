@@ -244,3 +244,66 @@ export function conteudo(r: Ret, comCabecalho = true): Ret {
 }
 
 export { COR, ESPACO, FONTE, PECA };
+
+// ---------------------------------------------------------------- tooltip --
+/**
+ * O TOOLTIP — uma caixinha de texto que segue um ponto da tela.
+ *
+ * Ela existe como PECA e nao como codigo repetido em cada menu (Parte 66): o
+ * inventario, o mapa, a loja e o painel de desenvolvimento mostram todos a
+ * mesma coisa — um titulo curto e duas ou tres linhas de explicacao — e cada um
+ * ter o proprio desenho garantiria que eles fossem ficando diferentes.
+ *
+ * Ele se VIRA sozinho pra caber na tela: perto da borda direita ele abre pra
+ * esquerda, perto do rodape ele abre pra cima. Sem isso um tooltip de item no
+ * canto sai metade fora da tela, que e onde os itens do canto ficam.
+ */
+export class Tooltip {
+  private readonly cena: Phaser.Scene;
+  private readonly fundo: Phaser.GameObjects.Graphics;
+  private readonly titulo: Phaser.GameObjects.Text;
+  private readonly corpo: Phaser.GameObjects.Text;
+  private readonly raiz: Phaser.GameObjects.Container;
+
+  /** Largura fixa: texto de largura variavel faz a caixa pular de tamanho. */
+  private static readonly LARGURA = 150;
+
+  constructor(cena: Phaser.Scene, profundidade: number) {
+    this.cena = cena;
+    this.fundo = cena.add.graphics().setScrollFactor(0);
+    this.titulo = titulo(cena, 0, 0, '');
+    this.corpo = miudo(cena, 0, 0, '', Tooltip.LARGURA - 16, COR.papelTexto);
+    this.raiz = cena.add
+      .container(0, 0, [this.fundo, this.titulo, this.corpo])
+      .setDepth(profundidade)
+      .setScrollFactor(0)
+      .setVisible(false);
+  }
+
+  /** Mostra o tooltip ANCORADO em (x, y), virando-se pra caber na tela. */
+  mostrar(x: number, y: number, texto: string, linhas: string): void {
+    this.titulo.setText(texto);
+    this.corpo.setText(linhas);
+    const altura = 12 + (texto ? 14 : 0) + this.corpo.height + 8;
+    const largura = Tooltip.LARGURA;
+
+    // vira pra caber: a direita da ancora quando ha espaco, a esquerda quando nao
+    const tela = this.cena.scale.gameSize;
+    const px = x + 10 + largura <= tela.width ? x + 10 : x - 10 - largura;
+    const py = y + altura <= tela.height ? y : Math.max(0, tela.height - altura - 2);
+
+    this.fundo.clear();
+    painel(this.fundo, { x: px, y: py, w: largura, h: altura }, false);
+    this.titulo.setPosition(px + 8, py + 6);
+    this.corpo.setPosition(px + 8, py + (texto ? 22 : 8));
+    this.raiz.setVisible(true);
+  }
+
+  esconder(): void {
+    this.raiz.setVisible(false);
+  }
+
+  destruir(): void {
+    this.raiz.destroy(true);
+  }
+}

@@ -3168,12 +3168,17 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "maquina_lavar"
+       "value": "robo_servico"
       },
       {
        "name": "raio",
        "type": "int",
-       "value": 4
+       "value": 7
+      },
+      {
+       "name": "grande",
+       "type": "bool",
+       "value": true
       }
      ]
     },

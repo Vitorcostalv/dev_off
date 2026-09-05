@@ -2718,6 +2718,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma72"
       }
      ]
     },
@@ -2766,6 +2771,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma72"
       }
      ]
     },
@@ -2814,6 +2824,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma72"
       }
      ]
     },
@@ -2862,6 +2877,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma72"
       }
      ]
     }

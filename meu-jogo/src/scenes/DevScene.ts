@@ -547,7 +547,10 @@ export class DevScene extends Phaser.Scene {
   }
 
   private abaDepuracao(): ItemDev[] {
-    const alternavel = (chave: 'corpos' | 'aggro' | 'congelado', rotulo: string): ItemDev => ({
+    const alternavel = (
+      chave: 'corpos' | 'aggro' | 'congelado' | 'inspecionarNpc',
+      rotulo: string,
+    ): ItemDev => ({
       rotulo,
       valor: () => (this.mundo?.depuracaoDev(chave) ? 'ligado' : 'desligado'),
       executar: () => {
@@ -559,6 +562,7 @@ export class DevScene extends Phaser.Scene {
       alternavel('corpos', 'Caixas de colisao'),
       alternavel('aggro', 'Raio de deteccao dos inimigos'),
       alternavel('congelado', 'Congelar a IA dos inimigos'),
+      alternavel('inspecionarNpc', 'Ficha do NPC ao clicar nele'),
       {
         rotulo: 'Limpar os inimigos deste andar',
         executar: () => this.mundo?.limparInimigosDev() ?? 'a cena de mundo nao esta ativa.',

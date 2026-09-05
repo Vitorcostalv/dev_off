@@ -267,6 +267,8 @@ export class UIScene extends Phaser.Scene {
   private filtroDeInventario = 0;
   /** rotulo de cada aba de filtro, criado uma vez */
   private abasDeFiltro: Phaser.GameObjects.Text[] = [];
+  /** Tooltip compartilhado — a mesma peca em toda tela que precisa de uma. */
+  private dica!: ui.Tooltip;
   private nomeItem!: Phaser.GameObjects.Text;
   private tipoItem!: Phaser.GameObjects.Text;
   private descricaoItem!: Phaser.GameObjects.Text;
@@ -432,6 +434,9 @@ export class UIScene extends Phaser.Scene {
 
     this.dialogo = this.criarCaixaDeDialogo();
     this.confirmacao = this.criarCaixaDeConfirmacao();
+    // O tooltip nasce antes dos paineis: eles registram os `pointerover` que o
+    // usam, e um `undefined` ali daria erro no primeiro hover.
+    this.dica = new ui.Tooltip(this, CAMADA.modal);
     this.inventario = this.criarPainelDeInventario();
     this.loja = this.criarPainelDeLoja();
     this.menu = this.criarMenu();
@@ -1300,6 +1305,7 @@ export class UIScene extends Phaser.Scene {
     // so empilharia painel
     if (!this.inventarioAberto && this.lojaAberta) return;
     this.inventario.setVisible(!this.inventarioAberto);
+    this.dica.esconder();
     if (this.inventarioAberto) {
       this.avisoInventario.setText('');
       // Abrir com a grade cheia e a coluna da direita dizendo "nenhum item
@@ -1746,6 +1752,25 @@ export class UIScene extends Phaser.Scene {
         this.itemSelecionado = alvo;
         this.desenharInventario();
       });
+      // TOOLTIP no hover (Parte 66): o painel da direita ja mostra o item
+      // SELECIONADO; o tooltip mostra o que esta debaixo do cursor, que e outra
+      // pergunta — "o que e esse aqui?" sem perder o que ja estava escolhido.
+      seletor.on('pointerover', () => {
+        const alvo = this.mapaDaGrade()[i];
+        const slot = alvo === null ? null : estado.inventario.slots[alvo];
+        const def = slot ? ITENS[slot.id] : undefined;
+        if (!def) {
+          this.dica.esconder();
+          return;
+        }
+        this.dica.mostrar(
+          sx + PECA.slot, sy,
+          def.nome,
+          [def.descricao, slot && slot.qtd > 1 ? `${slot.qtd} unidades` : '']
+            .filter(Boolean).join('\n'),
+        );
+      });
+      seletor.on('pointerout', () => this.dica.esconder());
       const icone = this.add
         .rectangle(sx + PECA.slot / 2, sy + PECA.slot / 2, ICONE.inventario, ICONE.inventario, 0xffffff)
         .setVisible(false);

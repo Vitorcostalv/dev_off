@@ -3439,12 +3439,22 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "caixa_som"
+       "value": "smartfone"
       },
       {
        "name": "raio",
        "type": "int",
-       "value": 4
+       "value": 7
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma84"
+      },
+      {
+       "name": "grande",
+       "type": "bool",
+       "value": true
       }
      ]
     },
@@ -3493,6 +3503,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma84"
       }
      ]
     },
@@ -3541,6 +3556,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma84"
       }
      ]
     },
@@ -3589,6 +3609,11 @@
        "name": "raio",
        "type": "int",
        "value": 4
+      },
+      {
+       "name": "circuito",
+       "type": "string",
+       "value": "represaEnigma84"
       }
      ]
     }

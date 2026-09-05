@@ -16,6 +16,7 @@ import {
   idDaFicha,
   mapaDoAndar,
   secaoDoAndar,
+  temMaquinaDormente,
 } from '../src/game/andares.ts';
 import {
   ENIGMAS,
@@ -38,6 +39,8 @@ import { LISTA_DE_PETS, estadoDoPet, petsVisiveis } from '../src/game/pets.ts';
 import {
   MESES,
   dataDoDia,
+  formatarDataCompleta,
+  formatarDataCurta,
   diaAbsolutoDe,
   diasDoMes,
   ehBissexto,
@@ -624,6 +627,31 @@ for (const [andar, pistas] of PISTAS_POR_ANDAR) {
     }
     const permitidas = new Set(a.fauna.map((f) => f.tipo));
     const cap = capituloDoAndar(a.andar);
+    {
+      const dormentes = inimigos.filter((o) => props(o).circuito !== undefined).length;
+      if (a.planta !== 'desenhada' && inimigos.length > 0) {
+        ok(
+          dormentes < inimigos.length,
+          `${a.codigo}: TODOS os ${inimigos.length} inimigos dormem — o andar fica sem risco`,
+        );
+      }
+      if (!temMaquinaDormente(a.andar)) {
+        ok(dormentes === 0, `${a.codigo}: tem ${dormentes} maquina(s) dormente(s) e nao devia`);
+      }
+      /**
+       * A MAQUINA GRANDE da sala de servidores (Parte 28): no maximo UMA por
+       * andar, e so onde ha o modulo `racks`. Duas num andar deixariam de ser
+       * encontro especial e virariam a fauna normal do trecho.
+       */
+      const grandes = inimigos.filter((o) => props(o).grande === true).length;
+      ok(grandes <= 1, `${a.codigo}: ${grandes} maquinas grandes — no maximo uma por andar`);
+      if (grandes > 0) {
+        ok(
+          a.modulos.includes('racks'),
+          `${a.codigo}: tem maquina grande e nao tem sala de servidores`,
+        );
+      }
+    }
     for (const o of inimigos) {
       const p = props(o);
       ok(Boolean(CATALOGO_INIMIGOS[p.tipo]), `${a.codigo}: especie desconhecida "${p.tipo}"`);
@@ -646,6 +674,21 @@ for (const [andar, pistas] of PISTAS_POR_ANDAR) {
           alcanca.has(`${tx + dx},${ty + dy}`)),
         `${a.codigo}: inimigo em ${tx},${ty} nasce num pedaco sem ligacao com a chegada`,
       );
+      /**
+       * MAQUINA DORMENTE (Parte 22): so em andar marcado, so com a flag do
+       * enigma DO PROPRIO andar, e nunca com o andar inteiro dormindo — se
+       * tudo dorme, a descida ate o painel deixa de ter risco.
+       */
+      if (p.circuito !== undefined) {
+        ok(
+          temMaquinaDormente(a.andar),
+          `${a.codigo}: tem maquina no circuito e o andar nao e de energia`,
+        );
+        ok(
+          String(p.circuito) === flagDoEnigma(a.andar),
+          `${a.codigo}: a maquina dormente aponta pra "${p.circuito}", nao pro enigma do andar`,
+        );
+      }
       // A regra dos quatro tiles vale pros andares COMPOSTOS, que e onde o
       // posicionamento e automatico e precisa de trava. Nos cinco autorais o
       // inimigo esta onde alguem o pos, e alguns deles guardam a propria escada
@@ -864,6 +907,40 @@ for (const [andar, pistas] of PISTAS_POR_ANDAR) {
   // dia negativo (o save guarda `dia` cru e o F7 pode empurrar pra tras)
   ok(dataDoDia(-1).mes === 8 && dataDoDia(-1).dia === 31, 'o dia -1 devia ser 31 de agosto');
   ok(['verao', 'outono', 'inverno', 'primavera'].includes(estacaoDoDia(0)), 'estacao invalida');
+
+  /**
+   * AS VIRADAS, uma por uma e pelo NOME (Parte 84).
+   *
+   * As voltas de 1500 dias acima ja provam a aritmetica. O que falta e o que o
+   * jogador ve: a HUD e o calendario mostram texto formatado, e um mes que vira
+   * certo na conta e errado na string quebra do mesmo jeito.
+   */
+  const diaDe = (dia, mes, ano) => diaAbsolutoDe({ dia, mes, ano, diaDaSemana: 0 });
+  for (const [de, para, rotulo] of [
+    [[30, 9, 2025], [1, 10, 2025], 'fim de mes de 30 dias'],
+    [[31, 10, 2025], [1, 11, 2025], 'fim de mes de 31 dias'],
+    [[31, 12, 2025], [1, 1, 2026], '31 de dezembro -> 1 de janeiro'],
+    [[28, 2, 2026], [1, 3, 2026], 'fevereiro de ano comum'],
+    [[28, 2, 2028], [29, 2, 2028], 'fevereiro de ano bissexto'],
+    [[29, 2, 2028], [1, 3, 2028], 'fim do fevereiro bissexto'],
+  ]) {
+    const antes = diaDe(...de);
+    const depois = dataDoDia(antes + 1);
+    ok(
+      depois.dia === para[0] && depois.mes === para[1] && depois.ano === para[2],
+      `${rotulo}: ${de.join('/')} + 1 deu ${depois.dia}/${depois.mes}/${depois.ano}`,
+    );
+    // o texto tem de acompanhar a virada, e nao so o objeto
+    const texto = formatarDataCompleta(antes + 1);
+    ok(texto.includes(String(para[0])), `${rotulo}: "${texto}" nao mostra o dia ${para[0]}`);
+    ok(texto.includes(String(para[2])), `${rotulo}: "${texto}" nao mostra o ano ${para[2]}`);
+    ok(
+      texto.includes(MESES[para[1] - 1]),
+      `${rotulo}: "${texto}" nao mostra o mes ${MESES[para[1] - 1]}`,
+    );
+    // e a data curta, que e a que cabe na HUD
+    ok(formatarDataCurta(antes + 1).length <= 14, `${rotulo}: a data curta nao cabe na HUD`);
+  }
 }
 
 // ============================================================== 8. tempo ==

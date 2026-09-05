@@ -72,6 +72,7 @@ import { ATAQUE_DO_JOGADOR } from '../game/inimigos';
 import { buscarArma, direcaoDaMira } from '../game/armas';
 import { enigmaDoAndar, respostasDoEnigma } from '../game/enigmas';
 import { abaDoMapa } from '../game/mapaEsquematico';
+import { painel as uiPainel } from './ui';
 import {
   ANDARES,
   ANDARES_DE_PARADA,
@@ -277,7 +278,7 @@ export class FarmScene extends Phaser.Scene {
    * e o raio de deteccao e desenhado pela camada da represa.
    */
   private depuracao: Record<ChaveDeDepuracao, boolean> = {
-    corpos: false, aggro: false, congelado: false,
+    corpos: false, aggro: false, congelado: false, inspecionarNpc: false,
   };
 
   private interagiveis: Interagivel[] = [];
@@ -875,6 +876,13 @@ export class FarmScene extends Phaser.Scene {
         this.examinarPlaca(this.alvo);
         break;
       case 'npc':
+        // Com a inspecao de desenvolvimento ligada, o clique mostra a ficha em
+        // vez de conversar. E uma chave de DEV: em jogo normal ela esta sempre
+        // desligada e o comportamento e o de sempre.
+        if (this.depuracao.inspecionarNpc) {
+          this.mostrarFichaDeNpc(String(this.alvo.id).replace(/^npc_/, ''));
+          break;
+        }
         this.falarCom(this.alvo);
         break;
       case 'cama':
@@ -3744,6 +3752,63 @@ export class FarmScene extends Phaser.Scene {
     this.physics.world.drawDebug = this.depuracao.corpos;
     if (!this.depuracao.corpos) this.physics.world.debugGraphic?.clear();
     this.represa?.definirDepuracao(this.depuracao);
+    if (!this.depuracao.inspecionarNpc) this.fecharFichaDev();
+  }
+
+  /**
+   * FICHA DE NPC POR CLIQUE (Parte 32) — so em desenvolvimento.
+   *
+   * O painel DEV ja mostra tudo isto na aba NPCS, mas la se escolhe o NPC por
+   * indice numa lista de 57 nomes. Quando o que se quer e "por que ESTE aqui
+   * esta parado?", a lista e o caminho errado: o jogador da ferramenta ja esta
+   * olhando pro sujeito.
+   *
+   * Fica atras de uma chave (`inspecionarNpc`) porque o clique tambem e o
+   * ataque e a interacao: ligado o tempo todo, ele roubaria os dois.
+   */
+  private fichaDev: Phaser.GameObjects.Container | null = null;
+
+  private fecharFichaDev(): void {
+    this.fichaDev?.destroy(true);
+    this.fichaDev = null;
+  }
+
+  private mostrarFichaDeNpc(npcId: string): void {
+    this.fecharFichaDev();
+    const def = buscarNpc(npcId);
+    const npc = estado.rotinasNpc.todos.find((n) => n.id === npcId);
+    if (!def || !npc) return;
+    const runtime = this.npcs.find((n) => n.estado.id === npcId);
+    const linhas = [
+      `id            ${npcId}`,
+      `nome          ${def.nome}`,
+      `mapa          ${npc.dentro ?? estado.mapa}`,
+      `posicao       ${npc.x.toFixed(1)}, ${npc.y.toFixed(1)}`,
+      `acao          ${npc.acaoAtual}`,
+      `posto         ${npc.posto ?? '—'}`,
+      `direcao       ${npc.direcao}${npc.movendo ? ' (andando)' : ' (parado)'}`,
+      `animacao      ${runtime?.sprite.anims.currentAnim?.key ?? '—'}`,
+      `amizade       ${estado.relacoes.getScore(npcId)}  ${estado.relacoes.getRotulo(npcId)}`,
+      `casa          ${'casa' in def ? String(def.casa ?? '—') : '—'}`,
+      `visivel       ${npc.visivel}`,
+    ];
+    const largura = 210;
+    const altura = linhas.length * 11 + 26;
+    const x = CONFIG.largura - largura - 8;
+    const y = 8;
+    const g = this.add.graphics().setScrollFactor(0);
+    uiPainel(g, { x, y, w: largura, h: altura });
+    const textos = linhas.map((linha, i) =>
+      this.add.text(x + 8, y + 20 + i * 11, linha, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#f2ead7',
+      }).setScrollFactor(0));
+    const titulo = this.add.text(x + 8, y + 5, `DEV · ${def.nome}`, {
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffd97d',
+    }).setScrollFactor(0);
+    this.fichaDev = this.add
+      .container(0, 0, [g, titulo, ...textos])
+      .setDepth(100020)
+      .setScrollFactor(0);
   }
 
   limparInimigosDev(): string {
@@ -3845,7 +3910,7 @@ interface ObjetoTiledCru {
 
 
 /** O que o painel de desenvolvimento pode ligar e desligar no mundo. */
-export type ChaveDeDepuracao = 'corpos' | 'aggro' | 'congelado';
+export type ChaveDeDepuracao = 'corpos' | 'aggro' | 'congelado' | 'inspecionarNpc';
 
 /** Retangulo em TILES, com o canto (x0,y0) inclusivo e (x1,y1) exclusivo. */
 interface RetTiles {

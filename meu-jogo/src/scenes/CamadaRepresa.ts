@@ -47,7 +47,18 @@ interface InimigoVisual {
   sprite: Phaser.Physics.Arcade.Sprite;
   /** ultima animacao aplicada, pra nao remandar a mesma por frame */
   animacao: string;
+  /**
+   * Flag de CIRCUITO (Parte 22): enquanto ela estiver desligada, esta maquina
+   * esta sem energia — nao anda, nao ataca e nao machuca. Restaurar a energia
+   * do andar acende as luminarias E acorda ela.
+   *
+   * `null` na maioria dos inimigos, que nunca dependeram de energia nenhuma.
+   */
+  circuito: string | null;
 }
+
+/** Cinza-chumbo da maquina sem energia — a mesma ideia da luminaria apagada. */
+const TINTA_DORMENTE = 0x4a4e55;
 
 export interface DependenciasCamada {
   /** true quando o tile (em TILES) barra movimento */
@@ -127,13 +138,24 @@ export class CamadaRepresa {
       );
       // a escala sai da ALTURA desejada em tiles: a arte de monstro tem 320 px
       // de celula, como a de NPC, entao a conta e a mesma
-      const escala = (def.alturaTiles * t) / sprite.height;
+      // A MAQUINA GRANDE da sala de servidores cresce 25% (Parte 28). O corpo
+      // de fisica acompanha sozinho, porque ele e medido em fracao do sprite.
+      const grande = props.grande === true;
+      const escala = (def.alturaTiles * t * (grande ? 1.25 : 1)) / sprite.height;
       sprite.setScale(escala);
       sprite.setOrigin(0.5, 0.85);
       sprite.setDepth(sprite.y);
       sprite.body?.setSize(sprite.width * 0.42, sprite.height * 0.22);
       sprite.setCollideWorldBounds(true);
-      this.inimigos.push({ runtime, def, sprite, animacao: '' });
+      const circuito = typeof props.circuito === 'string' && props.circuito ? props.circuito : null;
+      if (circuito && !estado.worldEvents.ativa(circuito)) {
+        // Sem energia: parada, apagada e sem corpo que empurre o jogador. Ela
+        // continua VISIVEL de proposito — a silhueta parada no escuro e o
+        // aviso de que restaurar a energia tem preco.
+        sprite.setTint(TINTA_DORMENTE);
+        if (sprite.body) sprite.body.enable = false;
+      }
+      this.inimigos.push({ runtime, def, sprite, animacao: '', circuito });
     }
   }
 
@@ -323,6 +345,20 @@ export class CamadaRepresa {
 
     for (const alvo of this.inimigos) {
       const { runtime, def, sprite } = alvo;
+      // MAQUINA SEM ENERGIA: nao pensa e nao anda. O teste e por quadro e nao
+      // so na montagem porque o painel pode ser resolvido COM o jogador no
+      // andar — e nesse instante ela acorda, que e o efeito que se quer.
+      if (alvo.circuito) {
+        const ligado = estado.worldEvents.ativa(alvo.circuito);
+        if (!ligado) {
+          sprite.setVelocity(0, 0);
+          continue;
+        }
+        if (sprite.isTinted) {
+          sprite.clearTint();
+          if (sprite.body) sprite.body.enable = true;
+        }
+      }
       if (runtime.hp <= 0) {
         if (sprite.active) {
           sprite.setVelocity(0, 0);

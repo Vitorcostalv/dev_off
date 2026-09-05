@@ -385,6 +385,24 @@ export function escuridaoDoAndar(andar: number): number {
 }
 
 /**
+ * O ANDAR TEM MAQUINA DORMENTE? (Parte 22)
+ *
+ * Em alguns andares parte dos inimigos esta no MESMO circuito das luminarias.
+ * Enquanto o painel nao e resolvido eles ficam parados e inofensivos, de pe no
+ * escuro; resolver o painel acende o andar E os acorda.
+ *
+ * E a troca que a Parte 22 pede: o corredor escuro fica navegavel, e o preco e
+ * que o que estava desligado passa a andar. O jogador escolhe.
+ *
+ * NAO E EM TODO ANDAR, e a regra e essa: de seis em seis. Um andar em cada seis
+ * mantem a escolha rara o bastante pra ela continuar sendo uma decisao — em
+ * todo andar viraria imposto, e o jogador pararia de resolver painel.
+ */
+export function temMaquinaDormente(andar: number): boolean {
+  return andar > 5 && andar % 6 === 0;
+}
+
+/**
  * FRACAO DAS LUMINARIAS DO ANDAR QUE TEM ENERGIA (Parte 21).
  *
  * Sai do capitulo, com um degrau dentro dele: o ultimo andar de um capitulo e

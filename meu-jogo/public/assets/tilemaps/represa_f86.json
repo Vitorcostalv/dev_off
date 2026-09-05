@@ -2878,12 +2878,17 @@
       {
        "name": "tipo",
        "type": "string",
-       "value": "caixa_som"
+       "value": "robo_servico"
       },
       {
        "name": "raio",
        "type": "int",
-       "value": 4
+       "value": 7
+      },
+      {
+       "name": "grande",
+       "type": "bool",
+       "value": true
       }
      ]
     },

@@ -13,6 +13,7 @@ import {
 } from '../src/game/enigmas.ts';
 import { idDaFicha } from '../src/game/andares.ts';
 import { decaisDoAndar, faixaDoAndar } from '../src/game/decais.ts';
+import { temMaquinaDormente } from '../src/game/andares.ts';
 import {
   LABIRINTOS_FUNDOS,
   TEMPLATES_INFANCIA,
@@ -788,7 +789,38 @@ export function plantasCompostas({ medir }) {
           break;
         }
       }
-      inimigos.push({ id: `${def.andar}_${k}`, tipo, tx: pos[0], ty: pos[1], raio: 4 });
+      /**
+       * MAQUINA DORMENTE (Parte 22): parte dos inimigos do andar entra no mesmo
+       * circuito das luminarias. Enquanto o painel nao e resolvido eles ficam
+       * parados; resolver acende o andar e os acorda.
+       *
+       * METADE, e nao todos: um andar em que tudo dorme e um andar sem
+       * inimigo, e a descida ate o painel deixaria de ter risco.
+       */
+      // `def.inimigos >= 2` nao e detalhe: o andar 6 tem UM inimigo, e sem esta
+      // condicao ele era o que dormia — o andar inteiro ficava sem risco ate o
+      // painel, e a conferencia pegou isso.
+      const dorme = enigma && temMaquinaDormente(def.andar) && def.inimigos >= 2 && k % 2 === 0;
+      /**
+       * A MAQUINA GRANDE da sala de servidores (Parte 28).
+       *
+       * Uma por andar, e so em andar que tem `racks`. Ela nao tem bloco de
+       * atributo proprio: e a especie RARA do capitulo, maior e enxergando mais
+       * longe. Inventar um "elite" com vida e dano proprios seria uma quinta
+       * curva de balanceamento pra manter, e a Parte 27 ja pede pra nao inventar
+       * monstro que a arte nao tem.
+       */
+      const salaDeRacks = def.modulos.includes('racks');
+      const grande = salaDeRacks && k === 0 && def.fauna.length > 1;
+      inimigos.push({
+        id: `${def.andar}_${k}`,
+        tipo: grande ? def.fauna[def.fauna.length - 1].tipo : tipo,
+        tx: pos[0],
+        ty: pos[1],
+        raio: grande ? 7 : 4,
+        ...(grande ? { grande: true } : {}),
+        ...(dorme ? { circuito: flagDoEnigma(def.andar) } : {}),
+      });
     }
 
     // -------------------------------------------------------------- luzes --
