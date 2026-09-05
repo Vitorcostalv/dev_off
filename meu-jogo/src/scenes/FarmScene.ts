@@ -71,7 +71,6 @@ import { comportamentoDe, zonaPerigosa } from '../game/equipar';
 import { ATAQUE_DO_JOGADOR } from '../game/inimigos';
 import { buscarArma, direcaoDaMira } from '../game/armas';
 import { enigmaDoAndar, respostasDoEnigma } from '../game/enigmas';
-import { CamadaMapa } from './CamadaMapa';
 import { abaDoMapa } from '../game/mapaEsquematico';
 import {
   ANDARES,
@@ -302,8 +301,7 @@ export class FarmScene extends Phaser.Scene {
   private transicionando = false;
   /** mapa da cidade aberto pelo jogador com M. */
   private mapaAberto = false;
-  /** O mapa esquematico (abas, icones, navegador de profundidade da usina). */
-  private mapaEsquematico: CamadaMapa | null = null;
+
   private marcadorPlayer: Phaser.GameObjects.Arc | null = null;
   private marcadoresNpc: MarcadorNpcMapa[] = [];
   private transformMapa = { x: 0, y: 0, escala: 1 };
@@ -443,7 +441,7 @@ export class FarmScene extends Phaser.Scene {
     this.pronto = false;
     this.transicionando = false;
     this.mapaAberto = false;
-    this.mapaEsquematico = null;
+
     this.marcadorPlayer = null;
     this.marcadoresNpc = [];
     this.interagiveis = [];
@@ -691,15 +689,16 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-ESC', () => this.cancelarPosicionamento());
 
     // M abre/fecha o mapa da cidade.
-    this.input.keyboard!.on('keydown-M', () => this.alternarMapa());
-    // Com o MAPA aberto ele fica com as teclas de navegacao: a UIScene esta
-    // invisivel nesse momento, e sem isso as setas continuariam andando com o
-    // cursor do inventario por baixo do mapa.
-    for (const tecla of ['Q', 'E', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'ENTER']) {
-      this.input.keyboard!.on(`keydown-${tecla}`, (evento: KeyboardEvent) => {
-        if (this.teclaDoMapa(tecla)) evento.preventDefault();
-      });
-    }
+    this.input.keyboard!.on('keydown-M', () => {
+      // com o mapa aberto quem responde ao M e a cena dele, que avisa por evento
+      if (!this.mapaAberto) this.alternarMapa();
+    });
+    // `off` antes do `on`: a FarmScene reinicia a cada troca de mapa, e sem
+    // isto o mesmo ouvinte seria registrado de novo a cada reinicio.
+    this.events.off('fechar-mapa');
+    this.events.on('fechar-mapa', () => {
+      if (this.mapaAberto) this.alternarMapa();
+    });
 
     // ESPACO golpeia com a chave inglesa. So faz algo dentro da represa: a
     // cidade nao tem com quem brigar, e a tecla continua livre lá.
@@ -1773,27 +1772,23 @@ export class FarmScene extends Phaser.Scene {
     return CONFIG.largura / (TILES_VISIVEIS_X * this.tamanhoTile);
   }
 
+  /**
+   * Abre e fecha o mapa.
+   *
+   * O mapa e uma CENA propria (MapaScene) e nao uma camada daqui: a camera do
+   * mundo tem zoom, e objeto de tela dentro dela sai escalado junto. O estado
+   * `mapaAberto` fica aqui porque e ele que bloqueia movimento, tiro e
+   * interacao — a cena do mapa avisa por evento quando quer fechar.
+   */
   private alternarMapa(): void {
     if (this.posicionando) return;
     this.mapaAberto = !this.mapaAberto;
-    if (this.mapaAberto && !this.mapaEsquematico) this.criarOverlayMapa();
     this.scene.setVisible(!this.mapaAberto, 'UIScene');
-    if (this.mapaAberto) this.mapaEsquematico?.abrir(abaDoMapa(this.mapaExternoAtual));
-    else this.mapaEsquematico?.fechar();
-  }
-
-  /** Teclas do mapa aberto: aba, cursor e abrir faixa da usina. */
-  private teclaDoMapa(tecla: string): boolean {
-    if (!this.mapaAberto || !this.mapaEsquematico) return false;
-    switch (tecla) {
-      case 'Q': this.mapaEsquematico.trocarAba(-1); return true;
-      case 'E': this.mapaEsquematico.trocarAba(1); return true;
-      case 'UP': this.mapaEsquematico.mover(-1); return true;
-      case 'DOWN': this.mapaEsquematico.mover(1); return true;
-      case 'LEFT': this.mapaEsquematico.trocarAba(-1); return true;
-      case 'RIGHT': this.mapaEsquematico.trocarAba(1); return true;
-      case 'ENTER': this.mapaEsquematico.acionar(); return true;
-      default: return false;
+    if (this.mapaAberto) {
+      this.scene.launch('MapaScene', { aba: abaDoMapa(this.mapaExternoAtual) });
+      this.scene.bringToTop('MapaScene');
+    } else {
+      this.scene.stop('MapaScene');
     }
   }
 
@@ -1806,27 +1801,6 @@ export class FarmScene extends Phaser.Scene {
   private get mapaExternoAtual(): string {
     const def = buscarMapa(estado.mapa);
     return def ? def.mapaExterno : MAPA_PADRAO;
-  }
-
-  /**
-   * ABRE O MAPA na camada esquematica (src/scenes/CamadaMapa.ts).
-   *
-   * O desenho antigo — o tilemap reduzido com o nome de cada zona no centro
-   * dela — saiu inteiro. Ele produzia rotulo de 8 px por cima de rotulo, e o
-   * marcador do jogador cobria justamente o nome do lugar em que ele estava.
-   */
-  private criarOverlayMapa(): void {
-    this.mapaEsquematico = new CamadaMapa(this, (chave) => {
-      const tilemapKey = MAPAS[chave]?.tilemapKey ?? '';
-      const cache = this.cache.tilemap.get(tilemapKey) as { data?: MapaTiledCru } | undefined;
-      return (cache?.data as never) ?? null;
-    });
-    // O mapa nao sabe onde o jogador esta; quem sabe e a cena. Passar a leitura
-    // como funcao evita a camada precisar de uma referencia ao sprite dele.
-    this.mapaEsquematico.posicaoNoMundo = () => ({
-      x: this.player.x / this.tamanhoTile,
-      y: this.player.y / this.tamanhoTile,
-    });
   }
 
   private atualizarMarcadoresMapa(): void {

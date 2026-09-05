@@ -1,5 +1,5 @@
 /**
- * CAMADA DO MAPA — o desenho esquematico do mundo.
+ * A CENA DO MAPA — o desenho esquematico do mundo.
  *
  * O mapa antigo era o tilemap reduzido com o nome de cada zona escrito no
  * centro dela. Os defeitos vinham todos da mesma decisao: rotulo de 8 px
@@ -25,6 +25,19 @@
  * A aba REPRESA nao e mapa: e um navegador de profundidade. Cento e cinquenta
  * andares numa lista sao cento e cinquenta linhas que ninguem le, entao ele
  * mostra quinze faixas de dez e abre uma por vez.
+ *
+ * ---------------------------------------------------------------------------
+ * POR QUE E UMA CENA E NAO UMA CAMADA DA FARMSCENE
+ * ---------------------------------------------------------------------------
+ * A camera do mundo tem ZOOM (0,83 com o tile de 32). Um objeto com
+ * `scrollFactor 0` continua sendo escalado por esse zoom em volta do centro da
+ * camera, entao o retangulo de fundo de 480x270 saia desenhado com 400x225 e
+ * sobrava uma moldura de mundo em volta do mapa inteiro. Nao havia numero de
+ * `fillRect` que resolvesse: o problema e a camera, nao o retangulo.
+ *
+ * Numa cena propria a camera e outra, com zoom 1, e o mapa cobre a tela porque
+ * a tela dele TEM aquele tamanho. De quebra, sai da briga de profundidade com o
+ * mundo — que desenha por Y e chega perto de 100.000 em mapa grande.
  */
 
 import Phaser from 'phaser';
@@ -76,7 +89,7 @@ const RODAPE = { x: 6, y: CONFIG.altura - 36, w: CONFIG.largura - 12, h: 30 };
 /** Lado da celula da grade grossa, em tiles. Quatro e o que apaga o tile. */
 const GRAO = 4;
 
-export class CamadaMapa {
+export class MapaScene extends Phaser.Scene {
   private raiz: Phaser.GameObjects.Container | null = null;
   private g!: Phaser.GameObjects.Graphics;
   private textos: Phaser.GameObjects.Text[] = [];
@@ -93,30 +106,49 @@ export class CamadaMapa {
   /** transformacao do mapa atual: tile do mundo -> pixel de tela */
   private t = { x: 0, y: 0, escala: 1 };
 
-  private readonly cena: Phaser.Scene;
-  private readonly lerTilemap: (chave: string) => MapaTiledCru | null;
+  constructor() {
+    super('MapaScene');
+  }
 
-  constructor(cena: Phaser.Scene, lerTilemap: (chave: string) => MapaTiledCru | null) {
-    this.cena = cena;
-    this.lerTilemap = lerTilemap;
+  /** A cena de mundo, de onde saem o tilemap em cache e a posicao do jogador. */
+  private get mundo(): Phaser.Scene | null {
+    return this.scene.get('FarmScene') ?? null;
+  }
+
+  private lerTilemap(chave: string): MapaTiledCru | null {
+    const tilemapKey = MAPAS[chave]?.tilemapKey ?? '';
+    const cache = this.mundo?.cache.tilemap.get(tilemapKey) as { data?: MapaTiledCru } | undefined;
+    return cache?.data ?? null;
   }
 
   // -------------------------------------------------------------- ciclo --
-  abrir(abaInicial: AbaDeMapa): void {
-    this.aba = abaInicial;
+  create(dados: { aba?: AbaDeMapa } = {}): void {
+    this.aba = dados.aba ?? 'cidade';
     this.cursor = 0;
-    if (!this.raiz) this.montar();
-    this.raiz?.setVisible(true);
+    this.montar();
     this.desenhar();
+
+    const teclado = this.input.keyboard;
+    teclado?.on('keydown-M', () => this.pedirFechar());
+    teclado?.on('keydown-ESC', () => this.pedirFechar());
+    teclado?.on('keydown-Q', () => this.trocarAba(-1));
+    teclado?.on('keydown-E', () => this.trocarAba(1));
+    teclado?.on('keydown-LEFT', (e: KeyboardEvent) => { e.preventDefault(); this.trocarAba(-1); });
+    teclado?.on('keydown-RIGHT', (e: KeyboardEvent) => { e.preventDefault(); this.trocarAba(1); });
+    teclado?.on('keydown-UP', (e: KeyboardEvent) => { e.preventDefault(); this.mover(-1); });
+    teclado?.on('keydown-DOWN', (e: KeyboardEvent) => { e.preventDefault(); this.mover(1); });
+    teclado?.on('keydown-ENTER', () => this.acionar());
   }
 
-  fechar(): void {
-    this.raiz?.setVisible(false);
-  }
-
-  destruir(): void {
-    this.raiz?.destroy(true);
-    this.raiz = null;
+  /**
+   * Quem fecha o mapa e a FarmScene, e nao esta cena.
+   *
+   * O estado `mapaAberto` mora la (ele bloqueia o movimento, o tiro e a
+   * interacao), e uma cena que se fechasse sozinha deixaria aquele estado
+   * mentindo. Aqui so se avisa.
+   */
+  private pedirFechar(): void {
+    this.mundo?.events.emit('fechar-mapa');
   }
 
   /** Q/E ou clique numa aba. */
@@ -152,21 +184,21 @@ export class CamadaMapa {
 
   // ------------------------------------------------------------- montagem --
   private montar(): void {
-    this.g = this.cena.add.graphics().setScrollFactor(0);
-    this.tituloTexto = ui.titulo(this.cena, 10, 3, '');
+    this.g = this.add.graphics().setScrollFactor(0);
+    this.tituloTexto = ui.titulo(this, 10, 3, '');
     this.abasTexto = ABAS_DE_MAPA.map((_, i) =>
-      ui.nota(this.cena, 0, 0, '').setScrollFactor(0).setData('i', i));
-    this.detalheNome = ui.corpo(this.cena, RODAPE.x + 8, RODAPE.y + 4, '')
+      ui.nota(this, 0, 0, '').setScrollFactor(0).setData('i', i));
+    this.detalheNome = ui.corpo(this, RODAPE.x + 8, RODAPE.y + 4, '')
       .setColor(COR.lataoVivoTexto);
     this.detalheCorpo = ui.miudo(
-      this.cena, RODAPE.x + 8, RODAPE.y + 16, '', RODAPE.w - 16, COR.papelTexto,
+      this, RODAPE.x + 8, RODAPE.y + 16, '', RODAPE.w - 16, COR.papelTexto,
     );
     this.dica = ui.nota(
-      this.cena, CONFIG.largura - 10, 6,
+      this, CONFIG.largura - 10, 6,
       '[Q/E] aba  [setas] escolher  [M] fechar',
     ).setOrigin(1, 0);
 
-    this.raiz = this.cena.add
+    this.raiz = this.add
       .container(0, 0, [this.g, this.tituloTexto, ...this.abasTexto, this.detalheNome, this.detalheCorpo, this.dica])
       // O mundo desenha por Y — um NPC no fim do mapa tem depth 3500 — entao o
       // mapa precisa de um numero fora dessa escala pra ficar por cima de tudo.
@@ -183,7 +215,7 @@ export class CamadaMapa {
     x: number, y: number, texto: string, cor: string, tamanho: string = FONTE.nota,
     origem: [number, number] = [0, 0],
   ): Phaser.GameObjects.Text {
-    const t = this.cena.add
+    const t = this.add
       .text(x, y, texto, { fontFamily: FONTE.familia, fontSize: tamanho, color: cor })
       .setOrigin(origem[0], origem[1])
       .setScrollFactor(0);
@@ -458,8 +490,17 @@ export class CamadaMapa {
     return marco ? { x: marco.tx, y: marco.ty } : null;
   }
 
-  /** Injetada pela cena: a posicao do jogador em tiles, quando ele esta fora. */
-  posicaoNoMundo: () => { x: number; y: number } | null = () => null;
+  /**
+   * A posicao do jogador em TILES, lida da cena de mundo.
+   *
+   * A cena de mundo continua sendo a dona do sprite; o mapa so pergunta. Passar
+   * a coordenada por `scene.launch` congelaria o marcador no valor da abertura.
+   */
+  private posicaoNoMundo(): { x: number; y: number } | null {
+    const f = this.mundo as unknown as { player?: { x: number; y: number }; tamanhoTile?: number };
+    if (!f?.player || !f.tamanhoTile) return null;
+    return { x: f.player.x / f.tamanhoTile, y: f.player.y / f.tamanhoTile };
+  }
 
   private detalharMarco(m: MarcoDeMapa | undefined, chave: string): void {
     if (!m) {
