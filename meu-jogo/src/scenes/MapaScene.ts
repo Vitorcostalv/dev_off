@@ -84,8 +84,16 @@ interface MapaTiledCru {
   }[];
 }
 
-const QUADRO = { x: 6, y: 30, w: CONFIG.largura - 12, h: CONFIG.altura - 30 - 40 };
-const RODAPE = { x: 6, y: CONFIG.altura - 36, w: CONFIG.largura - 12, h: 30 };
+const QUADRO = { x: 6, y: 30, w: CONFIG.largura - 12, h: CONFIG.altura - 30 - 48 };
+/**
+ * O rodape de detalhe.
+ *
+ * Sao QUARENTA pixels e nao trinta: com trinta, o nome do lugar mais duas
+ * linhas de corpo passavam da borda de baixo da tela e a ultima saia cortada
+ * pela metade. Cabem duas linhas de corpo, e `detalharMarco` nunca escreve mais
+ * que duas.
+ */
+const RODAPE = { x: 6, y: CONFIG.altura - 44, w: CONFIG.largura - 12, h: 40 };
 /** Lado da celula da grade grossa, em tiles. Quatro e o que apaga o tile. */
 const GRAO = 4;
 
@@ -105,6 +113,8 @@ export class MapaScene extends Phaser.Scene {
   private marcos: MarcoDeMapa[] = [];
   /** transformacao do mapa atual: tile do mundo -> pixel de tela */
   private t = { x: 0, y: 0, escala: 1 };
+  /** caixas de texto ja postas neste quadro, pra nenhum rotulo cair em cima de outro */
+  private ocupados: { x0: number; y0: number; x1: number; y1: number }[] = [];
 
   constructor() {
     super('MapaScene');
@@ -209,6 +219,7 @@ export class MapaScene extends Phaser.Scene {
   private limparTextos(): void {
     for (const t of this.textos) t.destroy();
     this.textos = [];
+    this.ocupados = [];
   }
 
   private escrever(
@@ -285,10 +296,13 @@ export class MapaScene extends Phaser.Scene {
       this.g.fillRect(...this.ret(dx, dy, dw, dh));
       this.g.lineStyle(1, COR.papelFraco, 0.22);
       this.g.strokeRect(...this.ret(dx, dy, dw, dh));
-      this.escrever(
+      const rotulo = this.escrever(
         this.px(dx + dw / 2), this.py(dy) + 2, d.nome.toUpperCase(),
         COR.papelFracoTexto, FONTE.nota, [0.5, 0],
       ).setAlpha(0.55);
+      // O nome do bairro entra na lista de ocupados: sem isso, "Fazenda" caia
+      // exatamente em cima de "COLONIA" no mapa rural.
+      this.ocupados.push(this.caixaDe(rotulo));
     }
 
     // --------------------------------------------------------- vias e agua --
@@ -300,7 +314,6 @@ export class MapaScene extends Phaser.Scene {
 
     // ROTULOS PRIMEIRO, pra o icone ficar por cima do proprio nome quando eles
     // se encostam — e por isso que o icone nunca some atras de um rotulo.
-    const ocupados: { x0: number; y0: number; x1: number; y1: number }[] = [];
     const selecionado = this.marcos[this.cursor];
     this.marcos.forEach((m, i) => {
       const ativo = i === this.cursor;
@@ -309,27 +322,7 @@ export class MapaScene extends Phaser.Scene {
       // nome nao acrescenta nada: quem e a casa de quem se le no painel de
       // baixo, ao escolher.
       if (!ativo && !m.estilo.publico) return;
-      const texto = m.estilo.rotulo;
-      const ancoras: [number, number, number, number][] = [
-        [m.x, m.y - 10, 0.5, 1], [m.x, m.y + 10, 0.5, 0],
-        [m.x + 7, m.y, 0, 0.5], [m.x - 7, m.y, 1, 0.5],
-      ];
-      for (const [ax, ay, ox, oy] of ancoras) {
-        const largura = texto.length * 5 + 2;
-        const caixa = {
-          x0: ax - largura * ox, y0: ay - 9 * oy, x1: ax + largura * (1 - ox), y1: ay + 9 * (1 - oy),
-        };
-        if (caixa.x0 < QUADRO.x || caixa.x1 > QUADRO.x + QUADRO.w) continue;
-        if (caixa.y0 < QUADRO.y || caixa.y1 > QUADRO.y + QUADRO.h) continue;
-        const bate = ocupados.some((o) =>
-          caixa.x0 < o.x1 && o.x0 < caixa.x1 && caixa.y0 < o.y1 && o.y0 < caixa.y1);
-        if (bate && !ativo) continue;
-        ocupados.push(caixa);
-        this.escrever(
-          ax, ay, texto, ativo ? COR.lataoVivoTexto : COR.papelTexto, FONTE.nota, [ox, oy],
-        ).setAlpha(ativo ? 1 : 0.8);
-        break;
-      }
+      this.rotular(m, ativo);
     });
     for (let i = 0; i < this.marcos.length; i++) {
       this.icone(this.marcos[i], i === this.cursor);
@@ -340,6 +333,49 @@ export class MapaScene extends Phaser.Scene {
 
     // ---------------------------------------------------------- detalhe --
     this.detalharMarco(selecionado, chave);
+  }
+
+  /**
+   * Poe o nome de um marco, ou desiste dele.
+   *
+   * A caixa e MEDIDA e nao estimada. A primeira versao calculava
+   * `texto.length * 5` e errava por baixo — as caixas de "Hospital" e
+   * "Farmacia" nao se cruzavam na conta e se cruzavam na tela. Aqui o texto e
+   * criado, medido pelo proprio Phaser e MOVIDO pra ancora que couber; se
+   * nenhuma couber, ele e destruido e o lugar fica so com o icone.
+   *
+   * O selecionado nunca desiste: ele e o unico rotulo que o jogador pediu.
+   */
+  private rotular(m: MarcoDeMapa, ativo: boolean): void {
+    const t = this.escrever(
+      0, 0, m.estilo.rotulo, ativo ? COR.lataoVivoTexto : COR.papelTexto, FONTE.nota,
+    ).setAlpha(ativo ? 1 : 0.8);
+    const ancoras: [number, number, number, number][] = [
+      [m.x, m.y - 9, 0.5, 1], [m.x, m.y + 9, 0.5, 0],
+      [m.x + 8, m.y, 0, 0.5], [m.x - 8, m.y, 1, 0.5],
+    ];
+    for (const [ax, ay, ox, oy] of ancoras) {
+      t.setOrigin(ox, oy).setPosition(ax, ay);
+      const caixa = this.caixaDe(t);
+      const foraDoQuadro = caixa.x0 < QUADRO.x || caixa.x1 > QUADRO.x + QUADRO.w
+        || caixa.y0 < QUADRO.y || caixa.y1 > QUADRO.y + QUADRO.h;
+      if (foraDoQuadro && !ativo) continue;
+      const bate = this.ocupados.some((o) =>
+        caixa.x0 < o.x1 && o.x0 < caixa.x1 && caixa.y0 < o.y1 && o.y0 < caixa.y1);
+      if (bate && !ativo) continue;
+      this.ocupados.push(caixa);
+      return;
+    }
+    // nenhuma ancora coube: o lugar fica so com o icone, que continua legivel
+    this.textos = this.textos.filter((outro) => outro !== t);
+    t.destroy();
+  }
+
+  /** A caixa que um texto ocupa na tela, com uma folga de um pixel em volta. */
+  private caixaDe(t: Phaser.GameObjects.Text): { x0: number; y0: number; x1: number; y1: number } {
+    const x0 = t.x - t.width * t.originX - 1;
+    const y0 = t.y - t.height * t.originY - 1;
+    return { x0, y0, x1: x0 + t.width + 2, y1: y0 + t.height + 2 };
   }
 
   /**
@@ -523,8 +559,9 @@ export class MapaScene extends Phaser.Scene {
             ? 'Tem interior: da pra entrar.'
             : 'Area externa.',
     ];
-    if (aqui && estado.mapa === m.interior) linhas.push('Voce esta aqui.');
-    this.detalheCorpo.setText(linhas.join('\n'));
+    if (aqui && estado.mapa === m.interior) linhas[1] = 'Voce esta aqui.';
+    // DUAS linhas, sempre: a terceira nao cabe no rodape e saia cortada.
+    this.detalheCorpo.setText(linhas.slice(0, 2).join('\n'));
   }
 
   // ------------------------------------------------------- aba da usina --
