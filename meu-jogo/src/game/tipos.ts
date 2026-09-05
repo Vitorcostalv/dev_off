@@ -144,6 +144,16 @@ export interface Fala {
    * sistema falam sem rosto, e ai a caixa usa a largura toda pro texto.
    */
   npcId?: string;
+  /**
+   * SINAL DE RELACIONAMENTO desta fala: `1` quando ela aproximou, `-1` quando
+   * afastou, ausente quando nao mexeu em nada.
+   *
+   * A caixa de dialogo desenha uma seta pequena ao lado do nome. O NUMERO nunca
+   * aparece em jogo (Parte 60): saber que a conversa foi bem e informacao de
+   * personagem; saber que ela valeu 0,75 ponto e informacao de planilha, e
+   * transforma conversa em otimizacao.
+   */
+  reacao?: 1 | -1;
 }
 
 /** Atalho: varias falas seguidas do mesmo personagem. */

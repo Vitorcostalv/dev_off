@@ -45,7 +45,16 @@ import { fichaDoAndar, linhasDaFicha, tituloDaFicha } from '../game/fichas';
  * a 88% de opacidade fica no limite do legivel quando o cenario por tras e
  * claro (grama ao meio-dia, piso de loja).
  */
-const CAIXA = { x: 8, y: 180, w: CONFIG.largura - 16, h: 82 };
+const CAIXA = {
+  x: 8,
+  w: CONFIG.largura - 16,
+  /** rodape da caixa: ela cresce PRA CIMA a partir daqui */
+  base: CONFIG.altura - 8,
+  /** altura minima — o retrato precisa dela pra nao virar selo */
+  hMin: 62,
+  /** altura maxima, com quatro linhas de fala */
+  hMax: 92,
+} as const;
 /**
  * Medidas do CARTAO da HUD.
  *
@@ -81,6 +90,26 @@ const CONFIRMA = { w: 248, h: 64 };
  * 480x270), com tres blocos de leitura clara: GRADE a esquerda, ITEM no centro,
  * EQUIPAMENTO e ACOES no rodape.
  */
+/**
+ * OS FILTROS do inventario (Parte 63).
+ *
+ * Eles sao uma VISTA e nao uma ordenacao: trocar de aba nao mexe em slot
+ * nenhum, e o save continua com os itens exatamente onde estavam. Isso importa
+ * porque o slot e endereco — o jogador decora que a chave inglesa fica no
+ * canto, e um filtro que reordenasse a mochila apagaria essa memoria toda vez
+ * que alguem olhasse os consumiveis.
+ *
+ * `tipos` vazio = a aba TODOS, que nao filtra nada.
+ */
+const FILTROS_DE_INVENTARIO: readonly { id: string; nome: string; tipos: readonly string[] }[] = [
+  { id: 'todos', nome: 'TUDO', tipos: [] },
+  { id: 'consumiveis', nome: 'CONSUMO', tipos: ['consumivel'] },
+  { id: 'ferramentas', nome: 'FERRAM.', tipos: ['ferramenta', 'acesso'] },
+  { id: 'armas', nome: 'ARMAS', tipos: ['arma', 'municao'] },
+  { id: 'componentes', nome: 'PECAS', tipos: ['componente', 'material'] },
+  { id: 'eletronicos', nome: 'ELETRO', tipos: ['eletronico'] },
+];
+
 const INV = {
   colunas: 5,
   linhas: 4,
@@ -91,7 +120,7 @@ const INV = {
   h: 238,
   /** grade de slots */
   gradeX: 24,
-  gradeY: 44,
+  gradeY: 56,
   /** coluna do item selecionado */
   colunaX: 180,
   colunaW: 276,
@@ -100,9 +129,11 @@ const INV = {
    *
    * O numero e o que sobra pro poco da descricao: cada ponto que ele desce e
    * uma linha a mais de texto de item, e cada ponto que ele sobe e folga pras
-   * acoes. 176 e onde as tres linhas de descricao e as duas de acao convivem.
+   * acoes. Subiu de 176 pra 184 quando as abas de filtro empurraram a grade
+   * doze pixels pra baixo — sem isso o poco perdia a quarta linha, e a frase
+   * que explica o item ficava cortada.
    */
-  rodapeY: 176,
+  rodapeY: 184,
   acoesX: 250,
 };
 
@@ -197,7 +228,13 @@ export class UIScene extends Phaser.Scene {
   private dialogoNome!: Phaser.GameObjects.Text;
   private dialogoTexto!: Phaser.GameObjects.Text;
   private dialogoRetrato!: Phaser.GameObjects.Image;
-  private dialogoMolduraRetrato!: Phaser.GameObjects.Graphics;
+  private dialogoFundo!: Phaser.GameObjects.Graphics;
+  /** seta ▲/▼ ao lado do nome quando a fala mexeu no relacionamento */
+  private dialogoReacao!: Phaser.GameObjects.Text;
+  /** "2/4" quando a conversa tem mais de uma fala */
+  private dialogoContador!: Phaser.GameObjects.Text;
+  private dialogoSeta!: Phaser.GameObjects.Graphics;
+  private dialogoDica!: Phaser.GameObjects.Text;
   private falas: Fala[] = [];
   private indiceFala = 0;
   private aoFimDoDialogo: (() => void) | null = null;
@@ -226,6 +263,10 @@ export class UIScene extends Phaser.Scene {
   private contadores: Phaser.GameObjects.Text[] = [];
   private seletores: Phaser.GameObjects.Rectangle[] = [];
   private itemSelecionado: number | null = null;
+  /** indice do filtro ativo em `FILTROS_DE_INVENTARIO` */
+  private filtroDeInventario = 0;
+  /** rotulo de cada aba de filtro, criado uma vez */
+  private abasDeFiltro: Phaser.GameObjects.Text[] = [];
   private nomeItem!: Phaser.GameObjects.Text;
   private tipoItem!: Phaser.GameObjects.Text;
   private descricaoItem!: Phaser.GameObjects.Text;
@@ -418,6 +459,15 @@ export class UIScene extends Phaser.Scene {
     teclado?.on('keydown-C', () => {
       if (this.lojaAberta) this.alternarFiltroDaLoja();
       else this.alternarCalendario();
+    });
+    // Q/E trocam a ABA DE FILTRO do inventario (Parte 63). Sao as mesmas teclas
+    // de aba do mapa e do painel de desenvolvimento — uma tecla, um verbo.
+    teclado?.on('keydown-Q', () => this.trocarFiltro(-1));
+    teclado?.on('keydown-E', (e: KeyboardEvent) => {
+      // E tambem e "acionar" no mundo; so vale como aba com o inventario aberto
+      if (!this.inventarioAberto || this.modalPorCima) return;
+      e.preventDefault();
+      this.trocarFiltro(1);
     });
     // acoes do inventario
     teclado?.on('keydown-U', () => this.usarSelecionado());
@@ -794,6 +844,8 @@ export class UIScene extends Phaser.Scene {
     this.indiceFala = 0;
     this.aoFimDoDialogo = aoFim ?? null;
     this.dialogo.setVisible(true);
+    this.dialogoSeta.setVisible(true);
+    this.dialogoDica.setVisible(true);
     this.desenharFala();
     this.desenharPrompt();
   }
@@ -817,114 +869,135 @@ export class UIScene extends Phaser.Scene {
     aoFim?.();
   }
 
+  /**
+   * Monta a caixa de dialogo pra fala atual.
+   *
+   * A ALTURA sai do texto e nao de uma constante. A caixa antiga tinha 82 px
+   * fixos: uma fala de uma linha deixava dois tercos dela vazios, e a Parte 57
+   * pede explicitamente que nao haja painel grande e vazio. Aqui ela cresce PRA
+   * CIMA a partir do rodape, entre um minimo (o retrato precisa de altura pra
+   * nao virar selo) e um maximo de quatro linhas.
+   */
   private desenharFala(): void {
     const fala = this.falas[this.indiceFala];
-    // o retrato vem ANTES do texto: e ele que decide de onde o texto comeca e
-    // que largura ele tem pra quebrar
-    this.desenharRetrato(fala.npcId);
-    this.dialogoNome.setText(fala.nome);
+    const chave = this.texturaDeRetrato(fala.npcId);
+
+    // 1. mede o texto com a largura que ele VAI ter, pra saber a altura da caixa
+    const xTexto = CAIXA.x + (chave ? RETRATO.margem * 2 + RETRATO.lado + 2 : 10);
+    const larguraTexto = CAIXA.x + CAIXA.w - 10 - xTexto;
+    this.dialogoTexto.setWordWrapWidth(larguraTexto);
     this.dialogoTexto.setText(fala.texto);
-  }
+    const alturaTexto = this.dialogoTexto.height;
 
-  private criarCaixaDeDialogo(): Phaser.GameObjects.Container {
-    const fundo = this.add.graphics();
-    // opaco de verdade (era 88%): o que atrapalhava a leitura era o cenario
-    // claro vazando por tras das letras
-    ui.painel(fundo, { x: CAIXA.x, y: CAIXA.y, w: CAIXA.w, h: CAIXA.h }, false);
+    // 2. a caixa: cabecalho (placa do nome) + texto + rodape da dica
+    const altura = Math.max(
+      CAIXA.hMin,
+      Math.min(CAIXA.hMax, 10 + 14 + alturaTexto + 12),
+    );
+    const y = CAIXA.base - altura;
+    const r = { x: CAIXA.x + RETRATO.margem, y: y + RETRATO.margem, w: RETRATO.lado, h: altura - RETRATO.margem * 2 };
 
-    // moldura do retrato, sempre desenhada; o que aparece dentro dela muda
-    this.dialogoMolduraRetrato = this.add.graphics();
-    const r = this.caixaDoRetrato();
-    this.dialogoMolduraRetrato.fillStyle(0x0d0b08, 1);
-    this.dialogoMolduraRetrato.fillRect(r.x, r.y, r.w, r.h);
-    this.dialogoMolduraRetrato.lineStyle(1, UI.borda, 1);
-    this.dialogoMolduraRetrato.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    const g = this.dialogoFundo;
+    g.clear();
+    ui.painel(g, { x: CAIXA.x, y, w: CAIXA.w, h: altura }, false);
+    if (chave) ui.campo(g, r, true);
 
-    this.dialogoRetrato = this.add.image(r.x + r.w / 2, r.y + r.h, '').setOrigin(0.5, 1);
+    // 3. PLACA DO NOME: um campo curto atras do nome, com fio de latao embaixo.
+    //    Sem ela o nome era so um texto de outra cor, e "quem esta falando" e a
+    //    primeira coisa que se procura numa caixa de dialogo.
+    this.dialogoNome.setText(fala.nome);
+    this.dialogoNome.setPosition(xTexto + 4, y + 7);
+    const larguraPlaca = Math.min(this.dialogoNome.width + 8, larguraTexto);
+    ui.campo(g, { x: xTexto, y: y + 5, w: larguraPlaca, h: 14 });
+    g.lineStyle(1, COR.latao, 0.9);
+    g.beginPath();
+    g.moveTo(xTexto, y + 19.5);
+    g.lineTo(xTexto + larguraPlaca, y + 19.5);
+    g.strokePath();
 
-    this.dialogoNome = this.add.text(0, CAIXA.y + 8, '', {
-      fontFamily: UI.fonte,
-      fontSize: '13px',
-      color: UI.destaque,
-    });
+    // 4. SETA DE REACAO (Parte 60): so o sentido, nunca o numero.
+    if (fala.reacao) {
+      this.dialogoReacao
+        .setText(fala.reacao > 0 ? '▲' : '▼')
+        .setColor(fala.reacao > 0 ? COR.verdeTexto : COR.alertaTexto)
+        .setPosition(xTexto + larguraPlaca + 5, y + 7)
+        .setVisible(true);
+    } else this.dialogoReacao.setVisible(false);
 
-    this.dialogoTexto = this.add.text(0, CAIXA.y + 28, '', {
-      fontFamily: UI.fonte,
-      fontSize: '12px',
-      color: UI.texto,
-      lineSpacing: 4,
-    });
+    this.dialogoTexto.setPosition(xTexto, y + 24);
 
-    const seta = this.add
-      .text(CAIXA.x + CAIXA.w - 8, CAIXA.y + CAIXA.h - 5, '[E]', {
-        fontFamily: UI.fonte,
-        fontSize: '11px',
-        color: UI.textoFraco,
-      })
-      .setOrigin(1, 1);
-
-    this.tweens.add({ targets: seta, alpha: 0.25, duration: 600, yoyo: true, repeat: -1 });
-
-    return this.add
-      .container(0, 0, [
-        fundo,
-        this.dialogoMolduraRetrato,
-        this.dialogoRetrato,
-        this.dialogoNome,
-        this.dialogoTexto,
-        seta,
-      ])
-      .setDepth(100)
-      .setVisible(false);
-  }
-
-  /** Onde a moldura do retrato fica dentro da caixa de dialogo. */
-  private caixaDoRetrato(): { x: number; y: number; w: number; h: number } {
-    return {
-      x: CAIXA.x + RETRATO.margem,
-      y: CAIXA.y + RETRATO.margem,
-      w: RETRATO.lado,
-      h: CAIXA.h - RETRATO.margem * 2,
-    };
-  }
-
-  /**
-   * O RETRATO do NPC que esta falando.
-   *
-   * Nao ha arte de retrato dedicada: o rosto sai do primeiro quadro da folha de
-   * POSE PARADA olhando pra frente (`down-0` da textura `npc-<id>-parado`), o
-   * mesmo recorte que o BootScene ja registra pro idle. Isso mantem o retrato
-   * automaticamente igual ao boneco que anda pela cidade — e um NPC novo ganha
-   * retrato sem passo nenhum a mais.
-   *
-   * A imagem e ampliada pra encher a moldura, com `NEAREST` preservado pelo
-   * `pixelArt` do jogo, entao ela cresce em bloco em vez de borrar.
-   */
-  private desenharRetrato(npcId: string | undefined): void {
-    const chaves = npcId ? [`npc-${npcId}-parado`, `npc-${npcId}-sprites`] : [];
-    const chave = chaves.find((k) => this.textures.exists(k) && this.textures.get(k).has('down-0'));
-
-    const r = this.caixaDoRetrato();
-    this.dialogoMolduraRetrato.setVisible(Boolean(chave));
+    // 5. retrato
     this.dialogoRetrato.setVisible(Boolean(chave));
-
     if (chave) {
       this.dialogoRetrato.setTexture(chave, 'down-0');
-      // encaixa pela dimensao mais apertada e nunca passa da moldura
       const escala = Math.min(
         (r.w - 6) / this.dialogoRetrato.width,
         (r.h - 6) / this.dialogoRetrato.height,
       );
-      this.dialogoRetrato.setScale(escala);
-      this.dialogoRetrato.setPosition(r.x + r.w / 2, r.y + r.h - 3);
+      this.dialogoRetrato.setScale(escala).setPosition(r.x + r.w / 2, r.y + r.h - 3);
     }
 
-    // sem retrato (placa, item, aviso) o texto usa a largura toda da caixa
-    const xTexto = chave ? r.x + r.w + 9 : CAIXA.x + 9;
-    const largura = CAIXA.x + CAIXA.w - 9 - xTexto;
-    this.dialogoNome.setX(xTexto);
-    this.dialogoTexto.setX(xTexto);
-    this.dialogoTexto.setWordWrapWidth(largura);
+    // 6. quanto falta: "2/4" so quando a conversa tem mais de uma fala
+    const total = this.falas.length;
+    this.dialogoContador
+      .setText(total > 1 ? `${this.indiceFala + 1}/${total}` : '')
+      .setPosition(CAIXA.x + CAIXA.w - 34, CAIXA.base - 5);
+
+    // 7. indicador de continuar: triangulo + [E]
+    this.dialogoDica.setPosition(CAIXA.x + CAIXA.w - 8, CAIXA.base - 4);
+    const sx = CAIXA.x + CAIXA.w - 30;
+    const sy = CAIXA.base - 10;
+    this.dialogoSeta.clear();
+    this.dialogoSeta.fillStyle(COR.lataoVivo, 1);
+    this.dialogoSeta.fillTriangle(sx - 3, sy - 2, sx + 3, sy - 2, sx, sy + 2);
+  }
+
+  /** A textura de retrato de um NPC, ou null quando a fala nao tem dono. */
+  private texturaDeRetrato(npcId: string | undefined): string | null {
+    const chaves = npcId ? [`npc-${npcId}-parado`, `npc-${npcId}-sprites`] : [];
+    return chaves.find((k) => this.textures.exists(k) && this.textures.get(k).has('down-0')) ?? null;
+  }
+
+  private criarCaixaDeDialogo(): Phaser.GameObjects.Container {
+    // Um Graphics so pra caixa, a moldura do retrato e a placa do nome: os tres
+    // sao repintados juntos a cada fala, porque a ALTURA da caixa depende do
+    // texto e as tres pecas se movem com ela.
+    this.dialogoFundo = this.add.graphics();
+
+    this.dialogoRetrato = this.add.image(0, 0, '').setOrigin(0.5, 1);
+
+    this.dialogoNome = ui.corpo(this, 0, 0, '').setColor(COR.lataoVivoTexto);
+    this.dialogoReacao = ui.corpo(this, 0, 0, '');
+    this.dialogoTexto = this.add.text(0, 0, '', {
+      fontFamily: FONTE.familia,
+      fontSize: '12px',
+      color: COR.papelTexto,
+      lineSpacing: 4,
+    });
+    this.dialogoContador = ui.nota(this, 0, 0, '').setOrigin(1, 1);
+
+    // O indicador de continuar e TRIANGULO mais texto, e nao so texto: quem
+    // joga sem som e com a tela pequena reconhece a forma antes de ler.
+    this.dialogoSeta = this.add.graphics();
+    const dica = ui.nota(this, 0, 0, '[E]').setOrigin(1, 1);
+    this.dialogoDica = dica;
+    this.tweens.add({
+      targets: [dica, this.dialogoSeta], alpha: 0.3, duration: 620, yoyo: true, repeat: -1,
+    });
+
+    return this.add
+      .container(0, 0, [
+        this.dialogoFundo,
+        this.dialogoRetrato,
+        this.dialogoNome,
+        this.dialogoReacao,
+        this.dialogoTexto,
+        this.dialogoContador,
+        this.dialogoSeta,
+        dica,
+      ])
+      .setDepth(CAMADA.painel)
+      .setVisible(false);
   }
 
   // --------------------------------------------------------- confirmacao --
@@ -1079,9 +1152,14 @@ export class UIScene extends Phaser.Scene {
     // retrato aberto por baixo dele e o que evita o jogador escolher assunto
     // sem ver mais com quem esta falando
     if (npcId) {
-      this.desenharRetrato(npcId);
-      this.dialogoNome.setText(titulo);
-      this.dialogoTexto.setText('');
+      // Reusa a propria caixa de dialogo, com uma "fala" de texto vazio: e o
+      // que mantem o retrato, a placa do nome e a moldura identicos aos da
+      // conversa, sem uma segunda montagem de caixa so pro menu.
+      this.falas = [{ nome: titulo, texto: '', npcId }];
+      this.indiceFala = 0;
+      this.desenharFala();
+      this.dialogoSeta.setVisible(false);
+      this.dialogoDica.setVisible(false);
       this.dialogo.setVisible(true);
     }
     this.menuOpcoes = opcoes;
@@ -1136,7 +1214,7 @@ export class UIScene extends Phaser.Scene {
     const visiveis = Math.min(MENU.linhas, this.menuOpcoes.length);
     const altura = MENU.margem * 2 + 15 + visiveis * MENU.alturaLinha + 12;
     const x = (CONFIG.largura - MENU.w) / 2;
-    const y = CAIXA.y - altura - 4;
+    const y = CAIXA.base - CAIXA.hMax - altura - 4;
 
     this.menuFundo.clear();
     ui.painel(this.menuFundo, { x, y, w: MENU.w, h: altura }, false);
@@ -1149,8 +1227,23 @@ export class UIScene extends Phaser.Scene {
       linha.setVisible(dentro);
       if (!dentro || !opcao) return;
       const ativo = this.menuTopo + i === this.menuCursor;
-      linha.setPosition(x + MENU.margem, y + MENU.margem + 15 + i * MENU.alturaLinha);
-      linha.setColor(ativo ? UI.destaque : UI.textoFraco);
+      const ly = y + MENU.margem + 15 + i * MENU.alturaLinha;
+      /**
+       * A ESCOLHA SELECIONADA TEM TRES MARCAS, e nao uma (Parte 59).
+       *
+       * Cor, sozinha, nao serve: quem nao distingue as duas nao ve escolha
+       * nenhuma marcada. Aqui a linha ativa ganha tambem uma BARRA atras dela e
+       * um TRACO de latao na margem esquerda — forma e posicao, que se leem sem
+       * cor.
+       */
+      if (ativo) {
+        this.menuFundo.fillStyle(COR.latao, 0.16);
+        this.menuFundo.fillRect(x + 4, ly - 2, MENU.w - 8, MENU.alturaLinha);
+        this.menuFundo.fillStyle(COR.lataoVivo, 1);
+        this.menuFundo.fillRect(x + 4, ly - 2, 2, MENU.alturaLinha);
+      }
+      linha.setPosition(x + MENU.margem, ly);
+      linha.setColor(ativo ? COR.lataoVivoTexto : COR.papelTexto);
       linha.setText(`${ativo ? '>' : ' '} ${encurtarMenu(opcao.rotulo)}`);
     });
 
@@ -1239,6 +1332,43 @@ export class UIScene extends Phaser.Scene {
     this.descricaoItem.setText('');
   }
 
+  /**
+   * O que cada celula da grade mostra: um indice de SLOT REAL, ou null.
+   *
+   * Na aba TUDO o mapa e a identidade — a celula 7 e o slot 7. E de proposito:
+   * o slot e endereco, o jogador decora que a chave inglesa fica no canto de
+   * cima, e reordenar a mochila apagaria essa memoria. Nas outras abas a grade
+   * junta so o que casa com o filtro, sem tocar em slot nenhum: e uma VISTA, e
+   * o save nao muda por causa dela (Parte 63).
+   */
+  private mapaDaGrade(): (number | null)[] {
+    const celulas = INV.colunas * INV.linhas;
+    const filtro = FILTROS_DE_INVENTARIO[this.filtroDeInventario];
+    if (!filtro || filtro.tipos.length === 0) {
+      return Array.from({ length: celulas }, (_, i) => (i < estado.inventario.slots.length ? i : null));
+    }
+    const casam: (number | null)[] = [];
+    estado.inventario.slots.forEach((slot, i) => {
+      if (!slot) return;
+      const def = ITENS[slot.id];
+      if (def && filtro.tipos.includes(def.tipo)) casam.push(i);
+    });
+    while (casam.length < celulas) casam.push(null);
+    return casam.slice(0, celulas);
+  }
+
+  /** Troca a aba de filtro e leva o cursor pro primeiro item dela. */
+  private trocarFiltro(passo: number): void {
+    if (!this.inventarioAberto || this.modalPorCima) return;
+    const n = FILTROS_DE_INVENTARIO.length;
+    this.filtroDeInventario = (this.filtroDeInventario + passo + n) % n;
+    const grade = this.mapaDaGrade();
+    const primeiro = grade.find((a) => a !== null && estado.inventario.slots[a]);
+    this.itemSelecionado = primeiro ?? null;
+    this.avisoInventario.setText('');
+    this.desenharInventario();
+  }
+
   /** O indice do primeiro slot com item, ou null se a mochila esta vazia. */
   private primeiroSlotCheio(): number | null {
     const i = estado.inventario.slots.findIndex((slot) => slot !== null);
@@ -1253,12 +1383,17 @@ export class UIScene extends Phaser.Scene {
    * borda e o que deixa segurar a tecla sem perder de vista onde se estava.
    */
   private moverGradeDoInventario(passo: number): void {
-    const total = estado.inventario.slots.length;
-    if (total === 0) return;
-    const partida = this.itemSelecionado ?? (passo > 0 ? -1 : total);
-    const alvo = Math.min(total - 1, Math.max(0, partida + passo));
-    if (alvo === this.itemSelecionado) return;
-    this.itemSelecionado = alvo;
+    // Anda pela VISTA e nao pelo slot: com um filtro ativo a celula 3 pode ser
+    // o slot 11, e mover "um pra direita" tem de ir pra proxima CELULA.
+    const grade = this.mapaDaGrade();
+    if (grade.length === 0) return;
+    const atual = this.itemSelecionado === null
+      ? (passo > 0 ? -1 : grade.length)
+      : grade.indexOf(this.itemSelecionado);
+    const alvo = Math.min(grade.length - 1, Math.max(0, (atual < 0 ? (passo > 0 ? -1 : grade.length) : atual) + passo));
+    const slot = grade[alvo];
+    if (slot === null || slot === this.itemSelecionado) return;
+    this.itemSelecionado = slot;
     this.avisoInventario.setText('');
     this.desenharInventario();
   }
@@ -1411,16 +1546,20 @@ export class UIScene extends Phaser.Scene {
    */
   private desenharInventario(): void {
     const slots = estado.inventario.slots;
-    const assinatura = slots
+    const grade = this.mapaDaGrade();
+    // A assinatura inclui o FILTRO: trocar de aba muda o que a grade desenha
+    // sem mudar um slot sequer, e sem isto a moldura ficaria na aba anterior.
+    const assinatura = `${this.filtroDeInventario}|${slots
       .map((s, i) => `${s ? `${s.id}:${s.qtd}` : '-'}${this.itemSelecionado === i ? '*' : ''}`)
-      .join(',');
+      .join(',')}`;
     if (assinatura !== this.inventarioAssinatura) {
       this.inventarioAssinatura = assinatura;
       this.desenharGradeDeSlots();
     }
 
     for (let i = 0; i < this.icones.length; i++) {
-      const slot = slots[i];
+      const alvo = grade[i];
+      const slot = alvo === null ? null : slots[alvo];
       const def = slot ? ITENS[slot.id] : undefined;
       // item com arte propria mostra o frame do atlas; os de teste, que nao tem
       // correspondente nas folhas de item, seguem com o quadrado colorido
@@ -1512,13 +1651,27 @@ export class UIScene extends Phaser.Scene {
     g.clear();
     ui.painel(g, { x: INV.x, y: INV.y, w: INV.w, h: INV.h });
 
+    // ABAS DE FILTRO, no topo do painel (Parte 63)
+    const grade = this.mapaDaGrade();
+    let ax = INV.gradeX;
+    FILTROS_DE_INVENTARIO.forEach((f, i) => {
+      const aba = this.abasDeFiltro[i];
+      if (!aba) return;
+      const ativa = i === this.filtroDeInventario;
+      aba.setText(f.nome).setPosition(ax + 4, INV.gradeY - 21)
+        .setColor(ativa ? COR.lataoVivoTexto : COR.papelFracoTexto);
+      ui.aba(g, { x: ax, y: INV.gradeY - 24, w: aba.width + 8, h: 13 }, ativa);
+      ax += aba.width + 12;
+    });
+
     const passo = PECA.slot + PECA.vaoSlot;
     for (let i = 0; i < INV.colunas * INV.linhas; i++) {
       const sx = INV.gradeX + (i % INV.colunas) * passo;
       const sy = INV.gradeY + Math.floor(i / INV.colunas) * passo;
-      const estadoDoSlot = this.itemSelecionado === i
+      const alvo = grade[i];
+      const estadoDoSlot = alvo !== null && this.itemSelecionado === alvo
         ? 'selecionado'
-        : slots[i]
+        : alvo !== null && slots[alvo]
           ? 'cheio'
           : 'vazio';
       ui.slot(g, { x: sx, y: sy, w: PECA.slot, h: PECA.slot }, estadoDoSlot);
@@ -1560,8 +1713,17 @@ export class UIScene extends Phaser.Scene {
 
     filhos.push(ui.titulo(this, INV.x + 12, INV.y + 7, 'INVENTARIO'));
     filhos.push(
-      ui.nota(this, INV.x + INV.w - 12, INV.y + 9, '[Tab] fechar').setOrigin(1, 0),
+      ui.nota(this, INV.x + INV.w - 12, INV.y + 9, '[Q/E] aba   [Tab] fechar').setOrigin(1, 0),
     );
+
+    // ------------------------------------------------- abas de filtro --
+    // Sao criadas uma vez e so REPOSICIONADAS por quadro: a largura de cada uma
+    // depende do texto, e o texto nao muda.
+    this.abasDeFiltro = FILTROS_DE_INVENTARIO.map((f) => {
+      const t = ui.nota(this, 0, 0, f.nome);
+      filhos.push(t);
+      return t;
+    });
 
     // ------------------------------------------------------------ grade --
     const passo = PECA.slot + PECA.vaoSlot;
@@ -1579,7 +1741,9 @@ export class UIScene extends Phaser.Scene {
         .setOrigin(0, 0)
         .setInteractive({ useHandCursor: true });
       seletor.on('pointerdown', () => {
-        this.itemSelecionado = i;
+        const alvo = this.mapaDaGrade()[i];
+        if (alvo === null) return;
+        this.itemSelecionado = alvo;
         this.desenharInventario();
       });
       const icone = this.add

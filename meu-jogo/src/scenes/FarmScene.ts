@@ -2039,11 +2039,17 @@ export class FarmScene extends Phaser.Scene {
   private conversarSobre(def: PerfilNpc, tema: TemaDeConversa): void {
     const pontua = estado.relacoes.podeConversar(def.id, estado.dia);
     const falas: string[] = [];
+    let reacao: 1 | -1 | undefined;
 
     if (pontua) {
       estado.relacoes.registrarConversa(def.id, estado.dia);
       const pontos = PONTOS_POR_REACAO[tema.reacao];
       if (pontos !== 0) estado.relacoes.ganharRelacao(def.id, pontos);
+      // SO O SENTIDO vai pra caixa de dialogo (Parte 60). O numero nunca
+      // aparece em jogo: saber que a conversa foi bem e informacao de
+      // personagem; saber que ela valeu 0,75 transforma conversa em planilha.
+      if (pontos > 0) reacao = 1;
+      else if (pontos < 0) reacao = -1;
     } else {
       falas.push(falaJaConversou(def.id));
     }
@@ -2051,7 +2057,10 @@ export class FarmScene extends Phaser.Scene {
     // a resposta VARIA a cada conversa (ver `falasDoTema`): o mesmo tema nao
     // devolve o mesmo texto duas vezes seguidas
     falas.push(...falasDoTema(def.id, tema, estado.dia));
-    this.ui.iniciarDialogo(falasDe(def.nome, falas, def.id), () => this.abrirMenuDeConversa(def));
+    const sequencia = falasDe(def.nome, falas, def.id);
+    // a seta vai na PRIMEIRA fala, que e a reacao dele ao assunto
+    if (reacao && sequencia[0]) sequencia[0] = { ...sequencia[0], reacao };
+    this.ui.iniciarDialogo(sequencia, () => this.abrirMenuDeConversa(def));
   }
 
   /** Lista o inventario pra escolher o presente. Item vazio nao entra. */
@@ -2100,20 +2109,22 @@ export class FarmScene extends Phaser.Scene {
     const tier = calcularTierPresente(def.id, itemId);
     const nomeItem = ITENS[itemId]?.nome ?? itemId;
     const falas = [reacaoPresente(def.id, tier)];
+    let reacao: 1 | -1 | undefined;
 
     if (estado.relacoes.podePresentear(def.id, estado.dia)) {
       estado.relacoes.registrarPresente(def.id, estado.dia);
       const pontos = PONTOS_POR_TIER_PRESENTE[tier];
       if (pontos !== 0) estado.relacoes.ganharRelacao(def.id, pontos);
+      if (pontos > 0) reacao = 1;
+      else if (pontos < 0) reacao = -1;
     } else {
       falas.push('Voce ja tinha me dado uma coisa hoje. Guarda o resto pra voce.');
     }
 
+    const sequencia = falasDe(def.nome, falas, def.id);
+    if (reacao && sequencia[0]) sequencia[0] = { ...sequencia[0], reacao };
     this.ui.iniciarDialogo(
-      [
-        { nome: 'Voce', texto: `Voce deu ${nomeItem} para ${def.nome}.` },
-        ...falasDe(def.nome, falas, def.id),
-      ],
+      [{ nome: 'Voce', texto: `Voce deu ${nomeItem} para ${def.nome}.` }, ...sequencia],
       () => this.abrirMenuDeConversa(def),
     );
   }
