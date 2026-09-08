@@ -4,14 +4,24 @@ import { dataDoDia, DIAS_POR_ESTACAO } from '../game/calendario';
 import { MISSOES_NPC } from '../game/missoesNpc';
 import { apagar } from '../game/save';
 import { controles, CONTROLES } from '../game/InputRouter';
+import { som } from './Som';
 import type { Acao } from '../game/InputRouter';
 import { MAPAS } from '../game/mapas';
 import { ITENS } from '../game/inventario';
 import { CLIMAS } from '../game/clima';
 import type { FarmScene } from './FarmScene';
 
-type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'calendario' | 'diario' | 'estatisticas' | 'controles' | 'dev' | 'dev_mapas' | 'dev_itens';
-interface Opcao { texto: string; executar: () => void; }
+type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'estatisticas' | 'controles' | 'dev' | 'dev_mapas' | 'dev_itens';
+/** `ajustar` existe nas linhas de escala (volume): setas laterais mexem no valor. */
+interface Opcao { texto: string; executar: () => void; ajustar?: (delta: number) => void; }
+/** Volumes ajustaveis, na ordem em que aparecem na tela. */
+const VOLUMES = [
+  ['master', 'Volume geral', 'ui_confirmar'],
+  ['musica', 'Musica', null],
+  ['ambiente', 'Ambiente', null],
+  ['efeitos', 'Efeitos', 'pegar'],
+  ['interface', 'Interface', 'ui_mover'],
+] as const;
 const COR = { fundo: 0x172726, papel: 0x263b35, borda: 0xb59864, texto: '#f1e7ca', fraco: '#b2c4b6', foco: 0x426453 };
 
 export class MenuScene extends Phaser.Scene {
@@ -38,6 +48,8 @@ export class MenuScene extends Phaser.Scene {
       else if (['ArrowDown', 's', 'S'].includes(e.key)) this.mover(1);
       else if (e.key === 'PageUp') this.mover(-6);
       else if (e.key === 'PageDown') this.mover(6);
+      else if (['ArrowLeft', 'a', 'A'].includes(e.key)) this.opcoes[this.cursor]?.ajustar?.(-1);
+      else if (['ArrowRight', 'd', 'D'].includes(e.key)) this.opcoes[this.cursor]?.ajustar?.(1);
       else if (['Enter', 'e', 'E', ' '].includes(e.key)) this.opcoes[this.cursor]?.executar();
       else if (e.key === 'Escape') this.voltar();
     });
@@ -48,21 +60,24 @@ export class MenuScene extends Phaser.Scene {
     if (this.time.now < this.aceitarPadApos || controles.capturando) return;
     if (controles.apertouPad('cima')) this.mover(-1);
     if (controles.apertouPad('baixo')) this.mover(1);
+    if (controles.apertouPad('esquerda')) this.opcoes[this.cursor]?.ajustar?.(-1);
+    if (controles.apertouPad('direita')) this.opcoes[this.cursor]?.ajustar?.(1);
     if (controles.apertouPad('interagir')) this.opcoes[this.cursor]?.executar();
     if (controles.padVoltar || controles.padPausa) this.voltar();
   }
   fechar(): void { this.scene.resume('FarmScene'); this.scene.resume('UIScene'); this.scene.stop(); }
   private voltar(): void {
     if (this.pagina === 'titulo') return;
+    som.tocar('ui_cancelar');
     if (this.pagina === 'pausa') this.fechar(); else this.abrir(this.veioDoTitulo ? 'titulo' : 'pausa');
   }
   private abrir(pagina: Pagina): void {
     if (!import.meta.env.DEV && pagina.startsWith('dev')) pagina = 'pausa';
     this.pagina = pagina; this.cursor = 0; this.topo = 0; this.mensagem = '';
-    const ir = (texto: string, p: Pagina): Opcao => ({ texto, executar: () => this.abrir(p) });
+    const ir = (texto: string, p: Pagina): Opcao => ({ texto, executar: () => { som.tocar('ui_confirmar'); this.abrir(p); } });
     // Os titulos de desenvolvimento ficam dentro do guarda de DEV pro bundle de
     // producao nao carregar nem o vocabulario das telas que ele nao alcanca.
-    const titulos: Partial<Record<Pagina, string>> = { titulo: 'MEU JOGO', pausa: 'Um momento na cidade', opcoes: 'Opcoes', calendario: 'Calendario', diario: 'Diario', estatisticas: 'Sua jornada', controles: 'Controles' };
+    const titulos: Partial<Record<Pagina, string>> = { titulo: 'MEU JOGO', pausa: 'Um momento na cidade', opcoes: 'Opcoes', calendario: 'Calendario', diario: 'Diario', estatisticas: 'Sua jornada', som: 'Som e volume', controles: 'Controles' };
     if (import.meta.env.DEV) Object.assign(titulos, { dev: 'Desenvolvimento', dev_mapas: 'Desenvolvimento: mapas', dev_itens: 'Desenvolvimento: itens' });
     this.titulo = titulos[pagina] ?? '';
     this.opcoes = [];
@@ -88,8 +103,32 @@ export class MenuScene extends Phaser.Scene {
         { texto: `Particulas: ${v.particulas ? 'sim' : 'nao'}`, executar: () => alterar(() => { v.particulas = !v.particulas; }) },
         { texto: `Contraste alto: ${v.altoContraste ? 'sim' : 'nao'}`, executar: () => alterar(() => { v.altoContraste = !v.altoContraste; }) },
         { texto: `Qualidade: ${v.qualidade}`, executar: () => alterar(() => { v.qualidade = v.qualidade === 'baixa' ? 'normal' : v.qualidade === 'normal' ? 'alta' : 'baixa'; }) },
+        ir('Som e volume', 'som'),
         ir('Teclas e controle', 'controles'),
       ];
+    } else if (pagina === 'som') {
+      const v = estado.preferencias.valores;
+      // A barra em texto acompanha a porcentagem: nada aqui depende de cor.
+      const barra = (valor: number) => `[${'#'.repeat(Math.round(valor * 10))}${'.'.repeat(10 - Math.round(valor * 10))}]`;
+      const ajustar = (chave: typeof VOLUMES[number][0], delta: number, previa: string | null) => {
+        const alvo = Math.max(0, Math.min(1, Math.round((v[chave] + delta) * 10) / 10));
+        if (alvo === v[chave] && delta !== 0) return;
+        v[chave] = alvo;
+        som.aplicar(v);
+        const i = this.cursor, t = this.topo; const salvo = estado.preferencias.salvar();
+        this.abrir('som'); this.cursor = i; this.topo = t;
+        this.mensagem = salvo ? this.mensagem : 'Volume aplicado; nao foi possivel salvar.';
+        this.desenhar();
+        if (previa) som.tocar(previa as never);
+      };
+      this.mensagem = som.disponivel
+        ? 'Setas laterais ajustam de 10 em 10; E percorre a escala.'
+        : 'Este navegador nao tem audio disponivel; os valores ficam guardados.';
+      this.opcoes = VOLUMES.map(([chave, rotulo, previa]) => ({
+        texto: `${rotulo}: ${String(Math.round(v[chave] * 100)).padStart(3)}% ${barra(v[chave])}`,
+        executar: () => ajustar(chave, v[chave] >= 1 ? -1 : 0.1, previa),
+        ajustar: (delta: number) => ajustar(chave, delta * 0.1, previa),
+      }));
     } else if (pagina === 'controles') {
       this.mensagem = 'Menus: setas/E/Esc fixos. Pad: A interagir, Y bolsa, B voltar.';
       this.opcoes = (Object.keys(CONTROLES) as Acao[]).map(id => ({ texto: `${CONTROLES[id][0]}: ${controles.rotulo(id)}`, executar: () => {
@@ -139,7 +178,9 @@ export class MenuScene extends Phaser.Scene {
     this.desenhar();
   }
   private mover(delta: number): void {
+    const antes = this.cursor;
     this.cursor = Math.max(0, Math.min(this.opcoes.length - 1, this.cursor + delta));
+    if (this.cursor !== antes) som.tocar(Math.abs(delta) > 1 ? 'ui_pagina' : 'ui_mover');
     if (this.cursor < this.topo) this.topo = this.cursor;
     if (this.cursor >= this.topo + 6) this.topo = this.cursor - 5;
     this.desenhar();
@@ -169,7 +210,12 @@ export class MenuScene extends Phaser.Scene {
       });
       if (this.mensagem) texte(44, this.opcoes.length ? 212 : 74, this.mensagem, this.opcoes.length ? 9 : 12, COR.fraco);
     }
-    const footer = texte(44, 249, this.pagina === 'titulo' ? 'Setas / E / clique para escolher' : '[Esc/B] Voltar   [E/A] Escolher   [setas] Navegar', 10);
+    const rodape = this.pagina === 'titulo'
+      ? 'Setas / E / clique para escolher'
+      : this.opcoes.some(o => o.ajustar)
+        ? '[Esc/B] Voltar   [<>] Ajustar   [E/A] Escolher'
+        : '[Esc/B] Voltar   [E/A] Escolher   [setas] Navegar';
+    const footer = texte(44, 249, rodape, 10);
     if (this.pagina !== 'titulo') footer.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.voltar());
   }
 }

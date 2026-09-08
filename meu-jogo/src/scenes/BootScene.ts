@@ -6,6 +6,7 @@ import type { SpriteNpc } from '../game/npcs';
 import { NPCS } from '../game/npcs';
 import { carregar } from '../game/save';
 import { CATALOGO_INIMIGOS } from '../game/inimigos';
+import { Som, som } from './Som';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
 const PLAYER_RECORTE = {
@@ -133,10 +134,16 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`monstro-${id}-sprites`, `assets/sprites/${id}_andando_runtime.png`);
       this.load.image(`monstro-${id}-parado`, `assets/sprites/${id}_parado_runtime.png`);
     }
+
+    // Efeitos, ambientes e trilhas. Sao WAV gerados por tools/gerar-audio.mjs;
+    // arquivo que falha no decode vira aviso no console e silencio naquele id,
+    // sem impedir o boot (ver Som.existe).
+    Som.precarregar(this);
   }
 
   create(): void {
     estado.preferencias.carregar();
+    som.aplicar(estado.preferencias.valores);
     this.criarFramesPlayer('idle');
     this.criarFramesPlayer('walk');
     this.criarFramesPlayer('run');

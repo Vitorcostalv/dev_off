@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { controles } from '../game/InputRouter';
+import { som } from './Som';
 import { nomeDoDia } from '../game/calendario';
 import { CONFIG, UI } from '../game/config';
 import { estado } from '../game/estado';
@@ -62,6 +63,7 @@ export class ComputadorScene extends Phaser.Scene {
 
   create(): void {
     this.aceitarPadApos = this.time.now + 180;
+    som.tocar('pc_ligar');
     this.apps = criarApps();
     this.janela = new JanelaApp(this);
     this.cursor = 0;
@@ -116,6 +118,7 @@ export class ComputadorScene extends Phaser.Scene {
       ArrowDown: ICONES.colunas, s: ICONES.colunas, S: ICONES.colunas,
     };
     if (passo[evento.key] !== undefined) {
+      som.tocar('pc_tecla');
       this.mover(passo[evento.key]);
       return;
     }
@@ -136,6 +139,7 @@ export class ComputadorScene extends Phaser.Scene {
   private abrirApp(indice: number): void {
     const app = this.apps[indice];
     if (!app) return;
+    som.tocar('pc_app');
     this.cursor = indice;
     this.desktop.setVisible(false);
     this.janela.abrir(app, () => this.voltarAoDesktop());

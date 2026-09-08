@@ -1,6 +1,8 @@
 import { HORARIO_EMPREGO, TURNO_CIDADE } from '../game/cidade';
 import { CULTIVOS, NOS_RURAIS, RECEITAS, fabricar } from '../game/atividadesRurais';
 import { controles } from '../game/InputRouter';
+import { ambienteDoLugar, pisoDoMapa, somDoPasso, trilhaDoLugar } from '../game/audio';
+import { som } from './Som';
 import { dataDoDia } from '../game/calendario';
 import { intensidadeNoturna } from '../game/clima';
 import { AmbienteMundo } from './AmbienteMundo';
@@ -76,6 +78,7 @@ import { buscarArma, direcaoDaMira } from '../game/armas';
 import {
   ANDARES,
   ANDARES_DE_PARADA,
+  andarDoMapa,
   andarDoMapaDef,
   buscarAndar,
   flagDeCheckpoint,
@@ -355,6 +358,14 @@ export class FarmScene extends Phaser.Scene {
 
   /** Painel de enigma em andamento; `null` fora de um. */
   private painelAtivo: ProgressoPainel | null = null;
+
+  /**
+   * Relogios do audio. A escolha de ambiente/trilha e barata, mas nao precisa
+   * rodar por quadro: hora, clima e mapa mudam devagar. Os passos, ao contrario,
+   * dependem do ritmo da caminhada.
+   */
+  private proximaTrilhaSonora = 0;
+  private proximoPasso = 0;
 
   /**
    * O item equipado desenhado na mao do jogador, mais a mira. Existe em TODO
@@ -746,6 +757,8 @@ export class FarmScene extends Phaser.Scene {
     this.atualizarLuzesNoturnas();
     this.ambiente.atualizar(this.ui.bloqueado || this.mapaAberto ? 0 : delta, estado.relogio.minutos, dataDoDia(estado.dia).estacao, estado.clima.paraDia(estado.dia), estado.preferencias.valores);
 
+    this.atualizarTrilhaSonora(delta);
+
     if (controles.apertouPad('mapa')) this.alternarMapa();
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
@@ -789,6 +802,7 @@ export class FarmScene extends Phaser.Scene {
     // andar e bater ao mesmo tempo e o que da peso ao ataque
     if (this.represa && controles.apertou('atacar')) {
       this.represa.atacar(this.player, this.direcao, this.danoDoGolpe());
+      som.tocar('golpe');
     }
     if (this.represa?.atacando) {
       this.player.setVelocity(0, 0);
@@ -822,7 +836,9 @@ export class FarmScene extends Phaser.Scene {
         this.mao.animacaoDoCorpo(correndo ? 'run' : 'walk', this.direcao),
         true,
       );
+      this.pisar(correndo);
     } else {
+      this.proximoPasso = 0;
       this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
     }
     this.mao.atualizar(delta, this.player, this.direcao);
@@ -965,11 +981,41 @@ export class FarmScene extends Phaser.Scene {
         : { x: (destino.spawnTile.x + 0.5) * t, y: (destino.spawnTile.y + 0.5) * t };
 
     this.transicionando = true;
+    som.tocar('porta');
     const cam = this.cameras.main;
     cam.fadeOut(220, 0, 0, 0);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.restart({ mapa: destino.chave, x: posicao.x, y: posicao.y });
     });
+  }
+
+  // --------------------------------------------------------------- audio --
+
+  /**
+   * Ambiente e trilha do lugar onde o jogador esta. As duas decisoes moram em
+   * `game/audio.ts`; aqui so entram mapa, hora, clima e andar.
+   */
+  private atualizarTrilhaSonora(delta: number): void {
+    this.proximaTrilhaSonora -= delta;
+    if (this.proximaTrilhaSonora > 0) return;
+    this.proximaTrilhaSonora = 500;
+    const lugar = {
+      mapa: estado.mapa,
+      minuto: estado.relogio.minutos,
+      clima: estado.clima.paraDia(estado.dia),
+      externo: buscarMapa(estado.mapa)?.externo ?? false,
+      andar: andarDoMapa(estado.mapa),
+    };
+    som.ambiente(ambienteDoLugar(lugar));
+    som.musica(trilhaDoLugar(lugar));
+  }
+
+  /** Passo no ritmo da caminhada; a superficie vem do mapa. */
+  private pisar(correndo: boolean): void {
+    const agora = this.time.now;
+    if (agora < this.proximoPasso) return;
+    this.proximoPasso = agora + (correndo ? 260 : 380);
+    som.tocar(somDoPasso(pisoDoMapa(estado.mapa)));
   }
 
   // -------------------------------------------------------------- dormir --
@@ -981,6 +1027,7 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
     this.transicionando = true;
+    som.tocar('dormir');
     const cam = this.cameras.main;
     cam.fadeOut(300, 0, 0, 0);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -1099,6 +1146,7 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
 
+    som.tocar('pegar');
     estado.itensColetados.add(alvo.id);
     this.visuaisDeItens.get(alvo.id)?.destroy();
     this.visuaisDeItens.delete(alvo.id);
@@ -2948,6 +2996,7 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
     this.mao.piscarFogonete();
+    som.tocar('tiro');
     this.represa.lancarProjetil(r.tiro, this.mao.pontaDoCano(this.player, this.direcao));
   }
 
@@ -2956,6 +3005,7 @@ export class FarmScene extends Phaser.Scene {
     if (!arma) return;
     const r = estado.armas.recarregar(arma.id, estado.inventario);
     if (r.ok) {
+      som.tocar('recarregar');
       this.ui.avisoRapido(`Recarregou ${r.carregou} cartucho(s).`, UI.sucesso);
       return;
     }
@@ -2974,6 +3024,8 @@ export class FarmScene extends Phaser.Scene {
       this.ui.avisoRapido(r.aviso ?? 'Nao da pra equipar isso.', UI.alerta);
       return;
     }
+    // a lanterna tem estalo proprio; o resto usa o som generico de equipar
+    som.tocar(id === 'lanterna_manutencao' ? 'lanterna' : 'guardar');
     this.ui.avisoRapido(`Equipou ${ITENS[id]?.nome ?? id}.`, UI.sucesso);
   }
 
@@ -3111,6 +3163,7 @@ export class FarmScene extends Phaser.Scene {
    * do atalho de manutencao da leva anterior, com dez paradas em vez de uma.
    */
   private abrirElevador(alvo: Interagivel): void {
+    som.tocar('elevador');
     const aqui = Number(alvo.props.andar) || andarDoMapaDef(estado.mapa)?.andar || 1;
     // Chegar na cabine ATIVA a parada deste andar.
     if (!estado.worldEvents.ativa(flagDeCheckpoint(aqui))) {

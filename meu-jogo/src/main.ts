@@ -7,6 +7,7 @@ import { UIScene } from './scenes/UIScene';
 import { MenuScene } from './scenes/MenuScene';
 import './style.css';
 import { controles } from './game/InputRouter';
+import { som } from './scenes/Som';
 
 export const GAME_WIDTH = 480;
 export const GAME_HEIGHT = 270;
@@ -36,7 +37,11 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 game.events.on(Phaser.Core.Events.PRE_STEP, () => controles.atualizarPad());
-game.events.on(Phaser.Core.Events.POST_STEP, () => controles.fimQuadro());
+game.events.on(Phaser.Core.Events.POST_STEP, (_tempo: number, delta: number) => {
+  controles.fimQuadro();
+  som.atualizar(delta);
+});
+som.ligar(game);
 
 // atalhos pra depurar no console do navegador: window.game / window.estado
 if (import.meta.env.DEV) {

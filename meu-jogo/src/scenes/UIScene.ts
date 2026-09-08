@@ -18,6 +18,7 @@ import {
 } from '../game/loja';
 import type { PontoDeLoja } from '../game/loja';
 import { controles } from '../game/InputRouter';
+import { som } from './Som';
 import type { Fala, MundoJogavel } from '../game/tipos';
 import {
   NOME_DO_SLOT,
@@ -329,8 +330,14 @@ export class UIScene extends Phaser.Scene {
     this.inventario = this.criarPainelDeInventario();
     this.loja = this.criarPainelDeLoja();
     this.menu = this.criarMenu();
-    const desligarConquistas = estado.eventos.on('ACHIEVEMENT_UNLOCKED', e => this.avisoRapido(`Conquista: ${e.titulo}`, UI.sucesso));
-    this.events.once('shutdown', desligarConquistas);
+    // Som dos eventos de dominio: quem emite nao precisa saber que ha audio.
+    const desligarSons = [
+      estado.eventos.on('ACHIEVEMENT_UNLOCKED', e => { som.tocar('conquista'); this.avisoRapido(`Conquista: ${e.titulo}`, UI.sucesso); }),
+      estado.eventos.on('SHOP_PURCHASE', () => som.tocar('compra')),
+      estado.eventos.on('JOB_COMPLETED', () => som.tocar('dinheiro')),
+      estado.eventos.on('MINIGAME_COMPLETED', () => som.tocar('enigma_ok')),
+    ];
+    this.events.once('shutdown', () => { for (const desligar of desligarSons) desligar(); });
 
     const teclado = this.input.keyboard;
     // sem isso o Tab move o foco do navegador em vez de chegar aqui
@@ -437,6 +444,7 @@ export class UIScene extends Phaser.Scene {
    * reinicia o relogio, entao dois avisos seguidos nao se empilham.
    */
   avisoRapido(texto: string, cor: string = UI.texto, duracaoMs = 2200): void {
+    if (cor === UI.alerta) som.tocar('ui_erro');
     this.aviso.setText(texto);
     this.aviso.setColor(cor);
     this.aviso.setVisible(true);
@@ -959,6 +967,7 @@ export class UIScene extends Phaser.Scene {
     // a loja ja mostra o que o jogador tem de cada item; abrir os dois juntos
     // so empilharia painel
     if (!this.inventarioAberto && this.lojaAberta) return;
+    som.tocar(this.inventarioAberto ? 'ui_cancelar' : 'gaveta');
     this.inventario.setVisible(!this.inventarioAberto);
     if (this.inventarioAberto) {
       this.avisoInventario.setText('');
@@ -1097,6 +1106,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Junta as pilhas soltas e ordena por tipo. */
   private organizarInventario(): void {
+    som.tocar('guardar');
     if (!this.inventarioAberto || this.modalPorCima) return;
     estado.inventario.organizar();
     // os itens trocaram de slot: manter a selecao apontaria pro item errado
@@ -1345,6 +1355,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Cicla o filtro de prateleira: tudo -> mercado -> eletronico -> tudo. */
   private alternarFiltroDaLoja(): void {
+    som.tocar('ui_pagina');
     if (!this.lojaAberta || this.modalPorCima || !this.lojaPonto) return;
     const ordem: (CategoriaItem | null)[] = [null, ...this.lojaPonto.categorias];
     const atual = ordem.indexOf(this.lojaFiltro);
@@ -1362,9 +1373,11 @@ export class UIScene extends Phaser.Scene {
    */
   private mover(passo: number): void {
     if (this.menuAberto) {
+      som.tocar('ui_mover');
       this.moverMenu(passo);
       return;
     }
+    if (this.lojaAberta && !this.modalPorCima && this.lojaItens.length > 0) som.tocar(Math.abs(passo) > 1 ? 'ui_pagina' : 'ui_mover');
     this.moverListaDaLoja(passo);
   }
 
@@ -1694,20 +1707,24 @@ export class UIScene extends Phaser.Scene {
    */
   private acionar(): void {
     if (this.confirmacaoAberta) {
+      som.tocar('ui_confirmar');
       this.responderConfirmacao();
       return;
     }
     if (this.dialogoAberto) {
+      som.tocar('ui_pagina');
       this.avancarDialogo();
       return;
     }
     // o menu vem antes da loja: quando o jogador escolhe presente com a loja
     // aberta por baixo, e o menu que esta na frente
     if (this.menuAberto) {
+      som.tocar('ui_confirmar');
       this.escolherNoMenu();
       return;
     }
     if (this.lojaAberta) {
+      som.tocar('ui_confirmar');
       this.pedirCompra();
       return;
     }

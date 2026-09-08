@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
+import { som } from './Som';
 import {
   ATAQUE_DO_JOGADOR,
   EMPURRAO_DO_INIMIGO,
@@ -302,6 +303,7 @@ export class CamadaRepresa {
           const arma = p.runtime.arma;
           const empurrao = arma === 'pistola' ? 3 : 2;
           alvo.sprite.setVelocity(p.runtime.dx * empurrao * t, p.runtime.dy * empurrao * t);
+          som.tocar(r.morreu ? 'inimigo_morte' : 'inimigo_dano');
           if (r.morreu) this.derrubar(alvo);
         }
         this.faiscaDeImpacto(p.runtime.x * t, p.runtime.y * t);
@@ -394,6 +396,7 @@ export class CamadaRepresa {
       if (decisao.golpeia) {
         const r = estado.vida.receberDano(def.dano);
         if (r.aplicado > 0) {
+          som.tocar('dano_jogador');
           this.piscar(player);
           // empurrao: separa os corpos, senao o proximo golpe sai na cara
           const dx = player.x - sprite.x;
@@ -508,6 +511,7 @@ export class CamadaRepresa {
         (dx / norma) * ATAQUE_DO_JOGADOR.empurrao * t,
         (dy / norma) * ATAQUE_DO_JOGADOR.empurrao * t,
       );
+      som.tocar(r.morreu ? 'inimigo_morte' : 'acerto');
       if (r.morreu) this.derrubar(alvo);
     }
     return atingidos;

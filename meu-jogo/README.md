@@ -12,7 +12,9 @@ Abre em http://localhost:5173. `npm run build` gera o `dist/`.
 `npm run gerar-assets` remonta o tileset, os atlas de flora e os tilemaps a
 partir da arte em `public/assets/sprites/`. `npm run gerar-itens` monta o atlas
 de icone de item e `npm run gerar-aparelhos` o dos aparelhos do minigame de
-conserto.
+conserto. `npm run gerar-audio` sintetiza os 46 WAV de
+`public/assets/audio/` — efeitos, ambientes e trilhas; nenhum binario de som
+entra no repositorio sem a receita que o gerou.
 
 ## Controles
 
@@ -64,6 +66,19 @@ inventario e no DevOS:
 | Clique no analogico esquerdo | equipar/desequipar |
 | Start | pausa |
 | Select | mapa |
+
+### Som
+
+Cinco volumes independentes em Opcoes > Som e volume: geral, musica, ambiente,
+efeitos e interface. Cada linha mostra porcentagem e barra em texto; setas
+laterais (ou o direcional do controle) ajustam de 10 em 10. Os valores ficam em
+`localStorage["meu-jogo:settings"]`, fora do save do jogo.
+
+Ambiente e trilha vem do lugar: centro, bairro, rural, interior e represa tem
+ambiente proprio, chuva e vento trocam o ambiente do mapa aberto, a noite muda o
+ambiente e silencia a musica da cidade, o bar tem trilha propria e a represa
+ignora clima e hora — do andar 26 em diante o drone fica mais grave. Passo muda
+com a superficie do mapa. Detalhes em [docs/audio.md](docs/audio.md).
 
 ### Modo de desenvolvimento
 
@@ -1129,11 +1144,12 @@ Auditoria, lacunas e roteiro: [docs/overhaul.md](docs/overhaul.md). A remasteriz
 
 `npm run verificar-overhaul` verifica regressao de cidade, emprego, mapa runtime, blog e listas. `npm run test:browser` requer Google Chrome instalado e o servidor Vite em http://127.0.0.1:5186 (ou GAME_URL); verifica os 77 mapas, sete apps, rolagem, trabalhador e save/reload.
 
-`npm run verificar-tudo` roda os doze validadores de dominio em sequencia e
+`npm run verificar-tudo` roda os treze validadores de dominio em sequencia e
 grava a evidencia agregada em `docs/evidence/<rotulo>-tests.json`. As suites de
 navegador (`test:browser`, `test:save-browser`, `test:cotidiano-browser`,
 `test:rural-browser`, `test:servicos-browser`, `test:controles-browser`,
-`test:dev-browser`) precisam do Chrome e do servidor de desenvolvimento em
+`test:dev-browser`, `test:audio-browser`) precisam do Chrome e do servidor de
+desenvolvimento em
 http://127.0.0.1:5186; rode uma por vez, porque compartilham o mesmo
 `localStorage`. `npm run test:producao` e a unica que roda contra o build:
 exige `npm run build` e `npx vite preview --port 5187 --strictPort --host 127.0.0.1`
