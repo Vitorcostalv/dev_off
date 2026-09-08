@@ -193,6 +193,12 @@ const APONTADA: AjusteNaMao = {
  * A ordem e por funcao: arma, ferramenta, municao, remedio, acesso.
  */
 export const COMPORTAMENTOS: Record<string, ComportamentoItem> = {
+  smartwatch: { slot: 'acessorio', detalhe: 'No pulso: aumenta o ritmo de caminhada e corrida em 5%.' },
+  pao_frances: { acao: { tipo: 'curar', quantidade: 2 }, consumivel: true },
+  pao_caseiro: { acao: { tipo: 'curar', quantidade: 3 }, consumivel: true },
+  fatia_bolo: { acao: { tipo: 'curar', quantidade: 2 }, consumivel: true },
+  cenoura: { acao: { tipo: 'curar', quantidade: 1 }, consumivel: true },
+  tomate: { acao: { tipo: 'curar', quantidade: 1 }, consumivel: true },
   // -------------------------------------------------------------- armas --
   pistola: {
     slot: 'mao',

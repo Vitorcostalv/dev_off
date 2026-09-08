@@ -17,6 +17,7 @@ const TEMPORARIO = CHAVE + ':pending';
 const BACKUPS = CHAVE + ':backups';
 
 export interface DadosSave {
+  rural?: import('./atividadesRurais.ts').DadosRurais;
   clima?: ReturnType<import('./clima.ts').SistemaClima['serializar']>;
   progressao?: import('./progressao.ts').DadosProgressao;
   versao: number;

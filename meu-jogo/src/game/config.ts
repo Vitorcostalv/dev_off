@@ -26,6 +26,7 @@ export const CONFIG = {
 
 /** Verbo mostrado no prompt para cada classe de objeto. */
 export const ROTULOS: Record<TipoInteragivel, string> = {
+  atividade_rural: 'Cuidar',
   placa: 'Ler',
   npc: 'Falar',
   porta: 'Entrar',

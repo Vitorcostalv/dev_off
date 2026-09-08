@@ -186,6 +186,7 @@ export class BootScene extends Phaser.Scene {
     estado.arquivo.restaurar(save.arquivo);
     estado.progressao.restaurar(save.progressao);
     estado.clima.restaurar(save.clima);
+    estado.rural.restaurar(save.rural);
     // O item pode ter saido do inventario por outro caminho (venda, descarte)
     // entre gravar e carregar; sem esta linha o save traria uma arma equipada
     // que nao esta mais na mochila.

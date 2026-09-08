@@ -22,12 +22,14 @@ import { Progressao } from './progressao.ts';
 import { NPCS } from './npcs.ts';
 import { SistemaClima } from './clima.ts';
 import { Preferencias } from './settings.ts';
+import { AtividadesRurais } from './atividadesRurais.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
  * Cenas leem e escrevem daqui; ninguem guarda copia.
  */
 export const estado = {
+  rural: new AtividadesRurais(),
   clima: new SistemaClima(),
   preferencias: new Preferencias(),
   tituloVisto: false,
@@ -84,6 +86,7 @@ estado.progressao.conectar(estado.eventos, () => ({
 estado.inventario.aoAdicionar = (id, quantidade) => estado.eventos.emit('ITEM_ADDED', { id, quantidade });
 estado.relacoes.aoConversar = id => estado.eventos.emit('NPC_TALKED', { id });
 estado.trabalhos.aoConcluir = id => estado.eventos.emit('JOB_COMPLETED', { id });
+estado.eventos.on('DAY_STARTED', ({ dia }) => estado.rural.avancar(dia, estado.clima));
 
 /**
  * Liga o motor de rotinas ao sistema de projetos urbanos.

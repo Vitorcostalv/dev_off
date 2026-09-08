@@ -1,4 +1,5 @@
-import { HORARIO_EMPREGO } from '../game/cidade';
+import { HORARIO_EMPREGO, TURNO_CIDADE } from '../game/cidade';
+import { CULTIVOS, NOS_RURAIS, RECEITAS, fabricar } from '../game/atividadesRurais';
 import { dataDoDia } from '../game/calendario';
 import { intensidadeNoturna } from '../game/clima';
 import { AmbienteMundo } from './AmbienteMundo';
@@ -379,7 +380,7 @@ export class FarmScene extends Phaser.Scene {
   private escuridaoDoComodo: { ret: RetTiles; valor: number }[] = [];
 
   /** Os dados com que a cena foi iniciada, pra poder reiniciar igual. */
-  private entradaAtual: { mapa?: string; x?: number; y?: number } | undefined;
+  private entradaAtual: { mapa?: string; x?: number; y?: number; salvar?: boolean } | undefined;
 
   /** Texto de espera enquanto um andar da represa e baixado. */
   private avisoDeCarga: Phaser.GameObjects.Text | null = null;
@@ -407,7 +408,7 @@ export class FarmScene extends Phaser.Scene {
    * Roda a cada `scene.restart` — e onde o estado mutavel volta ao zero.
    * Campos de classe com inicializador NAO sao reexecutados no restart.
    */
-  init(dados?: { mapa?: string; x?: number; y?: number }): void {
+  init(dados?: { mapa?: string; x?: number; y?: number; salvar?: boolean }): void {
     if (dados?.mapa) estado.mapa = dados.mapa;
     // Guardado pra o carregamento SOB DEMANDA poder reiniciar a cena no mesmo
     // ponto depois de o tilemap chegar (ver `garantirTilemap`).
@@ -589,6 +590,7 @@ export class FarmScene extends Phaser.Scene {
     this.criarMobiliaDoJogador();
     this.ambiente = new AmbienteMundo(this, def.externo);
     this.criarFlora(map);
+    this.criarAtividadesRurais();
     // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
     // predios, moveis, arvores e pedras do mapa carregado.
     this.criarNpcs();
@@ -713,6 +715,7 @@ export class FarmScene extends Phaser.Scene {
     }
 
     this.pronto = true;
+    if (this.entradaAtual?.salvar) this.salvarJogo();
     if (!estado.tituloVisto) {
       estado.tituloVisto = true;
       this.time.delayedCall(1, () => this.scene.launch('MenuScene', { pagina: 'titulo' }));
@@ -730,7 +733,7 @@ export class FarmScene extends Phaser.Scene {
       const diaAntes = estado.dia;
       const minutoAntes = estado.relogio.minutos;
       estado.dia += estado.relogio.avancar(delta * estado.preferencias.valores.tempo);
-      if (estado.dia !== diaAntes) estado.eventos.emit('DAY_STARTED', { dia: estado.dia });
+      if (estado.dia !== diaAntes) { estado.eventos.emit('DAY_STARTED', { dia: estado.dia }); this.atualizarVisuaisRurais(); }
       if (estado.relogio.minutos !== minutoAntes) estado.eventos.emit('TIME_CHANGED', { dia: estado.dia, minuto: estado.relogio.minutos });
       estado.vida.atualizar(delta);
       // a tensao da represa conta MINUTO DE JOGO, entao ela so avanca quando o
@@ -814,7 +817,7 @@ export class FarmScene extends Phaser.Scene {
     const vy = (baixo ? 1 : 0) - (cima ? 1 : 0);
 
     const correndo = this.correr.isDown;
-    const velocidade = correndo ? CONFIG.movimento.correr : CONFIG.movimento.andar;
+    const velocidade = (correndo ? CONFIG.movimento.correr : CONFIG.movimento.andar) * (estado.equipamento.equipado('acessorio') === 'smartwatch' ? 1.05 : 1);
     const v = new Phaser.Math.Vector2(vx, vy).normalize().scale(velocidade);
     this.player.setVelocity(v.x, v.y);
 
@@ -862,7 +865,13 @@ export class FarmScene extends Phaser.Scene {
         this.abrirLojaDeExpansao();
         break;
       case 'mobilia':
-        this.abrirCatalogoDeMobilia();
+        this.ui.abrirMenu('Bancada de trabalho', [
+          { rotulo: 'Moveis e decoracao', aoEscolher: () => this.abrirCatalogoDeMobilia() },
+          ...RECEITAS.map(r => ({ rotulo: `${r.nome}: ${r.ingredientes.map(([id, n]) => `${n} ${ITENS[id]?.nome ?? id}`).join(' + ')}`, aoEscolher: () => { this.ui.avisoRapido(fabricar(r.id, estado.inventario)); this.salvarJogo(); } })),
+        ]);
+        break;
+      case 'atividade_rural':
+        this.abrirAtividadeRural(this.alvo.id);
         break;
       case 'obra':
         this.abrirProjetoCidade(this.alvo);
@@ -988,6 +997,7 @@ export class FarmScene extends Phaser.Scene {
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       estado.dia += 1;
       estado.eventos.emit('DAY_STARTED', { dia: estado.dia });
+      this.atualizarVisuaisRurais();
       estado.relogio.definir(CONFIG_TEMPO.horaAoAcordar);
       // dormir na propria cama cura por inteiro. E a unica cura gratuita do
       // jogo, e por isso ela custa um dia.
@@ -1030,6 +1040,7 @@ export class FarmScene extends Phaser.Scene {
       dia: estado.dia,
       progressao: estado.progressao.serializar(),
       clima: estado.clima.serializar(),
+      rural: estado.rural.serializar(),
       minutos: estado.relogio.minutos,
       mapa: estado.mapa,
       x: Math.round(this.player.x),
@@ -1548,7 +1559,37 @@ export class FarmScene extends Phaser.Scene {
       );
       return;
     }
-    this.abrirAtribuicaoDeFuncionario(projeto);
+    this.ui.abrirMenu(projeto.nome, [
+      { rotulo: 'Usar servico (seg-sex, 08h-17h)', aoEscolher: () => this.usarServicoCidade(projeto) },
+      { rotulo: 'Escolher responsavel', aoEscolher: () => this.abrirAtribuicaoDeFuncionario(projeto) },
+    ]);
+  }
+
+  private usarServicoCidade(projeto: ProjetoCidade): void {
+    if (!estado.cidade.funcionario(projeto.id)) { this.ui.avisoRapido('Escolha um responsavel para abrir o servico.'); return; }
+    if (!TURNO_CIDADE.dias.includes(estado.dia % 7) || estado.relogio.minutos < TURNO_CIDADE.inicio || estado.relogio.minutos >= TURNO_CIDADE.fim) {
+      this.ui.avisoRapido(`Atendimento de segunda a sexta, ${HORARIO_EMPREGO}.`); return;
+    }
+    if (projeto.id === 'hospital') {
+      if (estado.vida.cheio) { this.ui.avisoRapido('Sua saude esta em dia.'); return; }
+      this.ui.confirmar('Atendimento e recuperacao completa: R$ 15,00?', () => {
+        const r = estado.carteira.gastar(1500, { cabe: () => !estado.vida.cheio, entregar: () => estado.vida.restaurarTudo() });
+        this.ui.avisoRapido(r.ok ? 'Atendimento concluido. Cuide-se!' : 'Saldo insuficiente ou atendimento desnecessario.'); this.salvarJogo();
+      });
+    } else if (projeto.id === 'ponto_onibus') {
+      this.ui.abrirMenu('Linha municipal - R$ 5,00 / 30 min', ['farm', 'rural'].filter(id => Object.hasOwn(MAPAS, id)).map(id => ({
+        rotulo: id === 'rural' ? 'Zona rural' : 'Centro', aoEscolher: () => {
+          const destino = buscarMapa(id); if (!destino) return;
+          if (!estado.carteira.gastar(500).ok) { this.ui.avisoRapido('Saldo insuficiente.'); return; }
+          estado.dia += estado.relogio.avancarMinutos(30);
+          this.salvarJogo();
+          this.scene.restart({ mapa: id, x: (destino.spawnTile.x + .5) * this.tamanhoTile, y: (destino.spawnTile.y + .5) * this.tamanhoTile, salvar: true });
+        },
+      })));
+    } else {
+      this.ui.abrirLoja({ id: `servico_${projeto.id}`, mapa: projeto.mapa, tile: projeto.posto, nome: projeto.nome, rotulo: 'Comprar', categorias: ['normal'],
+        itemIds: projeto.id === 'padaria' ? ['pao_frances', 'pao_de_forma', 'pao_caseiro', 'fatia_bolo'] : ['cafe', 'leite', 'fatia_bolo', 'pao_frances'], npcDono: estado.cidade.funcionario(projeto.id) ?? undefined });
+    }
   }
 
   private construirProjetoCidade(projeto: ProjetoCidade): void {
@@ -1664,6 +1705,61 @@ export class FarmScene extends Phaser.Scene {
    * player. A colisao fica so na BASE (tronco da arvore, pe da pedra), entao da
    * pra andar atras delas. A camada e opcional — mapas de interior nao a tem.
    */
+  private criarAtividadesRurais(): void {
+    estado.rural.avancar(estado.dia, estado.clima);
+    if (estado.mapa !== 'rural') return;
+    for (const n of NOS_RURAIS) {
+      const x = (n.x + .5) * this.tamanhoTile, y = (n.y + .5) * this.tamanhoTile;
+      if (n.tipo === 'canteiro') {
+        this.add.rectangle(x, y, 14, 12, 0x765138).setStrokeStyle(1, 0x513622).setDepth(y - 1);
+        const sulcos = this.add.graphics().setDepth(y);
+        sulcos.lineStyle(1, 0x4a3121); for (let dy = -4; dy <= 4; dy += 4) sulcos.lineBetween(x - 5, y + dy, x + 5, y + dy);
+      } else {
+        const frame = ITENS[n.tipo]?.frame;
+        if (frame) this.add.image(x, y, 'itens', frame).setDisplaySize(14, 14).setDepth(y);
+      }
+      this.interagiveis.push({ id: n.id, tipo: 'atividade_rural', rotulo: n.tipo === 'canteiro' ? 'Canteiro' : 'Coletar materiais', x, y, props: {} });
+    }
+    this.atualizarVisuaisRurais();
+  }
+
+  private atualizarVisuaisRurais(): void {
+    if (estado.mapa !== 'rural') return;
+    this.children.getByName('cultivos-visuais')?.destroy();
+    const camada = this.add.container(0, 0).setName('cultivos-visuais');
+    for (const n of NOS_RURAIS.filter(n => n.tipo === 'canteiro')) {
+      const p = estado.rural.plantio(n.id); if (!p) continue;
+      const x = (n.x + .5) * this.tamanhoTile, y = (n.y + .5) * this.tamanhoTile, def = CULTIVOS.find(c => c.id === p.cultivo)!;
+      const pronto = p.crescido >= def.dias;
+      const g = this.add.graphics(); camada.add(g);
+      if (p.regadoDia === estado.dia) { g.fillStyle(0x32291f, .55); g.fillRect(x - 6, y - 5, 12, 10); }
+      g.lineStyle(2, p.seco ? 0xbaa06c : 0x599542);
+      for (const dx of [-3, 3]) { g.lineBetween(x + dx, y + 3, x + dx, y - 1 - p.crescido); g.lineBetween(x + dx, y, x + dx - 2, y - 2); }
+      if (pronto && !p.seco && ITENS[p.cultivo]?.frame) camada.add(this.add.image(x, y - 3, 'itens', ITENS[p.cultivo].frame).setDisplaySize(10, 10));
+    }
+    camada.setDepth(64.75 * this.tamanhoTile);
+  }
+
+  private abrirAtividadeRural(id: string): void {
+    estado.rural.avancar(estado.dia, estado.clima);
+    const n = NOS_RURAIS.find(n => n.id === id); if (!n) return;
+    const agir = (acao: () => string) => { this.ui.avisoRapido(acao()); this.atualizarVisuaisRurais(); this.salvarJogo(); };
+    if (n.tipo !== 'canteiro') { agir(() => estado.rural.coletar(id, estado.dia, estado.inventario)); return; }
+    const p = estado.rural.plantio(id);
+    const def = CULTIVOS.find(c => c.id === p?.cultivo);
+    const opcoes = p ? [
+      { rotulo: p.seco ? 'Limpar cultivo seco' : p.regadoDia === estado.dia ? 'Regado hoje' : 'Regar canteiro', aoEscolher: () => agir(() => estado.rural.regar(id, estado.dia)) },
+      { rotulo: 'Colher', aoEscolher: () => agir(() => estado.rural.colher(id, estado.inventario)) },
+    ] : CULTIVOS.map(c => ({ rotulo: `${c.nome}: sementes ${formatarDinheiro(c.custo)} / ${c.dias} dias`, aoEscolher: () => agir(() => estado.rural.plantar(id, c.id, estado.dia, estado.carteira)) }));
+    opcoes.push(...CULTIVOS.map(c => ({ rotulo: `Vender ${c.nome} (${estado.inventario.contar(c.id)}) por ${formatarDinheiro(Math.floor((ITENS[c.id]?.preco ?? 0) * .6))}/un`, aoEscolher: () => agir(() => {
+      const qtd = estado.inventario.contar(c.id), valor = Math.floor((ITENS[c.id]?.preco ?? 0) * .6) * qtd;
+      if (!qtd || !valor) return 'Nenhum produto para vender.';
+      if (!estado.carteira.ganhar(valor).ok) return 'Nao foi possivel receber o pagamento.';
+      estado.inventario.remover(c.id, qtd); return `Venda concluida: ${formatarDinheiro(valor)}.`;
+    }) })));
+    this.ui.abrirMenu(p ? `${def?.nome}: ${p.seco ? 'seco' : `${p.crescido}/${def?.dias} dias`}` : 'Canteiro e venda rural', opcoes);
+  }
+
   private criarFlora(map: Phaser.Tilemaps.Tilemap): void {
     const camada = map.getObjectLayer('flora');
     if (!camada) return;
@@ -2971,8 +3067,22 @@ export class FarmScene extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setScrollFactor(0)
       .setDepth(DEPTH_OVERLAY);
-    this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo);
+    this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo, { responseType: 'text', timeout: 15000 });
     this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      if (!this.cache.tilemap.has(def.tilemapKey)) {
+        this.avisoDeCarga?.setText('Nao foi possivel carregar o andar.\nEnter: tentar novamente\nEsc: voltar para casa');
+        const tentar = () => { limpar(); this.scene.restart(this.entradaAtual); };
+        const voltar = () => { limpar(); estado.mapa = MAPA_DA_CASA; this.scene.restart({ mapa: MAPA_DA_CASA }); };
+        const limpar = () => {
+          this.input.keyboard?.off('keydown-ENTER', tentar);
+          this.input.keyboard?.off('keydown-ESC', voltar);
+        };
+        this.input.keyboard?.once('keydown-ENTER', tentar);
+        this.input.keyboard?.once('keydown-ESC', voltar);
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, limpar);
+        this.avisoDeCarga?.setInteractive().once('pointerdown', tentar);
+        return;
+      }
       this.avisoDeCarga?.destroy();
       this.avisoDeCarga = null;
       this.scene.restart(this.entradaAtual);

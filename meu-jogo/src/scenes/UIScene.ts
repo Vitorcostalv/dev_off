@@ -1285,8 +1285,8 @@ export class UIScene extends Phaser.Scene {
    * Abre a janela de compra de um ponto de loja. Chamada pela FarmScene quando
    * o jogador aciona o balcao.
    */
-  abrirLoja(idPonto: string): void {
-    const ponto = buscarLoja(idPonto);
+  abrirLoja(idPonto: string | PontoDeLoja): void {
+    const ponto = typeof idPonto === 'string' ? buscarLoja(idPonto) : idPonto;
     if (!ponto) {
       console.warn(`[ui] ponto de loja "${idPonto}" nao existe`);
       return;

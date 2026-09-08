@@ -2,6 +2,7 @@ export type Direcao = 'up' | 'down' | 'left' | 'right';
 
 /** Classes de objeto usadas na camada `interativos` dos tilemaps do Tiled. */
 export type TipoInteragivel =
+  | 'atividade_rural'
   | 'placa'
   | 'npc'
   | 'porta'
