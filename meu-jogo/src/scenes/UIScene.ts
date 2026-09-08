@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { nomeDoDia } from '../game/calendario';
+import { nomeDoDia, dataDoDia } from '../game/calendario';
 import { CONFIG, UI } from '../game/config';
 import { formatarDinheiro } from '../game/dinheiro';
 import { estado } from '../game/estado';
@@ -328,6 +328,8 @@ export class UIScene extends Phaser.Scene {
     this.inventario = this.criarPainelDeInventario();
     this.loja = this.criarPainelDeLoja();
     this.menu = this.criarMenu();
+    const desligarConquistas = estado.eventos.on('ACHIEVEMENT_UNLOCKED', e => this.avisoRapido(`Conquista: ${e.titulo}`, UI.sucesso));
+    this.events.once('shutdown', desligarConquistas);
 
     const teclado = this.input.keyboard;
     // sem isso o Tab move o foco do navegador em vez de chegar aqui
@@ -463,9 +465,10 @@ export class UIScene extends Phaser.Scene {
       return;
     }
 
-    const texto = `${nomeDoDia(estado.dia)}  ${estado.relogio.texto}`;
+    const data = dataDoDia(estado.dia);
+    const texto = `${nomeDoDia(estado.dia).slice(0, 3)} ${data.diaEstacao} ${data.nomeEstacao} A${data.ano}  ${estado.relogio.texto}`;
     if (this.hud.text !== texto) this.hud.setText(texto);
-    const saldo = estado.carteira.texto;
+    const saldo = `${estado.carteira.texto}  ${estado.clima.paraDia(estado.dia)}`;
     if (this.hudSaldo.text !== saldo) this.hudSaldo.setText(saldo);
     this.atualizarVida();
   }
@@ -726,6 +729,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private cancelar(): void {
+    if (!this.bloqueado) { this.scene.launch('MenuScene', { pagina: 'pausa' }); return; }
     if (this.menuAberto) {
       this.cancelarMenu();
       return;

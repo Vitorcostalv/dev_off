@@ -3,45 +3,8 @@ import { UI } from '../../game/config.ts';
 import { PC, encurtar, texto } from '../widgets.ts';
 import type { AppDoPc, ContextoApp } from '../tipos.ts';
 
-/**
- * Conquistas — grade de troféus.
- *
- * ===========================================================================
- * SHELL VISUAL. Todas aparecem bloqueadas: nao existe tracking nenhum.
- * ===========================================================================
- * ONDE A LOGICA REAL VAI ENTRAR:
- *
- *  1. `CONQUISTAS` sai daqui e vira `src/game/conquistas.ts`, com id, titulo,
- *     dica e uma funcao `cumprida(estado): boolean` — assim a regra fica junto
- *     da definicao em vez de espalhada por quem dispara o evento.
- *  2. O conjunto de ids ja desbloqueados mora em `game/estado.ts` (um `Set`,
- *     como `estado.itensColetados` ja faz) e entra no save.
- *  3. Quem avalia e um passo unico — algo como `revisarConquistas()` chamado
- *     depois de compra, de dormir e de trocar de mapa. Nao espalhar
- *     `desbloquear()` por dentro da loja e do inventario: e assim que uma
- *     conquista some quando alguem mexe numa dessas telas.
- *  4. O aviso de "conquista desbloqueada" usa a UIScene (ela ja tem `avisar`),
- *     nao esta cena — a conquista pode cair com o PC fechado.
- */
-
-interface Conquista {
-  titulo: string;
-  dica: string;
-  glifo: string;
-}
-
-const CONQUISTAS: readonly Conquista[] = [
-  { titulo: 'Primeira compra', dica: 'Compre qualquer coisa no mercado.', glifo: '✦' },
-  { titulo: 'Setup montado', dica: 'Tenha teclado, mouse e monitor ao mesmo tempo.', glifo: '▣' },
-  { titulo: 'Bom dia, cidade', dica: 'Fale com todos os moradores.', glifo: '☺' },
-  { titulo: 'Madrugada', dica: 'Fique acordado ate as 3 da manha.', glifo: '☾' },
-  { titulo: 'Colecionador', dica: 'Tenha 20 itens diferentes de uma vez.', glifo: '❖' },
-  { titulo: 'Primeiro salario', dica: 'Conclua um trabalho.', glifo: '$' },
-  { titulo: 'Semana cheia', dica: 'Jogue sete dias seguidos.', glifo: '▤' },
-  { titulo: 'Gastador', dica: 'Gaste mil reais em eletronicos.', glifo: '▲' },
-  { titulo: 'Faxina', dica: 'Esvazie a lixeira.', glifo: '⌫' },
-  { titulo: 'Jogador', dica: 'Termine um minijogo.', glifo: '◆' },
-];
+import { CONQUISTAS } from '../../game/progressao.ts';
+import { estado } from '../../game/estado.ts';
 
 const GRADE = { colunas: 5, gap: 8, largura: 84, altura: 76 };
 
@@ -69,7 +32,7 @@ export class Conquistas implements AppDoPc {
         color: PC.destaque,
       }),
       ctx.cena.add
-        .text(area.x + area.w, area.y + 1, `0 / ${CONQUISTAS.length} desbloqueadas`, {
+        .text(area.x + area.w, area.y + 1, `${estado.progressao.total} / ${CONQUISTAS.length} desbloqueadas`, {
           fontFamily: UI.fonte,
           fontSize: '9px',
           color: PC.textoFraco,
@@ -90,7 +53,7 @@ export class Conquistas implements AppDoPc {
         .setInteractive({ useHandCursor: true });
       // medalha acinzentada = bloqueada; quando desbloquear, vira a cor do app
       const medalha = ctx.cena.add
-        .rectangle(x + GRADE.largura / 2, y + 24, 30, 30, PC.bloqueado)
+        .rectangle(x + GRADE.largura / 2, y + 24, 30, 30, estado.progressao.desbloqueada(c.id) ? this.cor : PC.bloqueado)
         .setStrokeStyle(1, PC.borda);
       const glifo = ctx.cena.add
         .text(x + GRADE.largura / 2, y + 24, c.glifo, {
@@ -107,7 +70,7 @@ export class Conquistas implements AppDoPc {
         })
         .setOrigin(0.5, 0);
       const cadeado = ctx.cena.add
-        .text(x + GRADE.largura / 2, y + 57, '🔒', {
+        .text(x + GRADE.largura / 2, y + 57, estado.progressao.desbloqueada(c.id) ? 'CONQUISTADA' : 'Bloqueada', {
           fontFamily: UI.fonte,
           fontSize: '9px',
           color: '#7d6a4a',
@@ -152,6 +115,7 @@ export class Conquistas implements AppDoPc {
     });
     const c = CONQUISTAS[this.cursor];
     this.rodape.setColor(PC.textoFraco);
-    this.rodape.setText(`${c.titulo} — ${c.dica}  (nada e rastreado ainda)`);
+    const data = estado.progressao.desbloqueada(c.id);
+    this.rodape.setText(data ? `${c.titulo} - Dia ${data.dia + 1}` : `${c.titulo}: ${c.dica}`);
   }
 }

@@ -12,7 +12,13 @@ page.setDefaultTimeout(30000);
 const log = { errors: [], warnings: [], maps: [], checks: [] };
 page.on('pageerror', e => { if (log.errors.length < 20) { log.errors.push(e.message); console.error(e.message); } });
 page.on('console', m => { if (m.type() === 'warning') log.warnings.push(m.text()); if (m.type() === 'error') log.errors.push(m.text()); });
-const ready = () => page.waitForFunction(() => window.game?.scene.getScene('FarmScene')?.pronto);
+const ready = async () => {
+  await page.waitForFunction(() => window.game?.scene.getScene('FarmScene')?.pronto);
+  await page.waitForTimeout(100);
+  if (await page.evaluate(() => window.game.scene.isActive('MenuScene') && window.game.scene.getScene('MenuScene').pagina === 'titulo')) {
+    await page.keyboard.press('Enter'); await page.waitForTimeout(100);
+  }
+};
 const snap = async name => page.screenshot({ path: new URL(name + '.png', out).pathname.replace(/^\/(\w:)/, '$1') });
 try {
   const start = Date.now();

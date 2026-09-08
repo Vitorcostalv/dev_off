@@ -6,7 +6,13 @@ import { createDefaultSave } from '../src/game/SaveMigration.ts';
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 const page = await browser.newPage(); page.setDefaultTimeout(30000);
 const errors = []; page.on('pageerror', e => errors.push(e.message));
-const ready = () => page.waitForFunction(() => window.game?.scene.getScene('FarmScene')?.pronto);
+const ready = async () => {
+  await page.waitForFunction(() => window.game?.scene.getScene('FarmScene')?.pronto);
+  await page.waitForTimeout(100);
+  if (await page.evaluate(() => window.game.scene.isActive('MenuScene') && window.game.scene.getScene('MenuScene').pagina === 'titulo')) {
+    await page.keyboard.press('Enter'); await page.waitForTimeout(100);
+  }
+};
 const legacy = { ...createDefaultSave(), versao: 6, dinheiro: 65432, arquivo: [1, 25, 50], cidade: { construidos: 42, funcionarios: 42 } };
 try {
   await page.goto(process.env.GAME_URL ?? 'http://127.0.0.1:5186'); await ready();

@@ -1,4 +1,7 @@
 import { HORARIO_EMPREGO } from '../game/cidade';
+import { dataDoDia } from '../game/calendario';
+import { intensidadeNoturna } from '../game/clima';
+import { AmbienteMundo } from './AmbienteMundo';
 import Phaser from 'phaser';
 import { PROP_COLIDE } from '../game/colisao';
 import { CONFIG, COR_ZONA, ROTULOS, UI } from '../game/config';
@@ -262,6 +265,7 @@ const TILE_DA_REVENDA = { x: 17, y: 20 };
 const DURACAO_FADE_NPC = 220;
 
 export class FarmScene extends Phaser.Scene {
+  private ambiente!: AmbienteMundo;
   private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private teclas!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
@@ -583,6 +587,7 @@ export class FarmScene extends Phaser.Scene {
     this.atualizarPortasEIluminacao();
     this.criarMoveis(map);
     this.criarMobiliaDoJogador();
+    this.ambiente = new AmbienteMundo(this, def.externo);
     this.criarFlora(map);
     // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
     // predios, moveis, arvores e pedras do mapa carregado.
@@ -708,6 +713,10 @@ export class FarmScene extends Phaser.Scene {
     }
 
     this.pronto = true;
+    if (!estado.tituloVisto) {
+      estado.tituloVisto = true;
+      this.time.delayedCall(1, () => this.scene.launch('MenuScene', { pagina: 'titulo' }));
+    }
   }
 
   update(_tempo: number, delta: number): void {
@@ -718,7 +727,11 @@ export class FarmScene extends Phaser.Scene {
     this.player.setDepth(this.player.y);
 
     if (!this.ui.bloqueado && !this.transicionando && !this.mapaAberto) {
-      estado.dia += estado.relogio.avancar(delta);
+      const diaAntes = estado.dia;
+      const minutoAntes = estado.relogio.minutos;
+      estado.dia += estado.relogio.avancar(delta * estado.preferencias.valores.tempo);
+      if (estado.dia !== diaAntes) estado.eventos.emit('DAY_STARTED', { dia: estado.dia });
+      if (estado.relogio.minutos !== minutoAntes) estado.eventos.emit('TIME_CHANGED', { dia: estado.dia, minuto: estado.relogio.minutos });
       estado.vida.atualizar(delta);
       // a tensao da represa conta MINUTO DE JOGO, entao ela so avanca quando o
       // relogio vira — nao a cada quadro
@@ -739,6 +752,7 @@ export class FarmScene extends Phaser.Scene {
     this.atualizarFigurantesAmbientais();
     this.atualizarPortasEIluminacao();
     this.atualizarLuzesNoturnas();
+    this.ambiente.atualizar(this.ui.bloqueado || this.mapaAberto ? 0 : delta, estado.relogio.minutos, dataDoDia(estado.dia).estacao, estado.clima.paraDia(estado.dia), estado.preferencias.valores);
 
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
@@ -973,6 +987,7 @@ export class FarmScene extends Phaser.Scene {
     cam.fadeOut(300, 0, 0, 0);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       estado.dia += 1;
+      estado.eventos.emit('DAY_STARTED', { dia: estado.dia });
       estado.relogio.definir(CONFIG_TEMPO.horaAoAcordar);
       // dormir na propria cama cura por inteiro. E a unica cura gratuita do
       // jogo, e por isso ela custa um dia.
@@ -1013,6 +1028,8 @@ export class FarmScene extends Phaser.Scene {
   private salvarJogo(): boolean {
     return salvar({
       dia: estado.dia,
+      progressao: estado.progressao.serializar(),
+      clima: estado.clima.serializar(),
       minutos: estado.relogio.minutos,
       mapa: estado.mapa,
       x: Math.round(this.player.x),
@@ -1182,11 +1199,6 @@ export class FarmScene extends Phaser.Scene {
     }
   }
 
-  private estahNoturno(minutos = estado.relogio.minutos): boolean {
-    const m = ((minutos % (24 * 60)) + 24 * 60) % (24 * 60);
-    return m >= 18 * 60 || m < 6 * 60;
-  }
-
   private portaAbertaAgora(porta: Interagivel): boolean {
     const destino = String(porta.props.destino ?? '');
     const horario = HORARIOS_PORTAS[destino];
@@ -1272,8 +1284,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private atualizarLuzesNoturnas(): void {
-    const ativa = this.estahNoturno();
-    for (const luz of this.luzesNoturnas) luz.setVisible(ativa);
+    for (const luz of this.luzesNoturnas) luz.setVisible(true).setAlpha(intensidadeNoturna(estado.relogio.minutos));
     if (this.luzBiblioteca) {
       const minutos = estado.relogio.minutos;
       this.luzBiblioteca.setVisible(minutos >= 9 * 60 && minutos < 19 * 60);
@@ -1674,6 +1685,7 @@ export class FarmScene extends Phaser.Scene {
       const x = obj.x ?? 0;
       const y = obj.y ?? 0;
       const sprite = this.add.image(x, y, receita.textura, receita.quadro).setOrigin(0.5, 1);
+      if (classe === 'arvore' || classe === 'flor') this.ambiente.vegetacao(sprite);
       // escala vem da altura real do frame: a arte pode mudar de resolucao
       sprite.setScale((receita.alturaTiles * this.tamanhoTile) / sprite.height);
       // profundidade = y: quem esta mais "pra frente" na tela desenha por cima

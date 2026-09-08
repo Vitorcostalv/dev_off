@@ -15,6 +15,8 @@ import { SistemaRepresa } from './represa.ts';
 import { SistemaEquipamento } from './equipar.ts';
 import { SistemaArmas } from './armas.ts';
 import { SistemaArquivo } from './fichas.ts';
+import { Progressao } from './progressao.ts';
+import { SistemaClima } from './clima.ts';
 
 export const SAVE_VERSION = 7;
 const objeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -65,6 +67,8 @@ export function normalizeSave(bruto: unknown): DadosSave {
     equipamento: equipamento.serializar(),
     armas: restaurado(new SistemaArmas(), d.armas),
     arquivo: restaurado(new SistemaArquivo(), d.arquivo),
+    progressao: restaurado(new Progressao(), d.progressao),
+    clima: restaurado(new SistemaClima(), d.clima),
   };
 }
 

@@ -136,6 +136,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    estado.preferencias.carregar();
     this.criarFramesPlayer('idle');
     this.criarFramesPlayer('walk');
     this.criarFramesPlayer('run');
@@ -183,6 +184,8 @@ export class BootScene extends Phaser.Scene {
     estado.equipamento.restaurar(save.equipamento);
     estado.armas.restaurar(save.armas);
     estado.arquivo.restaurar(save.arquivo);
+    estado.progressao.restaurar(save.progressao);
+    estado.clima.restaurar(save.clima);
     // O item pode ter saido do inventario por outro caminho (venda, descarte)
     // entre gravar e carregar; sem esta linha o save traria uma arma equipada
     // que nao esta mais na mochila.

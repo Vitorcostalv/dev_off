@@ -679,6 +679,7 @@ export interface EntregaAtiva {
  * entregar em cada porta, e isso e complexidade sem graca nenhuma.
  */
 export class SistemaTrabalhos {
+  aoConcluir?: (id: string) => void;
   entrega: EntregaAtiva | null = null;
 
   /**
@@ -708,7 +709,9 @@ export class SistemaTrabalhos {
   }
 
   marcarConcluida(dia: number, idVaga: string): void {
+    if (this.concluida(dia, idVaga)) return;
     this.feitos.add(this.chave(dia, idVaga));
+    this.aoConcluir?.(idVaga);
   }
 
   serializar(): { entrega: EntregaAtiva | null; feitos: string[] } {

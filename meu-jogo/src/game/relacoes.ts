@@ -108,6 +108,7 @@ export interface DadosRelacoes {
 }
 
 export class SistemaRelacoes {
+  aoConversar?: (id: string) => void;
   /** Score por NPC. Ausente = 0. */
   private scores = new Map<string, ScoreRelacao>();
   /** Quem o jogador ja abordou pelo menos uma vez, independente de pontuar. */
@@ -172,6 +173,7 @@ export class SistemaRelacoes {
   registrarConversa(npcId: string, dia: number): void {
     this.conversas.set(npcId, dia);
     this.interagidos.add(npcId);
+    this.aoConversar?.(npcId);
   }
 
   /** true se o presente de hoje pra este NPC ainda pode render ponto. */

@@ -4,6 +4,7 @@ import { BootScene } from './scenes/BootScene';
 import { FarmScene } from './scenes/FarmScene';
 import { ComputadorScene } from './scenes/ComputadorScene';
 import { UIScene } from './scenes/UIScene';
+import { MenuScene } from './scenes/MenuScene';
 import './style.css';
 
 export const GAME_WIDTH = 480;
@@ -29,7 +30,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, FarmScene, UIScene, ComputadorScene],
+  scene: [BootScene, FarmScene, UIScene, ComputadorScene, MenuScene],
 };
 
 const game = new Phaser.Game(config);

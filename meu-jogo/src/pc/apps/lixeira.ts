@@ -29,6 +29,7 @@ export class Lixeira implements AppDoPc {
   readonly resumo = 'Itens excluidos';
 
   private topo = 0;
+  private confirmando = false;
   private linhas: {
     fundo: Phaser.GameObjects.Rectangle;
     nome: Phaser.GameObjects.Text;
@@ -114,6 +115,13 @@ export class Lixeira implements AppDoPc {
   }
 
   aoTeclar(evento: KeyboardEvent): boolean {
+    if (evento.key === 'Escape' && this.confirmando) { this.confirmando = false; this.desenhar(); return true; }
+    if (evento.key.toLowerCase() === 'e' && !evento.repeat && !estado.lixeira.vazia) {
+      if (!this.confirmando) { this.confirmando = true; this.rodape.setText('[E] confirmar limpeza do historico   [Esc] cancelar'); return true; }
+      const quantidade = estado.lixeira.lista.length;
+      estado.lixeira.restaurar([]); this.confirmando = false; this.topo = 0;
+      estado.eventos.emit('TRASH_EMPTIED', { quantidade }); this.desenhar(); return true;
+    }
     const passo: Record<string, number> = {
       ArrowUp: -1, w: -1, W: -1,
       ArrowDown: 1, s: 1, S: 1,
@@ -159,11 +167,13 @@ export class Lixeira implements AppDoPc {
     });
 
     this.rodape.setColor(PC.textoFraco);
+    this.rodape.setInteractive({ useHandCursor: true });
+    if (this.rodape.listenerCount('pointerdown') === 0) this.rodape.on('pointerdown', () => this.aoTeclar({ key: 'e', repeat: false } as KeyboardEvent));
     this.rodape.setText(
       total === 0
         ? 'Sem recuperacao: a lixeira e so historico.'
         : `${this.topo + 1}-${Math.min(total, this.topo + LINHA.visiveis)} de ${total}` +
-          `   [W/S] rolar   sem recuperacao: e so historico   [Esc] sair`,
+          `   [W/S] rolar   [E/clique] limpar historico   [Esc] sair`,
     );
   }
 }

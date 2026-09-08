@@ -6,6 +6,7 @@ import type { AppDoPc, ContextoApp } from '../../tipos.ts';
 import type { Vista } from '../../vista.ts';
 import { JogoDaMemoria } from './memoria.ts';
 import { Snake } from './snake.ts';
+import { estado } from '../../../game/estado.ts';
 
 /**
  * Jogos — a biblioteca de minijogos do PC.
@@ -133,6 +134,7 @@ export class Jogos implements AppDoPc {
 
   /** Chamado pelos jogos ao terminar uma partida. So guarda; nao premia nada. */
   registrar(id: string, valores: number[]): void {
+    estado.eventos.emit('MINIGAME_COMPLETED', { id });
     this.ultimoResultado[id] = valores;
   }
 

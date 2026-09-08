@@ -194,6 +194,7 @@ export interface Slot {
 export const TAMANHO_PADRAO = 20;
 
 export class Inventario {
+  aoAdicionar?: (id: string, quantidade: number) => void;
   readonly slots: (Slot | null)[];
 
   constructor(tamanho: number = TAMANHO_PADRAO) {
@@ -225,6 +226,7 @@ export class Inventario {
       this.slots[i] = { id, qtd: cabe };
       resto -= cabe;
     }
+    if (qtd > resto) this.aoAdicionar?.(id, qtd - resto);
     return resto;
   }
 

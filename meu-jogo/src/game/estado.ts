@@ -17,12 +17,22 @@ import { SistemaRepresa } from './represa.ts';
 import { SistemaEquipamento } from './equipar.ts';
 import { SistemaArmas } from './armas.ts';
 import { SistemaArquivo } from './fichas.ts';
+import { GameEventBus } from './GameEvents.ts';
+import { Progressao } from './progressao.ts';
+import { NPCS } from './npcs.ts';
+import { SistemaClima } from './clima.ts';
+import { Preferencias } from './settings.ts';
 
 /**
  * Estado global do jogo — o que sobrevive a troca de mapa e vai pro save.
  * Cenas leem e escrevem daqui; ninguem guarda copia.
  */
 export const estado = {
+  clima: new SistemaClima(),
+  preferencias: new Preferencias(),
+  tituloVisto: false,
+  eventos: new GameEventBus(),
+  progressao: new Progressao(),
   /**
    * Chave do mapa em que o player esta. Jogo novo comeca no MAPA 2, na porta da
    * casa+oficina — e onde o protagonista mora desde esta leva. O Mapa 1, com os
@@ -64,6 +74,16 @@ export const estado = {
   /** quais das cinquenta fichas medicas da represa ja foram recolhidas */
   arquivo: new SistemaArquivo(),
 };
+
+estado.progressao.conectar(estado.eventos, () => ({
+  dia: estado.dia, minuto: Math.floor(estado.relogio.minutos),
+  itens: [...new Set(estado.inventario.slots.flatMap(s => s ? [s.id] : []))],
+  conhecidos: estado.relacoes.listaInteragidos().filter(id => Object.hasOwn(NPCS, id)).length,
+  totalNpcs: Object.keys(NPCS).length,
+}));
+estado.inventario.aoAdicionar = (id, quantidade) => estado.eventos.emit('ITEM_ADDED', { id, quantidade });
+estado.relacoes.aoConversar = id => estado.eventos.emit('NPC_TALKED', { id });
+estado.trabalhos.aoConcluir = id => estado.eventos.emit('JOB_COMPLETED', { id });
 
 /**
  * Liga o motor de rotinas ao sistema de projetos urbanos.
