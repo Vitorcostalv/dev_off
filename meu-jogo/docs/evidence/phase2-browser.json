@@ -1,0 +1,10 @@
+{
+  "errors": [],
+  "checks": [
+    "v6 migration in browser",
+    "archive/money preservation",
+    "map pauses clock",
+    "F4/F8 confirmation and cancellation",
+    "production F keys preserve storage; debug globals absent"
+  ]
+}

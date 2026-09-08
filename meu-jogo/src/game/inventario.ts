@@ -337,8 +337,8 @@ export class Inventario {
     if (!Array.isArray(dados)) return;
     for (let i = 0; i < Math.min(dados.length, this.slots.length); i++) {
       const s = dados[i] as Partial<Slot> | null;
-      if (!s || typeof s.id !== 'string' || !ITENS[s.id]) continue;
-      const qtd = Math.max(0, Math.min(Number(s.qtd) || 0, ITENS[s.id].maxPilha));
+      if (!s || typeof s.id !== 'string' || !Object.hasOwn(ITENS, s.id)) continue;
+      const qtd = Math.floor(Math.max(0, Math.min(Number(s.qtd) || 0, ITENS[s.id].maxPilha)));
       if (qtd > 0) this.slots[i] = { id: s.id, qtd };
     }
   }

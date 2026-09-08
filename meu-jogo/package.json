@@ -22,7 +22,9 @@
     "verificar-expansao-npcs": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-expansao-npcs.mjs",
     "gerar-relatorio-relacionamentos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-relatorio-relacionamentos.mjs",
     "verificar-overhaul": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-overhaul.mjs",
-    "test:browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-overhaul.mjs"
+    "test:browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-overhaul.mjs",
+    "verificar-save": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-save.mjs",
+    "test:save-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-save.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

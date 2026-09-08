@@ -22,7 +22,7 @@ import { PONTOS_POR_TIER_PRESENTE, calcularTierPresente, reacaoPresente } from '
 import { CONFIG_TEMPO } from '../game/relogio';
 import { ITEM_ENCOMENDA } from '../game/trabalhos';
 import type { EstadoNpc } from '../game/rotinasNpc';
-import { apagar, salvar } from '../game/save';
+import { apagar, salvar, snapshots, restaurarSnapshot } from '../game/save';
 import { USOS_DE_MORADIA, falasDe } from '../game/tipos';
 import { avisosDaSemana, segredosDoMapa } from '../game/ambientacao';
 import type { SegredoDoMapa } from '../game/ambientacao';
@@ -555,8 +555,10 @@ export class FarmScene extends Phaser.Scene {
     this.comodos = this.lerComodos(map);
     this.escuridaoDoComodo = this.lerEscuridaoDosComodos(map);
 
+    const spawnValido = this.spawn && this.spawn.x >= 0 && this.spawn.y >= 0
+      && this.spawn.x < map.widthInPixels && this.spawn.y < map.heightInPixels;
     const nasce =
-      this.spawn ??
+      (spawnValido ? this.spawn : null) ??
       {
         x: (def.spawnTile.x + 0.5) * this.tamanhoTile,
         y: (def.spawnTile.y + 0.5) * this.tamanhoTile,
@@ -649,44 +651,61 @@ export class FarmScene extends Phaser.Scene {
     // R recarrega a arma de fogo equipada.
     this.teclaRecarga = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
-    // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
-    this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
+    if (import.meta.env.DEV) {
+      // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
+      this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
 
-    // F7 avanca uma hora para inspecionar rotinas sem esperar (debug).
-    this.input.keyboard!.on('keydown-F7', () => {
-      estado.dia += estado.relogio.avancarMinutos(60);
-      estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, 0);
-      this.sincronizarNpcs();
-      console.info(`[tempo] avancado para ${estado.relogio.texto}`);
-    });
+      // F7 avanca uma hora para inspecionar rotinas sem esperar (debug).
+      this.input.keyboard!.on('keydown-F7', () => {
+        estado.dia += estado.relogio.avancarMinutos(60);
+        estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, 0);
+        this.sincronizarNpcs();
+        console.info(`[tempo] avancado para ${estado.relogio.texto}`);
+      });
 
-    // F2 continua util para testar capacidade sem depender do mapa.
-    this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('cabo_usb', 1));
-    // F3 da o KIT DE EXPLORACAO. Substituiu o "adiciona uma bateria" porque
-    // testar o ciclo da represa a mao — descer, achar a pistola no cofre da
-    // portaria, comprar municao na madeireira, voltar — leva dez minutos de
-    // jogo a cada tentativa, e o que se quer testar e o combate, nao a coleta.
-    this.input.keyboard!.on('keydown-F3', () => {
-      for (const [id, qtd] of KIT_DE_DEBUG) estado.inventario.adicionar(id, qtd);
-      this.ui.avisoRapido('Kit de exploracao no inventario (F3).', UI.sucesso);
-    });
+      // F2 continua util para testar capacidade sem depender do mapa.
+      this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('cabo_usb', 1));
+      // F3 da o KIT DE EXPLORACAO. Substituiu o "adiciona uma bateria" porque
+      // testar o ciclo da represa a mao — descer, achar a pistola no cofre da
+      // portaria, comprar municao na madeireira, voltar — leva dez minutos de
+      // jogo a cada tentativa, e o que se quer testar e o combate, nao a coleta.
+      this.input.keyboard!.on('keydown-F3', () => {
+        for (const [id, qtd] of KIT_DE_DEBUG) estado.inventario.adicionar(id, qtd);
+        this.ui.avisoRapido('Kit de exploracao no inventario (F3).', UI.sucesso);
+      });
 
-    // F9 salva na hora (debug); no jogo, quem salva e o dormir
-    this.input.keyboard!.on('keydown-F9', () => {
-      console.info('[save] gravado:', this.salvarJogo());
-    });
+      // F9 salva na hora (debug); no jogo, quem salva e o dormir
+      this.input.keyboard!.on('keydown-F9', () => {
+        console.info('[save] gravado:', this.salvarJogo());
+      });
 
-    // F4 apaga o save (debug)
-    this.input.keyboard!.on('keydown-F4', () => {
-      apagar();
-      console.info('[save] apagado');
-    });
+      // F4 apaga o save (debug)
+      this.input.keyboard!.on('keydown-F4', () => {
+        if (this.ui.bloqueado || this.mapaAberto) return;
+        this.ui.confirmar('Apagar o save ativo? Um backup sera preservado.', () => {
+          this.ui.avisoRapido(apagar() ? 'Save apagado; backup preservado.' : 'Nao foi possivel criar backup. Save mantido.');
+        });
+      });
 
-    // F1 liga/desliga o debug das colisoes
-    this.input.keyboard!.on('keydown-F1', () => {
-      this.physics.world.drawDebug = !this.physics.world.drawDebug;
-      if (!this.physics.world.drawDebug) this.physics.world.debugGraphic?.clear();
-    });
+      this.input.keyboard!.on('keydown-F8', () => {
+        if (this.ui.bloqueado || this.mapaAberto) return;
+        const backups = snapshots();
+        if (!backups.length) { this.ui.avisoRapido('Nenhum backup disponivel.'); return; }
+        this.ui.abrirMenu('Restaurar qual backup? Datas em UTC.', backups.map((backup, indice) => ({
+          rotulo: `${indice + 1}. ${backup.criadoEm.slice(0, 19).replace('T', ' ')}`,
+          aoEscolher: () => this.ui.confirmar('Restaurar este backup? A sessao sera recarregada.', () => {
+            if (restaurarSnapshot(indice)) window.location.reload();
+            else this.ui.avisoRapido('Backup invalido ou sem espaco. Save mantido.');
+          }),
+        })));
+      });
+
+      // F1 liga/desliga o debug das colisoes
+      this.input.keyboard!.on('keydown-F1', () => {
+        this.physics.world.drawDebug = !this.physics.world.drawDebug;
+        if (!this.physics.world.drawDebug) this.physics.world.debugGraphic?.clear();
+      });
+    }
 
     this.pronto = true;
   }
@@ -698,7 +717,7 @@ export class FarmScene extends Phaser.Scene {
     // reordena o player entre as arvores conforme ele anda
     this.player.setDepth(this.player.y);
 
-    if (!this.ui.bloqueado && !this.transicionando) {
+    if (!this.ui.bloqueado && !this.transicionando && !this.mapaAberto) {
       estado.dia += estado.relogio.avancar(delta);
       estado.vida.atualizar(delta);
       // a tensao da represa conta MINUTO DE JOGO, entao ela so avanca quando o

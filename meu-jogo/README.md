@@ -32,7 +32,8 @@ conserto.
 | F6 | mostrar/esconder as zonas reservadas (debug) |
 | F7 | avancar uma hora para testar rotinas (debug) |
 | F2 / F3 | adicionar Cabo USB / kit de exploracao no inventario (debug) |
-| F4 | apagar o save (debug) |
+| F4 | apagar o save com confirmacao e backup (somente desenvolvimento) |
+| F8 | escolher e restaurar backup com confirmacao (somente desenvolvimento) |
 | Espaco | golpear com a chave inglesa (so faz algo dentro da represa) |
 | F9 | salvar na hora (debug) |
 
@@ -1075,6 +1076,8 @@ numero que a conferencia de interior usa, e nao ha medida de arte duplicada.
 - Em dev, `window.game` e `window.estado` estao expostos pro console.
 
 ## Overhaul em andamento
+
+Save atual: v7, com migracao automatica de v6, normalizacao por sistema e ate tres backups locais. Versoes futuras nao sao sobrescritas. Todos os atalhos F1–F9 de depuracao estao desativados no build de producao. O mapa pausa o relogio.
 
 Auditoria, lacunas e roteiro: [docs/overhaul.md](docs/overhaul.md). A remasterizacao completa ainda nao foi entregue.
 

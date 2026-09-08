@@ -10,32 +10,11 @@ import type { DadosRepresa } from './represa.ts';
 import type { DadosEquipamento } from './equipar.ts';
 import type { DadosArmas } from './armas.ts';
 
+import { migrateSave, normalizeSave, validateSave, SAVE_VERSION } from './SaveMigration.ts';
+
 const CHAVE = 'meu-jogo:save';
-// 2: o tile passou de 16 pra 32 px, entao x/y gravados na versao 1 apontam
-//    pra metade da posicao certa.
-// 3: o interior 'casa' virou 'casa_1'..'casa_6', entao a chave de mapa gravada
-//    na versao 2 pode nao existir mais.
-// 4: passa a persistir os pickups removidos do mundo junto com o inventario.
-// 5: entra o dinheiro (em centavos) e o inventario passa a guardar itens do
-//    CATALOGO_ITENS, que a versao 4 nao conhecia.
-// 6: o jogo passou de um mapa externo pra tres, e a casa do protagonista mudou
-//    da `casa_1` (Mapa 1) pra `oficina` (Mapa 2). A chave de mapa gravada na
-//    versao 5 pode ser `casa_1`, que nao existe mais, e as coordenadas gravadas
-//    dentro dela nao querem dizer nada no mapa novo.
-// A leva da represa (Mapa 4) NAO subiu a versao. Ela e aditiva: nenhum lote,
-// interior ou coordenada existente mudou de lugar, e os tres campos novos
-// (`vida`, `represa` e as flags da usina dentro de `worldEvents`) chegam
-// ausentes no save v6 antigo e caem em valor vazio. O que mudou no mundo foi a
-// TOPOLOGIA das bordas — e borda nao vai pro save.
-// Subir a versao descarta os saves antigos em vez de restaurar posicao errada.
-//
-// Campo NOVO nao pede versao nova. So se sobe a versao quando o dado gravado
-// pela versao anterior passa a significar outra coisa (foi o caso de 1->2, com
-// o tile mudando de tamanho, e de 2->3, com a chave de mapa mudando). Um campo
-// acrescentado chega como `undefined` no save velho, e cada `restaurar` ja
-// trata isso devolvendo o valor vazio — descartar o save do jogador por causa
-// disso seria pior que carregar sem o historico da lixeira.
-const VERSAO = 6;
+const TEMPORARIO = CHAVE + ':pending';
+const BACKUPS = CHAVE + ':backups';
 
 export interface DadosSave {
   versao: number;
@@ -73,7 +52,7 @@ export interface DadosSave {
   /**
    * Vida do jogador. Campo NOVO, sem subir a versao: save antigo chega sem ele e
    * `SistemaVida.restaurar` devolve 30/30 — que e o estado certo pra quem nunca
-   * entrou na represa. Ver o comentario de VERSAO acima.
+   * entrou na represa. A migracao v6 -> v7 preserva este comportamento.
    */
   vida?: DadosVida;
   /**
@@ -100,36 +79,87 @@ export interface DadosSave {
   arquivo?: number[];
 }
 
-export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {
+export interface SnapshotSave { criadoEm: string; bruto: string; }
+
+export function snapshots(): SnapshotSave[] {
   try {
-    localStorage.setItem(CHAVE, JSON.stringify({ versao: VERSAO, ...dados }));
+    const d: unknown = JSON.parse(localStorage.getItem(BACKUPS) ?? '[]');
+    return Array.isArray(d) ? d.filter(s => s && typeof s.criadoEm === 'string' && typeof s.bruto === 'string').slice(0, 3) : [];
+  } catch { return []; }
+}
+
+export function criarSnapshot(): boolean {
+  try {
+    const bruto = localStorage.getItem(CHAVE);
+    if (!bruto) return true;
+    const anteriores = snapshots();
+    if (anteriores[0]?.bruto === bruto) return true;
+    localStorage.setItem(BACKUPS, JSON.stringify([{ criadoEm: new Date().toISOString(), bruto }, ...anteriores].slice(0, 3)));
+    return true;
+  } catch { return false; }
+}
+
+/** O ativo só muda após backup e leitura/validação da escrita temporária. */
+function gravarValidado(dados: DadosSave): boolean {
+  if (!validateSave(dados)) return false;
+  try {
+    if (!criarSnapshot()) return false;
+    const json = JSON.stringify(dados);
+    localStorage.setItem(TEMPORARIO, json);
+    const gravado = localStorage.getItem(TEMPORARIO);
+    if (gravado !== json || !validateSave(JSON.parse(gravado))) return false;
+    localStorage.setItem(CHAVE, json);
+    // Falhar na limpeza não transforma uma gravação confirmada em fracasso.
+    try { localStorage.removeItem(TEMPORARIO); } catch { /* limpável no próximo save */ }
     return true;
   } catch (erro) {
-    console.warn('[save] nao consegui gravar', erro);
+    console.warn('[save] nao consegui gravar; save anterior preservado', erro);
     return false;
   }
+}
+
+export function salvar(dados: Omit<DadosSave, 'versao'>): boolean {
+  try {
+    const anterior = localStorage.getItem(CHAVE);
+    if (anterior) {
+      try {
+        if (JSON.parse(anterior)?.versao > SAVE_VERSION) return false;
+      } catch { /* snapshot preserva o JSON corrompido */ }
+    }
+    return gravarValidado(normalizeSave(dados));
+  } catch { return false; }
 }
 
 export function carregar(): DadosSave | null {
   try {
     const bruto = localStorage.getItem(CHAVE);
     if (!bruto) return null;
-    const dados = JSON.parse(bruto) as Partial<DadosSave>;
-    if (dados.versao !== VERSAO) {
-      console.warn(`[save] versao ${dados.versao} incompativel com ${VERSAO} — ignorando`);
-      return null;
-    }
-    return dados as DadosSave;
+    const entrada: unknown = JSON.parse(bruto);
+    const dados = migrateSave(entrada);
+    if (!dados) return null;
+    if (!validateSave(entrada)) gravarValidado(dados);
+    // Mesmo sem espaço para migrar no storage, a sessão pode ler a cópia reparada.
+    return dados;
   } catch (erro) {
-    console.warn('[save] save corrompido, ignorando', erro);
+    console.warn('[save] leitura falhou; original e backups preservados', erro);
     return null;
   }
 }
 
-export function apagar(): void {
+/** A UI de desenvolvimento confirma a restauração antes de chamar esta função. */
+export function restaurarSnapshot(indice: number): boolean {
   try {
+    const snapshot = snapshots()[indice];
+    if (!snapshot) return false;
+    const dados = migrateSave(JSON.parse(snapshot.bruto));
+    return dados !== null && gravarValidado(dados);
+  } catch { return false; }
+}
+
+export function apagar(): boolean {
+  try {
+    if (!criarSnapshot()) return false;
     localStorage.removeItem(CHAVE);
-  } catch (erro) {
-    console.warn('[save] nao consegui apagar', erro);
-  }
+    return true;
+  } catch { return false; }
 }

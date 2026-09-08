@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { MAPAS } from '../src/game/mapas.ts';
 
 const out = new URL('../docs/evidence/', import.meta.url);
+const prefix = process.env.REPORT_PREFIX ?? 'phase1';
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
@@ -17,7 +18,7 @@ try {
   const start = Date.now();
   await page.goto(process.env.GAME_URL ?? 'http://127.0.0.1:5186'); await ready();
   log.timeToPlayableMs = Date.now() - start;
-  await page.waitForTimeout(400); await snap('phase1-town');
+  await page.waitForTimeout(400); await snap(`${prefix}-town`);
   await page.keyboard.press('Tab'); await page.keyboard.press('Tab');
   await page.keyboard.press('m'); await page.keyboard.press('m');
   await page.evaluate(async () => {
@@ -41,12 +42,12 @@ try {
         await page.keyboard.press('ArrowDown');
         await page.waitForTimeout(80);
       }
-      await snap('phase1-work-last');
+      await snap(`${prefix}-work-last`);
       await page.keyboard.press('PageUp');
       assert.equal(await page.evaluate(() => window.game.scene.getScene('ComputadorScene').janela.app.cursor), 2);
       await page.mouse.move(180, 280); await page.mouse.wheel(0, 120); await page.waitForTimeout(100);
       assert.equal(await page.evaluate(() => window.game.scene.getScene('ComputadorScene').janela.app.cursor), 3);
-      await snap('phase1-work');
+      await snap(`${prefix}-work`);
       log.checks.push('8 work rows: keyboard, PageUp and mouse wheel');
     }
     await page.evaluate(() => window.game.scene.getScene('ComputadorScene').voltarAoDesktop());
@@ -57,7 +58,7 @@ try {
     await page.waitForFunction(k => window.estado.mapa === k && window.game.scene.getScene('FarmScene').pronto, m.chave);
     log.maps.push(m.chave);
     console.log('mapa', log.maps.length, m.chave);
-    fs.writeFileSync(new URL('phase1-browser.json', out), JSON.stringify(log, null, 2));
+    fs.writeFileSync(new URL(`${prefix}-browser.json`, out), JSON.stringify(log, null, 2));
     await page.waitForTimeout(80);
   }
   assert.equal(log.maps.length, 77);
@@ -72,7 +73,7 @@ try {
     return { visible: n.sprite.visible, collision: n.sprite.body.enable, map: n.estado.mapaAtual };
   });
   assert.deepEqual(worker, { visible: true, collision: true, map: 'bairro' });
-  await page.waitForTimeout(400); await snap('phase1-worker');
+  await page.waitForTimeout(400); await snap(`${prefix}-worker`);
   await page.evaluate(() => window.game.scene.getScene('FarmScene').salvarJogo());
   await page.reload(); await ready();
   assert.equal(await page.evaluate(() => window.estado.cidade.funcionario('padaria')), 'joao');
@@ -83,7 +84,7 @@ try {
   log.checks.push('7 apps; 77 maps; Joao visible/collision; save/reload; malformed city');
   assert.deepEqual(log.errors, []); assert.deepEqual(log.warnings.filter(w => w.includes('AnimationManager')), []);
 } finally {
-  fs.writeFileSync(new URL('phase1-browser.json', out), JSON.stringify(log, null, 2));
+  fs.writeFileSync(new URL(`${prefix}-browser.json`, out), JSON.stringify(log, null, 2));
   await browser.close();
 }
 console.log(JSON.stringify(log));
