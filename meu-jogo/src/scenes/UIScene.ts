@@ -17,6 +17,7 @@ import {
   quantidadeViavel,
 } from '../game/loja';
 import type { PontoDeLoja } from '../game/loja';
+import { controles } from '../game/InputRouter';
 import type { Fala, MundoJogavel } from '../game/tipos';
 import {
   NOME_DO_SLOT,
@@ -334,25 +335,29 @@ export class UIScene extends Phaser.Scene {
     const teclado = this.input.keyboard;
     // sem isso o Tab move o foco do navegador em vez de chegar aqui
     teclado?.addCapture('TAB');
-    teclado?.on('keydown-TAB', () => this.alternarInventario());
-    teclado?.on('keydown-E', () => this.acionar());
+    teclado?.on('keydown', (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if (controles.corresponde('inventario', e)) this.alternarInventario();
+      if (controles.corresponde('interagir', e)) this.acionar();
+      if (controles.corresponde('usar', e)) this.usarSelecionado();
+      if (controles.corresponde('equipar', e)) this.alternarEquipado();
+      if (controles.corresponde('cima', e)) this.mover(-1);
+      if (controles.corresponde('baixo', e)) this.mover(1);
+      if (controles.corresponde('esquerda', e)) this.horizontal(-1, e);
+      if (controles.corresponde('direita', e)) this.horizontal(1, e);
+    });
     teclado?.on('keydown-ESC', () => this.cancelar());
+    teclado?.on('keydown-ENTER', () => { if (this.bloqueado) this.acionar(); });
     // horizontal: escolhe Sim/Nao na confirmacao ou a quantidade na loja
     teclado?.on('keydown-LEFT', (e: KeyboardEvent) => this.horizontal(-1, e));
     teclado?.on('keydown-RIGHT', (e: KeyboardEvent) => this.horizontal(1, e));
-    teclado?.on('keydown-A', (e: KeyboardEvent) => this.horizontal(-1, e));
-    teclado?.on('keydown-D', (e: KeyboardEvent) => this.horizontal(1, e));
     // vertical: so a lista da loja usa
     teclado?.on('keydown-UP', () => this.mover(-1));
     teclado?.on('keydown-DOWN', () => this.mover(1));
-    teclado?.on('keydown-W', () => this.mover(-1));
-    teclado?.on('keydown-S', () => this.mover(1));
     teclado?.on('keydown-PAGE_UP', () => this.mover(-LOJA.linhas));
     teclado?.on('keydown-PAGE_DOWN', () => this.mover(LOJA.linhas));
     teclado?.on('keydown-C', () => this.alternarFiltroDaLoja());
     // acoes do inventario
-    teclado?.on('keydown-U', () => this.usarSelecionado());
-    teclado?.on('keydown-F', () => this.alternarEquipado());
     // J abre os ARQUIVOS: as fichas medicas ja recolhidas na represa.
     teclado?.on('keydown-J', () => this.abrirArquivo());
     teclado?.on('keydown-X', () => this.descartarSelecionado());
@@ -440,6 +445,17 @@ export class UIScene extends Phaser.Scene {
   }
 
   update(): void {
+    if (!this.pcAberto) {
+      if (controles.apertouPad('interagir')) this.acionar();
+      if (controles.apertouPad('inventario')) this.alternarInventario();
+      if (controles.apertouPad('cima')) this.mover(-1);
+      if (controles.apertouPad('baixo')) this.mover(1);
+      if (controles.apertouPad('esquerda')) this.horizontal(-1);
+      if (controles.apertouPad('direita')) this.horizontal(1);
+      if (controles.apertouPad('usar')) this.usarSelecionado();
+      if (controles.apertouPad('equipar')) this.alternarEquipado();
+      if (controles.padPausa || controles.padVoltar) this.cancelar();
+    }
     if (this.aviso.visible && this.time.now > this.avisoAte) {
       const restante = (this.avisoAte + 400 - this.time.now) / 400;
       if (restante <= 0) this.aviso.setVisible(false);
@@ -523,7 +539,7 @@ export class UIScene extends Phaser.Scene {
 
   private desenharPrompt(): void {
     const visivel = this.rotuloAtual !== null && !this.bloqueado;
-    if (visivel) this.prompt.setText(`[E] ${this.rotuloAtual}`);
+    if (visivel) this.prompt.setText(`[${controles.rotulo('interagir')}/A] ${this.rotuloAtual}`);
     this.prompt.setVisible(visivel);
   }
 
@@ -601,7 +617,7 @@ export class UIScene extends Phaser.Scene {
     });
 
     const seta = this.add
-      .text(CAIXA.x + CAIXA.w - 8, CAIXA.y + CAIXA.h - 5, '[E]', {
+      .text(CAIXA.x + CAIXA.w - 8, CAIXA.y + CAIXA.h - 5, '[Enter]', {
         fontFamily: UI.fonte,
         fontSize: '11px',
         color: UI.textoFraco,
@@ -741,6 +757,7 @@ export class UIScene extends Phaser.Scene {
       return;
     }
     if (this.lojaAberta) this.fecharLoja();
+    else if (this.inventarioAberto && !this.modalPorCima) this.alternarInventario();
   }
 
   private criarCaixaDeConfirmacao(): Phaser.GameObjects.Container {
@@ -893,8 +910,8 @@ export class UIScene extends Phaser.Scene {
     this.menuRodape.setPosition(x + MENU.margem, y + altura - 13);
     this.menuRodape.setText(
       this.menuOpcoes.length > MENU.linhas
-        ? `${this.menuCursor + 1}/${this.menuOpcoes.length}  [W/S] escolher  [E] confirmar  [ESC] sair`
-        : '[W/S] escolher   [E] confirmar   [ESC] sair',
+        ? `${this.menuCursor + 1}/${this.menuOpcoes.length}  [setas] escolher  [Enter] confirmar  [ESC] sair`
+        : '[setas] escolher   [Enter] confirmar   [ESC] sair',
     );
   }
 
@@ -1139,7 +1156,7 @@ export class UIScene extends Phaser.Scene {
     this.acoesTexto.setText(
       def
         ? acoesDoItem(def.id, estado.equipamento.estaEquipado(def.id))
-            .map((a) => ROTULO_DE_ACAO[a])
+            .map((a) => ROTULO_DE_ACAO[a].replace('[U]', `[${controles.rotulo('usar')}]`).replace('[F]', `[${controles.rotulo('equipar')}]`).replace('[E]', `[${controles.rotulo('interagir')}]`))
             .join('   ')
         : '',
     );
@@ -1493,7 +1510,7 @@ export class UIScene extends Phaser.Scene {
     this.lojaRodape.setText(
       total === 0
         ? 'Nada nesta prateleira.'
-        : `${this.lojaCursor + 1}/${total}  [W/S] item  [A/D] qtd  [C] prateleira  [E] comprar  [ESC] sair`,
+        : `${this.lojaCursor + 1}/${total}  [setas] item/qtd  [C] prateleira  [Enter] comprar  [ESC] sair`,
     );
 
     const item = this.lojaItens[this.lojaCursor];

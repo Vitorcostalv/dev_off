@@ -16,26 +16,72 @@ conserto.
 
 ## Controles
 
-| Tecla | Acao |
+As doze acoes de jogo passam pelo `src/game/InputRouter.ts` e sao
+**remapeaveis** em Opcoes > Teclas e controle (menu de pausa ou tela de
+titulo). A escolha fica em `localStorage["meu-jogo:controls"]`; teclas
+duplicadas, invalidas ou reservadas sao recusadas com aviso, e "Restaurar
+teclas padrao" volta a tabela abaixo.
+
+| Padrao | Acao |
 | --- | --- |
-| Setas / WASD | mover |
-| Shift + movimento | correr |
-| E ou clique | interagir, avancar dialogo, confirmar |
-| Setas ou A/D | escolher Sim/Nao na confirmacao |
-| Esc | cancelar confirmacao |
+| W / S / A / D | mover (as setas movem sempre, mesmo remapeado) |
+| Shift | correr |
+| E | interagir, avancar dialogo, confirmar |
 | Tab | abrir/fechar inventario (e trocar de secao na DevStore) |
 | M | abrir/fechar o mapa do lugar onde voce esta |
-| E no computador da oficina | ligar o PC (desktop com 7 apps); Esc desliga |
-| E na bancada da oficina | abrir o catalogo de mobilia |
-| Ponteiro + clique | posicionar a peca de mobilia escolhida; Esc desiste |
-| F1 | debug das colisoes |
-| F6 | mostrar/esconder as zonas reservadas (debug) |
-| F7 | avancar uma hora para testar rotinas (debug) |
-| F2 / F3 | adicionar Cabo USB / kit de exploracao no inventario (debug) |
-| F4 | apagar o save com confirmacao e backup (somente desenvolvimento) |
-| F8 | escolher e restaurar backup com confirmacao (somente desenvolvimento) |
 | Espaco | golpear com a chave inglesa (so faz algo dentro da represa) |
-| F9 | salvar na hora (debug) |
+| R | recarregar a arma equipada |
+| U | usar o item selecionado |
+| F | equipar/desequipar o item selecionado |
+
+Teclas fixas, que nao entram no remapeamento porque as telas dependem delas:
+
+| Tecla | Acao |
+| --- | --- |
+| Setas | navegar menus, listas e quantidade na loja |
+| Enter | confirmar dialogo e menu |
+| Esc | cancelar, fechar painel, desistir de posicionar mobilia |
+| PageUp / PageDown | rolar listas longas (trabalhos, loja, mapas) |
+| C | trocar a prateleira/secao da loja |
+| J | abrir os ARQUIVOS (fichas recolhidas na represa) |
+| X | descartar a pilha selecionada |
+| O | organizar o inventario |
+| Ponteiro + clique | interagir, mirar arma e posicionar mobilia |
+
+Controle (gamepad) e detectado sozinho e funciona no mundo, nos menus, no
+inventario e no DevOS:
+
+| Botao | Acao |
+| --- | --- |
+| Analogico esquerdo / direcional | mover e navegar |
+| A | interagir e confirmar |
+| B | voltar/cancelar |
+| X | golpear |
+| Y | inventario |
+| LB / RB | correr / recarregar |
+| LT / RT | usar item / atirar |
+| Analogico direito | mirar a arma |
+| Clique no analogico esquerdo | equipar/desequipar |
+| Start | pausa |
+| Select | mapa |
+
+### Modo de desenvolvimento
+
+As teclas abaixo existem **somente em build de desenvolvimento**
+(`import.meta.env.DEV`). O bundle de producao nao registra nenhuma delas, nao
+expoe `window.game`/`window.estado` e nao mostra a pagina de
+desenvolvimento no menu — `npm run test:producao` confere isso no `dist/`.
+
+| Tecla | Acao |
+| --- | --- |
+| F10 | painel de desenvolvimento (mapas, itens, hora, dia, clima, vida, dinheiro, exportar save, FPS) |
+| F1 | debug das colisoes |
+| F6 | mostrar/esconder as zonas reservadas |
+| F7 | avancar uma hora para testar rotinas |
+| F2 / F3 | adicionar Cabo USB / kit de exploracao no inventario |
+| F9 | salvar na hora |
+| F4 | apagar o save com confirmacao e backup |
+| F8 | escolher e restaurar backup com confirmacao |
 
 ## Estrutura
 
@@ -1077,8 +1123,20 @@ numero que a conferencia de interior usa, e nao ha medida de arte duplicada.
 
 ## Overhaul em andamento
 
-Save atual: v7, com migracao automatica de v6, normalizacao por sistema e ate tres backups locais. Versoes futuras nao sao sobrescritas. Todos os atalhos F1–F9 de depuracao estao desativados no build de producao. O mapa pausa o relogio.
+Save atual: v7, com migracao automatica de v6, normalizacao por sistema e ate tres backups locais. Versoes futuras nao sao sobrescritas. Todos os atalhos de depuracao (F1–F10, painel de desenvolvimento incluso) estao desativados no build de producao. O mapa pausa o relogio.
 
 Auditoria, lacunas e roteiro: [docs/overhaul.md](docs/overhaul.md). A remasterizacao completa ainda nao foi entregue.
 
 `npm run verificar-overhaul` verifica regressao de cidade, emprego, mapa runtime, blog e listas. `npm run test:browser` requer Google Chrome instalado e o servidor Vite em http://127.0.0.1:5186 (ou GAME_URL); verifica os 77 mapas, sete apps, rolagem, trabalhador e save/reload.
+
+`npm run verificar-tudo` roda os doze validadores de dominio em sequencia e
+grava a evidencia agregada em `docs/evidence/<rotulo>-tests.json`. As suites de
+navegador (`test:browser`, `test:save-browser`, `test:cotidiano-browser`,
+`test:rural-browser`, `test:servicos-browser`, `test:controles-browser`,
+`test:dev-browser`) precisam do Chrome e do servidor de desenvolvimento em
+http://127.0.0.1:5186; rode uma por vez, porque compartilham o mesmo
+`localStorage`. `npm run test:producao` e a unica que roda contra o build:
+exige `npm run build` e `npx vite preview --port 5187 --strictPort --host 127.0.0.1`
+(ou PRODUCTION_URL), e confere que o `dist/` nao carrega termos nem atalhos de
+desenvolvimento, nao expoe globais de depuracao, ignora F1-F10 sem tocar no
+save e ainda assim remapeia teclas pela tela de opcoes.

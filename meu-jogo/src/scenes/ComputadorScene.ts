@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { controles } from '../game/InputRouter';
 import { nomeDoDia } from '../game/calendario';
 import { CONFIG, UI } from '../game/config';
 import { estado } from '../game/estado';
@@ -49,6 +50,7 @@ export class ComputadorScene extends Phaser.Scene {
    * que o previsto, e o jogador perde as primeiras teclas ao voltar.
    */
   private pronto = false;
+  private aceitarPadApos = 0;
 
   constructor() {
     super({ key: 'ComputadorScene', active: false });
@@ -59,6 +61,7 @@ export class ComputadorScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.aceitarPadApos = this.time.now + 180;
     this.apps = criarApps();
     this.janela = new JanelaApp(this);
     this.cursor = 0;
@@ -79,6 +82,10 @@ export class ComputadorScene extends Phaser.Scene {
   }
 
   update(): void {
+    for (const [acao, key] of [['cima', 'ArrowUp'], ['baixo', 'ArrowDown'], ['esquerda', 'ArrowLeft'], ['direita', 'ArrowRight'], ['interagir', 'Enter']] as const) {
+      if (this.time.now >= this.aceitarPadApos && controles.apertouPad(acao)) this.aoTeclar(new KeyboardEvent('keydown', { key }));
+    }
+    if (this.time.now >= this.aceitarPadApos && (controles.padVoltar || controles.padPausa)) this.aoTeclar(new KeyboardEvent('keydown', { key: 'Escape' }));
     if (this.janela.aberta) {
       this.janela.atualizar();
       return;

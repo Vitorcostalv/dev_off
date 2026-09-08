@@ -3,8 +3,14 @@ import { estado } from '../game/estado';
 import { dataDoDia, DIAS_POR_ESTACAO } from '../game/calendario';
 import { MISSOES_NPC } from '../game/missoesNpc';
 import { apagar } from '../game/save';
+import { controles, CONTROLES } from '../game/InputRouter';
+import type { Acao } from '../game/InputRouter';
+import { MAPAS } from '../game/mapas';
+import { ITENS } from '../game/inventario';
+import { CLIMAS } from '../game/clima';
+import type { FarmScene } from './FarmScene';
 
-type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'calendario' | 'diario' | 'estatisticas';
+type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'calendario' | 'diario' | 'estatisticas' | 'controles' | 'dev' | 'dev_mapas' | 'dev_itens';
 interface Opcao { texto: string; executar: () => void; }
 const COR = { fundo: 0x172726, papel: 0x263b35, borda: 0xb59864, texto: '#f1e7ca', fraco: '#b2c4b6', foco: 0x426453 };
 
@@ -17,10 +23,12 @@ export class MenuScene extends Phaser.Scene {
   private mensagem = '';
   private raiz!: Phaser.GameObjects.Container;
   private veioDoTitulo = false;
-  private padAntes = new Set<number>();
+  private aceitarPadApos = 0;
   constructor() { super({ key: 'MenuScene' }); }
   create(dados: { pagina?: Pagina } = {}): void {
     this.pagina = dados.pagina ?? 'pausa'; this.veioDoTitulo = this.pagina === 'titulo';
+    this.aceitarPadApos = this.time.now + 180;
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => controles.cancelarCaptura());
     this.scene.pause('FarmScene'); this.scene.pause('UIScene');
     this.scene.bringToTop(); this.raiz = this.add.container(0, 0);
     this.input.keyboard?.addCapture(['UP', 'DOWN', 'SPACE', 'ENTER', 'ESC', 'PAGE_UP', 'PAGE_DOWN']);
@@ -37,13 +45,11 @@ export class MenuScene extends Phaser.Scene {
     this.abrir(this.pagina);
   }
   update(): void {
-    const pad = navigator.getGamepads?.()[0]; if (!pad) return;
-    const agora = new Set(pad.buttons.flatMap((b, i) => b.pressed ? [i] : []));
-    for (const n of agora) if (!this.padAntes.has(n)) {
-      if (n === 12) this.mover(-1); if (n === 13) this.mover(1);
-      if (n === 0) this.opcoes[this.cursor]?.executar(); if (n === 1 || n === 9) this.voltar();
-    }
-    this.padAntes = agora;
+    if (this.time.now < this.aceitarPadApos || controles.capturando) return;
+    if (controles.apertouPad('cima')) this.mover(-1);
+    if (controles.apertouPad('baixo')) this.mover(1);
+    if (controles.apertouPad('interagir')) this.opcoes[this.cursor]?.executar();
+    if (controles.padVoltar || controles.padPausa) this.voltar();
   }
   fechar(): void { this.scene.resume('FarmScene'); this.scene.resume('UIScene'); this.scene.stop(); }
   private voltar(): void {
@@ -51,9 +57,14 @@ export class MenuScene extends Phaser.Scene {
     if (this.pagina === 'pausa') this.fechar(); else this.abrir(this.veioDoTitulo ? 'titulo' : 'pausa');
   }
   private abrir(pagina: Pagina): void {
+    if (!import.meta.env.DEV && pagina.startsWith('dev')) pagina = 'pausa';
     this.pagina = pagina; this.cursor = 0; this.topo = 0; this.mensagem = '';
     const ir = (texto: string, p: Pagina): Opcao => ({ texto, executar: () => this.abrir(p) });
-    this.titulo = ({ titulo: 'MEU JOGO', pausa: 'Um momento na cidade', opcoes: 'Opcoes', calendario: 'Calendario', diario: 'Diario', estatisticas: 'Sua jornada' })[pagina];
+    // Os titulos de desenvolvimento ficam dentro do guarda de DEV pro bundle de
+    // producao nao carregar nem o vocabulario das telas que ele nao alcanca.
+    const titulos: Partial<Record<Pagina, string>> = { titulo: 'MEU JOGO', pausa: 'Um momento na cidade', opcoes: 'Opcoes', calendario: 'Calendario', diario: 'Diario', estatisticas: 'Sua jornada', controles: 'Controles' };
+    if (import.meta.env.DEV) Object.assign(titulos, { dev: 'Desenvolvimento', dev_mapas: 'Desenvolvimento: mapas', dev_itens: 'Desenvolvimento: itens' });
+    this.titulo = titulos[pagina] ?? '';
     this.opcoes = [];
     if (pagina === 'titulo') {
       this.mensagem = 'Uma oficina. Uma cidade. Algo sob a represa.';
@@ -66,6 +77,7 @@ export class MenuScene extends Phaser.Scene {
       }];
     } else if (pagina === 'pausa') {
       this.opcoes = [{ texto: 'Continuar', executar: () => this.fechar() }, ir('Calendario', 'calendario'), ir('Diario de missoes', 'diario'), ir('Estatisticas e colecoes', 'estatisticas'), ir('Opcoes', 'opcoes')];
+      if (import.meta.env.DEV) this.opcoes.push(ir('Desenvolvimento', 'dev'));
     } else if (pagina === 'opcoes') {
       const v = estado.preferencias.valores;
       const alterar = (fn: () => void) => { fn(); const i = this.cursor; const t = this.topo; const salvo = estado.preferencias.salvar(); this.abrir('opcoes'); this.cursor = i; this.topo = t; if (!salvo) this.mensagem = 'Opcoes aplicadas; nao foi possivel salvar.'; this.desenhar(); };
@@ -76,7 +88,44 @@ export class MenuScene extends Phaser.Scene {
         { texto: `Particulas: ${v.particulas ? 'sim' : 'nao'}`, executar: () => alterar(() => { v.particulas = !v.particulas; }) },
         { texto: `Contraste alto: ${v.altoContraste ? 'sim' : 'nao'}`, executar: () => alterar(() => { v.altoContraste = !v.altoContraste; }) },
         { texto: `Qualidade: ${v.qualidade}`, executar: () => alterar(() => { v.qualidade = v.qualidade === 'baixa' ? 'normal' : v.qualidade === 'normal' ? 'alta' : 'baixa'; }) },
+        ir('Teclas e controle', 'controles'),
       ];
+    } else if (pagina === 'controles') {
+      this.mensagem = 'Menus: setas/E/Esc fixos. Pad: A interagir, Y bolsa, B voltar.';
+      this.opcoes = (Object.keys(CONTROLES) as Acao[]).map(id => ({ texto: `${CONTROLES[id][0]}: ${controles.rotulo(id)}`, executar: () => {
+        this.mensagem = 'Pressione a nova tecla. Esc cancela.'; this.desenhar();
+        controles.aguardar(code => {
+          const resposta = code === 'Escape' ? 'Alteracao cancelada.' : controles.atribuir(id, code);
+          const i = this.cursor, t = this.topo; this.abrir('controles'); this.cursor = i; this.topo = t; this.mensagem = resposta; this.desenhar();
+        });
+      } }));
+      this.opcoes.push({ texto: 'Restaurar teclas padrao', executar: () => { controles.restaurarPadroes(); this.abrir('controles'); } });
+    } else if (import.meta.env.DEV && pagina === 'dev') {
+      const mundo = this.scene.get('FarmScene') as FarmScene;
+      const aplicar = (fn: () => void) => { fn(); this.abrir('dev'); };
+      this.mensagem = `${Math.round(this.game.loop.actualFps)} FPS | ${mundo.children.length} objetos | ${this.textures.getTextureKeys().length} texturas`;
+      this.opcoes = [
+        ir('Viajar para mapa', 'dev_mapas'), ir('Adicionar item', 'dev_itens'),
+        { texto: `Hora +1 (${estado.relogio.texto})`, executar: () => aplicar(() => {
+          const antes = estado.dia; estado.dia += estado.relogio.avancarMinutos(60);
+          if (estado.dia !== antes) estado.eventos.emit('DAY_STARTED', { dia: estado.dia });
+          estado.eventos.emit('TIME_CHANGED', { dia: estado.dia, minuto: estado.relogio.minutos });
+        }) },
+        { texto: `Dia +1 (atual ${estado.dia + 1})`, executar: () => aplicar(() => { estado.dia++; estado.eventos.emit('DAY_STARTED', { dia: estado.dia }); }) },
+        { texto: `Clima: ${estado.clima.paraDia(estado.dia)}`, executar: () => aplicar(() => { estado.rural.avancar(estado.dia, estado.clima); estado.clima.definir(estado.dia, CLIMAS[(CLIMAS.indexOf(estado.clima.paraDia(estado.dia)) + 1) % CLIMAS.length]); }) },
+        { texto: 'Recuperar vida', executar: () => aplicar(() => estado.vida.restaurarTudo()) },
+        { texto: 'Receber R$ 100', executar: () => aplicar(() => { estado.carteira.ganhar(10000); }) },
+        { texto: 'Salvar e exportar JSON', executar: () => {
+          if (!mundo.salvarJogo()) { this.mensagem = 'Falha ao salvar; exportacao cancelada.'; this.desenhar(); return; }
+          const texto = localStorage.getItem('meu-jogo:save'); if (!texto) return;
+          const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+          const a = document.createElement('a'); a.href = url; a.download = `meu-jogo-dia-${estado.dia + 1}.json`; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } },
+      ];
+    } else if (import.meta.env.DEV && pagina === 'dev_mapas') {
+      this.opcoes = Object.values(MAPAS).map(m => ({ texto: m.chave, executar: () => { this.fechar(); this.scene.get('FarmScene').scene.restart({ mapa: m.chave }); } }));
+    } else if (import.meta.env.DEV && pagina === 'dev_itens') {
+      this.opcoes = Object.entries(ITENS).map(([id, item]) => ({ texto: item.nome, executar: () => { const resto = estado.inventario.adicionar(id, 1); this.mensagem = resto ? 'Inventario cheio.' : `Adicionado: ${item.nome}`; this.desenhar(); } }));
     } else if (pagina === 'diario') {
       this.opcoes = MISSOES_NPC.filter(m => estado.missoesNpc.estado(m.id) !== 'disponivel').map(m => ({
         texto: `${estado.missoesNpc.estado(m.id) === 'concluida' ? '[OK]' : '[ ]'} ${m.titulo}`,

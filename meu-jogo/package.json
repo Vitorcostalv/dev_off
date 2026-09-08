@@ -24,7 +24,16 @@
     "verificar-overhaul": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-overhaul.mjs",
     "test:browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-overhaul.mjs",
     "verificar-save": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-save.mjs",
-    "test:save-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-save.mjs"
+    "test:save-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-save.mjs",
+    "verificar-rural": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-rural.mjs",
+    "verificar-cotidiano": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-vida-cotidiana.mjs",
+    "verificar-tudo": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-tudo.mjs",
+    "test:cotidiano-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-cotidiano.mjs",
+    "test:rural-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-rural.mjs",
+    "test:servicos-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-servicos.mjs",
+    "test:controles-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-controles.mjs",
+    "test:dev-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-dev.mjs",
+    "test:producao": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-producao.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

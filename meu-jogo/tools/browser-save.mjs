@@ -43,7 +43,7 @@ try {
   await prod.goto(process.env.PRODUCTION_URL ?? 'http://127.0.0.1:5187');
   await prod.waitForSelector('canvas'); await prod.waitForTimeout(2000);
   await prod.evaluate(() => localStorage.setItem('meu-jogo:save', JSON.stringify({ marcador: 'nao-apagar' })));
-  for (const key of ['F1', 'F2', 'F3', 'F4', 'F6', 'F7', 'F8', 'F9']) await prod.keyboard.press(key);
+  for (const key of ['F1', 'F2', 'F3', 'F4', 'F6', 'F7', 'F8', 'F9', 'F10']) await prod.keyboard.press(key);
   assert.equal(await prod.evaluate(() => window.game), undefined);
   assert.equal(await prod.evaluate(() => JSON.parse(localStorage.getItem('meu-jogo:save')).marcador), 'nao-apagar');
   fs.writeFileSync(new URL('../docs/evidence/phase2-browser.json', import.meta.url), JSON.stringify({ errors, checks: ['v6 migration in browser', 'archive/money preservation', 'map pauses clock', 'F4/F8 confirmation and cancellation', 'production F keys preserve storage; debug globals absent'] }, null, 2));

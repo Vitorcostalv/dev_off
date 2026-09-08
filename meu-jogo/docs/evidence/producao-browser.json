@@ -1,0 +1,14 @@
+{
+  "alvo": "http://127.0.0.1:5187",
+  "bundle": "index-D3yKTwm7.js",
+  "bytes": 1641320,
+  "errors": [],
+  "checks": [
+    "sem window.game/window.estado em producao",
+    "metrica de painel calibrada (mundo 0.00 < limite 14.48 < mapa 43.45)",
+    "F1-F10 em producao: nenhum painel, save intacto, sem globais",
+    "remapeamento pela tela de opcoes de producao persiste, sem tocar nas outras acoes",
+    "tecla antiga inativa depois do remapeamento",
+    "tecla nova abre o mapa depois de recarregar"
+  ]
+}

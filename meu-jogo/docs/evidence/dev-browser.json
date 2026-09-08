@@ -1,0 +1,9 @@
+{
+  "errors": [],
+  "checks": [
+    "F10 dev menu",
+    "day event",
+    "map pagination and warp",
+    "item grant"
+  ]
+}

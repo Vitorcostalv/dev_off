@@ -1,5 +1,6 @@
 import { HORARIO_EMPREGO, TURNO_CIDADE } from '../game/cidade';
 import { CULTIVOS, NOS_RURAIS, RECEITAS, fabricar } from '../game/atividadesRurais';
+import { controles } from '../game/InputRouter';
 import { dataDoDia } from '../game/calendario';
 import { intensidadeNoturna } from '../game/clima';
 import { AmbienteMundo } from './AmbienteMundo';
@@ -269,8 +270,6 @@ export class FarmScene extends Phaser.Scene {
   private ambiente!: AmbienteMundo;
   private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private teclas!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
-  private correr!: Phaser.Input.Keyboard.Key;
   private direcao: Direcao = 'down';
 
   private interagiveis: Interagivel[] = [];
@@ -356,12 +355,6 @@ export class FarmScene extends Phaser.Scene {
 
   /** Painel de enigma em andamento; `null` fora de um. */
   private painelAtivo: ProgressoPainel | null = null;
-
-  /** Tecla do golpe (a chave inglesa). */
-  private teclaAtaque!: Phaser.Input.Keyboard.Key;
-
-  /** Tecla de recarga (R). */
-  private teclaRecarga!: Phaser.Input.Keyboard.Key;
 
   /**
    * O item equipado desenhado na mao do jogador, mais a mira. Existe em TODO
@@ -629,9 +622,6 @@ export class FarmScene extends Phaser.Scene {
     this.ui.mostrarPrompt(null);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.teclas = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.teclas &
-      Record<string, Phaser.Input.Keyboard.Key>;
-    this.correr = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
     // Modo de posicionar mobilia: o fantasma segue o ponteiro e solta no clique.
     // E o mesmo trio pointerdown/pointermove/pointerup do minigame de conserto,
@@ -648,17 +638,16 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-ESC', () => this.cancelarPosicionamento());
 
     // M abre/fecha o mapa da cidade.
-    this.input.keyboard!.on('keydown-M', () => this.alternarMapa());
+    this.input.keyboard!.on('keydown', (e: KeyboardEvent) => { if (!e.repeat && controles.corresponde('mapa', e)) this.alternarMapa(); });
 
     // ESPACO golpeia com a chave inglesa. So faz algo dentro da represa: a
     // cidade nao tem com quem brigar, e a tecla continua livre lá.
-    this.teclaAtaque = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard!.addCapture('SPACE');
 
     // R recarrega a arma de fogo equipada.
-    this.teclaRecarga = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
     if (import.meta.env.DEV) {
+      this.input.keyboard!.on('keydown-F10', () => { if (!this.ui.bloqueado && !this.mapaAberto) this.scene.launch('MenuScene', { pagina: 'dev' }); });
       // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
       this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
 
@@ -757,6 +746,7 @@ export class FarmScene extends Phaser.Scene {
     this.atualizarLuzesNoturnas();
     this.ambiente.atualizar(this.ui.bloqueado || this.mapaAberto ? 0 : delta, estado.relogio.minutos, dataDoDia(estado.dia).estacao, estado.clima.paraDia(estado.dia), estado.preferencias.valores);
 
+    if (controles.apertouPad('mapa')) this.alternarMapa();
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
@@ -785,19 +775,19 @@ export class FarmScene extends Phaser.Scene {
     const armaNaMao = this.armaEquipada();
     if (armaNaMao) {
       const p = this.input.activePointer;
-      const dx = p.worldX - this.player.x;
-      const dy = p.worldY - (this.player.y - this.tamanhoTile * 0.6);
+      const dx = controles.usandoMiraPad ? controles.mira.x * 100 : p.worldX - this.player.x;
+      const dy = controles.usandoMiraPad ? controles.mira.y * 100 : p.worldY - (this.player.y - this.tamanhoTile * 0.6);
       if (Math.hypot(dx, dy) > 2) this.direcao = direcaoDaMira(dx, dy);
-      this.mao.atualizarMira(p, true);
-      if (p.leftButtonDown()) this.atirar(dx, dy);
-      if (Phaser.Input.Keyboard.JustDown(this.teclaRecarga)) this.recarregarArma();
+      this.mao.atualizarMira(controles.usandoMiraPad ? { worldX: this.player.x + dx, worldY: this.player.y - this.tamanhoTile * .6 + dy } : p, true);
+      if (p.leftButtonDown() || controles.atirando) this.atirar(dx, dy);
+      if (controles.apertou('recarregar')) this.recarregarArma();
     } else {
       this.mao.atualizarMira(this.input.activePointer, false);
     }
 
     // golpe: trava o movimento pela duracao da animacao, o que e o que impede
     // andar e bater ao mesmo tempo e o que da peso ao ataque
-    if (this.represa && Phaser.Input.Keyboard.JustDown(this.teclaAtaque)) {
+    if (this.represa && controles.apertou('atacar')) {
       this.represa.atacar(this.player, this.direcao, this.danoDoGolpe());
     }
     if (this.represa?.atacando) {
@@ -807,16 +797,15 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
 
-    const k = this.teclas as unknown as Record<string, Phaser.Input.Keyboard.Key>;
-    const esquerda = this.cursors.left.isDown || k.A.isDown;
-    const direita = this.cursors.right.isDown || k.D.isDown;
-    const cima = this.cursors.up.isDown || k.W.isDown;
-    const baixo = this.cursors.down.isDown || k.S.isDown;
+    const esquerda = this.cursors.left.isDown || controles.pressionada('esquerda');
+    const direita = this.cursors.right.isDown || controles.pressionada('direita');
+    const cima = this.cursors.up.isDown || controles.pressionada('cima');
+    const baixo = this.cursors.down.isDown || controles.pressionada('baixo');
 
     const vx = (direita ? 1 : 0) - (esquerda ? 1 : 0);
     const vy = (baixo ? 1 : 0) - (cima ? 1 : 0);
 
-    const correndo = this.correr.isDown;
+    const correndo = controles.pressionada('correr');
     const velocidade = (correndo ? CONFIG.movimento.correr : CONFIG.movimento.andar) * (estado.equipamento.equipado('acessorio') === 'smartwatch' ? 1.05 : 1);
     const v = new Phaser.Math.Vector2(vx, vy).normalize().scale(velocidade);
     this.player.setVelocity(v.x, v.y);
@@ -1035,7 +1024,7 @@ export class FarmScene extends Phaser.Scene {
     });
   }
 
-  private salvarJogo(): boolean {
+  salvarJogo(): boolean {
     return salvar({
       dia: estado.dia,
       progressao: estado.progressao.serializar(),
