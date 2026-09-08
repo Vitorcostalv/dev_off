@@ -20,9 +20,12 @@
     "gerar-aparelhos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-aparelhos.mjs",
     "verificar-represa": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-represa.mjs",
     "verificar-expansao-npcs": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-expansao-npcs.mjs",
-    "gerar-relatorio-relacionamentos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-relatorio-relacionamentos.mjs"
+    "gerar-relatorio-relacionamentos": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-relatorio-relacionamentos.mjs",
+    "verificar-overhaul": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-overhaul.mjs",
+    "test:browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-overhaul.mjs"
   },
   "devDependencies": {
+    "playwright-core": "1.61.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.2"
   },

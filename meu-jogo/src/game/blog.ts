@@ -150,7 +150,7 @@ export interface PostDoBlog {
   texto: string;
   /** dia absoluto em que foi postado */
   dia: number;
-  /** minuto do dia; so serve pra ordenar os posts de um mesmo dia */
+  /** minuto de publicacao; controla visibilidade e ordenacao no feed */
   minuto: number;
 }
 
@@ -188,12 +188,12 @@ export function postDoDia(npcId: string, dia: number): PostDoBlog | null {
  * O feed: os posts dos ultimos `DIAS_DE_FEED` dias, do mais recente pro mais
  * antigo. Dias negativos sao pulados — no comeco do jogo o feed e curto mesmo.
  */
-export function feedAte(diaAtual: number, dias: number = DIAS_DE_FEED): PostDoBlog[] {
+export function feedAte(diaAtual: number, minutoAtual: number, dias: number = DIAS_DE_FEED): PostDoBlog[] {
   const posts: PostDoBlog[] = [];
   for (let d = diaAtual; d > diaAtual - dias && d >= 0; d--) {
     for (const npcId of Object.keys(POSTS_POR_NPC)) {
       const post = postDoDia(npcId, d);
-      if (post) posts.push(post);
+      if (post && (post.dia < diaAtual || post.minuto <= minutoAtual)) posts.push(post);
     }
   }
   return posts.sort((a, b) => b.dia - a.dia || b.minuto - a.minuto);

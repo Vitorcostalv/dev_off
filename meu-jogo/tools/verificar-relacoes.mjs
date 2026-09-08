@@ -281,8 +281,8 @@ const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
     conferir(new Set(pool).size === pool.length, `${npcId} tem post repetido no pool`);
   }
   for (let dia = 0; dia < 20; dia++) {
-    const a = feedAte(dia);
-    const b = feedAte(dia);
+    const a = feedAte(dia, 1439);
+    const b = feedAte(dia, 1439);
     conferir(JSON.stringify(a) === JSON.stringify(b), `o feed do dia ${dia} nao foi deterministico`);
     for (let i = 1; i < a.length; i++) {
       const anterior = a[i - 1];
@@ -301,7 +301,7 @@ const TODOS_COM_PERFIL = [...NPCS_COM_PERFIL, ...NPCS_CRIANCA];
     return n;
   };
   conferir(conta('jaqueline') > conta('wendel'), 'Jaqueline devia postar mais que Wendel');
-  console.log(`  blog: ${feedAte(10).length} posts no feed do dia 10, em ordem e deterministicos`);
+  console.log(`  blog: ${feedAte(10, 1439).length} posts no feed do dia 10, em ordem e deterministicos`);
 }
 
 // -------------------------------------------------- desconto no comercio --

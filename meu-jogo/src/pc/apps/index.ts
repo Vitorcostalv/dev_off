@@ -20,7 +20,7 @@ import type { AppDoPc } from '../tipos.ts';
  *   Jogos       — funcional (2 minijogos, sem efeito no jogo principal)
  *   Calculadora — funcional (nao depende de nada do jogo)
  *   Lixeira     — funcional (historico real do descarte do inventario)
- *   Navegador   — fachada; o cabecalho do arquivo diz onde a logica entra
+ *   Navegador   — blog por dia/minuto e relacionamentos reais
  *   Conquistas  — fachada; idem
  */
 export function criarApps(): AppDoPc[] {

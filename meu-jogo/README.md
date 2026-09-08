@@ -31,7 +31,7 @@ conserto.
 | F1 | debug das colisoes |
 | F6 | mostrar/esconder as zonas reservadas (debug) |
 | F7 | avancar uma hora para testar rotinas (debug) |
-| F2 / F3 | adicionar Cabo USB / Bateria no inventario (debug) |
+| F2 / F3 | adicionar Cabo USB / kit de exploracao no inventario (debug) |
 | F4 | apagar o save (debug) |
 | Espaco | golpear com a chave inglesa (so faz algo dentro da represa) |
 | F9 | salvar na hora (debug) |
@@ -58,7 +58,7 @@ src/
     vida.ts            HP do jogador (30/30) e a janela de invulnerabilidade
     inimigos.ts        catalogo dos 7 monstros e a IA — sem uma linha de Phaser
     sucata.ts          salvado da represa: itens, tabelas de sorteio e revenda
-    represa.ts         setores, escuridao, tensao, os 7 enigmas e a derrota
+    represa.ts         setores base, escuridao, tensao e derrota; andares/enigmas expandem para 50
     avisos.ts          textos de exame; e aqui que as RESPOSTAS dos enigmas moram
     save.ts            localStorage
     tipos.ts           tipos compartilhados
@@ -79,7 +79,7 @@ src/
       jogos/           biblioteca + jogo da memoria + snake
       calculadora.ts   quatro operacoes, sem dependencia do jogo
       lixeira.ts       historico de descarte
-      navegador.ts     FACHADA — o cabecalho diz onde a logica entra
+      navegador.ts     blog por dia/minuto e relacionamentos reais
       conquistas.ts    FACHADA — idem
 tools/
   png.mjs              encoder PNG minimo + hash deterministico
@@ -92,8 +92,8 @@ public/assets/
   tilemaps/            4 externos (farm, bairro, rural, represa) + um por
                        interior (casa_2..casa_6, casa_b1..b7, casa_c1/c2,
                        casa_rural_1/2, mercado, academia, bar, farmacia,
-                       oficina, escola, biblioteca) + os 5 setores da represa
-                       (represa_0..represa_4) — todos gerados
+                       oficina, escola, biblioteca) + os 5 setores base da represa
+                       (represa_0..represa_4) + 45 andares adicionais — todos gerados
   tilesets/terrain.png tileset 32x32 montado pelo script (nao edite a mao)
   sprites/             folhas de runtime, folhas de movel geradas, spritesheets
                        do player e os atlas
@@ -1073,3 +1073,9 @@ numero que a conferencia de interior usa, e nao ha medida de arte duplicada.
   visao fica travado em 15 tiles de largura. Com tile 16 dava zoom 2; com 32 da
   zoom 1 — a tela mostra a mesma coisa, com o dobro de pixel por tile.
 - Em dev, `window.game` e `window.estado` estao expostos pro console.
+
+## Overhaul em andamento
+
+Auditoria, lacunas e roteiro: [docs/overhaul.md](docs/overhaul.md). A remasterizacao completa ainda nao foi entregue.
+
+`npm run verificar-overhaul` verifica regressao de cidade, emprego, mapa runtime, blog e listas. `npm run test:browser` requer Google Chrome instalado e o servidor Vite em http://127.0.0.1:5186 (ou GAME_URL); verifica os 77 mapas, sete apps, rolagem, trabalhador e save/reload.

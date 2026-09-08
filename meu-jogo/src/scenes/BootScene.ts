@@ -4,7 +4,6 @@ import { MAPAS, buscarMapa } from '../game/mapas';
 import { FOLHAS_DE_MOVEL } from '../game/moveis';
 import type { SpriteNpc } from '../game/npcs';
 import { NPCS } from '../game/npcs';
-import { MORADORES } from '../game/moradores';
 import { carregar } from '../game/save';
 import { CATALOGO_INIMIGOS } from '../game/inimigos';
 
@@ -121,7 +120,7 @@ export class BootScene extends Phaser.Scene {
     this.load.json('equipamento-ancoras', 'assets/sprites/equipamento.ancoras.json');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
-    for (const npc of [...Object.values(NPCS), ...Object.values(MORADORES)]) {
+    for (const npc of Object.values(NPCS)) {
       if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
       if (npc.spriteParado) this.load.image(`npc-${npc.id}-parado`, npc.spriteParado.arquivo);
     }
@@ -299,7 +298,7 @@ export class BootScene extends Phaser.Scene {
 
   /** Recortes e animacoes sao inteiramente descritos pela entrada do NPC. */
   private criarSpritesNpcs(): void {
-    for (const npc of [...Object.values(NPCS), ...Object.values(MORADORES)]) {
+    for (const npc of Object.values(NPCS)) {
       if (!npc.sprite) continue;
       const andando = this.recortarFolhaNpc(`npc-${npc.id}-sprites`, npc.sprite);
       // Sem folha de parado, o idle cai no 1o frame da caminhada — que e uma
@@ -309,13 +308,13 @@ export class BootScene extends Phaser.Scene {
         : null;
 
       for (const [direcao, frames] of Object.entries(andando)) {
-        this.anims.create({
+        if (!this.anims.exists(`npc-${npc.id}-walk-${direcao}`)) this.anims.create({
           key: `npc-${npc.id}-walk-${direcao}`,
           frames,
           frameRate: 8,
           repeat: -1,
         });
-        this.anims.create({
+        if (!this.anims.exists(`npc-${npc.id}-idle-${direcao}`)) this.anims.create({
           key: `npc-${npc.id}-idle-${direcao}`,
           frames: [(parado?.[direcao] ?? frames)[0]],
           frameRate: 1,

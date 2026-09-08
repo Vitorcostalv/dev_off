@@ -1,3 +1,4 @@
+import { HORARIO_EMPREGO } from '../game/cidade';
 import Phaser from 'phaser';
 import { PROP_COLIDE } from '../game/colisao';
 import { CONFIG, COR_ZONA, ROTULOS, UI } from '../game/config';
@@ -1378,13 +1379,12 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
-    // AO AR LIVRE: aparece so no proprio mapa externo. Cada NPC declara o seu
-    // (`DefinicaoNpc.mapa`) — antes disto havia um mapa unico de NPC, e os 24
-    // moradores dos Mapas 2/3 ficavam de fora do motor por causa disso.
+    // AO AR LIVRE: o mapa da atividade determina a presenca, inclusive emprego
+    // em outro bairro. DefinicaoNpc.mapa continua sendo a residencia canonica.
     const def = NPCS[npc.id];
     if (!def) return null;
     if (npc.dentro === null) {
-      return npc.visivel && estado.mapa === def.mapa ? { x: npc.x, y: npc.y } : null;
+      return npc.visivel && estado.mapa === npc.mapaAtual ? { x: npc.x, y: npc.y } : null;
     }
     // DENTRO de construcao: aparece so pra quem esta no mesmo interior, venha o
     // NPC do mapa que vier (o Rafael mora no Bairro e atende na academia).
@@ -1572,7 +1572,7 @@ export class FarmScene extends Phaser.Scene {
       // A rotina de cada NPC e montada UMA vez por dia, na virada. Trocar agora
       // reiniciaria o dia dele na frente do jogador — ver `atividadesComEmprego`
       // em src/game/cidade.ts.
-      'O turno comeca amanha, nos dias uteis, das 08:00 as 17:00.',
+      `O turno comeca amanha, nos dias uteis, das ${HORARIO_EMPREGO}.`,
     ], morador.id));
   }
 
@@ -1883,7 +1883,7 @@ export class FarmScene extends Phaser.Scene {
   private posicaoNpcNoMapaAberto(npcId: string): { x: number; y: number } | null {
     const npc = estado.rotinasNpc.porId(npcId);
     const def = NPCS[npcId];
-    if (!npc || !def || !npc.visivel || def.mapa !== this.mapaExternoAtual) return null;
+    if (!npc || !def || !npc.visivel || npc.mapaAtual !== this.mapaExternoAtual) return null;
     return { x: npc.x * this.tamanhoTile, y: npc.y * this.tamanhoTile };
   }
 

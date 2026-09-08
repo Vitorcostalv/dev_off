@@ -47,6 +47,20 @@ export interface DadosCidade {
   funcionarios: [IdProjetoCidade, string][];
 }
 
+/** Única fonte dos horários anunciados e simulados dos empregos urbanos. */
+export const TURNO_CIDADE = { inicio: 8 * 60, fim: 17 * 60, dias: [0, 1, 2, 3, 4] as readonly number[] };
+export const HORARIO_EMPREGO = `${String(TURNO_CIDADE.inicio / 60).padStart(2, '0')}:00 as ${String(TURNO_CIDADE.fim / 60).padStart(2, '0')}:00`;
+
+export function turnoDoFuncionario(cidade: SistemaCidade, npcId: string, dia: number): AtividadeMorador | null {
+  const projeto = cidade.projetoDoFuncionario(npcId);
+  if (!projeto || !TURNO_CIDADE.dias.includes(dia % 7)) return null;
+  return {
+    inicio: TURNO_CIDADE.inicio, fim: TURNO_CIDADE.fim,
+    lugar: { construcao: null, mapa: projeto.mapa, ponto: { x: projeto.posto.x + 0.5, y: projeto.posto.y + 0.5 } },
+    atividade: projeto.atividade,
+  };
+}
+
 export class SistemaCidade {
   private construidos = new Set<IdProjetoCidade>();
   private funcionarios = new Map<IdProjetoCidade, string>();
@@ -91,10 +105,10 @@ export class SistemaCidade {
     this.funcionarios.clear();
     if (!bruto || typeof bruto !== 'object') return;
     const dados = bruto as Partial<DadosCidade>;
-    for (const id of dados.construidos ?? []) {
-      if (typeof id === 'string' && id in PROJETOS_CIDADE) this.construidos.add(id as IdProjetoCidade);
+    for (const id of Array.isArray(dados.construidos) ? dados.construidos : []) {
+      if (typeof id === 'string' && Object.hasOwn(PROJETOS_CIDADE, id)) this.construidos.add(id as IdProjetoCidade);
     }
-    for (const entrada of dados.funcionarios ?? []) {
+    for (const entrada of Array.isArray(dados.funcionarios) ? dados.funcionarios : []) {
       if (!Array.isArray(entrada) || entrada.length !== 2) continue;
       const [id, npcId] = entrada;
       if (typeof id === 'string' && typeof npcId === 'string') this.atribuir(id as IdProjetoCidade, npcId);
@@ -120,19 +134,8 @@ export function atividadeComEmprego(
   minutos: number,
   atividadePadrao: AtividadeMorador | null,
 ): AtividadeMorador | null {
-  const projeto = cidade.projetoDoFuncionario(morador.id);
-  const diaUtil = dia % 7 < 5;
-  if (!projeto || !diaUtil || minutos < 8 * 60 || minutos >= 17 * 60) return atividadePadrao;
-  return {
-    inicio: 8 * 60,
-    fim: 17 * 60,
-    lugar: {
-      construcao: null,
-      mapa: projeto.mapa,
-      ponto: { x: projeto.posto.x + 0.5, y: projeto.posto.y + 0.5 },
-    },
-    atividade: projeto.atividade,
-  };
+  const turno = turnoDoFuncionario(cidade, morador.id, dia);
+  return turno && minutos >= turno.inicio && minutos < turno.fim ? turno : atividadePadrao;
 }
 
 /**
@@ -149,15 +152,14 @@ export function atividadesComEmprego(
   morador: Morador,
   dia: number,
 ): AtividadeMorador[] | null {
-  const projeto = cidade.projetoDoFuncionario(morador.id);
-  if (!projeto || dia % 7 >= 5) return null;
-  const lugar = { construcao: null, mapa: projeto.mapa, ponto: { x: projeto.posto.x + 0.5, y: projeto.posto.y + 0.5 } };
+  const turno = turnoDoFuncionario(cidade, morador.id, dia);
+  if (!turno) return null;
   const uteis = morador.atividades.filter((faixa) => !faixa.fimDeSemana);
-  // A faixa substituida e a que estiver valendo as 12:00 — o compromisso do
-  // meio do dia. As pontas (manha e noite em casa) ficam como estao.
-  const alvo = uteis.find((faixa) => faixa.inicio <= 12 * 60 && faixa.fim > 12 * 60);
-  if (!alvo) return null;
-  return uteis.map((faixa) => (faixa === alvo
-    ? { ...faixa, lugar, atividade: projeto.atividade }
-    : faixa));
+  const foraDoTurno = uteis.flatMap((faixa) => {
+    const partes: AtividadeMorador[] = [];
+    if (faixa.inicio < turno.inicio) partes.push({ ...faixa, fim: Math.min(faixa.fim, turno.inicio) });
+    if (faixa.fim > turno.fim) partes.push({ ...faixa, inicio: Math.max(faixa.inicio, turno.fim) });
+    return partes;
+  });
+  return [...foraDoTurno, turno].sort((a, b) => a.inicio - b.inicio);
 }

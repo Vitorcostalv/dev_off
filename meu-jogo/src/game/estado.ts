@@ -26,7 +26,7 @@ export const estado = {
   /**
    * Chave do mapa em que o player esta. Jogo novo comeca no MAPA 2, na porta da
    * casa+oficina — e onde o protagonista mora desde esta leva. O Mapa 1, com os
-   * 9 NPCs e o comercio, fica a leste; a zona rural, ao sul, depois da ponte.
+   * comercio, fica a leste; a zona rural fica a leste do centro, e a represa ao norte.
    */
   mapa: 'bairro',
   /** dia absoluto desde o inicio do jogo; 0 = a primeira segunda-feira */

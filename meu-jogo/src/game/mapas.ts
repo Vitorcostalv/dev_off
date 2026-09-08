@@ -18,7 +18,7 @@ export interface DefinicaoMapa {
    */
   spawnTile: { x: number; y: number };
   /**
-   * true nos mapas de MUNDO ABERTO (os tres externos), false nos interiores.
+   * true nos quatro mapas de MUNDO ABERTO, false nos interiores.
    *
    * O que depende disso: as zonas de transicao entre mapas (`bordas`) so
    * existem em mapa externo, e o mapa da cidade (tecla M) so faz sentido sobre

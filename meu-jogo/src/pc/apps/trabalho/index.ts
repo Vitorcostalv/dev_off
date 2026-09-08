@@ -23,6 +23,7 @@ import type { AppDoPc, ContextoApp } from '../../tipos.ts';
 import { QuizCodigo } from './quizCodigo.ts';
 import { QuebraCabecaConserto } from './quebraCabecaConserto.ts';
 import type { Vista } from '../../vista.ts';
+import { ListaRolavel } from '../../listaRolavel.ts';
 
 /**
  * Trabalho — o quadro de vagas do computador.
@@ -71,6 +72,14 @@ export class Trabalho implements AppDoPc {
   private minigame: Vista | null = null;
   private vagas: Vaga[] = [];
   private cursor = 0;
+  private lista = new ListaRolavel();
+  private indicador!: Phaser.GameObjects.Text;
+  private aoRolar = (ponteiro: Phaser.Input.Pointer, _objetos: unknown[], _dx: number, dy: number): void => {
+    if (this.minigame || !dy) return;
+    const a = this.areaDaVista;
+    if (ponteiro.x < a.x || ponteiro.x > a.x + a.w * 0.6 || ponteiro.y < a.y || ponteiro.y > a.y + a.h) return;
+    this.selecionar(this.cursor + Math.sign(dy));
+  };
 
   private linhas: {
     fundo: Phaser.GameObjects.Rectangle;
@@ -99,6 +108,7 @@ export class Trabalho implements AppDoPc {
     });
 
     this.abrirLista();
+    this.cena.input.on('wheel', this.aoRolar);
     return [this.raiz, this.status];
   }
 
@@ -118,6 +128,10 @@ export class Trabalho implements AppDoPc {
     }
 
     const passo: Record<string, number> = { ArrowUp: -1, w: -1, W: -1, ArrowDown: 1, s: 1, S: 1 };
+    passo.PageUp = -this.lista.capacidade;
+    passo.PageDown = this.lista.capacidade;
+    passo.Home = -this.vagas.length;
+    passo.End = this.vagas.length;
     if (passo[evento.key] !== undefined) {
       this.selecionar(this.cursor + passo[evento.key]);
       return true;
@@ -144,6 +158,7 @@ export class Trabalho implements AppDoPc {
 
   /** A moldura chama ao sair do app; sem isto o arraste sobreviveria ao Esc. */
   aoFechar(): void {
+    this.cena.input.off('wheel', this.aoRolar);
     this.minigame?.aoFechar?.();
     this.minigame = null;
   }
@@ -167,6 +182,9 @@ export class Trabalho implements AppDoPc {
     );
 
     const topo = area.y + 18;
+    this.lista.configurar(this.vagas.length, Math.floor((area.h - 34) / (LINHA.altura + LINHA.gap)), this.cursor);
+    this.indicador = texto(cena, area.x, area.y + area.h - 12, '', { fontSize: '9px', color: PC.textoFraco });
+    this.raiz.add(this.indicador);
     this.linhas = this.vagas.map((vaga, i) => {
       const y = topo + i * (LINHA.altura + LINHA.gap);
       const fundo = cena.add
@@ -198,7 +216,7 @@ export class Trabalho implements AppDoPc {
       fontSize: '10px',
       color: PC.textoFraco,
       wordWrap: { width: larguraDetalhe - 16 },
-      lineSpacing: 3,
+      lineSpacing: 1,
     });
     this.raiz.add(this.detalhe);
 
@@ -217,11 +235,20 @@ export class Trabalho implements AppDoPc {
   private selecionar(indice: number): void {
     if (this.vagas.length === 0) return;
     this.cursor = Math.min(this.vagas.length - 1, Math.max(0, indice));
+    this.lista.selecionar(this.cursor);
     this.desenharLista();
   }
 
   private desenharLista(): void {
+    this.indicador.setText(`${this.lista.indicador}   PgUp/PgDn · roda`);
     this.linhas.forEach((linha, i) => {
+      const visivel = this.lista.visivel(i);
+      const y = this.areaDaVista.y + 18 + (i - this.lista.topo) * (LINHA.altura + LINHA.gap);
+      linha.fundo.setY(y + LINHA.altura / 2).setVisible(visivel);
+      if (linha.fundo.input) linha.fundo.input.enabled = visivel;
+      linha.titulo.setY(y + 4).setVisible(visivel);
+      linha.meta.setY(y + 16).setVisible(visivel);
+      linha.valor.setY(y + 8).setVisible(visivel);
       const vaga = this.vagas[i];
       const ativo = i === this.cursor;
       const feita = this.vagaConcluida(vaga);
@@ -234,7 +261,7 @@ export class Trabalho implements AppDoPc {
 
       const estagio = feita ? ' · concluida' : emAndamento ? ' · em andamento' : '';
       linha.meta.setText(
-        `${NOME_DE_TIPO[vaga.tipo]} · ${vaga.cliente} · ${NOME_DE_DIFICULDADE[vaga.dificuldade]}${estagio}`,
+        encurtar(`${NOME_DE_TIPO[vaga.tipo]} · ${vaga.cliente} · ${NOME_DE_DIFICULDADE[vaga.dificuldade]}${estagio}`, 43),
       );
       linha.meta.setColor(emAndamento ? PC.destaque : PC.textoFraco);
     });
@@ -250,12 +277,10 @@ export class Trabalho implements AppDoPc {
     const feita = this.vagaConcluida(vaga);
     const linhas = [
       vaga.titulo,
-      '',
       vaga.descricao,
       '',
       `Cliente: ${vaga.cliente}`,
-      `Tipo: ${NOME_DE_TIPO[vaga.tipo]}`,
-      `Dificuldade: ${NOME_DE_DIFICULDADE[vaga.dificuldade]}`,
+      `${NOME_DE_TIPO[vaga.tipo]} · ${NOME_DE_DIFICULDADE[vaga.dificuldade]}`,
       `Paga: ${formatarDinheiro(vaga.recompensa)}`,
     ];
 

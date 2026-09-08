@@ -113,6 +113,7 @@ export type AcaoRotinaNpc =
        * frente do jogador seria um teleporte.
        */
       tipo: 'assumir_lugar';
+      mapa?: string;
       construcao: string | null;
       ponto: PontoTile;
       direcao?: Direcao;
@@ -962,6 +963,7 @@ export function acoesDeAtividades(atividades: readonly AtividadeMorador[]): Acao
       horario: faixa.inicio,
       tipo: 'assumir_lugar',
       construcao: faixa.lugar.construcao,
+      mapa: faixa.lugar.mapa,
       ponto: faixa.lugar.ponto,
     });
     // A perambulacao entra no MESMO horario da chegada. `Array.prototype.sort`
@@ -994,6 +996,7 @@ export function acoesDeAtividades(atividades: readonly AtividadeMorador[]): Acao
       horario: HORA_DE_DORMIR,
       tipo: 'assumir_lugar',
       construcao: lar.construcao,
+      mapa: lar.mapa,
       ponto: lar.ponto,
     });
   }
