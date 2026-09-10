@@ -156,6 +156,34 @@ const AVISOS_ESCRITOS_A_MAO: Record<string, string[]> = {
       'um cheiro de oleo queimado.',
   ],
 
+  // --------------------------------------- placas de rua do centro (Mapa 1) --
+  /**
+   * As quatro placas do centro remapeado. Elas resolvem uma falta antiga: o
+   * cruzamento das avenidas nao dizia pra onde ia nenhuma das pontas, e quem
+   * chegava descobria o mundo por tentativa. Cada texto diz o rumo e uma coisa
+   * so sobre o lugar — placa nao e folheto.
+   */
+  centro_cidade: [
+    'PRACA CENTRAL — Cruzamento da Avenida com a Rua do Anel.',
+    'O mapa esbocado na placa mostra o anel em volta do centro, o bairro a oeste, '
+      + 'a zona rural a leste e a estrada da represa subindo ao norte.',
+    'Alguem colou um papel no canto: "conserto de eletronico, oficina no bairro". '
+      + 'A letra e a sua.',
+  ],
+  rumo_bairro: [
+    'BAIRRO DA ESTACAO — 1 km a oeste. Oficina, escola, biblioteca.',
+    'A tinta da seta foi refeita mais de uma vez, sempre um pouco fora do lugar.',
+  ],
+  rumo_rural: [
+    'ZONA RURAL — estrada de terra. Madeireira, pedreira e as chacaras.',
+    'Embaixo, uma placa menor e mais nova: "cuidado com maquina agricola na pista".',
+  ],
+  rumo_represa: [
+    'ESTRADA DA REPRESA — 9 km ao norte. Trafego de servico.',
+    'O poste da placa esta torto e ninguem endireitou. A seta continua apontando '
+      + 'pro norte, e nao ha o que discutir com ela.',
+  ],
+
   /**
    * A INTERDICAO da ponta sul do Mapa 1 — a reserva pro mapa futuro.
    *

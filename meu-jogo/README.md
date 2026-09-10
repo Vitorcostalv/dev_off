@@ -1142,14 +1142,22 @@ Save atual: v7, com migracao automatica de v6, normalizacao por sistema e ate tr
 
 Auditoria, lacunas e roteiro: [docs/overhaul.md](docs/overhaul.md). A remasterizacao completa ainda nao foi entregue.
 
+Etapas com documento proprio: [controles e modo de desenvolvimento](docs/controles-dev.md),
+[audio](docs/audio.md) e [remap do centro](docs/centro.md). O centro (Mapa 1)
+tem calcada nas duas margens de toda via, travessia calcada, caminho de acesso
+por lote, quatro pracas de esquina, vielas de terra batida, sete patios com
+funcao e 71 pecas de mobiliario urbano — 25 delas acendem a noite, cada halo no
+poste onde ele esta. Bairro, zona rural, acesso da represa, os 23 interiores e
+os 50 andares da usina seguem pendentes.
+
 `npm run verificar-overhaul` verifica regressao de cidade, emprego, mapa runtime, blog e listas. `npm run test:browser` requer Google Chrome instalado e o servidor Vite em http://127.0.0.1:5186 (ou GAME_URL); verifica os 77 mapas, sete apps, rolagem, trabalhador e save/reload.
 
-`npm run verificar-tudo` roda os treze validadores de dominio em sequencia e
+`npm run verificar-tudo` roda os quatorze validadores de dominio em sequencia e
 grava a evidencia agregada em `docs/evidence/<rotulo>-tests.json`. As suites de
 navegador (`test:browser`, `test:save-browser`, `test:cotidiano-browser`,
 `test:rural-browser`, `test:servicos-browser`, `test:controles-browser`,
-`test:dev-browser`, `test:audio-browser`) precisam do Chrome e do servidor de
-desenvolvimento em
+`test:dev-browser`, `test:audio-browser`, `test:centro-browser`) precisam do
+Chrome e do servidor de desenvolvimento em
 http://127.0.0.1:5186; rode uma por vez, porque compartilham o mesmo
 `localStorage`. `npm run test:producao` e a unica que roda contra o build:
 exige `npm run build` e `npx vite preview --port 5187 --strictPort --host 127.0.0.1`

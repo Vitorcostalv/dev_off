@@ -129,6 +129,8 @@ const PEDRA_CORPO = { largura: 0.78, altura: 0.34 };
 const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
 /** Overlay de debug: acima de qualquer sprite ordenado por y. */
 const DEPTH_OVERLAY = 100000;
+/** Halo de poste: acima do veu da noite (850000) e dos efeitos de clima. */
+const DEPTH_LUZ_NOTURNA = 850002;
 
 const HORARIOS_PORTAS: Record<string, { nome: string; abre: number; fecha: number }> = {
   mercado: { nome: 'Mercado', abre: 8 * 60, fecha: 18 * 60 },
@@ -588,7 +590,7 @@ export class FarmScene extends Phaser.Scene {
     this.criarItensColetaveis();
     this.criarConstrucoes(map);
     this.criarProjetosCidade();
-    this.criarLuzesNoturnas();
+    this.criarLuzesNoturnas(map);
     this.atualizarPortasEIluminacao();
     this.criarMoveis(map);
     this.criarMobiliaDoJogador();
@@ -1293,9 +1295,30 @@ export class FarmScene extends Phaser.Scene {
     }
   }
 
-  private criarLuzesNoturnas(): void {
+  private criarLuzesNoturnas(map: Phaser.Tilemaps.Tilemap): void {
     this.luzesNoturnas.forEach((luz) => luz.destroy());
     this.luzesNoturnas = [];
+
+    // A luz de dentro da biblioteca nao depende de poste: ela e a janela acesa
+    // no horario de funcionamento, e fica antes do desvio abaixo.
+    if (estado.mapa === 'biblioteca') {
+      this.luzBiblioteca = this.add.graphics();
+      this.luzBiblioteca.fillStyle(0xffe8a2, 0.18);
+      this.luzBiblioteca.fillRect(11.5 * this.tamanhoTile, 8 * this.tamanhoTile, 8 * this.tamanhoTile, 6 * this.tamanhoTile);
+      this.luzBiblioteca.setDepth(DEPTH_OVERLAY + 10);
+      this.luzBiblioteca.setVisible(false);
+    }
+
+    // POSTE DE VERDADE ACENDE. Antes a luz noturna saia de uma tabela de
+    // pontos a mao, escrita quando o mapa nao tinha poste nenhum: o halo caia
+    // perto do lugar certo por aproximacao. Com o remap do centro, cada peca de
+    // iluminacao sai do gerador marcada com `luz`, e a cena acende exatamente
+    // onde ela esta. Mapa sem peca marcada continua com a tabela.
+    const daLampada = this.luzesDosMoveis(map);
+    if (daLampada.length > 0) {
+      for (const ponto of daLampada) this.acenderLuzNoturna(ponto);
+      return;
+    }
 
     const pontos = {
       farm: [
@@ -1314,21 +1337,50 @@ export class FarmScene extends Phaser.Scene {
 
     const luzes = pontos[estado.mapa as keyof typeof pontos] ?? [];
     for (const ponto of luzes) {
-      const grafico = this.add.graphics();
-      grafico.fillStyle(0xffe3a3, 0.22);
-      grafico.fillCircle(ponto.x * this.tamanhoTile, ponto.y * this.tamanhoTile, ponto.r);
-      grafico.setDepth(DEPTH_OVERLAY + 2);
-      grafico.setVisible(false);
-      this.luzesNoturnas.push(grafico);
+      this.acenderLuzNoturna({
+        x: ponto.x * this.tamanhoTile,
+        y: ponto.y * this.tamanhoTile,
+        r: ponto.r,
+      });
     }
+  }
 
-    if (estado.mapa === 'biblioteca') {
-      this.luzBiblioteca = this.add.graphics();
-      this.luzBiblioteca.fillStyle(0xffe8a2, 0.18);
-      this.luzBiblioteca.fillRect(11.5 * this.tamanhoTile, 8 * this.tamanhoTile, 8 * this.tamanhoTile, 6 * this.tamanhoTile);
-      this.luzBiblioteca.setDepth(DEPTH_OVERLAY + 10);
-      this.luzBiblioteca.setVisible(false);
-    }
+  /**
+   * Um halo quente, escondido de dia. Coordenada em PIXEL.
+   *
+   * A PROFUNDIDADE E O PONTO: o veu da noite do `AmbienteMundo` fica em 850000,
+   * e o halo ficava embaixo dele — a luz do poste era escurecida junto com o
+   * resto e praticamente desaparecia. Acima do veu, o poste passa a abrir uma
+   * poca de luz de verdade no calcamento.
+   */
+  private acenderLuzNoturna(ponto: { x: number; y: number; r: number }): void {
+    // Quatro circulos concentricos em vez de um: a alfa acumula pro centro e a
+    // poca ganha queda de intensidade na borda. Um circulo so lia como disco
+    // cinza colado no chao, nao como luz.
+    const grafico = this.add.graphics();
+    grafico.fillStyle(0xffe3a3, 0.085);
+    for (let anel = 0; anel < 4; anel++) grafico.fillCircle(ponto.x, ponto.y, ponto.r * (1 - anel * 0.21));
+    grafico.setDepth(DEPTH_LUZ_NOTURNA);
+    grafico.setVisible(false);
+    this.luzesNoturnas.push(grafico);
+  }
+
+  /**
+   * Pontos de luz vindos da camada `moveis`: poste, balizador e luminaria
+   * marcados com `luz` pelo gerador. O halo sobe pra altura da lampada e o raio
+   * acompanha o tamanho da peca — poste de braco ilumina mais que balizador.
+   */
+  private luzesDosMoveis(map: Phaser.Tilemaps.Tilemap): { x: number; y: number; r: number }[] {
+    return (map.getObjectLayer('moveis')?.objects ?? []).flatMap((obj) => {
+      const props = lerProps(obj);
+      if (props.luz !== true) return [];
+      const alturaTiles = Number(props.alturaTiles) || 2;
+      return [{
+        x: obj.x ?? 0,
+        y: (obj.y ?? 0) - alturaTiles * this.tamanhoTile * 0.75,
+        r: this.tamanhoTile * (0.9 + alturaTiles * 0.32),
+      }];
+    });
   }
 
   private atualizarLuzesNoturnas(): void {
@@ -3722,17 +3774,14 @@ export class FarmScene extends Phaser.Scene {
     const t = this.tamanhoTile;
     const pontos: Interagivel[] = [];
     if (estado.mapa === 'farm') {
-      const x = 38.5 * t;
-      const y = 55.5 * t;
-      const placa = this.add.rectangle(x, y - t * 0.35, t * 1.15, t * 0.72, 0x6f4a2d)
-        .setStrokeStyle(2, 0xd4b07a)
-        .setDepth(y);
-      const pe = this.add.rectangle(x, y + t * 0.22, t * 0.14, t * 0.55, 0x49301f).setDepth(y - 1);
-      placa.setName('quadro_avisos_visual');
-      pe.setName('quadro_avisos_pe');
+      // QUADRO DE AVISOS. Era um retangulo desenhado a mao no meio do gramado do
+      // parque — dois rects e uma perna, sem arte. Com o remap do centro ele
+      // passou a ser o quiosque de verdade da praca noroeste (peca [7,0] da folha
+      // do parque, posta pelo gerador), e aqui fica so o ponto de leitura, na
+      // calcada em frente a ele.
       pontos.push({
         id: 'quadro_avisos_praca', tipo: 'placa', rotulo: 'Ler avisos',
-        x, y, props: { ambientacao: 'quadro' },
+        x: 51.5 * t, y: 43.5 * t, props: { ambientacao: 'quadro' },
       });
     }
     for (const segredo of segredosDoMapa(estado.mapa)) {

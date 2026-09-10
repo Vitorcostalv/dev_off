@@ -36,7 +36,9 @@
     "test:producao": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-producao.mjs",
     "gerar-audio": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/gerar-audio.mjs",
     "verificar-audio": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-audio.mjs",
-    "test:audio-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-audio.mjs"
+    "test:audio-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-audio.mjs",
+    "verificar-centro": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-centro.mjs",
+    "test:centro-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-centro.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

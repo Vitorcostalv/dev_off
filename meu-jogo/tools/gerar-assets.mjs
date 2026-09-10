@@ -2205,6 +2205,439 @@ function pavimentarPraca(caminhos) {
   for (const [x, y] of tilesDaPraca()) caminhos.set(x, y, variante('calcada', x, y));
 }
 
+// =============================================== centro: calcada e mobiliario ==
+/**
+ * REMAP DO CENTRO. O Mapa 1 tinha malha de rua e lote, e mais nada: entre o
+ * anel e as fachadas sobravam quadrantes inteiros de grama vazia, e nenhuma
+ * rua tinha borda. Um retangulo de terra atravessando um campo nao le como
+ * cidade.
+ *
+ * O que esta leva acrescenta, em ordem de leitura:
+ *
+ *   1. CALCADA em toda via — um tile de calcamento de cada lado da faixa de
+ *      terra. E o que da borda a rua e o que separa o que e passagem do que e
+ *      terreno;
+ *   2. TRAVESSIA calcada onde um acesso cruza a rua. Rua de terra nao recebe
+ *      pintura de faixa: numa cidade assim, o que existe e o trecho calcado
+ *      onde a prefeitura gastou cimento;
+ *   3. ACESSO de cada lote ate a calcada mais perto. A arte de fachada olha pro
+ *      sul, entao varias portas dao as costas pra avenida — sem caminho, o
+ *      predio ficava solto no meio do gramado;
+ *   4. PRACAS nas quatro esquinas do cruzamento central, com quadro de avisos,
+ *      banco, canteiro, bicicletario e poste;
+ *   5. VIELAS de cascalho: atalho de servico atras do comercio e dos fundos das
+ *      casas do norte. Elas criam volta, e nao so ida e vinda;
+ *   6. MOBILIARIO URBANO desenhado a mao ao longo das calcadas e nas pracas;
+ *   7. PATIOS: terraco do bar, apron do mercado, mirante do lago, bosque com
+ *      mesa de piquenique e patio de servico cercado atras do comercio.
+ *
+ * TRES REGRAS que o codigo abaixo cobra, alto, na geracao:
+ *
+ *   - nada de calcamento nem movel dentro da pegada de uma construcao;
+ *   - nada de movel na FRENTE de uma porta (e a ancora de rotina do NPC, ver
+ *     `LOCAIS_CIDADE` em src/game/npcs.ts) nem no respiro do spawn;
+ *   - todo acesso tem de terminar num tile de calcada; senao ele e um caminho
+ *     pra lugar nenhum.
+ *
+ * O mobiliario e uma TABELA A MAO, pelo mesmo motivo que o do parque: praca
+ * sorteada sai como entulho. A flora continua sorteada, e passa a respeitar
+ * tudo que entra aqui.
+ */
+
+/**
+ * Respiro do spawn: nenhum movel entra aqui, ou o jogador nasce esbarrando.
+ * E funcao porque `CENTRO` e declarado depois desta secao.
+ */
+const respiroDoSpawn = () => ({ x: CENTRO.x - 4, y: CENTRO.y - 2, w: 9, h: 7 });
+
+/**
+ * Calcada de cada lado da faixa de terra de cada via.
+ *
+ * AVENIDA leva DUAS faixas; anel, uma. A largura nao e enfeite: o corpo de
+ * colisao de um movel alto sobe meio sprite acima da base (ver `CORPO_MOVEL`),
+ * entao um poste de 3,5 tiles ocupa quase duas linhas. Com uma faixa so, cada
+ * poste fechava a calcada e empurrava pedestre — e NPC — pra dentro da rua.
+ * Com duas, a faixa de dentro fica sempre livre.
+ *
+ * A hierarquia visual sai de graca: avenida larga, rua do anel estreita.
+ */
+const LARGURA_DE_CALCADA = { avenida_h: 2, avenida_v: 2 };
+
+function calcadasDasVias() {
+  const faixas = [];
+  for (const v of VIAS) {
+    const f = faixaDaVia(v);
+    const n = LARGURA_DE_CALCADA[v.nome] ?? 1;
+    if (v.h === 1) {
+      faixas.push({ x: f.x, y: f.y - n, w: f.w, h: n });
+      faixas.push({ x: f.x, y: f.y + f.h, w: f.w, h: n });
+    } else {
+      faixas.push({ x: f.x - n, y: f.y, w: n, h: f.h });
+      faixas.push({ x: f.x + f.w, y: f.y, w: n, h: f.h });
+    }
+  }
+  return faixas;
+}
+
+/**
+ * PRACAS DE ESQUINA do cruzamento central. Ficam fora do respiro do spawn e
+ * fora da pegada do mercado (que comeca em y 50).
+ */
+const PRACAS_DO_CRUZAMENTO = [
+  { nome: 'noroeste', x: 50, y: 39, w: 8, h: 4 },
+  { nome: 'nordeste', x: 63, y: 39, w: 8, h: 4 },
+  { nome: 'sudoeste', x: 50, y: 48, w: 8, h: 4 },
+  { nome: 'sudeste', x: 63, y: 48, w: 6, h: 2 },
+];
+
+/**
+ * ACESSO de cada lote. `material` separa a hierarquia: comercio recebe
+ * calcamento, casa recebe cascalho de entrada de carro. Cada trecho e um
+ * retangulo; o ultimo tem de encostar numa calcada.
+ */
+const ACESSOS_DE_LOTE = [
+  // casas do norte: dois tiles de cascalho ate a calcada do anel norte
+  { lote: 'casa_1', material: 'terra', trechos: [{ x: 31, y: 16, w: 1, h: 2 }] },
+  { lote: 'casa_2', material: 'terra', trechos: [{ x: 43, y: 16, w: 1, h: 2 }] },
+  { lote: 'casa_3', material: 'terra', trechos: [{ x: 75, y: 16, w: 1, h: 2 }] },
+  { lote: 'casa_4', material: 'terra', trechos: [{ x: 87, y: 16, w: 1, h: 2 }] },
+  // casas do sul: a porta da pro lado oposto do anel, entao o caminho contorna
+  // a construcao por fora antes de subir
+  { lote: 'casa_5', material: 'terra', trechos: [{ x: 27, y: 79, w: 5, h: 1 }, { x: 27, y: 73, w: 1, h: 6 }] },
+  { lote: 'casa_6', material: 'terra', trechos: [{ x: 43, y: 79, w: 5, h: 1 }, { x: 47, y: 73, w: 1, h: 6 }] },
+  // comercio: calcada de dois tiles de largura
+  { lote: 'mercado', material: 'calcada', trechos: [{ x: 69, y: 55, w: 2, h: 14 }] },
+  { lote: 'farmacia', material: 'calcada', trechos: [{ x: 85, y: 55, w: 2, h: 14 }] },
+  { lote: 'academia', material: 'calcada', trechos: [{ x: 53, y: 35, w: 2, h: 8 }] },
+  { lote: 'bar', material: 'calcada', trechos: [{ x: 81, y: 29, w: 2, h: 14 }] },
+];
+
+/**
+ * TRAVESSIAS: o trecho calcado que atravessa a faixa de terra, de calcada a
+ * calcada. Cada uma tem a largura do acesso que ela continua.
+ */
+const TRAVESSIAS = [
+  // Os quatro bracos do cruzamento central. Atravessar a avenida agora sao 7
+  // linhas (2 de calcada + 3 de terra + 2 de calcada), e o anel, 5.
+  { x: 56, y: 42, w: 2, h: 7 },
+  { x: 65, y: 42, w: 2, h: 7 },
+  { x: 57, y: 41, w: 7, h: 2 },
+  { x: 57, y: 49, w: 7, h: 2 },
+  // onde os acessos do comercio cruzam a avenida horizontal e o anel sul
+  { x: 53, y: 42, w: 2, h: 7 },
+  { x: 81, y: 42, w: 2, h: 7 },
+  { x: 69, y: 69, w: 2, h: 5 },
+  { x: 85, y: 69, w: 2, h: 5 },
+  // e onde as entradas das casas cruzam os aneis
+  { x: 31, y: 18, w: 1, h: 5 },
+  { x: 43, y: 18, w: 1, h: 5 },
+  { x: 75, y: 18, w: 1, h: 5 },
+  { x: 87, y: 18, w: 1, h: 5 },
+  { x: 27, y: 69, w: 1, h: 5 },
+  { x: 47, y: 69, w: 1, h: 5 },
+];
+
+/** PATIOS: area calcada de uso, cada uma com um porque. */
+const PATIOS = [
+  // terraco do bar: mesa com guarda-sol e luz de festao, o ponto da noite
+  { nome: 'terraco_bar', material: 'calcada', x: 77, y: 29, w: 8, h: 5 },
+  // apron do mercado: onde entra carga e onde ficam bicicletario e lixeiras
+  { nome: 'apron_mercado', material: 'concreto_patio', x: 66, y: 55, w: 8, h: 3 },
+  // entrada da farmacia
+  { nome: 'entrada_farmacia', material: 'calcada', x: 82, y: 55, w: 6, h: 2 },
+  // entrada da academia
+  { nome: 'entrada_academia', material: 'calcada', x: 50, y: 35, w: 7, h: 2 },
+  // mirante do lago: a faixa de terra entre a calcada do anel leste e a agua
+  { nome: 'mirante_lago', material: 'calcada', x: 102, y: 50, w: 2, h: 8 },
+  // bosque de piquenique, no quadrante vazio a sudoeste
+  { nome: 'bosque', material: 'cascalho', x: 29, y: 64, w: 14, h: 4 },
+  // Patio de servico atras do comercio: cascalho cercado, aberto a oeste. Para
+  // em x 83 pra nao atravessar o acesso da farmacia (x 85-86) — cerca cruzando
+  // caminho de porta fecha a passagem sem avisar.
+  { nome: 'patio_servico', material: 'cascalho', x: 74, y: 62, w: 10, h: 6 },
+];
+
+/**
+ * VIELAS: atalho de um tile de TERRA BATIDA. A arte do cascalho e um hachurado
+ * diagonal — em area (patio, bosque) le como brita, mas numa faixa de um tile
+ * so le como barreira listrada. Terra batida e o que um atalho de pedestre
+ * numa cidade assim seria de verdade, e vale pra entrada das casas tambem.
+ */
+const MATERIAL_DE_VIELA = 'terra';
+const VIELAS = [
+  // servico atras do comercio: liga a calcada da avenida vertical ao anel leste
+  { x: 63, y: 60, w: 34, h: 1 },
+  // do cruzamento norte ao terraco do bar
+  { x: 63, y: 31, w: 14, h: 1 },
+  // fundos das casas do norte, fechando volta com o anel oeste e o anel norte
+  { x: 24, y: 10, w: 29, h: 1 },
+  { x: 52, y: 10, w: 1, h: 9 },
+  // ligacao da praca do parque com o bosque
+  { x: 36, y: 62, w: 1, h: 3 },
+];
+
+/** Cerca de tela do patio de servico: tres lados, aberto pro acesso do mercado. */
+const CERCA_PATIO_SERVICO = [
+  { x: 74, y: 61, w: 10, h: 1 },  // norte
+  { x: 84, y: 61, w: 1, h: 8 },   // leste
+  { x: 74, y: 68, w: 11, h: 1 },  // sul
+];
+
+/** Ralos do patio de servico e do apron: detalhe de drenagem. */
+// Ralo e peca INDUSTRIAL na arte (grade de ferro fundido). No meio do
+// calcamento da praca ele lia como um retangulo escuro solto, entao ficou onde
+// tem funcao: o patio de servico e o apron de carga do mercado.
+const RALOS = [
+  { x: 81, y: 65 },
+  { x: 78, y: 66 },
+  { x: 70, y: 57 },
+];
+
+/**
+ * MOBILIARIO URBANO, peca por peca. `tx`/`ty` sao o tile do canto
+ * esquerdo-INFERIOR (a peca cresce pra cima e pra direita, como a flora).
+ * `luz: true` marca poste — a cena acende um halo em cada um a noite, e e por
+ * isso que a luz do centro passou a nascer onde o poste esta de verdade.
+ *
+ * Pecas da folha `parque` (ver `moveis_parque.atlas.json`):
+ *   [0,1] poste alto        [0,5] poste de braco    [0,4] poste de globo
+ *   [0,6] banco curto       [0,7] banco longo       [0,9] banco de lado
+ *   [0,8] mesa de piquenique
+ *   [2,1] lixeira verde     [2,3] lixeira azul      [2,6] bebedouro de pedra
+ *   [2,8] canteiro de pedra [7,6] jardineira longa  [2,9] vaso
+ *   [7,0] quadro de avisos  [7,3] mourao com corda  [7,4] balizador
+ *   [8,0] bicicletario      [8,6] deque de madeira  [7,2] mesa com guarda-sol
+ *   [4,4] arvore            [4,5] cerejeira         [4,7] coreto
+ *   [5,4] arbusto           [6,3] arbusto florido   [6,6] pedra   [7,8] toco
+ */
+const MOBILIARIO_URBANO = [
+  // --- praca noroeste: o quadro de avisos e o ponto de parada do centro ---
+  { peca: [7, 0], tx: 50, ty: 41 },
+  { peca: [0, 7], tx: 54, ty: 42 },
+  { peca: [0, 5], tx: 56, ty: 40, luz: true },
+  { peca: [2, 1], tx: 50, ty: 39 },
+
+  // --- praca nordeste: bicicletario e canteiro ---
+  { peca: [8, 0], tx: 63, ty: 42 },
+  { peca: [2, 8], tx: 67, ty: 42 },
+  { peca: [0, 5], tx: 69, ty: 40, luz: true },
+  { peca: [2, 3], tx: 69, ty: 39 },
+
+  // --- praca sudoeste: bancos virados pro cruzamento ---
+  { peca: [0, 9], tx: 50, ty: 51 },
+  { peca: [0, 6], tx: 53, ty: 51 },
+  { peca: [2, 1], tx: 55, ty: 51 },
+  { peca: [0, 1], tx: 57, ty: 50, luz: true },
+  { peca: [7, 4], tx: 50, ty: 48 },
+  { peca: [7, 4], tx: 52, ty: 48 },
+  { peca: [7, 4], tx: 54, ty: 48 },
+
+  // --- praca sudeste: jardineira e banco. Comeca em x 65: de 56 a 64 e o
+  // respiro do spawn, e movel ali faria o jogador nascer esbarrando ---
+  { peca: [0, 6], tx: 65, ty: 49 },
+  { peca: [2, 3], tx: 68, ty: 49 },
+
+  // --- avenida horizontal, calcada norte (linhas 42-43) ---
+  //
+  // ONDE CADA PECA PODE FICAR, e o porque: o corpo de um movel sobe meio sprite
+  // acima da base. Poste de braco tem 3,5 tiles, entao ocupa quase duas linhas
+  // pra cima. Por isso ele fica na linha 41 — a base encosta na calcada de fora
+  // (42) e o corpo bloqueia a grama atras, deixando as DUAS linhas de calcada
+  // livres pra andar. Peca baixa (lixeira, banco, arbusto, balizador) nao passa
+  // de uma linha e pode ficar na calcada mesmo.
+  { peca: [0, 5], tx: 10, ty: 41, luz: true },
+  { peca: [0, 5], tx: 27, ty: 41, luz: true },
+  { peca: [0, 5], tx: 34, ty: 41, luz: true },
+  { peca: [0, 5], tx: 46, ty: 41, luz: true },
+  { peca: [0, 5], tx: 78, ty: 41, luz: true },
+  { peca: [0, 5], tx: 92, ty: 41, luz: true },
+  { peca: [0, 5], tx: 104, ty: 41, luz: true },
+  { peca: [2, 3], tx: 24, ty: 43 },
+  { peca: [0, 6], tx: 35, ty: 43 },
+
+  // --- avenida horizontal, calcada sul (linhas 47-48) ---
+  // Aqui a grama fica ao SUL e o corpo do movel sobe pro norte, entao poste
+  // alto fecharia as duas linhas. So peca baixa, e na linha de fora (48): o
+  // balizador de jardim tambem acende.
+  { peca: [7, 4], tx: 16, ty: 48, luz: true },
+  { peca: [7, 4], tx: 28, ty: 48, luz: true },
+  { peca: [7, 4], tx: 72, ty: 48, luz: true },
+  { peca: [7, 4], tx: 90, ty: 48, luz: true },
+  { peca: [7, 4], tx: 108, ty: 48, luz: true },
+  { peca: [2, 1], tx: 74, ty: 48 },
+  { peca: [5, 4], tx: 18, ty: 48 },
+  { peca: [5, 4], tx: 30, ty: 48 },
+
+  // --- avenida vertical: calcada de duas colunas de cada lado (57-58, 62-63).
+  // O poste alto vai na coluna de FORA; a de dentro segue livre ---
+  { peca: [0, 1], tx: 57, ty: 10, luz: true },
+  { peca: [0, 1], tx: 57, ty: 30, luz: true },
+  { peca: [0, 1], tx: 57, ty: 62, luz: true },
+  { peca: [0, 1], tx: 57, ty: 80, luz: true },
+  { peca: [0, 1], tx: 63, ty: 16, luz: true },
+  { peca: [0, 1], tx: 63, ty: 36, luz: true },
+  { peca: [0, 1], tx: 63, ty: 66, luz: true },
+  { peca: [2, 9], tx: 63, ty: 24 },
+
+  // --- terraco do bar: guarda-sol, festao entre postes, banco ---
+  { peca: [7, 2], tx: 77, ty: 33 },
+  { peca: [0, 4], tx: 84, ty: 33, luz: true },
+  { peca: [0, 6], tx: 83, ty: 30 },
+  { peca: [2, 8], tx: 77, ty: 30 },
+
+  // --- apron do mercado. A faixa de acesso e x 69-70: o bicicletario tem 4
+  // tiles de largura e ficava em cima dela, entao foi pro lado leste ---
+  { peca: [8, 0], tx: 70, ty: 57 },
+  { peca: [2, 1], tx: 66, ty: 57 },
+  { peca: [2, 3], tx: 67, ty: 57 },
+  { peca: [0, 4], tx: 66, ty: 58, luz: true },
+
+  // --- entrada da farmacia e da academia ---
+  { peca: [0, 6], tx: 82, ty: 57 },
+  { peca: [2, 8], tx: 87, ty: 56 },
+  { peca: [0, 6], tx: 50, ty: 36 },
+  { peca: [2, 6], tx: 56, ty: 38 },
+
+  // --- mirante do lago: deque, banco e poste de globo ---
+  { peca: [8, 6], tx: 102, ty: 55 },
+  { peca: [0, 9], tx: 102, ty: 52 },
+  { peca: [0, 4], tx: 102, ty: 50, luz: true },
+
+  // --- bosque de piquenique, a sudoeste ---
+  { peca: [0, 8], tx: 30, ty: 67 },
+  { peca: [0, 7], tx: 34, ty: 67 },
+  { peca: [4, 7], tx: 37, ty: 68 },
+  { peca: [6, 6], tx: 29, ty: 63 },
+  { peca: [7, 8], tx: 42, ty: 66 },
+  { peca: [6, 3], tx: 33, ty: 63 },
+
+  // --- patio de servico atras do comercio ---
+  { peca: [7, 4], tx: 75, ty: 67 },
+  { peca: [7, 4], tx: 82, ty: 67 },
+  { peca: [2, 1], tx: 76, ty: 63 },
+
+  // --- sebe entre os lotes das casas do norte ---
+  { peca: [5, 4], tx: 37, ty: 17 },
+  { peca: [6, 3], tx: 38, ty: 17 },
+  { peca: [5, 4], tx: 49, ty: 17 },
+  { peca: [5, 4], tx: 81, ty: 17 },
+  { peca: [6, 3], tx: 82, ty: 17 },
+];
+
+/**
+ * PLACAS DE RUA. O centro nao dizia pra onde ia nenhuma das quatro pontas de
+ * avenida; agora cada braco tem uma placa, e o texto sai de `AVISOS_DE_EXAME`
+ * (src/game/avisos.ts) como qualquer outra placa do jogo.
+ */
+const PLACAS_DO_CENTRO = [
+  { nome: 'placa_centro', aviso: 'centro_cidade', x: 57, y: 42 },
+  { nome: 'placa_oeste', aviso: 'rumo_bairro', x: 20, y: 43 },
+  { nome: 'placa_leste', aviso: 'rumo_rural', x: 101, y: 43 },
+  { nome: 'placa_norte', aviso: 'rumo_represa', x: 62, y: 8 },
+];
+
+/** Todos os retangulos calcados/cascalhados que esta leva acrescenta. */
+function areasDoCentro() {
+  return [
+    ...calcadasDasVias().map((r) => ({ ...r, material: 'calcada' })),
+    ...PRACAS_DO_CRUZAMENTO.map((p) => ({ ...p, material: 'calcada' })),
+    ...ACESSOS_DE_LOTE.flatMap((a) => a.trechos.map((r) => ({ ...r, material: a.material }))),
+    ...PATIOS.map((p) => ({ ...p, material: p.material })),
+    ...VIELAS.map((r) => ({ ...r, material: MATERIAL_DE_VIELA })),
+    ...TRAVESSIAS.map((r) => ({ ...r, material: 'calcada' })),
+  ];
+}
+
+/**
+ * Confere o layout do centro ANTES de escrever o mapa. Sao as tres regras do
+ * cabecalho desta secao; cada uma erra alto, com o lote e o tile no texto.
+ */
+function conferirCentro() {
+  const construcoes = construidasDe('farm');
+  const dentro = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+  const emConstrucao = (x, y) => construcoes.find((c) => dentro(c, x, y));
+
+  // 1. calcamento nenhum por cima de pegada de construcao
+  for (const area of areasDoCentro()) {
+    for (let y = area.y; y < area.y + area.h; y++) {
+      for (let x = area.x; x < area.x + area.w; x++) {
+        const c = emConstrucao(x, y);
+        if (c) throw new Error(`calcamento do centro em (${x},${y}) cai na pegada de "${c.nome}"`);
+      }
+    }
+  }
+
+  // 2. todo acesso termina em calcada
+  const calcadas = calcadasDasVias();
+  for (const acesso of ACESSOS_DE_LOTE) {
+    // "encostar" e tocar, nao sobrepor: o acesso vai ATE a calcada e para nela,
+    // entao o teste roda com o retangulo inflado em um tile.
+    const encosta = acesso.trechos.some((r) =>
+      calcadas.some((f) => {
+        const x0 = Math.max(r.x - 1, f.x); const x1 = Math.min(r.x + r.w + 1, f.x + f.w);
+        const y0 = Math.max(r.y - 1, f.y); const y1 = Math.min(r.y + r.h + 1, f.y + f.h);
+        return x1 > x0 && y1 > y0;
+      }));
+    if (!encosta) throw new Error(`o acesso de "${acesso.lote}" nao encosta em nenhuma calcada`);
+    const c = construcaoDe(acesso.lote);
+    const frente = acesso.trechos.some((r) => dentro(r, c.frente.x, c.frente.y));
+    if (!frente) throw new Error(`o acesso de "${acesso.lote}" nao passa pela frente da porta (${c.frente.x},${c.frente.y})`);
+  }
+
+  // 3. movel nenhum na frente de porta, no respiro do spawn nem sobre a via
+  const frentes = new Set(construcoes.map((c) => `${c.frente.x},${c.frente.y}`));
+  for (const p of MOBILIARIO_URBANO) {
+    const { w } = tamanhoDeMovel('parque', p.peca, p.escala);
+    const largura = Math.max(1, Math.round(w));
+    for (let i = 0; i < largura; i++) {
+      const x = p.tx + i; const y = p.ty;
+      if (frentes.has(`${x},${y}`)) throw new Error(`movel [${p.peca}] em (${x},${y}) tapa a frente de uma porta`);
+      if (dentro(respiroDoSpawn(), x, y)) throw new Error(`movel [${p.peca}] em (${x},${y}) invade o respiro do spawn`);
+      const c = emConstrucao(x, y);
+      if (c) throw new Error(`movel [${p.peca}] em (${x},${y}) cai dentro de "${c.nome}"`);
+      for (const v of VIAS) {
+        const f = faixaDaVia(v);
+        if (dentro(f, x, y)) throw new Error(`movel [${p.peca}] em (${x},${y}) fica no meio da via "${v.nome}"`);
+      }
+    }
+  }
+}
+
+/** Pinta calcada, praca, acesso, patio, viela e travessia na camada de caminhos. */
+function pavimentarCentro(caminhos, quando) {
+  const pinta = (r) => caminhos.rect(r.x, r.y, r.w, r.h, de(r.material));
+  if (quando === 'antes') {
+    // antes da terra: a rua tem de vencer a calcada nos cruzamentos
+    for (const r of calcadasDasVias()) pinta({ ...r, material: 'calcada' });
+    for (const p of PRACAS_DO_CRUZAMENTO) pinta({ ...p, material: 'calcada' });
+    for (const a of ACESSOS_DE_LOTE) for (const r of a.trechos) pinta({ ...r, material: a.material });
+    for (const p of PATIOS) pinta(p);
+    for (const r of VIELAS) pinta({ ...r, material: MATERIAL_DE_VIELA });
+    return;
+  }
+  // depois da trilha: a travessia calcada interrompe a terra, que e o desenho
+  for (const r of TRAVESSIAS) pinta({ ...r, material: 'calcada' });
+}
+
+/** Objetos de movel do mobiliario urbano, ja em coordenada de mundo. */
+function moveisDoCentro() {
+  return objetosDeMovel('centro', MOBILIARIO_URBANO, 'parque');
+}
+
+/** Retangulos que a flora nao pode invadir por causa do remap. */
+function areasSemFloraDoCentro() {
+  const areas = areasDoCentro().map((r) => ({ x: r.x - 1, y: r.y - 1, w: r.w + 2, h: r.h + 2 }));
+  for (const p of MOBILIARIO_URBANO) {
+    const { w, h } = tamanhoDeMovel('parque', p.peca, p.escala);
+    const largura = Math.max(1, Math.round(w));
+    const altura = Math.max(1, Math.round(h));
+    areas.push({ x: p.tx - 1, y: p.ty - altura, w: largura + 2, h: altura + 2 });
+  }
+  for (const p of PLACAS_DO_CENTRO) areas.push({ x: p.x - 1, y: p.y - 1, w: 3, h: 3 });
+  for (const c of CERCA_PATIO_SERVICO) areas.push({ x: c.x - 1, y: c.y - 1, w: c.w + 2, h: c.h + 2 });
+  return areas;
+}
+
 /** Resolve a construcao de um lote em coordenadas de tile. */
 function construcaoDe(nome) {
   const { mapa, zona: z, def } = loteDe(nome);
@@ -3163,7 +3596,15 @@ function gerarFazenda(ts) {
 
   chao.rect(0, 0, W, H, de('grama'));
 
-  // 1a passada: a faixa de terra batida. 2a: a trilha clara no eixo.
+  conferirCentro();
+
+  // Ordem das passadas de piso, e ela importa:
+  //   1. calcada, praca, acesso, patio e viela do remap do centro;
+  //   2. a faixa de terra batida das vias, que VENCE a calcada nos cruzamentos;
+  //   3. a trilha clara no eixo da via;
+  //   4. o calcamento da praca do parque;
+  //   5. as travessias, por cima da terra — e o desenho, nao um acidente.
+  pavimentarCentro(caminhos, 'antes');
   for (const v of VIAS) {
     const faixa = faixaDaVia(v);
     caminhos.rect(faixa.x, faixa.y, faixa.w, faixa.h, de('terra'));
@@ -3172,6 +3613,7 @@ function gerarFazenda(ts) {
   pintarVias(caminhos, via);
 
   pavimentarPraca(caminhos);
+  pavimentarCentro(caminhos, 'depois');
 
   obj.moldura(GID.MATO);
   // vao na mata da borda: e por ele que se atravessa pros outros mapas
@@ -3181,6 +3623,10 @@ function gerarFazenda(ts) {
   const it = INTERDICAO_SUL;
   obj.rect(it.x0, it.y, it.x1 - it.x0 + 1, 1, GID.BARREIRA_OBRA);
   pintarLago(obj, LAGO);
+  // patio de servico atras do comercio: cerca de tela em tres lados, aberta a
+  // oeste pro acesso do mercado — cercar os quatro faria uma gaiola
+  for (const c of CERCA_PATIO_SERVICO) obj.rect(c.x, c.y, c.w, c.h, GID.CERCA_TELA);
+  for (const r of RALOS) obj.set(r.x, r.y, GID.GRELHA);
 
   // Pegada de cada construcao: PAREDE colide, PORTA nao. O sprite da fachada
   // cobre a pegada inteira por cima, entao a colisao continua vindo dos tiles —
@@ -3193,7 +3639,9 @@ function gerarFazenda(ts) {
   }
 
   const interativos = [
-    objeto('placa_teste', 'placa', CENTRO.x - 3, CENTRO.y + 3),
+    // Placas de rua: cada ponta de avenida diz pra onde vai. Antes havia uma
+    // unica "placa_teste" sem texto proprio no meio do cruzamento.
+    ...PLACAS_DO_CENTRO.map((p) => objeto(p.nome, 'placa', p.x, p.y, { aviso: p.aviso })),
     objeto('aviso_estrada_sul', 'placa', it.placa.x, it.placa.y, { aviso: 'estrada_sul' }),
     objeto('pickup_cabo_usb_1', 'item', CENTRO.x - 2, CENTRO.y, { itemId: 'cabo_usb' }),
     objeto('pickup_cabo_usb_2', 'item', CENTRO.x + 2, CENTRO.y, { itemId: 'cabo_usb' }),
@@ -3258,6 +3706,9 @@ function gerarFazenda(ts) {
   bloquear(CENTRO.x - 4, CENTRO.y - 2, 9, 7); // respiro em volta do spawn
   for (const b of bordasDoMapa('farm')) bloquear(b.x - 2, b.y - 2, b.w + 4, b.h + 4);
   for (const it of interativos) bloquear(it.x / T - 1, it.y / T - 1, 3, 3);
+  // calcada, praca, acesso, patio, viela, travessia, movel urbano e cerca: a
+  // flora sorteada nao entra em nada que o remap desenhou
+  for (const a of areasSemFloraDoCentro()) bloquear(a.x, a.y, a.w, a.h);
 
   const { arvores, flores, pedras } = gerarFlora(W, H, faixasDeVias(W, H), ocupado);
 
@@ -3275,7 +3726,7 @@ function gerarFazenda(ts) {
         camadaObjetos('construcoes', 7, fachadas),
         // o parque e o unico mobiliario do mapa externo; a cena le esta camada
         // com o MESMO `criarMoveis` dos interiores
-        camadaObjetos('moveis', 8, moveisDoParque()),
+        camadaObjetos('moveis', 8, [...moveisDoParque(), ...moveisDoCentro()]),
         camadaObjetos('bordas', 9, objetosDeBorda('farm')),
       ],
       ts,
@@ -3846,6 +4297,10 @@ function objetosDeMovel(prefixo, pecas, folhaPadrao) {
       // deveria estar EM CIMA dele — os dois tem a base na mesma linha, e sem
       // isto o desempate e a ordem da lista
       chao: p.chao === true,
+      // peca de ILUMINACAO: a cena acende um halo noturno em cada uma (ver
+      // `luzesDosMoveis` na FarmScene). So sai no objeto quando e verdade, pra
+      // nao engordar os mapas com a propriedade em todo movel de interior.
+      ...(p.luz === true ? { luz: true } : {}),
     });
   });
 }
