@@ -31,7 +31,8 @@ import { ITEM_ENCOMENDA } from '../game/trabalhos';
 import type { EstadoNpc } from '../game/rotinasNpc';
 import { apagar, salvar, snapshots, restaurarSnapshot } from '../game/save';
 import { USOS_DE_MORADIA, falasDe } from '../game/tipos';
-import { avisosDaSemana, segredosDoMapa } from '../game/ambientacao';
+import { AVISOS_DE_ENCONTRO, avisosDaSemana, segredosDoMapa } from '../game/ambientacao';
+import { encontroDoDia } from '../game/rotinaSocial';
 import type { SegredoDoMapa } from '../game/ambientacao';
 import { PONTOS_ITENS_MISSAO } from '../game/missoesNpc';
 import type { MissaoNpc } from '../game/missoesNpc';
@@ -3708,8 +3709,14 @@ export class FarmScene extends Phaser.Scene {
     }
     if (alvo.props.ambientacao === 'quadro') {
       const avisos = avisosDaSemana(estado.dia);
+      // O ENCONTRO DE HOJE vem primeiro, quando existe: e o unico recado do
+      // quadro que muda de um dia pro outro, e e onde o jogador descobre que
+      // hoje a noite tem gente no bar (ver src/game/rotinaSocial.ts).
+      const encontro = encontroDoDia(estado.dia);
+      const doDia = encontro ? AVISOS_DE_ENCONTRO[encontro.aviso] : undefined;
       this.ui.iniciarDialogo([
         { nome: 'Quadro de avisos', texto: `Avisos da semana ${Math.floor(estado.dia / 7) + 1}:` },
+        ...(doDia ? [{ nome: encontro!.nome, texto: doDia }] : []),
         ...avisos.map((texto, i) => ({ nome: `Aviso ${i + 1}`, texto })),
         { nome: 'Quadro de avisos', texto: 'Estes recados ainda sao apenas informativos; o app Trabalho nao os aceita.' },
       ]);

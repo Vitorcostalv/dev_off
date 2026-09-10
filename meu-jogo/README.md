@@ -1144,8 +1144,9 @@ Auditoria, lacunas e roteiro: [docs/overhaul.md](docs/overhaul.md). A remasteriz
 
 Etapas com documento proprio: [controles e modo de desenvolvimento](docs/controles-dev.md),
 [audio](docs/audio.md), [remap do centro](docs/centro.md),
-[interiores urbanos](docs/interiores.md) e
-[distorcao da represa](docs/represa-distorcao.md). O centro (Mapa 1)
+[interiores urbanos](docs/interiores.md),
+[distorcao da represa](docs/represa-distorcao.md) e
+[clima, estacao e encontros](docs/social.md). O centro (Mapa 1)
 tem calcada nas duas margens de toda via, travessia calcada, caminho de acesso
 por lote, quatro pracas de esquina, vielas de terra batida, sete patios com
 funcao e 71 pecas de mobiliario urbano — 25 delas acendem a noite, cada halo no
@@ -1157,7 +1158,13 @@ distorcao por capitulo: 1 e 2 industriais, 3 com repeticao encostada de peca
 identica, 4 com mobilia de escritorio onde ela nao tem o que fazer e 5 com
 escritorio e casa sobrepostos — nenhuma ficha, enigma, parada de elevador ou
 regra de inimigo mudou. Bairro, zona rural e acesso da represa seguem
-pendentes.
+pendentes. A rotina dos 33 moradores passou a consultar o calendario: verao
+empurra a atividade ao ar livre do meio do dia pra depois das 16h, inverno tira
+a que comeca depois das 17h, chuva e temporal recolhem quem esta na rua pro
+abrigo de casa (dezessete pessoas na rua do bairro viram tres) e tres encontros
+juntam gente no calendario — sabado no bar, domingo na praca e a feira no dia 14
+de cada estacao, anunciada no quadro da praca. Turno de trabalho, posto de
+emprego e trabalho de roca nao se mexem.
 
 `npm run folha-contato <atlas>` monta a folha de contato de um atlas de movel
 em `docs/folhas/`, com o endereco `[linha, indice]` marcado em cada peca — e
@@ -1165,12 +1172,13 @@ como se escolhe peca pra autorar interior.
 
 `npm run verificar-overhaul` verifica regressao de cidade, emprego, mapa runtime, blog e listas. `npm run test:browser` requer Google Chrome instalado e o servidor Vite em http://127.0.0.1:5186 (ou GAME_URL); verifica os 77 mapas, sete apps, rolagem, trabalhador e save/reload.
 
-`npm run verificar-tudo` roda os dezesseis validadores de dominio em sequencia e
+`npm run verificar-tudo` roda os dezessete validadores de dominio em sequencia e
 grava a evidencia agregada em `docs/evidence/<rotulo>-tests.json`. As suites de
 navegador (`test:browser`, `test:save-browser`, `test:cotidiano-browser`,
 `test:rural-browser`, `test:servicos-browser`, `test:controles-browser`,
 `test:dev-browser`, `test:audio-browser`, `test:centro-browser`,
-`test:interiores-browser`, `test:represa-browser`) precisam do Chrome e do
+`test:interiores-browser`, `test:represa-browser`, `test:social-browser`)
+precisam do Chrome e do
 servidor de desenvolvimento em
 http://127.0.0.1:5186; rode uma por vez, porque compartilham o mesmo
 `localStorage`. `npm run test:producao` e a unica que roda contra o build:

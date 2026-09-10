@@ -43,7 +43,9 @@
     "verificar-interiores": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-interiores.mjs",
     "test:interiores-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-interiores.mjs",
     "verificar-distorcao": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-distorcao.mjs",
-    "test:represa-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-represa-distorcao.mjs"
+    "test:represa-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-represa-distorcao.mjs",
+    "verificar-social": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-social.mjs",
+    "test:social-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-social.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

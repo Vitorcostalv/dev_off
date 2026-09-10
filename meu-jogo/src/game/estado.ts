@@ -4,13 +4,15 @@ import { Inventario } from './inventario.ts';
 import { Lixeira } from './lixeira.ts';
 import { Relogio } from './relogio.ts';
 import { SistemaRotinasNpc } from './rotinasNpc.ts';
+import { rotinaComCalendario } from './rotinaSocial.ts';
+import { diaDaSemana } from './calendario.ts';
 import { SistemaTrabalhos } from './trabalhos.ts';
 import { SistemaRelacoes } from './relacoes.ts';
 import { SistemaWorldEvents } from './worldEvents.ts';
 import { SistemaMissoesNpc } from './missoesNpc.ts';
 import { SistemaEncontrosNpc } from './encontrosNpc.ts';
 import { atividadesComEmprego, SistemaCidade } from './cidade.ts';
-import { buscarMorador } from './moradores.ts';
+import { MORADORES, buscarMorador } from './moradores.ts';
 import { acoesDeAtividades } from './npcs.ts';
 import { SistemaVida } from './vida.ts';
 import { SistemaRepresa } from './represa.ts';
@@ -89,15 +91,40 @@ estado.trabalhos.aoConcluir = id => estado.eventos.emit('JOB_COMPLETED', { id })
 estado.eventos.on('DAY_STARTED', ({ dia }) => estado.rural.avancar(dia, estado.clima));
 
 /**
- * Liga o motor de rotinas ao sistema de projetos urbanos.
+ * FAVORITOS por NPC, pro encontro do dia saber quem vai. Sai de
+ * `vida.favoritos` do morador; os 9 NPCs originais nao tem perfil declarado e
+ * entram nos encontros so por lista fechada (ver `Encontro.ids`).
+ */
+const FAVORITOS_POR_NPC = new Map(
+  Object.values(MORADORES).map((m) => [m.id, m.vida.favoritos] as const),
+);
+/** Ordem estavel de ocupacao das vagas de encontro. */
+const ORDEM_DE_NPC = Object.keys(NPCS);
+
+/**
+ * Liga o motor de rotinas ao resto do jogo. Sao TRES fontes, e a ordem e a
+ * unica coisa que este trecho decide:
  *
- * Fica aqui, e nao dentro de nenhum dos dois, porque `rotinasNpc.ts` importar
- * `cidade.ts` (ou o contrario) fecharia um ciclo. O motor pergunta uma vez por
- * dia; quem responde e a cidade. Ver `definirSubstituicaoDeRotina`.
+ *   1. o EMPREGO de obra urbana troca o compromisso do meio do dia (`cidade`);
+ *   2. CALENDARIO E CLIMA ajustam o que sobrou — estacao desloca a atividade ao
+ *      ar livre, chuva recolhe pro abrigo (`rotinaSocial`);
+ *   3. o ENCONTRO do dia, quando existe, junta os participantes num lugar so.
+ *
+ * Fica aqui, e nao dentro de nenhum dos modulos, porque `rotinasNpc.ts`
+ * importar `cidade.ts` (ou o contrario) fecharia um ciclo. O motor pergunta
+ * uma vez por dia; quem responde e este trecho. Ver
+ * `definirSubstituicaoDeRotina`.
  */
 estado.rotinasNpc.definirSubstituicaoDeRotina((def, dia) => {
   const morador = buscarMorador(def.id);
-  if (!morador) return null;
-  const atividades = atividadesComEmprego(estado.cidade, morador, dia);
-  return atividades ? acoesDeAtividades(atividades) : null;
+  const doEmprego = morador ? atividadesComEmprego(estado.cidade, morador, dia) : null;
+  const base = doEmprego
+    ? acoesDeAtividades(doEmprego)
+    : def.rotinaSemanal?.[diaDaSemana(dia)] ?? def.rotina;
+  return rotinaComCalendario(def, base, {
+    dia,
+    clima: estado.clima.paraDia(dia),
+    favoritosPorNpc: FAVORITOS_POR_NPC,
+    ordem: ORDEM_DE_NPC,
+  });
 });
