@@ -6,7 +6,7 @@
  "tileheight": 32,
  "infinite": false,
  "nextlayerid": 5,
- "nextobjectid": 4087,
+ "nextobjectid": 4143,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -481,7 +481,7 @@
      "type": "porta",
      "height": 32,
      "width": 32,
-     "id": 4086,
+     "id": 4142,
      "name": "porta_saida",
      "rotation": 0,
      "visible": true,
@@ -528,7 +528,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4071,
+     "id": 4120,
      "name": "movel_academia_0",
      "rotation": 0,
      "visible": true,
@@ -568,7 +568,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4072,
+     "id": 4121,
      "name": "movel_academia_1",
      "rotation": 0,
      "visible": true,
@@ -608,7 +608,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4073,
+     "id": 4122,
      "name": "movel_academia_2",
      "rotation": 0,
      "visible": true,
@@ -648,7 +648,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4074,
+     "id": 4123,
      "name": "movel_academia_3",
      "rotation": 0,
      "visible": true,
@@ -688,7 +688,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4075,
+     "id": 4124,
      "name": "movel_academia_4",
      "rotation": 0,
      "visible": true,
@@ -728,7 +728,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4076,
+     "id": 4125,
      "name": "movel_academia_5",
      "rotation": 0,
      "visible": true,
@@ -768,7 +768,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4077,
+     "id": 4126,
      "name": "movel_academia_6",
      "rotation": 0,
      "visible": true,
@@ -808,7 +808,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4078,
+     "id": 4127,
      "name": "movel_academia_7",
      "rotation": 0,
      "visible": true,
@@ -848,7 +848,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4079,
+     "id": 4128,
      "name": "movel_academia_8",
      "rotation": 0,
      "visible": true,
@@ -888,7 +888,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4080,
+     "id": 4129,
      "name": "movel_academia_9",
      "rotation": 0,
      "visible": true,
@@ -928,7 +928,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4081,
+     "id": 4130,
      "name": "movel_academia_10",
      "rotation": 0,
      "visible": true,
@@ -968,7 +968,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4082,
+     "id": 4131,
      "name": "movel_academia_11",
      "rotation": 0,
      "visible": true,
@@ -1008,7 +1008,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4083,
+     "id": 4132,
      "name": "movel_academia_12",
      "rotation": 0,
      "visible": true,
@@ -1048,7 +1048,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4084,
+     "id": 4133,
      "name": "movel_academia_13",
      "rotation": 0,
      "visible": true,
@@ -1088,7 +1088,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4085,
+     "id": 4134,
      "name": "movel_academia_14",
      "rotation": 0,
      "visible": true,
@@ -1109,6 +1109,286 @@
        "name": "alturaTiles",
        "type": "float",
        "value": 0.579
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4135,
+     "name": "movel_academia_15",
+     "rotation": 0,
+     "visible": true,
+     "x": 520,
+     "y": 160,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_academia"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_6_4"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.23
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4136,
+     "name": "movel_academia_16",
+     "rotation": 0,
+     "visible": true,
+     "x": 522,
+     "y": 288,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_academia"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_6_5"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.97
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4137,
+     "name": "movel_academia_17",
+     "rotation": 0,
+     "visible": true,
+     "x": 314,
+     "y": 160,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_academia"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_6_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.255
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4138,
+     "name": "movel_academia_18",
+     "rotation": 0,
+     "visible": true,
+     "x": 139,
+     "y": 352,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_academia"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_11"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.668
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4139,
+     "name": "movel_academia_19",
+     "rotation": 0,
+     "visible": true,
+     "x": 209,
+     "y": 352,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_academia"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_12"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.636
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4140,
+     "name": "movel_academia_20",
+     "rotation": 0,
+     "visible": true,
+     "x": 458,
+     "y": 352,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_academia"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_6_3"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.758
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4141,
+     "name": "movel_academia_21",
+     "rotation": 0,
+     "visible": true,
+     "x": 42,
+     "y": 192,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_academia"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_6"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.53
       },
       {
        "name": "colide",

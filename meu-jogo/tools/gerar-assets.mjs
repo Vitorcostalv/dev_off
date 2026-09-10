@@ -4512,9 +4512,14 @@ const CATALOGO_POR_COMODO = {
   /** ESCOLA — carteira, mesa do professor e quadro. Mesmo criterio da oficina. */
   escola: {
     carteira: { folha: 'quarto', peca: [2, 1], solido: true },
+    // Mesa de dois lugares: a sala de aula tinha uma carteira por sala, e cinco
+    // criancas nao caberiam nela nem em fila indiana.
+    carteira_dupla: { folha: 'mobilia_v2', peca: [5, 1], solido: true },
     mesa_professor: { folha: 'cozinha', peca: [3, 1], solido: true },
     armario_escolar: { folha: 'quarto', peca: [0, 4], solido: true },
     estante_escolar: { folha: 'mobilia_v1', peca: [4, 4], solido: true },
+    // Arquivo de aluno da diretoria: estante industrial, nao estante de livro.
+    arquivo_escolar: { folha: 'mobilia_v1', peca: [3, 0], solido: true },
     quadro_sala: { folha: 'cozinha', peca: [7, 5], solido: false },
   },
 
@@ -4528,6 +4533,18 @@ const CATALOGO_POR_COMODO = {
     // computador DECORATIVO: nao ha objeto interativo nele (gancho futuro)
     pc_consulta: { folha: 'eletronicos', peca: [2, 3], solido: true },
     luminaria_leitura: { folha: 'quarto', peca: [2, 3], solido: false },
+    // A sala de leitura tinha UMA mesa em dez tiles de largura. Estas sao as
+    // pecas que fazem dela sala de leitura: mesa redonda, mesa de estudo,
+    // poltrona, puff e as duas luminarias.
+    mesa_leitura_redonda: { folha: 'mobilia_v2', peca: [4, 3], solido: true },
+    mesa_estudo: { folha: 'mobilia_v2', peca: [5, 1], solido: true },
+    poltrona_leitura: { folha: 'mobilia_v2', peca: [4, 0], solido: true },
+    puff_leitura: { folha: 'mobilia_v2', peca: [2, 3], solido: true },
+    luminaria_pe_leitura: { folha: 'mobilia_v2', peca: [4, 10], solido: false },
+    pendente_leitura: { folha: 'mobilia_v2', peca: [4, 11], solido: false },
+    // acervo: periodicos e uma estante baixa pra quebrar a fileira de altas
+    estante_periodicos: { folha: 'mobilia_v2', peca: [1, 11], solido: true },
+    estante_baixa: { folha: 'mobilia_v2', peca: [1, 12], solido: true },
   },
 
   comum: {
@@ -4548,6 +4565,12 @@ const CATALOGO_POR_COMODO = {
     poster_galaxia: { folha: 'mobilia_v2', peca: [5, 9], solido: false },
     quadro_folha: { folha: 'mobilia_v2', peca: [5, 10], solido: false },
     relogio_v2: { folha: 'mobilia_v2', peca: [4, 12], solido: false },
+    // mobiliario de area publica: banco de espera, armario de vestiario e
+    // lixeira. Entraram como `comum` porque hall e corredor sao os comodos que
+    // pedem isso, e sao justamente os que so aceitam esta categoria.
+    banco_madeira: { folha: 'mobilia_v2', peca: [7, 0], solido: true },
+    armario_vestiario: { folha: 'mobilia_v2', peca: [4, 7], solido: true },
+    lixeira_comum: { folha: 'mobilia_v2', peca: [6, 12], solido: false },
     // planta, luz e miudeza
     planta_grande: { folha: 'mobilia_v1', peca: [1, 6], solido: false },
     lampada_tripe: { folha: 'mobilia_v1', peca: [1, 4], solido: false },
@@ -5211,6 +5234,9 @@ const PLANTAS_PROPRIAS = {
         { movel: 'poster_galaxia', tx: 6, ty: 2 },
         { movel: 'abajur_mesa', tx: 9, ty: 4 },
         { movel: 'cesto_roupa', tx: 9, ty: 8 },
+        { movel: 'prateleira_livros', tx: 1, ty: 2 },
+        { movel: 'livros_soltos', tx: 3, ty: 8 },
+        { movel: 'despertador', tx: 4, ty: 2 },
       ],
       cozinha: [
         { movel: 'geladeira', tx: 1, ty: 12 },
@@ -5219,6 +5245,9 @@ const PLANTAS_PROPRIAS = {
         { movel: 'mesa_de_jantar', tx: 2, ty: 14 },
         { movel: 'relogio_cozinha', tx: 8, ty: 11 },
         { movel: 'lixeira', tx: 9, ty: 14 },
+        { movel: 'despenseiro', tx: 9, ty: 12 },
+        { movel: 'microondas', tx: 5, ty: 11 },
+        { movel: 'fruteira', tx: 6, ty: 14 },
       ],
       banheiro: [
         { movel: 'vaso_sanitario', tx: 1, ty: 20 },
@@ -5226,6 +5255,9 @@ const PLANTAS_PROPRIAS = {
         { movel: 'box_chuveiro', tx: 7, ty: 20 },
         { movel: 'espelho_banheiro', tx: 4, ty: 18 },
         { movel: 'tapete_banheiro', tx: 2, ty: 18 },
+        { movel: 'toalheiro', tx: 7, ty: 18 },
+        { movel: 'cesto_banheiro', tx: 9, ty: 18 },
+        { movel: 'planta_banheiro', tx: 1, ty: 18 },
       ],
       sala: [
         { movel: 'sofa_creme', tx: 16, ty: 6 },
@@ -5234,6 +5266,9 @@ const PLANTAS_PROPRIAS = {
         { movel: 'tv_rack_madeira', tx: 20, ty: 4 },
         { movel: 'planta_alta', tx: 23, ty: 9 },
         { movel: 'quadro_paisagem', tx: 18, ty: 2 },
+        { movel: 'estante_livros_v2', tx: 22, ty: 2 },
+        { movel: 'poltrona_marinho', tx: 15, ty: 4 },
+        { movel: 'relogio_v2', tx: 16, ty: 2 },
       ],
       // A oficina sai TODA do catalogo novo `oficina` (ver CATALOGO_POR_COMODO):
       // bancada, armario de pecas, estante de sucata e o computador de trabalho.
@@ -5245,6 +5280,10 @@ const PLANTAS_PROPRIAS = {
         { movel: 'caixa_ferramenta', tx: 18, ty: 20 },
         { movel: 'cesto_sucata', tx: 21, ty: 20 },
         { movel: 'ventilador_oficina', tx: 24, ty: 20 },
+        // A OFICINA fica como estava: sete pecas em dez por nove tiles, e as
+        // tres que eu tentei acrescentar (prateleira, caixa de som e
+        // ar-condicionado) tapavam ou a entrada do comodo ou a aproximacao dos
+        // vaos de expansao a leste. O flood-fill reprovou as tres.
       ],
       // Comodos de EXPANSAO: nascem VAZIOS de proposito. A graca da Parte 5 e o
       // jogador mobiliar peca por peca depois de comprar o comodo.
@@ -5293,6 +5332,11 @@ const PLANTAS_PROPRIAS = {
         { movel: 'quadro_sala', tx: 2, ty: 3 },
         { movel: 'mesa_professor', tx: 1, ty: 4 },
         { movel: 'carteira', tx: 1, ty: 7 },
+        // A SALA 1 NAO RECEBE MAIS NADA, e o comentario acima do bloco explica:
+        // seis tiles de largura, e a carteira ocupa dois e meio. Estante na linha
+        // 3 ou 4 ilhava o fundo da sala nos dois casos (o flood-fill reprovou as
+        // duas tentativas). Entra so a lixeira, que fica no canto.
+        { movel: 'lixeira_comum', tx: 6, ty: 8 },
       ],
       sala_aula_2: [
         { movel: 'quadro_sala', tx: 11, ty: 3 },
@@ -5300,17 +5344,32 @@ const PLANTAS_PROPRIAS = {
         { movel: 'carteira', tx: 8, ty: 7 },
         { movel: 'carteira', tx: 12, ty: 7 },
         { movel: 'armario_escolar', tx: 14, ty: 4 },
+        // A sala 2 e mais larga (oito tiles) mas ja tem quadro, mesa, duas
+        // carteiras e armario: mesa dupla ou relogio na linha 2/5 ilhavam o
+        // fundo ou o alto da sala. Entra so a lixeira.
+        { movel: 'lixeira_comum', tx: 15, ty: 8 },
       ],
-      // Mesa e estante, sem carteira e sem quadro: le como sala da direcao.
+      // Mesa, estante e arquivo, sem carteira e sem quadro de aula: le como sala
+      // da direcao, e nao como uma terceira sala vazia.
       diretoria: [
         { movel: 'mesa_professor', tx: 17, ty: 4 },
         { movel: 'estante_escolar', tx: 20, ty: 7 },
+        { movel: 'arquivo_escolar', tx: 22, ty: 4 },
+        { movel: 'quadro_paisagem', tx: 19, ty: 2 },
+        { movel: 'relogio_parede', tx: 17, ty: 2 },
+        { movel: 'vaso_planta', tx: 22, ty: 8 },
       ],
       hall: [
         { movel: 'planta_grande', tx: 1, ty: 14 },
         { movel: 'quadros', tx: 5, ty: 11 },
+        { movel: 'quadro_folha', tx: 9, ty: 11 },
         { movel: 'relogio_parede', tx: 16, ty: 11 },
         { movel: 'planta_alta', tx: 22, ty: 14 },
+        { movel: 'banco_madeira', tx: 3, ty: 13 },
+        { movel: 'banco_madeira', tx: 8, ty: 13 },
+        { movel: 'armario_vestiario', tx: 19, ty: 13 },
+        { movel: 'lixeira_comum', tx: 17, ty: 14 },
+        { movel: 'tapete_cinza', tx: 14, ty: 13 },
       ],
     },
   },
@@ -5343,15 +5402,26 @@ const PLANTAS_PROPRIAS = {
         { movel: 'estante_acervo_alta', tx: 7, ty: 4 },
         { movel: 'estante_arquivo', tx: 1, ty: 9 },
         { movel: 'estante_acervo', tx: 5, ty: 9 },
+        { movel: 'estante_periodicos', tx: 8, ty: 9 },
+        { movel: 'estante_baixa', tx: 1, ty: 13 },
+        { movel: 'luminaria_pe_leitura', tx: 9, ty: 6 },
         { movel: 'luminaria_leitura', tx: 9, ty: 12 },
+        { movel: 'relogio_v2', tx: 5, ty: 2 },
       ],
       leitura: [
         { movel: 'balcao_atendimento', tx: 13, ty: 13 },
         { movel: 'mesa_leitura', tx: 15, ty: 8 },
+        { movel: 'mesa_leitura_redonda', tx: 18, ty: 6 },
+        { movel: 'mesa_estudo', tx: 12, ty: 11 },
+        { movel: 'poltrona_leitura', tx: 20, ty: 11 },
+        { movel: 'puff_leitura', tx: 17, ty: 12 },
         { movel: 'estante_acervo', tx: 19, ty: 4 },
         // computador DECORATIVO: nao ha objeto interativo nele
         { movel: 'pc_consulta', tx: 11, ty: 4 },
         { movel: 'quadro_paisagem', tx: 15, ty: 2 },
+        { movel: 'quadro_folha', tx: 18, ty: 2 },
+        { movel: 'pendente_leitura', tx: 13, ty: 5 },
+        { movel: 'tapete_creme', tx: 15, ty: 10 },
         { movel: 'planta_alta', tx: 19, ty: 12 },
       ],
     },
@@ -5804,6 +5874,26 @@ const MERCADO_PECAS = [
   { peca: [3, 1], tx: 18, ty: 6 },
   { peca: [1, 0], tx: 15, ty: 13 }, // caixa registradora
   { peca: [0, 0], tx: 2, ty: 13, colide: false }, // carrinho: da pra passar por cima
+  // --- o que faltava pra ler como mercado em funcionamento ---
+  // frente de caixa: balanca, terminal e a fila
+  { peca: [1, 5], tx: 12, ty: 13 },
+  { peca: [1, 2], tx: 19, ty: 13, colide: false },
+  { peca: [5, 10], tx: 13, ty: 11, colide: false },
+  // entrada: carrinho e cestas empilhadas
+  { peca: [0, 1], tx: 4, ty: 13, colide: false },
+  { peca: [0, 6], tx: 6, ty: 13 },
+  // hortifruti a leste, em caixote
+  { peca: [4, 9], tx: 18, ty: 9 },
+  { peca: [4, 2], tx: 18, ty: 11 },
+  // area de reposicao a oeste: palete, engradado e caixa
+  { peca: [4, 7], tx: 1, ty: 4, colide: false },
+  { peca: [5, 0], tx: 1, ty: 12 },
+  { peca: [4, 3], tx: 3, ty: 12 },
+  // sinalizacao e servico
+  { peca: [5, 5], tx: 8, ty: 12, colide: false },
+  { peca: [5, 8], tx: 20, ty: 6, colide: false },
+  { peca: [5, 2], tx: 20, ty: 4 },
+  { peca: [5, 1], tx: 20, ty: 13 },
 ];
 
 /** Salao da academia: aparelhos grandes no fundo e nas laterais, banco no meio. */
@@ -5828,6 +5918,20 @@ const ACADEMIA_PECAS = [
   // acessorios soltos: nao colidem, so decoram
   { peca: [4, 0], tx: 11, ty: 10, colide: false },
   { peca: [5, 0], tx: 16, ty: 10, colide: false },
+  // --- o que faltava pra ler como academia, e nao como deposito de aparelho ---
+  // Letreiro e relogio de parede NAO cabem: as duas fileiras de aparelho ja
+  // tomam a faixa de parede de cima com o corpo delas (o corpo de um movel
+  // sobe meio sprite acima da base) e a sala tem 18x12. Fica o que tem chao.
+  // servico: bebedouro, lixeira e vestiario
+  { peca: [6, 4], tx: 16, ty: 4 },
+  { peca: [6, 5], tx: 16, ty: 8, colide: false },
+  { peca: [6, 0], tx: 9, ty: 4 },
+  // area de alongamento: colchonetes e bosu
+  { peca: [4, 11], tx: 4, ty: 10, colide: false },
+  { peca: [4, 12], tx: 6, ty: 10, colide: false },
+  // banquinho e toalhas
+  { peca: [6, 3], tx: 14, ty: 10 },
+  { peca: [5, 6], tx: 1, ty: 5, colide: false },
 ];
 
 // ------------------------------------------------------ sanidade: interior --

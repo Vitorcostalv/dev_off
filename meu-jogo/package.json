@@ -38,7 +38,10 @@
     "verificar-audio": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-audio.mjs",
     "test:audio-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-audio.mjs",
     "verificar-centro": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-centro.mjs",
-    "test:centro-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-centro.mjs"
+    "test:centro-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-centro.mjs",
+    "folha-contato": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/folha-contato.mjs",
+    "verificar-interiores": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-interiores.mjs",
+    "test:interiores-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-interiores.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",
