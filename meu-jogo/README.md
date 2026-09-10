@@ -1148,8 +1148,9 @@ Etapas com documento proprio: [controles e modo de desenvolvimento](docs/control
 [distorcao da represa](docs/represa-distorcao.md),
 [clima, estacao e encontros](docs/social.md),
 [interfaces e DevOS](docs/interface.md),
-[casa, economia e combate](docs/equilibrio.md) e
-[performance e acessibilidade](docs/desempenho.md). O centro (Mapa 1)
+[casa, economia e combate](docs/equilibrio.md),
+[performance e acessibilidade](docs/desempenho.md) e
+[validacao final](docs/validacao-final.md). O centro (Mapa 1)
 tem calcada nas duas margens de toda via, travessia calcada, caminho de acesso
 por lote, quatro pracas de esquina, vielas de terra batida, sete patios com
 funcao e 71 pecas de mobiliario urbano — 25 delas acendem a noite, cada halo no
@@ -1191,7 +1192,16 @@ folhas de movel carregavam sempre todas, e as treze faixas longas de audio
 carregavam no boot. Das quatro opcoes de acessibilidade, duas eram decorativas:
 `altoContraste` valia por UM retangulo da tela de menu e agora vale pra toda
 moldura do jogo, e `movimentoReduzido` so desligava particulas e agora tambem
-para a seta [Enter], o unico elemento que piscava pra sempre.
+para a seta [Enter], o unico elemento que piscava pra sempre. Por fim, a
+validacao final: `npm run verificar-canon` trava o canon narrativo em 397
+conferencias — os 33 NPCs, as onze casas com quem mora em cada uma, as 6 missoes
+pessoais, os 5 segredos, os 5 capitulos com as bordas de andar, as 50 fichas
+fechando a cronologia em 200 dias e a escada de revelacao do paciente (o cadastro
+4471-C aparece exatamente nos dezenove primeiros andares). E
+`npm run test:progressao-browser` joga os sistemas juntos numa partida, visita os
+cinquenta andares em sequencia e prova que um save v6 nao so abre como continua
+jogavel: mercado com 32 moveis, loja tomando o foco, dia virando e os 33
+moradores voltando com rotina.
 
 `npm run folha-contato <atlas>` monta a folha de contato de um atlas de movel
 em `docs/folhas/`, com o endereco `[linha, indice]` marcado em cada peca — e
@@ -1199,14 +1209,15 @@ como se escolhe peca pra autorar interior.
 
 `npm run verificar-overhaul` verifica regressao de cidade, emprego, mapa runtime, blog e listas. `npm run test:browser` requer Google Chrome instalado e o servidor Vite em http://127.0.0.1:5186 (ou GAME_URL); verifica os 77 mapas, sete apps, rolagem, trabalhador e save/reload.
 
-`npm run verificar-tudo` roda os dezenove validadores de dominio em sequencia e
+`npm run verificar-tudo` roda os vinte validadores de dominio em sequencia e
 grava a evidencia agregada em `docs/evidence/<rotulo>-tests.json`. As suites de
 navegador (`test:browser`, `test:save-browser`, `test:cotidiano-browser`,
 `test:rural-browser`, `test:servicos-browser`, `test:controles-browser`,
 `test:dev-browser`, `test:audio-browser`, `test:centro-browser`,
 `test:interiores-browser`, `test:represa-browser`, `test:social-browser`,
 `test:interface-browser`, `test:equilibrio-browser`,
-`test:desempenho-browser`) precisam do Chrome e do servidor de desenvolvimento
+`test:desempenho-browser`, `test:progressao-browser`) precisam do Chrome e do
+servidor de desenvolvimento
 em http://127.0.0.1:5186 — ou em outro endereco, por `GAME_URL`. Rode uma por
 vez, porque compartilham o mesmo `localStorage`, e rode contra um servidor
 RECEM-SUBIDO: depois de muitas edicoes o HMR do Vite passa a servir duas
