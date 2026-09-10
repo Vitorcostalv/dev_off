@@ -49,7 +49,8 @@
     "verificar-interface": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-interface.mjs",
     "test:interface-browser": "node tools/browser-interface.mjs",
     "verificar-equilibrio": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-equilibrio.mjs",
-    "test:equilibrio-browser": "node tools/browser-equilibrio.mjs"
+    "test:equilibrio-browser": "node tools/browser-equilibrio.mjs",
+    "test:desempenho-browser": "node tools/browser-desempenho.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

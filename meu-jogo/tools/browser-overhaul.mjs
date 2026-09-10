@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { MAPAS } from '../src/game/mapas.ts';
 
+/** O servidor de desenvolvimento. `GAME_URL` deixa rodar contra um limpo. */
+const ALVO = process.env.GAME_URL ?? 'http://127.0.0.1:5186';
+
 const out = new URL('../docs/evidence/', import.meta.url);
 const prefix = process.env.REPORT_PREFIX ?? 'phase1';
 fs.mkdirSync(out, { recursive: true });

@@ -31,7 +31,14 @@ import { buscarArma } from '../game/armas';
 import { fichaDoAndar, linhasDaFicha, tituloDaFicha } from '../game/fichas';
 import { PilhaDeFoco } from '../game/foco';
 import type { JanelaDaUi } from '../game/foco';
-import { cova, dicaDePainel, moldura, rodapeDePainel, tituloDePainel } from './widgets';
+import {
+  cova,
+  definirContraste,
+  dicaDePainel,
+  moldura,
+  rodapeDePainel,
+  tituloDePainel,
+} from './widgets';
 
 /**
  * Caixa de dialogo. Subiu de 74 pra 82 px de altura e ganhou a coluna do
@@ -304,6 +311,11 @@ export class UIScene extends Phaser.Scene {
   }
 
   create(): void {
+    // O contraste alto vale pra TODA moldura do jogo, e quem liga e aqui: o
+    // `create` roda de novo a cada troca de mapa e a cada volta do menu de
+    // pausa, que sao os dois momentos em que a preferencia pode ter mudado.
+    definirContraste(estado.preferencias.valores.altoContraste);
+
     this.prompt = this.add
       .text(CONFIG.largura / 2, CONFIG.altura - 24, '', {
         fontFamily: UI.fonte,
@@ -677,7 +689,15 @@ export class UIScene extends Phaser.Scene {
       })
       .setOrigin(1, 1);
 
-    this.tweens.add({ targets: seta, alpha: 0.25, duration: 600, yoyo: true, repeat: -1 });
+    // A seta pisca PARA SEMPRE (`repeat: -1`) — e o unico elemento perpetuamente
+    // animado da interface, e fica na caixa de fala, que e onde o jogador passa
+    // mais tempo lendo. Com "movimento reduzido" ligado ela nao pisca: fica no
+    // meio do caminho da piscada, visivel e parada.
+    //
+    // A opcao existia e valia por UMA coisa (desligar as particulas de clima);
+    // esta e a segunda.
+    if (estado.preferencias.valores.movimentoReduzido) seta.setAlpha(0.6);
+    else this.tweens.add({ targets: seta, alpha: 0.25, duration: 600, yoyo: true, repeat: -1 });
 
     return this.add
       .container(0, 0, [

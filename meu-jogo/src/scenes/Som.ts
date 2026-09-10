@@ -27,6 +27,9 @@ type SomTocavel = Phaser.Sound.BaseSound & {
 /** Volumes das opcoes; `master` multiplica todos os barramentos. */
 export type Volumes = Record<Barramento | 'master', number>;
 
+/** Chave da cena invisivel que só serve de loader pro audio (ver `ligar`). */
+const CENA_DE_CARGA = 'CarregadorDeSom';
+
 const FADE_MS = 900;
 
 /** Uma faixa continua (ambiente ou trilha) com transicao suave. */
@@ -75,18 +78,74 @@ export class Som {
   private camadaAmbiente = new Camada();
   private camadaMusica = new Camada();
   private faltando = new Set<SomId>();
+  /** A cena que existe so pra ter um loader proprio; ver `cenaDeCarga`. */
+  private carregadorCache: Phaser.Scene | null = null;
+  /** Faixas em transito, pra dois pedidos seguidos nao baixarem duas vezes. */
+  private carregando = new Set<SomId>();
 
   /** false quando nao ha audio nenhum: as chamadas seguem validas e sem efeito. */
   disponivel = false;
 
-  /** Carrega o catalogo inteiro; chamado do preload do BootScene. */
+  /**
+   * O que o BOOT carrega: efeito e som de interface, e mais nada.
+   *
+   * Os quarenta e seis WAV somam 7,52 MB, mas 7,15 deles sao ambiente (3,11) e
+   * trilha (4,04) — nove e quatro arquivos longos. Efeito e interface juntos sao
+   * 0,37 MB, e sao os unicos que o jogo precisa NO INSTANTE em que o jogador
+   * aperta uma tecla: um passo que sai meio segundo depois do passo e um bug.
+   *
+   * Ambiente e trilha entram por `garantir`, na primeira vez que o lugar pede
+   * um deles. Sao faixas de trinta segundos que entram com fade de 900ms — meio
+   * segundo de atraso no comeco de um ambiente nao se ouve.
+   */
   static precarregar(cena: Phaser.Scene): void {
-    for (const id of IDS_DE_AUDIO) cena.load.audio(id, `assets/audio/${id}.wav`);
+    for (const id of IDS_DE_AUDIO) {
+      const b = CATALOGO_AUDIO[id].barramento;
+      if (b === 'ambiente' || b === 'musica') continue;
+      cena.load.audio(id, `assets/audio/${id}.wav`);
+    }
   }
 
   ligar(game: Phaser.Game): void {
     this.manager = game.sound;
     this.disponivel = !(game.sound instanceof Phaser.Sound.NoAudioSoundManager);
+    // CENA PROPRIA SO PRA CARREGAR. Sem ela o som usaria o loader da cena de
+    // mundo, e a FarmScene escuta `COMPLETE` nesse mesmo loader pra reiniciar
+    // depois de buscar tilemap e atlas de movel sob demanda: uma faixa de
+    // ambiente chegando no meio disso dispararia o `restart` dela.
+    game.scene.add(CENA_DE_CARGA, { key: CENA_DE_CARGA }, true);
+  }
+
+  /**
+   * A cena de carga, resolvida no PRIMEIRO USO e nao no `ligar`.
+   *
+   * `SceneManager.add` empilha a criacao pro proximo passo do jogo, entao
+   * `getScene` chamado na linha seguinte devolve null — e um null guardado ali
+   * ficava guardado pra sempre, e ambiente e trilha nunca carregavam. O sintoma
+   * era silencio total, sem erro nenhum no console.
+   */
+  private get carregador(): Phaser.Scene | null {
+    if (this.carregadorCache) return this.carregadorCache;
+    this.carregadorCache = this.manager?.game.scene.getScene(CENA_DE_CARGA) ?? null;
+    return this.carregadorCache;
+  }
+
+  /**
+   * Garante a faixa no cache. Devolve `false` quando ela ainda esta vindo — a
+   * camada tenta de novo ao fim da carga.
+   */
+  private garantir(id: SomId, aoChegar: () => void): boolean {
+    if (!this.manager) return false;
+    if (this.manager.game.cache.audio.exists(id)) return true;
+    if (this.carregando.has(id) || !this.carregador) return false;
+    this.carregando.add(id);
+    this.carregador.load.audio(id, `assets/audio/${id}.wav`);
+    this.carregador.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      this.carregando.delete(id);
+      aoChegar();
+    });
+    this.carregador.load.start();
+    return false;
   }
 
   aplicar(volumes: Partial<Volumes>): void {
@@ -129,12 +188,15 @@ export class Som {
   /** Ambiente do lugar; `null` silencia a camada. */
   ambiente(id: SomId | null): void {
     if (!this.disponivel) return;
+    // o silencio nao espera carga nenhuma
+    if (id !== null && !this.garantir(id, () => this.ambiente(id))) return;
     this.camadaAmbiente.definir(id, (chave) => this.criarCiclo(chave));
   }
 
   /** Trilha do lugar; `null` é silencio proposital. */
   musica(id: SomId | null): void {
     if (!this.disponivel) return;
+    if (id !== null && !this.garantir(id, () => this.musica(id))) return;
     this.camadaMusica.definir(id, (chave) => this.criarCiclo(chave));
   }
 

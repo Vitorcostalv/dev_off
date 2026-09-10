@@ -1147,8 +1147,9 @@ Etapas com documento proprio: [controles e modo de desenvolvimento](docs/control
 [interiores urbanos](docs/interiores.md),
 [distorcao da represa](docs/represa-distorcao.md),
 [clima, estacao e encontros](docs/social.md),
-[interfaces e DevOS](docs/interface.md) e
-[casa, economia e combate](docs/equilibrio.md). O centro (Mapa 1)
+[interfaces e DevOS](docs/interface.md),
+[casa, economia e combate](docs/equilibrio.md) e
+[performance e acessibilidade](docs/desempenho.md). O centro (Mapa 1)
 tem calcada nas duas margens de toda via, travessia calcada, caminho de acesso
 por lote, quatro pracas de esquina, vielas de terra batida, sete patios com
 funcao e 71 pecas de mobiliario urbano — 25 delas acendem a noite, cada halo no
@@ -1181,7 +1182,16 @@ inteira, porque `nivel_4` dava 36% de chance de peca "rara"). A casa passou a
 custar uma estacao, a chance de raro virou uma escada declarada, e a peca de
 reposicao no conserto deu uso as cinco pecas comuns de sucata: um dia de descida
 no raso passou de R$ 158 pra R$ 736 — um dia de trabalho — quando a sucata e
-guardada em vez de vendida.
+guardada em vez de vendida. O boot passou a ser MEDIDO na rede em vez de no
+disco: baixava 127,89 MB em 210 arquivos antes de o menu aparecer, e agora baixa
+36,18 MB em 169 — o tempo ate jogavel caiu de 6.290 pra 2.364 ms e o `dist/` de
+266 pra 93 MB. Os tres achados: o sprite de personagem tinha 6,7x mais pixel do
+que a tela mostra (o jogo desenha em 48px e o quadro tinha 320), as catorze
+folhas de movel carregavam sempre todas, e as treze faixas longas de audio
+carregavam no boot. Das quatro opcoes de acessibilidade, duas eram decorativas:
+`altoContraste` valia por UM retangulo da tela de menu e agora vale pra toda
+moldura do jogo, e `movimentoReduzido` so desligava particulas e agora tambem
+para a seta [Enter], o unico elemento que piscava pra sempre.
 
 `npm run folha-contato <atlas>` monta a folha de contato de um atlas de movel
 em `docs/folhas/`, com o endereco `[linha, indice]` marcado em cada peca — e
@@ -1195,10 +1205,13 @@ navegador (`test:browser`, `test:save-browser`, `test:cotidiano-browser`,
 `test:rural-browser`, `test:servicos-browser`, `test:controles-browser`,
 `test:dev-browser`, `test:audio-browser`, `test:centro-browser`,
 `test:interiores-browser`, `test:represa-browser`, `test:social-browser`,
-`test:interface-browser`, `test:equilibrio-browser`) precisam do Chrome e do
-servidor de desenvolvimento em
-http://127.0.0.1:5186; rode uma por vez, porque compartilham o mesmo
-`localStorage`. `npm run test:producao` e a unica que roda contra o build:
+`test:interface-browser`, `test:equilibrio-browser`,
+`test:desempenho-browser`) precisam do Chrome e do servidor de desenvolvimento
+em http://127.0.0.1:5186 — ou em outro endereco, por `GAME_URL`. Rode uma por
+vez, porque compartilham o mesmo `localStorage`, e rode contra um servidor
+RECEM-SUBIDO: depois de muitas edicoes o HMR do Vite passa a servir duas
+instancias do mesmo modulo, e a suite mede a que o jogo nao usa.
+`npm run test:producao` e a unica que roda contra o build:
 exige `npm run build` e `npx vite preview --port 5187 --strictPort --host 127.0.0.1`
 (ou PRODUCTION_URL), e confere que o `dist/` nao carrega termos nem atalhos de
 desenvolvimento, nao expoe globais de depuracao, ignora F1-F10 sem tocar no

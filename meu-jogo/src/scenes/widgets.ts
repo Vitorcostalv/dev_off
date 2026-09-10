@@ -23,6 +23,36 @@ export interface Retangulo {
   h: number;
 }
 
+/**
+ * CONTRASTE ALTO, a opcao de acessibilidade.
+ *
+ * Ela existia nas preferencias desde a etapa das opcoes e valia por UM
+ * retangulo: o fundo do painel da tela de menu. O HUD, a caixa de fala, o
+ * inventario, a loja e o computador ignoravam. Agora que toda moldura do jogo
+ * passa por aqui, ligar a opcao muda todas de uma vez.
+ *
+ * O que ela faz e o que os proprios comentarios do codigo pediam: painel OPACO.
+ * A caixa de fala tinha um comentario dizendo "o que atrapalhava a leitura era o
+ * cenario claro vazando por tras das letras", e a resposta na epoca foi subir a
+ * opacidade de 88% pra 97%. Com a opcao ligada ela vai a 100%, e a borda passa
+ * de `UI.borda` (marrom fosco) pra `UI.bordaViva` (amarelo), que separa o painel
+ * do mundo sem depender de o mundo estar escuro.
+ *
+ * Um modulo de nivel, e nao um parametro em cada chamada: sao cinco janelas
+ * chamando `moldura`, e passar a preferencia em todas faria a opcao ser
+ * esquecida na sexta. Quem liga e a UIScene, no `create` — que roda de novo a
+ * cada troca de mapa e a cada volta do menu de pausa.
+ */
+let contrasteAlto = false;
+
+export function definirContraste(alto: boolean): void {
+  contrasteAlto = alto;
+}
+
+export function contrasteEstaAlto(): boolean {
+  return contrasteAlto;
+}
+
 /** Onde o titulo, a dica e o rodape ficam dentro de qualquer painel. */
 export const PAINEL = {
   /** respiro lateral do conteudo, contado da borda */
@@ -48,9 +78,11 @@ export function moldura(
   r: Retangulo,
   { sobreposto = false, borda = UI.borda } = {},
 ): void {
-  g.fillStyle(UI.fundo, sobreposto ? UI.alfaSobreposto : UI.alfaPainel);
+  // contraste alto: opaco de verdade, e borda que nao depende do mundo escuro
+  const alfa = contrasteAlto || sobreposto ? UI.alfaSobreposto : UI.alfaPainel;
+  g.fillStyle(UI.fundo, alfa);
   g.fillRect(r.x, r.y, r.w, r.h);
-  g.lineStyle(1, borda, 1);
+  g.lineStyle(1, contrasteAlto && borda === UI.borda ? UI.bordaViva : borda, 1);
   g.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
   // o retangulo QUE FOI DESENHADO, pra quem precisa medir a moldura depois.
   // `getBounds` do container nao serve: ele soma os filhos, e o texto de titulo

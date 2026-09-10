@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { MAPAS, buscarMapa } from '../game/mapas';
-import { FOLHAS_DE_MOVEL } from '../game/moveis';
 import type { SpriteNpc } from '../game/npcs';
 import { NPCS } from '../game/npcs';
 import { carregar } from '../game/save';
@@ -73,19 +72,21 @@ export class BootScene extends Phaser.Scene {
     // pedras soltas: frames `pedra_<i>`, do pedrisco ao matacao
     this.load.atlas('pedras', 'assets/sprites/pedras.png', 'assets/sprites/pedras.atlas.json');
 
-    // Moveis de interior: frames `movel_<linha>_<indice>`. O PNG e a folha
-    // LIMPA gerada por tools/gerar-assets.mjs, nao a arte crua: nela cada peca
-    // tem so os proprios pixels, senao o frame de uma peca diagonal (tapete)
-    // leva lasca da vizinha. As duas folhas de mobilia se misturam peca por
-    // peca no catalogo de mobilia, entao o atlas de cada uma e carregado a
-    // parte. A lista mora em game/moveis.ts porque o gerador le a MESMA.
-    for (const folha of FOLHAS_DE_MOVEL) {
-      this.load.atlas(
-        `moveis_${folha}`,
-        `assets/sprites/moveis_${folha}.png`,
-        `assets/sprites/moveis_${folha}.atlas.json`,
-      );
-    }
+    // MOVEIS DE INTERIOR NAO ENTRAM AQUI.
+    //
+    // As catorze folhas de `FOLHAS_DE_MOVEL` somam 35,79 MB, e carregar todas
+    // no boot significava baixar a folha de banheiro e a de hospital antes de o
+    // menu aparecer, pra um jogador que comeca na rua do bairro — mapa que nao
+    // usa nenhuma delas. O mapa que usa mais, uma residencia, usa seis.
+    //
+    // Quem carrega e a cena de mundo, ao entrar no mapa, lendo a camada
+    // `moveis` do proprio tilemap (ver `garantirAtlasDeMovel` na FarmScene). O
+    // atlas fica em cache depois da primeira visita, entao a segunda entrada na
+    // padaria e imediata.
+    //
+    // O PNG de cada folha e a versao LIMPA gerada por tools/gerar-assets.mjs, e
+    // nao a arte crua: nela cada peca tem so os proprios pixels, senao o frame
+    // de uma peca diagonal (tapete) leva lasca da vizinha.
 
     // Icone de item: um frame `item_<id>` por entrada do CATALOGO_ITENS. O par
     // PNG+atlas sai de tools/gerar-itens.mjs, que le o MESMO catalogo — entao

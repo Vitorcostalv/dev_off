@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { DIR, normalizar } from './folha-personagem.mjs';
 
 /**
- * Processa as folhas de MONSTRO ELETRONICO de `public/assets/Monstros` para o
+ * Processa as folhas de MONSTRO ELETRONICO de `arte/Monstros` para o
  * mesmo formato de runtime dos NPCs: uma folha 4x4 de caminhada e uma 4x4 de
  * pose parada, celula de 256x320, linhas na ordem baixo/cima/esquerda/direita.
  *
@@ -37,7 +37,7 @@ import { DIR, normalizar } from './folha-personagem.mjs';
  * `maiorComponente` esta ligado em todas: e o que descarta o rotulo de texto
  * ("STANDING", "DOWN", "FRAME 1") e mantem so a figura dentro da celula.
  */
-const MONSTROS = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'public', 'assets', 'Monstros');
+const MONSTROS = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'arte', 'Monstros');
 
 /** Quatro quadros de uma linha, na ordem 0,1,2,3. */
 const quadros4 = (linha) => [0, 1, 2, 3].map((coluna) => ({ coluna, linha }));

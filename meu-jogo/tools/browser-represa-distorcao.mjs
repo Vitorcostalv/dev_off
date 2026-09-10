@@ -10,6 +10,9 @@ import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+/** O servidor de desenvolvimento. `GAME_URL` deixa rodar contra um limpo. */
+const ALVO = process.env.GAME_URL ?? 'http://127.0.0.1:5186';
+
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
 page.setDefaultTimeout(60000);
@@ -30,7 +33,7 @@ const ANDARES = [
 
 const checks = [];
 try {
-  await page.goto('http://127.0.0.1:5186');
+  await page.goto(ALVO);
   await page.waitForFunction(() => window.game?.scene.isActive('MenuScene'));
   await page.keyboard.press('Enter');
   await page.waitForTimeout(300);

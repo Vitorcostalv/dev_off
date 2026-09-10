@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createDefaultSave } from '../src/game/SaveMigration.ts';
 
+/** O servidor de desenvolvimento. `GAME_URL` deixa rodar contra um limpo. */
+const ALVO = process.env.GAME_URL ?? 'http://127.0.0.1:5186';
+
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 const page = await browser.newPage(); page.setDefaultTimeout(30000);
 const errors = []; page.on('pageerror', e => errors.push(e.message));

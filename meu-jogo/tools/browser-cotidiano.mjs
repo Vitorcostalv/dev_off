@@ -1,12 +1,15 @@
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+
+/** O servidor de desenvolvimento. `GAME_URL` deixa rodar contra um limpo. */
+const ALVO = process.env.GAME_URL ?? 'http://127.0.0.1:5186';
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } }); page.setDefaultTimeout(30000);
 const errors = [], warnings = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'warning') warnings.push(m.text()); });
 const shot = n => page.screenshot({ path: `docs/evidence/cotidiano-${n}.png` });
 try {
-  await page.goto('http://127.0.0.1:5186'); await page.waitForFunction(() => window.game?.scene.isActive('MenuScene'));
+  await page.goto(ALVO); await page.waitForFunction(() => window.game?.scene.isActive('MenuScene'));
   await shot('titulo'); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
   assert(await page.evaluate(() => window.game.scene.isActive('FarmScene')));
   await page.keyboard.press('Escape'); await page.waitForTimeout(100); await shot('pausa');

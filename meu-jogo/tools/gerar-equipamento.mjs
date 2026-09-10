@@ -20,7 +20,7 @@ import { agruparEmLinhas, blobs, lerPng } from './imagem.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SPRITES = join(RAIZ, 'public', 'assets', 'sprites');
-const ARMAS = join(RAIZ, 'public', 'assets', 'Armas');
+const ARMAS = join(RAIZ, 'arte', 'Armas');
 const ARTE = join(RAIZ, 'arte');
 
 /**

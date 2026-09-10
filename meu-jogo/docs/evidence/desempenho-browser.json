@@ -1,0 +1,27 @@
+{
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "boot ate o menu: 169 arquivos, 36.18 MB — sprite de npc/monstro 17.81 MB, jogador 4.23 MB, icones de item 4.15 MB, tilemaps 4.05 MB, flora 3.37 MB, fachadas 1.42 MB, tilesets 0.45 MB, audio 0.37 MB, outros 0.33 MB",
+    "nenhum arquivo de \"atlas de movel\" no boot",
+    "audio no boot: 33 arquivos, 0.37 MB (era 7,52 MB nos 46)",
+    "o boot cabe no teto de 40 MB com 36.18 MB",
+    "mercado: 32 moveis na tela com 1 atlas carregado(s) (moveis_mercado)",
+    "casa do protagonista: 40 moveis com 7 atlas",
+    "a rua do bairro nao pede atlas de interior nenhum",
+    "contraste alto na caixa de fala sobre o centro ao meio-dia: #1e1b16 (a 12 de UI.fundo) vira #1a1712 (a 0) — cenario claro para de vazar por tras das letras",
+    "movimento reduzido para a seta [Enter] da caixa de fala (alpha 0.6, parada) e mantem ela visivel"
+  ],
+  "bootMB": 36.18,
+  "porCategoria": {
+    "tilemaps": 4245672,
+    "fachadas": 1484834,
+    "flora": 3536347,
+    "icones de item": 4350580,
+    "outros": 349650,
+    "jogador": 4432240,
+    "tilesets": 470759,
+    "sprite de npc/monstro": 18679405,
+    "audio": 388214
+  }
+}

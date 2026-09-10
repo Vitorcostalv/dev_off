@@ -2,7 +2,7 @@
   "errors": [],
   "warnings": [],
   "checks": [
-    "46 sons carregados no boot",
+    "boot carrega os 33 sons de efeito e interface, e das 13 faixas longas so 1 — a do lugar (amb_bairro)",
     "bairro tem ambiente proprio no inicio da partida",
     "centro de dia: amb_cidade + mus_cidade tocando com volume",
     "chuva troca o ambiente",

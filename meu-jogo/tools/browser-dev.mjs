@@ -1,10 +1,13 @@
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+
+/** O servidor de desenvolvimento. `GAME_URL` deixa rodar contra um limpo. */
+const ALVO = process.env.GAME_URL ?? 'http://127.0.0.1:5186';
 const browser = await chromium.launch({ headless: true, channel: 'chrome' }); const page = await browser.newPage();
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 try {
-  await page.goto('http://127.0.0.1:5186'); await page.waitForFunction(() => window.game?.scene.isActive('MenuScene'));
+  await page.goto(ALVO); await page.waitForFunction(() => window.game?.scene.isActive('MenuScene'));
   await page.keyboard.press('Enter'); await page.waitForTimeout(150); await page.keyboard.press('F10'); await page.waitForTimeout(150);
   assert.equal(await page.evaluate(() => window.game.scene.getScene('MenuScene').pagina), 'dev');
   for (let i = 0; i < 3; i++) { await page.keyboard.press('ArrowDown'); await page.waitForTimeout(80); }

@@ -22,9 +22,36 @@ import { colarRet, Img } from './png.mjs';
  * de textura da leva anterior.
  */
 
-const DIR_SPRITES = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'public', 'assets', 'sprites');
-const FRAME = { w: 256, h: 320 };
-const MARGEM = { x: 12, y: 12 };
+const RAIZ = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+/** Saida: o que o jogo serve. */
+const DIR_SPRITES = join(RAIZ, 'public', 'assets', 'sprites');
+/** Entrada: folha de origem, fora de `public/` pra nao inflar o build. */
+const DIR_ARTE = join(RAIZ, 'arte');
+/**
+ * O quadro da folha de runtime, em pixels.
+ *
+ * ERA 256x320, e a medicao mostrou o preco: o jogo desenha personagem a
+ * `ALTURA_PERSONAGEM_TILES` (1,5) vezes o tile (32px) — QUARENTA E OITO PIXELS
+ * de altura na tela. Um quadro de 320px e seis vezes e meia mais pixel do que
+ * cabe em qualquer quadro que o jogador chegue a ver, e os 33 NPCs mais os 7
+ * monstros somavam 67 MB baixados antes de o menu aparecer.
+ *
+ * 128x160 deixa o personagem com 3,3 vezes a altura que ele ocupa na tela. E
+ * folga de sobra: o campo de visao e travado em 15 tiles (`TILES_VISIVEIS_X`) e
+ * dobrar o zoom ainda sobraria pixel. Cortar mais que isso ai sim comecaria a
+ * aparecer.
+ *
+ * A qualidade nao cai — melhora. `reduzirPara` reamostra com filtro de caixa
+ * ponderado por alfa; quem estava reduzindo 320 pra 48 era o canvas, com
+ * `pixelArt: true`, isto e, vizinho mais proximo jogando fora 85% dos pixels
+ * escolhidos pelo arredondamento.
+ *
+ * Mudar aqui pede rodar `npm run processar-sprites-npc` e
+ * `npm run processar-sprites-monstro` — o jogo nao tem numero pra acertar
+ * junto: a escala sai de `sprite.height` em runtime.
+ */
+const FRAME = { w: 128, h: 160 };
+const MARGEM = { x: 6, y: 6 };
 
 /** Onde as folhas de runtime sao lidas e gravadas. */
 export const DIR = DIR_SPRITES;
@@ -326,12 +353,15 @@ function normalizar({
   entrada,
   saida,
   /**
-   * Pasta de onde a folha CRUA e lida. O padrao e a propria pasta de sprites,
-   * porque as folhas de NPC ja moram la; os monstros vieram numa pasta propria
-   * (`public/assets/Monstros`) e passam o caminho aqui. A SAIDA e sempre em
-   * `public/assets/sprites`, que e o que o jogo serve.
+   * Pasta de onde a folha CRUA e lida: `arte/`, que o Vite nao copia pro build.
+   *
+   * Ficava em `public/assets/sprites` junto com a saida, e o preco disso era o
+   * deploy: o Vite copia `public/` inteiro, entao 76 MB de folha de origem — que
+   * so esta ferramenta le — iam pro `dist/`. Os monstros passam
+   * `arte/Monstros` aqui. A SAIDA continua em `public/assets/sprites`, que e o
+   * que o jogo serve.
    */
-  dirEntrada = DIR_SPRITES,
+  dirEntrada = DIR_ARTE,
   linhasOriginais,
   colunasOriginais = 4,
   mapa,

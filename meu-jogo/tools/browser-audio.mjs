@@ -9,6 +9,9 @@ import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+/** O servidor de desenvolvimento. `GAME_URL` deixa rodar contra um limpo. */
+const ALVO = process.env.GAME_URL ?? 'http://127.0.0.1:5186';
+
 const browser = await chromium.launch({
   headless: true,
   channel: 'chrome',
@@ -49,17 +52,50 @@ const esperarAmbiente = (id) => page.waitForFunction((alvo) => window.somTeste.a
 const esperarTrilha = (id) => page.waitForFunction((alvo) => window.somTeste.musicaAtual === alvo, id, { timeout: 15000 });
 
 try {
-  await page.goto('http://127.0.0.1:5186');
+  await page.goto(ALVO);
   await page.waitForFunction(() => window.game?.scene.isActive('MenuScene'));
 
-  // catalogo inteiro no cache, com os mesmos ids do modulo de dominio
+  // O QUE O BOOT CARREGA, e o que ele deliberadamente NAO carrega.
+  //
+  // Esta conferencia pedia os quarenta e seis ids no cache, e com isso cobrava
+  // "tudo no boot" como se fosse requisito. Nao era: ambiente e trilha somam
+  // 7,15 dos 7,52 MB de audio, e sao faixas longas que entram com fade de
+  // 900ms. Efeito e som de interface, esses sim, tem de estar prontos no
+  // instante em que o jogador aperta uma tecla — um passo que sai meio segundo
+  // depois do passo e um bug.
   const cache = await page.evaluate(async () => {
-    const { IDS_DE_AUDIO } = await import('/src/game/audio.ts');
-    return { total: IDS_DE_AUDIO.length, faltando: IDS_DE_AUDIO.filter((id) => !window.game.cache.audio.exists(id)) };
+    const { IDS_DE_AUDIO, CATALOGO_AUDIO } = await import('/src/game/audio.ts');
+    const por = (b) => IDS_DE_AUDIO.filter((id) => CATALOGO_AUDIO[id].barramento === b);
+    const noCache = (ids) => ids.filter((id) => window.game.cache.audio.exists(id));
+    const imediatos = [...por('efeitos'), ...por('interface')];
+    const longos = [...por('ambiente'), ...por('musica')];
+    return {
+      total: IDS_DE_AUDIO.length,
+      imediatos: imediatos.length,
+      imediatosFaltando: imediatos.filter((id) => !window.game.cache.audio.exists(id)),
+      longos: longos.length,
+      longosNoBoot: noCache(longos),
+    };
   });
-  assert.deepEqual(cache.faltando, [], 'sons ausentes no cache');
+  assert.deepEqual(
+    cache.imediatosFaltando, [],
+    'efeito ou som de interface faltando no boot — esses tem de estar prontos na primeira tecla',
+  );
+  // As faixas longas entram por demanda, e a demanda comeca sozinha: a cena de
+  // mundo ja pediu o ambiente do lugar antes de esta linha rodar. O que se cobra
+  // aqui nao e "nenhuma", e sim que sejam as DO LUGAR — no maximo um ambiente e
+  // uma trilha — em vez das treze que o boot baixava.
+  assert(
+    cache.longosNoBoot.length <= 2,
+    `${cache.longosNoBoot.length} faixas longas no cache ao abrir o menu ` +
+      `(${cache.longosNoBoot.join(', ')}): o lugar pede uma de ambiente e uma de trilha, e as ` +
+      'treze somam 7,15 MB de atraso no menu',
+  );
   assert(cache.total >= 40, `catalogo pequeno demais: ${cache.total}`);
-  checks.push(`${cache.total} sons carregados no boot`);
+  checks.push(
+    `boot carrega os ${cache.imediatos} sons de efeito e interface, e das ${cache.longos} faixas ` +
+      `longas so ${cache.longosNoBoot.length} — a do lugar (${cache.longosNoBoot.join(', ') || 'nenhuma ainda'})`,
+  );
 
   await page.keyboard.press('Enter');
   await page.waitForTimeout(400);

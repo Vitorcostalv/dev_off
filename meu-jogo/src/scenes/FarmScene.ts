@@ -521,6 +521,9 @@ export class FarmScene extends Phaser.Scene {
     // dispara a carga e reinicia a cena quando ela termina — e por isso que ele
     // corta o `create` aqui, antes de qualquer objeto ser criado.
     if (!this.garantirTilemap(def)) return;
+    // ATLAS DE MOVEL SOB DEMANDA: idem. Corta o `create` no mesmo lugar e pela
+    // mesma razao — a cena reinicia com o atlas em cache.
+    if (!this.garantirAtlasDeMovel(def)) return;
 
     const map = this.make.tilemap({ key: def.tilemapKey });
     this.tamanhoTile = map.tileWidth;
@@ -1453,7 +1456,10 @@ export class FarmScene extends Phaser.Scene {
     // Na montagem da cena nao ha o que esmaecer: a camera inteira ja entra com
     // fade. Fazer isso aqui tambem deixaria o NPC em alpha 0 se o primeiro
     // quadro demorasse.
-    if (instantaneo) {
+    // MOVIMENTO REDUZIDO reusa o caminho instantaneo, que ja existia pra
+    // montagem de cena. Um NPC surgindo e desaparecendo em fade a cada troca de
+    // rotina e movimento nao pedido, e o mesmo `setVisible` resolve.
+    if (instantaneo || estado.preferencias.valores.movimentoReduzido) {
       npc.sprite.setVisible(visivel).setAlpha(1);
       return;
     }
@@ -3163,6 +3169,73 @@ export class FarmScene extends Phaser.Scene {
    * Os andares 1 a 5 e todo o resto do mundo NAO passam por aqui: eles vem no
    * `preload` do BootScene como sempre, e `sobDemanda` e falso neles.
    */
+  /**
+   * Os atlas de movel que ESTE mapa precisa, carregados aqui e nao no boot.
+   *
+   * Eram todos os catorze, sempre: 35,79 MB baixados antes de o menu aparecer,
+   * incluindo a folha de banheiro e a de hospital pra quem estava na rua. O
+   * mapa inicial (`bairro`) nao usa nenhum deles, e o mapa que usa mais — uma
+   * residencia — usa seis, 15,64 MB.
+   *
+   * A lista sai da propria camada `moveis` do tilemap, que o gerador ja escreve
+   * com `atlas` em cada objeto: nao ha segunda lista pra manter em sincronia, e
+   * um layout novo no gerador ja traz o atlas dele junto.
+   *
+   * Na casa do protagonista entra tambem o catalogo de mobilia COMPRAVEL, que
+   * nao esta na camada: as pecas que o jogador ainda nao comprou aparecem na
+   * pre-visualizacao da loja, e a peca que ele ja comprou esta em `estado.casa`,
+   * nao no tilemap.
+   */
+  private atlasDeMovelNecessarios(def: DefinicaoMapa): string[] {
+    const nomes = new Set<string>();
+    // o tilemap cru do cache, nao o objeto Phaser: aqui ainda nao ha tilemap
+    // montado, e montar um so pra ler uma camada custaria o mapa inteiro
+    const dados = this.cache.tilemap.get(def.tilemapKey)?.data as
+      | { layers?: { name: string; objects?: { properties?: { name: string; value: unknown }[] }[] }[] }
+      | undefined;
+    const camada = dados?.layers?.find((l) => l.name === 'moveis');
+    for (const obj of camada?.objects ?? []) {
+      const atlas = obj.properties?.find((p) => p.name === 'atlas')?.value;
+      if (typeof atlas === 'string' && atlas) nomes.add(atlas);
+    }
+    if (def.chave === MAPA_DA_CASA) {
+      const medidas = this.cache.json.get('mobilia') as Record<string, { atlas?: string }> | undefined;
+      for (const medida of Object.values(medidas ?? {})) {
+        if (medida.atlas) nomes.add(medida.atlas);
+      }
+    }
+    return [...nomes];
+  }
+
+  /**
+   * Garante os atlas de movel do mapa. Devolve `false` quando cortou o `create`
+   * pra esperar a carga — a cena reinicia sozinha ao fim dela.
+   *
+   * Sem aviso na tela, ao contrario de `garantirTilemap`: o atlas de movel so
+   * falta na PRIMEIRA vez que se entra num tipo de interior, o arquivo esta no
+   * mesmo servidor do tilemap que acabou de chegar, e uma tarja "carregando" que
+   * pisca por dois quadros e mais ruido que informacao. Se a carga falhar, o
+   * proprio `criarMoveis` avisa no console e segue sem a peca, que e o mesmo que
+   * ele ja fazia pra frame inexistente.
+   */
+  private garantirAtlasDeMovel(def: DefinicaoMapa): boolean {
+    const faltando = this.atlasDeMovelNecessarios(def).filter(
+      (nome) => !this.textures.exists(nome),
+    );
+    if (faltando.length === 0) return true;
+    for (const nome of faltando) {
+      this.load.atlas(
+        nome,
+        `assets/sprites/${nome}.png`,
+        `assets/sprites/${nome}.atlas.json`,
+      );
+    }
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => this.scene.restart(this.entradaAtual));
+    this.load.start();
+    return false;
+  }
+
+
   private garantirTilemap(def: DefinicaoMapa): boolean {
     if (!def.sobDemanda || this.cache.tilemap.has(def.tilemapKey)) {
       this.descarregarAndaresDistantes(def.chave);

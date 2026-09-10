@@ -39,7 +39,14 @@ const SPRITES = join(ASSETS, 'sprites'); // servido em runtime
 // Arte de origem que o jogo NAO carrega: entra assada no terrain.png ou no
 // construcoes.png, entao fica fora de public/ pra nao inflar o build.
 const ARTE = join(RAIZ, 'arte');
-/** Onde mora a folha: public/ se o jogo a carrega, arte/ se e so fonte. */
+/**
+  * Onde mora a folha: `public/` se o JOGO a carrega inteira e recorta pelo
+  * atlas (arvores, flores, pedras), `arte/` se ela e so fonte pro gerador.
+  *
+  * A distincao e o que decide o tamanho do deploy: o Vite copia `public/`
+  * inteiro, entao uma folha de origem esquecida ali vai pro `dist/` e nunca e
+  * baixada por ninguem.
+  */
 const caminhoFolha = (arquivo, runtime) => join(runtime ? SPRITES : ARTE, arquivo);
 // Tamanho do tile do mundo, em px. Mudar aqui reprocessa tileset e tilemaps;
 // do lado do jogo a FarmScene le o valor do proprio tilemap, entao nao ha
@@ -324,7 +331,11 @@ const FOLHAS_MOVEIS = {
   // maior nem menor que o de dentro de casa.
   parque: {
     arquivo: 'Estuturas_parque_v1.png',
-    runtime: true,
+    // sem `runtime`: o jogo NAO carrega esta folha. Ela e reempacotada em
+    // `moveis_parque.png`, e como todas as outras folhas de movel ela mora em
+    // `arte/`, fora do que o Vite copia pro build. O `runtime: true` que estava
+    // aqui so dizia de onde LER, e a folha estava em `public/` por acidente de
+    // historia — 2,5 MB indo pro deploy sem ninguem carregar.
     areaMinima: 1500,
     tolerancia: 55,
     linhas: 9,
