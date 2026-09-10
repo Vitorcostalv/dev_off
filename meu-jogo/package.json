@@ -47,7 +47,9 @@
     "verificar-social": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-social.mjs",
     "test:social-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-social.mjs",
     "verificar-interface": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-interface.mjs",
-    "test:interface-browser": "node tools/browser-interface.mjs"
+    "test:interface-browser": "node tools/browser-interface.mjs",
+    "verificar-equilibrio": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-equilibrio.mjs",
+    "test:equilibrio-browser": "node tools/browser-equilibrio.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

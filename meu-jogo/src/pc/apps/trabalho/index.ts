@@ -10,6 +10,7 @@ import {
   NOME_DE_DIFICULDADE,
   NOME_DE_TIPO,
   pagamentoDeConserto,
+  reposicaoDoConserto,
   pagamentoDeVagaDeCodigo,
   pecasDoConserto,
   perguntasDaVaga,
@@ -24,6 +25,7 @@ import { QuizCodigo } from './quizCodigo.ts';
 import { QuebraCabecaConserto } from './quebraCabecaConserto.ts';
 import type { Vista } from '../../vista.ts';
 import { ListaRolavel } from '../../listaRolavel.ts';
+import { ITENS } from '../../../game/inventario';
 
 /**
  * Trabalho — o quadro de vagas do computador.
@@ -505,22 +507,41 @@ export class Trabalho implements AppDoPc {
       this.avisar('Nenhuma peca encaixada. Nao paga nada — a vaga continua no quadro. [Esc] volta.', PC.alerta);
       return;
     }
-    this.creditar(vaga, valor, `${acertos}/${total} pecas`);
+    // PECA DE REPOSICAO: um conserto completo aceita uma peca comum de sucata da
+    // usina e paga mais por ela. E opcional — quem nao tem nenhuma recebe o
+    // pagamento cheio e nao ve aviso de falta.
+    const reposicao = reposicaoDoConserto(vaga, acertos, total, (id) =>
+      estado.inventario.contar(id),
+    );
+    // a peca sai ANTES do credito: se o credito falhar, `creditar` devolve sem
+    // marcar a vaga, e uma peca gasta sem pagamento seria material perdido
+    const gastou = reposicao !== null && estado.inventario.remover(reposicao.itemId, 1);
+    const extra = gastou ? reposicao.bonus : 0;
+    const motivo = gastou
+      ? `${acertos}/${total} pecas + ${ITENS[reposicao.itemId]?.nome ?? reposicao.itemId} de reposicao`
+      : `${acertos}/${total} pecas`;
+    // credito recusado: a peca volta pra mochila
+    if (!this.creditar(vaga, valor + extra, motivo) && gastou) {
+      estado.inventario.adicionar(reposicao.itemId, 1);
+    }
   }
 
-  /** A unica porta de credito do app. */
-  private creditar(vaga: Vaga, centavos: number, motivo: string): void {
+  /**
+   * A unica porta de credito do app. Devolve `false` quando nada foi pago —
+   * quem chamou tem de desfazer o que gastou (a peca de reposicao do conserto).
+   */
+  private creditar(vaga: Vaga, centavos: number, motivo: string): boolean {
     if (vaga.missaoNpcId) {
       const missao = estado.missoesNpc.concluirComRecompensas(vaga.missaoNpcId, estado);
       if (!missao) {
         this.avisar('Esta missao nao esta mais ativa; nenhum pagamento duplicado foi feito.', PC.alerta);
-        return;
+        return false;
       }
     } else {
       const r = estado.carteira.ganhar(centavos);
       if (!r.ok) {
         this.avisar('Nao foi possivel receber agora. A vaga continua no quadro.', PC.alerta);
-        return;
+        return false;
       }
       estado.trabalhos.marcarConcluida(estado.dia, vaga.id);
     }
@@ -528,6 +549,7 @@ export class Trabalho implements AppDoPc {
       estado.worldEvents.definir('protagonistaConsertouAlgo', true);
     }
     this.avisar(`${motivo}: recebeu ${formatarDinheiro(centavos)}. [Esc] volta ao quadro.`, PC.sucesso);
+    return true;
   }
 
   private vagaConcluida(vaga: Vaga): boolean {

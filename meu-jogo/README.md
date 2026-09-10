@@ -1146,8 +1146,9 @@ Etapas com documento proprio: [controles e modo de desenvolvimento](docs/control
 [audio](docs/audio.md), [remap do centro](docs/centro.md),
 [interiores urbanos](docs/interiores.md),
 [distorcao da represa](docs/represa-distorcao.md),
-[clima, estacao e encontros](docs/social.md) e
-[interfaces e DevOS](docs/interface.md). O centro (Mapa 1)
+[clima, estacao e encontros](docs/social.md),
+[interfaces e DevOS](docs/interface.md) e
+[casa, economia e combate](docs/equilibrio.md). O centro (Mapa 1)
 tem calcada nas duas margens de toda via, travessia calcada, caminho de acesso
 por lote, quatro pracas de esquina, vielas de terra batida, sete patios com
 funcao e 71 pecas de mobiliario urbano — 25 delas acendem a noite, cada halo no
@@ -1171,7 +1172,16 @@ as cinco molduras de painel copiadas viraram uma: nenhuma tela escreve tamanho,
 familia de fonte ou cor de moldura. As seis janelas passaram a ter UM dono de
 foco (`game/foco.ts`), o que corrigiu dois bugs de teclado — escolher assunto
 com um NPC pedia dois apertos de E, e o ESC com uma pergunta aberta cancelava o
-menu de tras em vez da pergunta.
+menu de tras em vez da pergunta. A economia passou a ser MEDIDA antes de ser
+mexida: `npm run verificar-equilibrio` simula o quadro de vagas dos 112 dias do
+ano, as onze tabelas de salvado e o catalogo da casa, e diz quantos dias de jogo
+custa cada compra. Ele achou dois problemas — a casa inteira custava onze dias de
+trabalho, e dez andares do fundo da represa pagavam treze (mais que a casa
+inteira, porque `nivel_4` dava 36% de chance de peca "rara"). A casa passou a
+custar uma estacao, a chance de raro virou uma escada declarada, e a peca de
+reposicao no conserto deu uso as cinco pecas comuns de sucata: um dia de descida
+no raso passou de R$ 158 pra R$ 736 — um dia de trabalho — quando a sucata e
+guardada em vez de vendida.
 
 `npm run folha-contato <atlas>` monta a folha de contato de um atlas de movel
 em `docs/folhas/`, com o endereco `[linha, indice]` marcado em cada peca — e
@@ -1179,13 +1189,13 @@ como se escolhe peca pra autorar interior.
 
 `npm run verificar-overhaul` verifica regressao de cidade, emprego, mapa runtime, blog e listas. `npm run test:browser` requer Google Chrome instalado e o servidor Vite em http://127.0.0.1:5186 (ou GAME_URL); verifica os 77 mapas, sete apps, rolagem, trabalhador e save/reload.
 
-`npm run verificar-tudo` roda os dezoito validadores de dominio em sequencia e
+`npm run verificar-tudo` roda os dezenove validadores de dominio em sequencia e
 grava a evidencia agregada em `docs/evidence/<rotulo>-tests.json`. As suites de
 navegador (`test:browser`, `test:save-browser`, `test:cotidiano-browser`,
 `test:rural-browser`, `test:servicos-browser`, `test:controles-browser`,
 `test:dev-browser`, `test:audio-browser`, `test:centro-browser`,
 `test:interiores-browser`, `test:represa-browser`, `test:social-browser`,
-`test:interface-browser`) precisam do Chrome e do
+`test:interface-browser`, `test:equilibrio-browser`) precisam do Chrome e do
 servidor de desenvolvimento em
 http://127.0.0.1:5186; rode uma por vez, porque compartilham o mesmo
 `localStorage`. `npm run test:producao` e a unica que roda contra o build:

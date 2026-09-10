@@ -1,0 +1,10 @@
+{
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "conserto completo: R$ 85,00 sem peca e R$ 102,00 com uma de ferro-velho (bonus de R$ 17,00), e a peca saiu da mochila (3 -> 2)",
+    "sem nenhuma peca na mochila o conserto paga cheio (R$ 85,00) e nada e cobrado",
+    "conserto de 2/3 paga proporcional (R$ 56,66) e NAO consome peca — material de quem errou seria cobrar duas vezes",
+    "a casa inteira custa R$ 22540,00: vaso a R$ 45,00 so com madeira, sofa a R$ 960,00 com concreto"
+  ]
+}

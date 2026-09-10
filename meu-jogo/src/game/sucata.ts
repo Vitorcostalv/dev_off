@@ -170,6 +170,20 @@ export interface TabelaDeSucata {
  * peca rara aparece. O cofre profundo (`nivel_4_cofre`) e a UNICA fonte de raro
  * garantida — todo o resto e sorte, e por isso nada critico de historia sai de
  * sorteio (ver o comentario de `sortear`).
+ *
+ * A PALAVRA "APARECE" E O CONTRATO, e o peso tinha deixado de cumprir ela.
+ * `npm run verificar-equilibrio` mediu a chance de peca rara por peca sorteada:
+ * o `nivel_4` estava em 36% e o `nivel_4_premio` em 77%. Com trinta e seis por
+ * cento, "rara" era a peca que o jogador via em toda caixa do fundo — e dez
+ * andares de fundo pagavam R$ 9.730, treze vezes um dia inteiro de trabalho no
+ * quadro de empregos. O jogador que chegasse ao andar 41 nao tinha mais motivo
+ * pra abrir o app Trabalho, nem pra olhar preco de nada.
+ *
+ * Os pesos abaixo poem a chance de raro numa escada declarada: 0% ate o
+ * `nivel_2`, 4% no `nivel_3`, 12% no `nivel_4` (tres vezes o anterior, e ainda
+ * uma em oito), e nos cofres de premio o dobro do sorteio comum da mesma faixa.
+ * O `nivel_4_cofre` continua 100% raro: ele e a fonte declarada, e e uma por
+ * descida.
  */
 export const TABELAS_DE_SUCATA: readonly TabelaDeSucata[] = [
   {
@@ -207,24 +221,29 @@ export const TABELAS_DE_SUCATA: readonly TabelaDeSucata[] = [
     },
   },
   {
+    // 15% de raro: o dobro do sorteio comum desta faixa, que esta em 4%
     id: 'nivel_3_premio', pecasMin: 3, pecasMax: 4,
-    pesos: { fonte_chaveada: 26, sensor_industrial: 24, motor_pequeno: 20, processador_antigo: 18, modulo_de_controle: 12 },
+    pesos: { fonte_chaveada: 32, sensor_industrial: 29, motor_pequeno: 24, processador_antigo: 9, modulo_de_controle: 6 },
   },
   {
+    // 12% de raro: tres vezes o `nivel_3`, e ainda uma peca em cada oito. Era
+    // 36%, e com isso o fundo da usina pagava treze dias de trabalho por descida
     id: 'nivel_4', pecasMin: 3, pecasMax: 4,
     pesos: {
-      placa_de_circuito: 18, sensor_industrial: 16, fonte_chaveada: 16, motor_pequeno: 14,
-      processador_antigo: 14, modulo_de_controle: 12, placa_especializada: 10,
+      placa_de_circuito: 25, sensor_industrial: 22, fonte_chaveada: 22, motor_pequeno: 19,
+      processador_antigo: 5, modulo_de_controle: 4, placa_especializada: 3,
     },
   },
   {
     // PREMIO do nivel 4 — os andares 41 a 50. Faltava: com cinco setores o
     // nivel 4 era o fim da usina e a recompensa dele era o cofre; com cinquenta
     // andares, dez deles usam a tabela `nivel_4` e nove tem premio de enigma.
+    // 24% de raro: o dobro do sorteio comum desta faixa. Era 77%, e o cofre de
+    // enigma do fundo pagava mais que a casa inteira do protagonista
     id: 'nivel_4_premio', pecasMin: 3, pecasMax: 4,
     pesos: {
-      modulo_de_controle: 24, placa_especializada: 20, processador_antigo: 20,
-      componente_incomum: 10, fonte_chaveada: 12, motor_pequeno: 10,
+      modulo_de_controle: 8, placa_especializada: 7, processador_antigo: 6,
+      componente_incomum: 3, fonte_chaveada: 40, motor_pequeno: 36,
     },
   },
   {
