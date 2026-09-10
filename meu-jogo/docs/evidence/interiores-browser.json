@@ -3,9 +3,9 @@
   "warnings": [],
   "checks": [
     "biblioteca: 23 pecas na cena, 5.3 tiles de circulacao",
-    "escola: 26 pecas na cena, 6.3 tiles de circulacao",
+    "escola: 26 pecas na cena, 6.4 tiles de circulacao",
     "mercado: 32 pecas na cena, 7.4 tiles de circulacao",
     "academia: 22 pecas na cena, 5.7 tiles de circulacao",
-    "oficina: 43 pecas na cena, 11.4 tiles de circulacao"
+    "oficina: 43 pecas na cena, 11.5 tiles de circulacao"
   ]
 }

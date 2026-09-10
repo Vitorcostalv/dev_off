@@ -4565,6 +4565,33 @@ const CATALOGO_POR_COMODO = {
     poster_galaxia: { folha: 'mobilia_v2', peca: [5, 9], solido: false },
     quadro_folha: { folha: 'mobilia_v2', peca: [5, 10], solido: false },
     relogio_v2: { folha: 'mobilia_v2', peca: [4, 12], solido: false },
+    // ---------------------------------------------------------- INTRUSAO --
+    /**
+     * PECAS DE INTRUSAO — uso EXCLUSIVO dos andares da represa.
+     *
+     * Elas existem pra uma coisa so: a distorcao por capitulo da usina. Do
+     * capitulo 4 em diante aparece mobilia de ESCRITORIO onde ela nao tem o que
+     * fazer (camara de turbina, casa de bombas), e do 5 em diante mobilia de
+     * CASA junto. Nao e sujeira nem descuido de layout: e o andar deixando de
+     * ser um lugar possivel, que e o que a descida narra.
+     *
+     * Ficam na categoria `comum` porque comodo de represa aceita `oficina` e
+     * `comum`, e uma cama nao e peca de oficina. O prefixo `intrusa_` nao e
+     * enfeite — `verificar-represa` reprova qualquer peca `intrusa_*` que
+     * apareca em interior urbano, e e isso que impede a cama de vazar pra dentro
+     * de uma casa.
+     */
+    intrusa_mesa_escritorio: { folha: 'mobilia_v2', peca: [1, 7], solido: true },
+    intrusa_estacao_trabalho: { folha: 'mobilia_v2', peca: [1, 8], solido: true },
+    intrusa_armario_aco: { folha: 'mobilia_v2', peca: [4, 7], solido: true },
+    intrusa_bebedouro: { folha: 'academia', peca: [6, 4], solido: true },
+    intrusa_relogio: { folha: 'mobilia_v2', peca: [4, 12], solido: false },
+    intrusa_cama: { folha: 'mobilia_v2', peca: [0, 0], solido: true },
+    intrusa_sofa: { folha: 'mobilia_v2', peca: [2, 2], solido: true },
+    intrusa_mesa_jantar: { folha: 'mobilia_v2', peca: [4, 3], solido: true },
+    intrusa_tv: { folha: 'mobilia_v2', peca: [4, 8], solido: true },
+    intrusa_tapete: { folha: 'mobilia_v2', peca: [3, 5], solido: false, chao: true, escala: 1.7 },
+    intrusa_planta: { folha: 'mobilia_v2', peca: [6, 15], solido: false },
     // mobiliario de area publica: banco de espera, armario de vestiario e
     // lixeira. Entraram como `comum` porque hall e corredor sao os comodos que
     // pedem isso, e sao justamente os que so aceitam esta categoria.

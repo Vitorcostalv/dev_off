@@ -41,7 +41,9 @@
     "test:centro-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-centro.mjs",
     "folha-contato": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/folha-contato.mjs",
     "verificar-interiores": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-interiores.mjs",
-    "test:interiores-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-interiores.mjs"
+    "test:interiores-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-interiores.mjs",
+    "verificar-distorcao": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-distorcao.mjs",
+    "test:represa-browser": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/browser-represa-distorcao.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

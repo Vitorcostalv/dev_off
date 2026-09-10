@@ -682,6 +682,27 @@ export function plantasCompostas({ medir }) {
     });
 
     // ------------------------------------------------------------ mobilia --
+    const distorcao = DISTORCAO_POR_CAPITULO[def.capitulo];
+    /**
+     * Capitulo 3: UM comodo do andar recebe a mesma peca repetida e encostada,
+     * em vez do catalogo variado.
+     *
+     * A escolha nao pode ser qualquer comodo: sala sem catalogo de mobilia sai
+     * vazia e sala estreita cabe uma peca so — nos dois casos a repeticao
+     * simplesmente nao acontece, e foi o que aconteceu em tres dos dez andares
+     * do capitulo na primeira tentativa. Entao o candidato tem catalogo e ao
+     * menos seis tiles de largura; se nenhum tiver, vale o mais largo com
+     * catalogo.
+     */
+    const candidatasARepetir = infos.filter((i) => (MOBILIA_POR_TIPO[i.modulo.comodo] ?? []).length > 0);
+    const largas = candidatasARepetir.filter((i) => i.rect[2] >= 6);
+    const escolhidas = largas.length > 0
+      ? largas
+      : [...candidatasARepetir].sort((a, b) => b.rect[2] - a.rect[2]).slice(0, 1);
+    const salaRepetida = distorcao?.modo === 'repeticao' && escolhidas.length > 0
+      ? escolhidas[dado(def.andar, 'repeticao', escolhidas.length)].chave
+      : null;
+
     const mobilia = {};
     for (const info of infos) {
       const lista = [];
@@ -690,11 +711,15 @@ export function plantasCompostas({ medir }) {
         mobilia[info.chave] = lista;
         continue;
       }
+      const repetida = info.chave === salaRepetida
+        ? catalogo[dado(def.andar, 'pecarepetida', catalogo.length)]
+        : null;
       let x = info.rect[0];
       const limite = info.rect[0] + info.rect[2];
       let k = 0;
       while (x < limite) {
-        const nomeMovel = catalogo[(dado(def.andar, `mob${info.chave}${k}`, catalogo.length) + k) % catalogo.length];
+        const nomeMovel = repetida
+          ?? catalogo[(dado(def.andar, `mob${info.chave}${k}`, catalogo.length) + k) % catalogo.length];
         const tam = medir(nomeMovel);
         if (x + tam.w > limite) break;
         const livre = Array.from({ length: tam.w }, (_, i) => !ocupado.has(`${x + i},${info.rect[1]}`))
@@ -702,7 +727,11 @@ export function plantasCompostas({ medir }) {
         if (livre) {
           for (let i = 0; i < tam.w; i++) ocupado.add(`${x + i},${info.rect[1]}`);
           lista.push({ movel: nomeMovel, tx: x, ty: info.rect[1] });
-          x += tam.w + 1;
+          // A sala repetida do capitulo 3 vai SEM intervalo: fileira continua e
+          // identica de ponta a ponta. Com o tile de folga que o resto usa, a
+          // repeticao lia como arrumacao caprichada; encostada, ela lê como
+          // errada, que e o efeito que o capitulo pede.
+          x += repetida ? tam.w : tam.w + 1;
         } else {
           x += 1;
         }
@@ -710,6 +739,32 @@ export function plantasCompostas({ medir }) {
         if (k > 40) break;
       }
       mobilia[info.chave] = lista;
+    }
+
+    // ------------------------------------------------------------ intrusao --
+    /**
+     * As pecas que nao deveriam estar aqui. Vao no PISO (nao na prateleira da
+     * parede): mesa de escritorio encostada na parede passa por mobilia de
+     * usina, no meio da camara de turbina nao passa.
+     */
+    const intrusas = [];
+    if (distorcao?.modo === 'intrusao') {
+      const alvos = infos.filter((i) => !SEM_INTRUSAO.has(i.modulo.id));
+      for (let k = 0; k < distorcao.quantas && alvos.length > 0; k++) {
+        const sala = alvos[(dado(def.andar, `intrusala${k}`, alvos.length) + k) % alvos.length];
+        const nomeMovel = distorcao.pecas[(dado(def.andar, `intrupeca${k}`, distorcao.pecas.length) + k) % distorcao.pecas.length];
+        const tam = medir(nomeMovel);
+        const largura = Math.max(1, Math.round(tam.w));
+        const pos = sala.vagas.piso.find(([x, y]) => {
+          for (let i = 0; i < largura; i++) if (ocupado.has(`${x + i},${y}`)) return false;
+          // o corpo cresce pra cima: o tile de tras tambem tem de estar dentro da sala
+          return y - 1 >= sala.rect[1] && x + largura - 1 < sala.rect[0] + sala.rect[2];
+        });
+        if (!pos) continue;
+        for (let i = 0; i < largura; i++) reservar(pos[0] + i, pos[1], 0);
+        intrusas.push({ movel: nomeMovel, tx: pos[0], ty: pos[1], comodo: sala.chave });
+        mobilia[sala.chave].push({ movel: nomeMovel, tx: pos[0], ty: pos[1] });
+      }
     }
 
     plantas[nome] = {
@@ -734,6 +789,14 @@ export function plantasCompostas({ medir }) {
       avisos,
       inimigos,
       luzes,
+      // Retrato da distorcao daquele andar: quem confere le daqui em vez de
+      // tentar adivinhar pelo nome das pecas.
+      distorcao: {
+        capitulo: def.capitulo,
+        modo: distorcao?.modo ?? 'nenhum',
+        salaRepetida,
+        intrusas,
+      },
     };
   }
 
@@ -757,6 +820,57 @@ export const DESCIDA_DO_ANDAR_5 = [20, 15];
  * A validacao de categoria continua sendo a de `pecasDeCatalogo` — se um nome
  * daqui nao pertencer a categoria do comodo, a geracao para.
  */
+/**
+ * A DISTORCAO POR CAPITULO.
+ *
+ * A usina tinha o mesmo vocabulario nos cinco capitulos: seis catalogos de
+ * comodo, todos industriais. A escuridao crescia, a fauna mudava e a tensao
+ * acelerava — mas um andar do capitulo 5 era mobiliado como um do capitulo 1, e
+ * a progressao psicologica ficava toda no texto das fichas.
+ *
+ * O que muda por capitulo, e o porque de cada escolha:
+ *
+ *   1 (1-10)   nada. Arquitetura industrial plausivel, e e essa normalidade que
+ *              da o que perder depois;
+ *   2 (11-20)  nada de mobilia. O capitulo e agua, dano e escuridao, e esses
+ *              tres ja existem na curva de escuridao e nos modulos alagados;
+ *   3 (21-30)  REPETICAO. Um comodo do andar recebe a MESMA peca repetida de
+ *              ponta a ponta, em vez do catalogo variado. Nao ha objeto errado
+ *              nenhum: o que incomoda e a fileira identica, e o jogador que ja
+ *              desceu vinte andares sente antes de saber;
+ *   4 (31-40)  ESCRITORIO onde ele nao tem o que fazer — mesa com monitor,
+ *              armario de aco, bebedouro e relogio de parede na camara de
+ *              turbina, na casa de bombas, na galeria de cabos;
+ *   5 (41-50)  escritorio E CASA, sobrepostos. Cama, sofa, mesa de jantar,
+ *              televisao e tapete dividindo a sala com a turbina.
+ *
+ * A escolha e deterministica (o mesmo `dado` do resto do arquivo), entao o
+ * andar 37 tem sempre as mesmas intrusas, nas mesmas salas.
+ */
+const DISTORCAO_POR_CAPITULO = {
+  3: { modo: 'repeticao' },
+  4: {
+    modo: 'intrusao',
+    quantas: 2,
+    pecas: ['intrusa_mesa_escritorio', 'intrusa_estacao_trabalho', 'intrusa_armario_aco', 'intrusa_bebedouro', 'intrusa_relogio'],
+  },
+  5: {
+    modo: 'intrusao',
+    quantas: 3,
+    pecas: [
+      'intrusa_cama', 'intrusa_sofa', 'intrusa_mesa_jantar', 'intrusa_tv', 'intrusa_tapete',
+      'intrusa_planta', 'intrusa_mesa_escritorio', 'intrusa_armario_aco',
+    ],
+  },
+};
+
+/**
+ * Modulo que NAO recebe intrusa: os dois comodos de escritorio da usina
+ * (arquivo e baias) ja tem mesa e estante por direito, e por isso uma mesa a
+ * mais lá nao estranha ninguem. A intrusa precisa cair onde ela dói.
+ */
+const SEM_INTRUSAO = new Set(['arquivo', 'baias']);
+
 const MOBILIA_POR_TIPO = {
   controle: [
     'mesa_bancada_pc', 'setup_oficina', 'armario_pecas', 'estante_caixas',

@@ -1,0 +1,10 @@
+{
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "andar 8 (cap 1): 0 de escritorio, 0 de casa",
+    "andar 25 (cap 3): 0 de escritorio, 0 de casa",
+    "andar 36 (cap 4): 1 de escritorio, 0 de casa",
+    "andar 47 (cap 5): 0 de escritorio, 3 de casa"
+  ]
+}
