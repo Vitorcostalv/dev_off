@@ -102,7 +102,7 @@ export class Trabalho implements AppDoPc {
 
     this.raiz = ctx.cena.add.container(0, 0);
     this.status = texto(ctx.cena, ctx.area.x, ctx.area.y + ctx.area.h - 11, '', {
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: PC.textoFraco,
       wordWrap: { width: ctx.area.w },
     });
@@ -183,7 +183,7 @@ export class Trabalho implements AppDoPc {
 
     const topo = area.y + 18;
     this.lista.configurar(this.vagas.length, Math.floor((area.h - 34) / (LINHA.altura + LINHA.gap)), this.cursor);
-    this.indicador = texto(cena, area.x, area.y + area.h - 12, '', { fontSize: '9px', color: PC.textoFraco });
+    this.indicador = texto(cena, area.x, area.y + area.h - 12, '', { fontSize: UI.tamanhoMiudo, color: PC.textoFraco });
     this.raiz.add(this.indicador);
     this.linhas = this.vagas.map((vaga, i) => {
       const y = topo + i * (LINHA.altura + LINHA.gap);
@@ -191,12 +191,12 @@ export class Trabalho implements AppDoPc {
         .rectangle(area.x + larguraLista / 2, y + LINHA.altura / 2, larguraLista, LINHA.altura, PC.painelClaro)
         .setStrokeStyle(1, PC.borda)
         .setInteractive({ useHandCursor: true });
-      const titulo = texto(cena, area.x + 7, y + 4, encurtar(vaga.titulo, 32), { fontSize: '10px' });
-      const meta = texto(cena, area.x + 7, y + 16, '', { fontSize: '9px', color: PC.textoFraco });
+      const titulo = texto(cena, area.x + 7, y + 4, encurtar(vaga.titulo, 32), { fontSize: UI.tamanho });
+      const meta = texto(cena, area.x + 7, y + 16, '', { fontSize: UI.tamanhoMiudo, color: PC.textoFraco });
       const valor = cena.add
         .text(area.x + larguraLista - 7, y + 8, formatarDinheiro(vaga.recompensa), {
           fontFamily: UI.fonte,
-          fontSize: '10px',
+          fontSize: UI.tamanho,
           color: PC.destaque,
         })
         .setOrigin(1, 0);
@@ -211,9 +211,9 @@ export class Trabalho implements AppDoPc {
     // --- coluna de detalhe ---
     const xDetalhe = area.x + larguraLista + 10;
     const larguraDetalhe = area.x + area.w - xDetalhe;
-    caixa(g, { x: xDetalhe, y: area.y, w: larguraDetalhe, h: area.h }, 0x0d1119, PC.borda);
+    caixa(g, { x: xDetalhe, y: area.y, w: larguraDetalhe, h: area.h }, PC.cova, PC.borda);
     this.detalhe = texto(cena, xDetalhe + 8, area.y + 8, '', {
-      fontSize: '10px',
+      fontSize: UI.tamanho,
       color: PC.textoFraco,
       wordWrap: { width: larguraDetalhe - 16 },
       lineSpacing: 1,
@@ -254,7 +254,7 @@ export class Trabalho implements AppDoPc {
       const feita = this.vagaConcluida(vaga);
       const emAndamento = estado.trabalhos.entrega?.idVaga === vaga.id;
 
-      linha.fundo.setFillStyle(ativo ? 0x2f3c52 : PC.painelClaro);
+      linha.fundo.setFillStyle(ativo ? PC.selecionado : PC.painelClaro);
       linha.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
       linha.titulo.setColor(feita ? '#4d5769' : ativo ? PC.destaque : PC.texto);
       linha.valor.setColor(feita ? '#4d5769' : PC.destaque);

@@ -94,7 +94,7 @@ export class Jogos implements AppDoPc {
 
     this.raiz = ctx.cena.add.container(0, 0);
     this.status = texto(ctx.cena, ctx.area.x, ctx.area.y + ctx.area.h - 11, '', {
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: PC.textoFraco,
       wordWrap: { width: ctx.area.w },
     });
@@ -169,28 +169,28 @@ export class Jogos implements AppDoPc {
       const glifo = cena.add
         .text(x + CELULA.largura / 2, y0 + 34, jogo.glifo, {
           fontFamily: UI.fonte,
-          fontSize: '22px',
-          color: '#ffffff',
+          fontSize: UI.tamanhoGrande,
+          color: PC.glifo,
         })
         .setOrigin(0.5, 0.5);
       const nome = cena.add
         .text(x + CELULA.largura / 2, y0 + 64, encurtar(jogo.nome, 20), {
           fontFamily: UI.fonte,
-          fontSize: '10px',
+          fontSize: UI.tamanho,
           color: PC.texto,
         })
         .setOrigin(0.5, 0);
       const genero = cena.add
         .text(x + CELULA.largura / 2, y0 + 78, jogo.genero, {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.textoFraco,
         })
         .setOrigin(0.5, 0);
       const ultimo = cena.add
         .text(x + CELULA.largura / 2, y0 + 91, '', {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.destaque,
         })
         .setOrigin(0.5, 0);
@@ -221,7 +221,7 @@ export class Jogos implements AppDoPc {
   private desenharBiblioteca(): void {
     this.celulas.forEach((celula, i) => {
       const ativo = i === this.cursor;
-      celula.fundo.setFillStyle(ativo ? 0x2f3c52 : PC.painelClaro);
+      celula.fundo.setFillStyle(ativo ? PC.selecionado : PC.painelClaro);
       celula.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
       celula.ladrilho.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
     });

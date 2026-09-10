@@ -118,7 +118,7 @@ export class DevStore implements AppDoPc {
       const rotulo = ctx.cena.add
         .text(x + larguraAba / 2, y + ABAS.altura / 2, encurtar(item.rotulo, 9), {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.textoFraco,
         })
         .setOrigin(0.5, 0.5);
@@ -153,7 +153,7 @@ export class DevStore implements AppDoPc {
       const nome = ctx.cena.add
         .text(x + larguraCartao / 2, y + 48, '', {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.texto,
           align: 'center',
           wordWrap: { width: larguraCartao - 6 },
@@ -162,7 +162,7 @@ export class DevStore implements AppDoPc {
       const preco = ctx.cena.add
         .text(x + larguraCartao / 2, y + GRADE.alturaCartao - 13, '', {
           fontFamily: UI.fonte,
-          fontSize: '10px',
+          fontSize: UI.tamanho,
           color: PC.destaque,
         })
         .setOrigin(0.5, 0);
@@ -175,13 +175,13 @@ export class DevStore implements AppDoPc {
     // --- rodape ---
     const yRodape = area.y + area.h - RODAPE;
     this.rodape = texto(ctx.cena, area.x, yRodape, '', {
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: PC.textoFraco,
     });
     this.saldo = ctx.cena.add
       .text(area.x + area.w, yRodape, '', {
         fontFamily: UI.fonte,
-        fontSize: '10px',
+        fontSize: UI.tamanho,
         color: PC.destaque,
       })
       .setOrigin(1, 0);
@@ -311,7 +311,7 @@ export class DevStore implements AppDoPc {
       const ativo = i === this.aba;
       aba.fundo.setFillStyle(ativo ? PC.bordaViva : PC.painelClaro);
       aba.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
-      aba.rotulo.setColor(ativo ? '#0e1420' : PC.textoFraco);
+      aba.rotulo.setColor(ativo ? PC.sobreDestaque : PC.textoFraco);
     });
 
     const inicio = this.linhaTopo * GRADE.colunas;
@@ -326,7 +326,7 @@ export class DevStore implements AppDoPc {
 
       const ativo = indice === this.cursor;
       cartao.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
-      cartao.fundo.setFillStyle(ativo ? 0x2f3c52 : PC.painelClaro);
+      cartao.fundo.setFillStyle(ativo ? PC.selecionado : PC.painelClaro);
       cartao.icone.setFrame(item.frame!);
       ajustarIcone(cartao.icone, 34);
       const tem = estado.inventario.contar(item.id);
@@ -448,21 +448,21 @@ export class DevStore implements AppDoPc {
     const g = ctx.cena.add.graphics();
     caixa(g, r, PC.painel, PC.bordaViva);
     // moldura do icone, pra ele nao flutuar no vazio
-    caixa(g, { x: r.x + 14, y: r.y + 18, w: 88, h: 88 }, 0x0d1119, PC.borda);
+    caixa(g, { x: r.x + 14, y: r.y + 18, w: 88, h: 88 }, PC.cova, PC.borda);
 
     this.cardIcone = ctx.cena.add.image(r.x + 58, r.y + 62, 'itens');
 
     const xTexto = r.x + 118;
     this.cardNome = texto(ctx.cena, xTexto, r.y + 14, '', {
-      fontSize: '12px',
+      fontSize: UI.tamanhoFala,
       color: PC.texto,
     });
     this.cardSecao = texto(ctx.cena, xTexto, r.y + 30, '', {
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: PC.destaque,
     });
     this.cardTexto = texto(ctx.cena, xTexto, r.y + 46, '', {
-      fontSize: '10px',
+      fontSize: UI.tamanho,
       color: PC.textoFraco,
       wordWrap: { width: r.w - 130 },
       lineSpacing: 2,
@@ -471,19 +471,19 @@ export class DevStore implements AppDoPc {
     // --- seletor de quantidade ---
     const yQtd = r.y + r.h - 40;
     const menos = ctx.cena.add
-      .text(r.x + 16, yQtd, '[-]', { fontFamily: UI.fonte, fontSize: '12px', color: PC.texto })
+      .text(r.x + 16, yQtd, '[-]', { fontFamily: UI.fonte, fontSize: UI.tamanhoFala, color: PC.texto })
       .setInteractive({ useHandCursor: true });
     menos.on('pointerdown', () => this.mudarQuantidade(-1));
     this.cardQtd = ctx.cena.add
-      .text(r.x + 62, yQtd, '', { fontFamily: UI.fonte, fontSize: '12px', color: PC.destaque })
+      .text(r.x + 62, yQtd, '', { fontFamily: UI.fonte, fontSize: UI.tamanhoFala, color: PC.destaque })
       .setOrigin(0.5, 0);
     const mais = ctx.cena.add
-      .text(r.x + 88, yQtd, '[+]', { fontFamily: UI.fonte, fontSize: '12px', color: PC.texto })
+      .text(r.x + 88, yQtd, '[+]', { fontFamily: UI.fonte, fontSize: UI.tamanhoFala, color: PC.texto })
       .setInteractive({ useHandCursor: true });
     mais.on('pointerdown', () => this.mudarQuantidade(1));
 
     this.cardTotal = ctx.cena.add
-      .text(r.x + 130, yQtd, '', { fontFamily: UI.fonte, fontSize: '12px', color: PC.texto })
+      .text(r.x + 130, yQtd, '', { fontFamily: UI.fonte, fontSize: UI.tamanhoFala, color: PC.texto })
       .setOrigin(0, 0);
 
     const comprar = ctx.cena.add
@@ -493,18 +493,18 @@ export class DevStore implements AppDoPc {
     const rotuloComprar = ctx.cena.add
       .text(r.x + r.w - 74, yQtd + 7, 'Comprar  [E]', {
         fontFamily: UI.fonte,
-        fontSize: '10px',
+        fontSize: UI.tamanho,
         color: '#eaf7e6',
       })
       .setOrigin(0.5, 0.5);
     comprar.on('pointerdown', () => this.comprarAtual());
 
-    this.cardAviso = texto(ctx.cena, r.x + 14, r.y + r.h - 15, '', { fontSize: '9px' });
+    this.cardAviso = texto(ctx.cena, r.x + 14, r.y + r.h - 15, '', { fontSize: UI.tamanhoMiudo });
 
     const voltar = ctx.cena.add
       .text(r.x + r.w - 10, r.y + 8, '[Esc] voltar a vitrine', {
         fontFamily: UI.fonte,
-        fontSize: '9px',
+        fontSize: UI.tamanhoMiudo,
         color: PC.textoFraco,
       })
       .setOrigin(1, 0)

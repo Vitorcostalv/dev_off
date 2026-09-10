@@ -29,6 +29,9 @@ import {
 } from '../game/equipar';
 import { buscarArma } from '../game/armas';
 import { fichaDoAndar, linhasDaFicha, tituloDaFicha } from '../game/fichas';
+import { PilhaDeFoco } from '../game/foco';
+import type { JanelaDaUi } from '../game/foco';
+import { cova, dicaDePainel, moldura, rodapeDePainel, tituloDePainel } from './widgets';
 
 /**
  * Caixa de dialogo. Subiu de 74 pra 82 px de altura e ganhou a coluna do
@@ -207,49 +210,97 @@ export class UIScene extends Phaser.Scene {
   private menuTopo = 0;
   private menuAoCancelar: (() => void) | null = null;
 
+  /**
+   * Quem esta com o teclado. Antes cada `abrir*` conferia as outras janelas
+   * por conta propria, com uma lista diferente em cada uma; a regra agora esta
+   * so em `game/foco.ts`, e nenhuma janela pergunta pelas outras.
+   */
+  private readonly foco = new PilhaDeFoco();
+
   constructor() {
     super({ key: 'UIScene', active: false });
   }
 
   /** true quando alguma janela da UI esta capturando o jogo (pausa movimento). */
   get bloqueado(): boolean {
-    return (
-      this.dialogoAberto ||
-      this.confirmacaoAberta ||
-      this.inventarioAberto ||
-      this.lojaAberta ||
-      this.menuAberto ||
-      this.computadorAberto
-    );
+    return this.foco.bloqueado;
   }
 
   get menuAberto(): boolean {
-    return this.menu?.visible ?? false;
+    return this.foco.aberta('menu');
   }
 
   get computadorAberto(): boolean {
-    return this.pcAberto;
+    return this.foco.aberta('computador');
   }
 
   get lojaAberta(): boolean {
-    return this.loja?.visible ?? false;
-  }
-
-  /** true enquanto uma janela modal esta por cima das outras. */
-  private get modalPorCima(): boolean {
-    return this.dialogoAberto || this.confirmacaoAberta || this.menuAberto;
+    return this.foco.aberta('loja');
   }
 
   get dialogoAberto(): boolean {
-    return this.dialogo?.visible ?? false;
+    return this.foco.aberta('dialogo');
   }
 
   get confirmacaoAberta(): boolean {
-    return this.confirmacao?.visible ?? false;
+    return this.foco.aberta('confirmacao');
   }
 
   get inventarioAberto(): boolean {
-    return this.inventario?.visible ?? false;
+    return this.foco.aberta('inventario');
+  }
+
+  /**
+   * Pede o foco pra uma janela e fecha o que tiver de sair pra ela caber.
+   * `false` quando a pilha recusou — quem chamou nao abre nada.
+   */
+  private tomarFoco(janela: JanelaDaUi): boolean {
+    const { ok, fechar } = this.foco.abrir(janela);
+    if (!ok) return false;
+    for (const outra of fechar) this.desmontar(outra);
+    return true;
+  }
+
+  /** Solta o foco e desmonta a janela. */
+  private soltarFoco(janela: JanelaDaUi): void {
+    if (!this.foco.fechar(janela)) return;
+    this.desmontar(janela);
+  }
+
+  /**
+   * Esconde e limpa uma janela SEM mexer na pilha — a pilha ja tirou ela daqui.
+   * E o unico lugar do arquivo que chama `setVisible(false)` numa janela, e e
+   * por isso que pilha e tela nao podem divergir.
+   */
+  private desmontar(janela: JanelaDaUi): void {
+    switch (janela) {
+      case 'dialogo':
+        this.dialogo.setVisible(false);
+        this.falas = [];
+        this.indiceFala = 0;
+        break;
+      case 'confirmacao':
+        this.confirmacao.setVisible(false);
+        this.aoSim = null;
+        this.aoNao = null;
+        break;
+      case 'menu':
+        this.menu.setVisible(false);
+        this.menuOpcoes = [];
+        this.menuAoCancelar = null;
+        break;
+      case 'inventario':
+        this.inventario.setVisible(false);
+        break;
+      case 'loja':
+        this.loja.setVisible(false);
+        this.lojaPonto = null;
+        this.lojaItens = [];
+        break;
+      case 'computador':
+        this.desligarComputador();
+        break;
+    }
   }
 
   create(): void {
@@ -382,7 +433,7 @@ export class UIScene extends Phaser.Scene {
           this.moverMenu(dy > 0 ? 1 : -1);
           return;
         }
-        if (this.lojaAberta && !this.modalPorCima) this.moverListaDaLoja(dy > 0 ? 1 : -1);
+        if (this.foco.topo === 'loja') this.moverListaDaLoja(dy > 0 ? 1 : -1);
       },
     );
   }
@@ -400,14 +451,16 @@ export class UIScene extends Phaser.Scene {
    * jogador saber que pulou um andar. Escolher uma delas nao abre nada.
    */
   abrirArquivo(): void {
-    if (this.modalPorCima || this.lojaAberta || this.pcAberto) return;
+    if (!this.foco.podeAbrir('menu') || this.lojaAberta || this.computadorAberto) return;
     const indice = estado.arquivo.indice();
     const total = estado.arquivo.quantas;
     if (total === 0) {
       this.avisoRapido('Nenhuma ficha recolhida ainda.', UI.textoFraco);
       return;
     }
-    this.inventario.setVisible(false);
+    // a lista de fichas ocupa a mesma altura do painel de inventario; deixar os
+    // dois na tela poe texto sobre texto
+    this.soltarFoco('inventario');
     this.abrirMenu(
       `Arquivos — ${total} de ${indice.length} fichas`,
       indice.map((linha) => ({
@@ -556,6 +609,8 @@ export class UIScene extends Phaser.Scene {
   /** Abre a caixa de dialogo com uma sequencia de falas. */
   iniciarDialogo(falas: Fala[], aoFim?: () => void): void {
     if (falas.length === 0) return;
+    // ja aberta (uma fala emendando na outra) nao pede foco de novo
+    if (!this.dialogoAberto && !this.tomarFoco('dialogo')) return;
     this.falas = falas;
     this.indiceFala = 0;
     this.aoFimDoDialogo = aoFim ?? null;
@@ -574,9 +629,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private fecharDialogo(): void {
-    this.dialogo.setVisible(false);
-    this.falas = [];
-    this.indiceFala = 0;
+    this.soltarFoco('dialogo');
     const aoFim = this.aoFimDoDialogo;
     this.aoFimDoDialogo = null;
     this.desenharPrompt();
@@ -594,32 +647,24 @@ export class UIScene extends Phaser.Scene {
 
   private criarCaixaDeDialogo(): Phaser.GameObjects.Container {
     const fundo = this.add.graphics();
-    // opaco de verdade (era 88%): o que atrapalhava a leitura era o cenario
-    // claro vazando por tras das letras
-    fundo.fillStyle(UI.fundo, 0.97);
-    fundo.fillRect(CAIXA.x, CAIXA.y, CAIXA.w, CAIXA.h);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(CAIXA.x + 0.5, CAIXA.y + 0.5, CAIXA.w - 1, CAIXA.h - 1);
+    moldura(fundo, CAIXA);
 
     // moldura do retrato, sempre desenhada; o que aparece dentro dela muda
     this.dialogoMolduraRetrato = this.add.graphics();
     const r = this.caixaDoRetrato();
-    this.dialogoMolduraRetrato.fillStyle(0x0d0b08, 1);
-    this.dialogoMolduraRetrato.fillRect(r.x, r.y, r.w, r.h);
-    this.dialogoMolduraRetrato.lineStyle(1, UI.borda, 1);
-    this.dialogoMolduraRetrato.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    cova(this.dialogoMolduraRetrato, r);
 
     this.dialogoRetrato = this.add.image(r.x + r.w / 2, r.y + r.h, '').setOrigin(0.5, 1);
 
     this.dialogoNome = this.add.text(0, CAIXA.y + 8, '', {
       fontFamily: UI.fonte,
-      fontSize: '13px',
+      fontSize: UI.tamanhoNome,
       color: UI.destaque,
     });
 
     this.dialogoTexto = this.add.text(0, CAIXA.y + 28, '', {
       fontFamily: UI.fonte,
-      fontSize: '12px',
+      fontSize: UI.tamanhoFala,
       color: UI.texto,
       lineSpacing: 4,
     });
@@ -627,7 +672,7 @@ export class UIScene extends Phaser.Scene {
     const seta = this.add
       .text(CAIXA.x + CAIXA.w - 8, CAIXA.y + CAIXA.h - 5, '[Enter]', {
         fontFamily: UI.fonte,
-        fontSize: '11px',
+        fontSize: UI.tamanhoTitulo,
         color: UI.textoFraco,
       })
       .setOrigin(1, 1);
@@ -700,6 +745,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Pergunta Sim/Nao. Setas ou A/D escolhem, E ou clique confirma, ESC cancela. */
   confirmar(texto: string, aoSim: () => void, aoNao?: () => void): void {
+    if (!this.tomarFoco('confirmacao')) return;
     this.confirmacaoTexto.setText(texto);
     this.aoSim = aoSim;
     this.aoNao = aoNao ?? null;
@@ -714,11 +760,11 @@ export class UIScene extends Phaser.Scene {
    * porque ela e a janela que esta por cima.
    */
   private horizontal(passo: number, evento?: KeyboardEvent): void {
-    if (this.confirmacaoAberta) {
+    if (this.foco.topo === 'confirmacao') {
       this.moverOpcao(passo);
       return;
     }
-    if (this.lojaAberta) this.mudarQuantidade(passo * (evento?.shiftKey ? 10 : 1));
+    if (this.foco.topo === 'loja') this.mudarQuantidade(passo * (evento?.shiftKey ? 10 : 1));
   }
 
   private moverOpcao(passo: number): void {
@@ -746,26 +792,45 @@ export class UIScene extends Phaser.Scene {
   }
 
   private fecharConfirmacao(): void {
-    this.confirmacao.setVisible(false);
-    this.aoSim = null;
-    this.aoNao = null;
+    this.soltarFoco('confirmacao');
     this.desenharPrompt();
   }
 
+  /**
+   * ESC. Fecha a janela do TOPO, uma por aperto.
+   *
+   * A ordem antiga testava o menu ANTES da confirmacao, e uma pergunta aberta
+   * por cima de um menu saia pelo menu: o ESC cancelava a escolha de tras e
+   * deixava a pergunta na tela sem dono.
+   */
   private cancelar(): void {
-    if (!this.bloqueado) { this.scene.launch('MenuScene', { pagina: 'pausa' }); return; }
-    if (this.menuAberto) {
-      this.cancelarMenu();
-      return;
+    switch (this.foco.topo) {
+      case null:
+        this.scene.launch('MenuScene', { pagina: 'pausa' });
+        return;
+      case 'confirmacao': {
+        const aoNao = this.aoNao;
+        this.fecharConfirmacao();
+        aoNao?.();
+        return;
+      }
+      case 'menu':
+        this.cancelarMenu();
+        return;
+      case 'dialogo':
+        // a fala anda com E e acaba sozinha; ESC no meio dela nao pula o texto
+        return;
+      case 'loja':
+        this.fecharLoja();
+        return;
+      case 'inventario':
+        this.alternarInventario();
+        return;
+      case 'computador':
+        // quem fecha o PC e a ComputadorScene: ela tem app aberto por dentro
+        // pra fechar primeiro
+        return;
     }
-    if (this.confirmacaoAberta) {
-      const aoNao = this.aoNao;
-      this.fecharConfirmacao();
-      aoNao?.();
-      return;
-    }
-    if (this.lojaAberta) this.fecharLoja();
-    else if (this.inventarioAberto && !this.modalPorCima) this.alternarInventario();
   }
 
   private criarCaixaDeConfirmacao(): Phaser.GameObjects.Container {
@@ -773,12 +838,9 @@ export class UIScene extends Phaser.Scene {
     const y = (CONFIG.altura - CONFIRMA.h) / 2;
 
     const fundo = this.add.graphics();
-    // opaco, nao translucido: esta caixa abre por cima da janela da loja, e
-    // qualquer transparencia deixa o texto da lista vazando por tras da pergunta
-    fundo.fillStyle(UI.fundo, 1);
-    fundo.fillRect(x, y, CONFIRMA.w, CONFIRMA.h);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(x + 0.5, y + 0.5, CONFIRMA.w - 1, CONFIRMA.h - 1);
+    // `sobreposto`: esta caixa abre por cima da janela da loja, e qualquer
+    // transparencia deixa a lista de tras vazando por entre as letras
+    moldura(fundo, { x, y, w: CONFIRMA.w, h: CONFIRMA.h }, { sobreposto: true });
 
     this.confirmacaoTexto = this.add
       .text(x + CONFIRMA.w / 2, y + 13, '', {
@@ -836,11 +898,21 @@ export class UIScene extends Phaser.Scene {
     // o menu de tema/presente tambem e "tela com fala de um NPC": manter o
     // retrato aberto por baixo dele e o que evita o jogador escolher assunto
     // sem ver mais com quem esta falando
-    if (npcId) {
+    if (!this.foco.podeAbrir('menu')) {
+      aoCancelar?.();
+      return;
+    }
+    // o retrato entra PRIMEIRO: ele e pano de fundo do menu, e quem entra por
+    // ultimo na pilha e quem recebe o teclado
+    if (npcId && this.tomarFoco('dialogo')) {
       this.desenharRetrato(npcId);
       this.dialogoNome.setText(titulo);
       this.dialogoTexto.setText('');
       this.dialogo.setVisible(true);
+    }
+    if (!this.tomarFoco('menu')) {
+      aoCancelar?.();
+      return;
     }
     this.menuOpcoes = opcoes;
     this.menuCursor = 0;
@@ -853,12 +925,10 @@ export class UIScene extends Phaser.Scene {
   }
 
   fecharMenu(): void {
-    this.menu.setVisible(false);
-    this.menuOpcoes = [];
-    this.menuAoCancelar = null;
+    this.soltarFoco('menu');
     // a caixa so foi aberta pra segurar o retrato; sem falas dentro dela, ela
     // sai junto com o menu
-    if (this.falas.length === 0) this.dialogo.setVisible(false);
+    if (this.falas.length === 0) this.soltarFoco('dialogo');
     this.desenharPrompt();
   }
 
@@ -897,10 +967,8 @@ export class UIScene extends Phaser.Scene {
     const y = CAIXA.y - altura - 4;
 
     this.menuFundo.clear();
-    this.menuFundo.fillStyle(UI.fundo, 1);
-    this.menuFundo.fillRect(x, y, MENU.w, altura);
-    this.menuFundo.lineStyle(1, UI.borda, 1);
-    this.menuFundo.strokeRect(x + 0.5, y + 0.5, MENU.w - 1, altura - 1);
+    // sobreposto: o menu de assunto abre com o retrato de quem fala por baixo
+    moldura(this.menuFundo, { x, y, w: MENU.w, h: altura }, { sobreposto: true });
 
     this.menuTitulo.setPosition(x + MENU.margem, y + MENU.margem);
 
@@ -945,11 +1013,9 @@ export class UIScene extends Phaser.Scene {
       });
       return linha;
     });
-    this.menuRodape = this.add.text(0, 0, '', {
-      fontFamily: UI.fonte,
-      fontSize: UI.tamanho,
-      color: UI.textoFraco,
-    });
+    // posicao vem do `desenharMenu`: a altura do menu muda com a contagem de
+    // opcoes, entao o rodape nao tem um y fixo como nos outros paineis
+    this.menuRodape = rodapeDePainel(this, { x: 0, y: 0, w: 0, h: 0 });
 
     return this.add
       .container(0, 0, [this.menuFundo, this.menuTitulo, ...this.menuLinhas, this.menuRodape])
@@ -960,19 +1026,22 @@ export class UIScene extends Phaser.Scene {
   // ---------------------------------------------------------- inventario --
 
   private alternarInventario(): void {
-    // nem abre nem fecha por baixo de dialogo/confirmacao: enquanto elas estao
-    // na tela sao elas que mandam, e sumir com o inventario embaixo de uma
-    // confirmacao de descarte deixaria a pergunta sem contexto
-    if (this.modalPorCima) return;
-    // a loja ja mostra o que o jogador tem de cada item; abrir os dois juntos
-    // so empilharia painel
-    if (!this.inventarioAberto && this.lojaAberta) return;
-    som.tocar(this.inventarioAberto ? 'ui_cancelar' : 'gaveta');
-    this.inventario.setVisible(!this.inventarioAberto);
     if (this.inventarioAberto) {
-      this.avisoInventario.setText('');
-      this.desenharInventario();
+      // nao fecha por baixo de fala ou pergunta: sumir com o inventario embaixo
+      // de uma confirmacao de descarte deixaria a pergunta sem contexto
+      if (this.foco.topo !== 'inventario') return;
+      som.tocar('ui_cancelar');
+      this.soltarFoco('inventario');
+      this.desenharPrompt();
+      return;
     }
+    // a pilha e que recusa abrir sob fala/pergunta, e trocar a loja pelo
+    // inventario so empilharia painel — as duas mostram o que o jogador tem
+    if (this.lojaAberta || !this.tomarFoco('inventario')) return;
+    som.tocar('gaveta');
+    this.inventario.setVisible(true);
+    this.avisoInventario.setText('');
+    this.desenharInventario();
     this.desenharPrompt();
   }
 
@@ -1004,7 +1073,7 @@ export class UIScene extends Phaser.Scene {
    * um kit com a vida cheia nao gasta o kit.
    */
   private usarSelecionado(): void {
-    if (!this.inventarioAberto || this.modalPorCima) return;
+    if (this.foco.topo !== 'inventario') return;
     const alvo = this.slotSelecionado;
     if (!alvo) {
       this.avisar('Selecione um item primeiro.');
@@ -1034,7 +1103,7 @@ export class UIScene extends Phaser.Scene {
    * equipa em zona perigosa (ver `podeEquipar` em equipar.ts).
    */
   private alternarEquipado(): void {
-    if (!this.inventarioAberto || this.modalPorCima) return;
+    if (this.foco.topo !== 'inventario') return;
     const alvo = this.slotSelecionado;
     if (!alvo) {
       this.avisar('Selecione um item primeiro.');
@@ -1063,7 +1132,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Joga fora a pilha selecionada. Nao devolve nada ao mundo — some mesmo. */
   private descartarSelecionado(): void {
-    if (!this.inventarioAberto || this.modalPorCima) return;
+    if (this.foco.topo !== 'inventario') return;
     const alvo = this.slotSelecionado;
     if (!alvo) {
       this.avisar('Selecione um item primeiro.');
@@ -1107,7 +1176,7 @@ export class UIScene extends Phaser.Scene {
   /** Junta as pilhas soltas e ordena por tipo. */
   private organizarInventario(): void {
     som.tocar('guardar');
-    if (!this.inventarioAberto || this.modalPorCima) return;
+    if (this.foco.topo !== 'inventario') return;
     estado.inventario.organizar();
     // os itens trocaram de slot: manter a selecao apontaria pro item errado
     this.itemSelecionado = null;
@@ -1135,7 +1204,7 @@ export class UIScene extends Phaser.Scene {
       if (this.contadores[i].text !== qtd) this.contadores[i].setText(qtd);
       this.seletores[i].setStrokeStyle(
         this.itemSelecionado === i ? 2 : 1,
-        this.itemSelecionado === i ? 0xffd97d : UI.borda,
+        this.itemSelecionado === i ? UI.bordaViva : UI.borda,
         this.itemSelecionado === i ? 1 : 0.7,
       );
     }
@@ -1185,24 +1254,12 @@ export class UIScene extends Phaser.Scene {
     const x = Math.round((CONFIG.largura - largura) / 2);
     const y = Math.round((CONFIG.altura - altura) / 2);
 
+    const painel = { x, y, w: largura, h: altura };
     const fundo = this.add.graphics();
-    fundo.fillStyle(UI.fundo, 0.95);
-    fundo.fillRect(x, y, largura, altura);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(x + 0.5, y + 0.5, largura - 1, altura - 1);
+    moldura(fundo, painel);
 
-    const titulo = this.add.text(x + INV.margem, y + 6, 'Inventario', {
-      fontFamily: UI.fonte,
-      fontSize: UI.tamanhoTitulo,
-      color: UI.destaque,
-    });
-    const dica = this.add
-      .text(x + largura - INV.margem, y + 7, '[Tab] fechar', {
-        fontFamily: UI.fonte,
-        fontSize: UI.tamanho,
-        color: UI.textoFraco,
-      })
-      .setOrigin(1, 0);
+    const titulo = tituloDePainel(this, painel, 'Inventario');
+    const dica = dicaDePainel(this, painel, '[Tab] fechar');
 
     const filhos: Phaser.GameObjects.GameObject[] = [fundo, titulo, dica];
     this.icones = [];
@@ -1214,7 +1271,7 @@ export class UIScene extends Phaser.Scene {
       const sy = y + INV.margem + INV.topo + Math.floor(i / INV.colunas) * passo;
 
       const seletor = this.add
-        .rectangle(sx, sy, INV.slot, INV.slot, 0x000000, 0.35)
+        .rectangle(sx, sy, INV.slot, INV.slot, UI.poco, UI.alfaPoco)
         .setOrigin(0, 0)
         .setStrokeStyle(1, UI.borda, 0.7)
         .setInteractive({ useHandCursor: true });
@@ -1224,7 +1281,7 @@ export class UIScene extends Phaser.Scene {
       });
 
       const icone = this.add
-        .rectangle(sx + INV.slot / 2, sy + INV.slot / 2, INV.slot - 8, INV.slot - 8, 0xffffff)
+        .rectangle(sx + INV.slot / 2, sy + INV.slot / 2, INV.slot - 8, INV.slot - 8, UI.tinta)
         .setVisible(false);
       // icone de arte: mesma posicao do placeholder, so um dos dois aparece
       const sprite = this.add
@@ -1233,7 +1290,7 @@ export class UIScene extends Phaser.Scene {
       const contador = this.add
         .text(sx + INV.slot - 2, sy + INV.slot - 2, '', {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: UI.texto,
         })
         .setOrigin(1, 1);
@@ -1270,7 +1327,7 @@ export class UIScene extends Phaser.Scene {
     // quadro visual que ele merece.
     this.equipadoTexto = this.add.text(x + INV.margem, y + altura - 42, '', {
       fontFamily: UI.fonte,
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: UI.destaque,
       wordWrap: { width: largura - INV.margem * 2 },
     });
@@ -1278,18 +1335,18 @@ export class UIScene extends Phaser.Scene {
     // que as acoes dependam do item e nao de uma barra fixa de teclas.
     this.acoesTexto = this.add.text(x + INV.margem, y + altura - 32, '', {
       fontFamily: UI.fonte,
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: UI.texto,
       wordWrap: { width: largura - INV.margem * 2 },
     });
     const dicas = this.add.text(x + INV.margem, y + altura - 22, '[O] organizar  [Tab] fechar', {
       fontFamily: UI.fonte,
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: UI.textoFraco,
     });
     this.avisoInventario = this.add.text(x + INV.margem, y + altura - 12, '', {
       fontFamily: UI.fonte,
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: UI.textoFraco,
       wordWrap: { width: largura - INV.margem * 2 },
     });
@@ -1318,8 +1375,7 @@ export class UIScene extends Phaser.Scene {
       console.warn(`[ui] ponto de loja "${idPonto}" nao existe`);
       return;
     }
-    if (this.modalPorCima) return;
-    this.inventario.setVisible(false);
+    if (!this.tomarFoco('loja')) return;
     this.lojaPonto = ponto;
     this.lojaFiltro = null;
     this.lojaCursor = 0;
@@ -1333,9 +1389,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private fecharLoja(): void {
-    this.loja.setVisible(false);
-    this.lojaPonto = null;
-    this.lojaItens = [];
+    this.soltarFoco('loja');
     this.desenharPrompt();
   }
 
@@ -1356,7 +1410,7 @@ export class UIScene extends Phaser.Scene {
   /** Cicla o filtro de prateleira: tudo -> mercado -> eletronico -> tudo. */
   private alternarFiltroDaLoja(): void {
     som.tocar('ui_pagina');
-    if (!this.lojaAberta || this.modalPorCima || !this.lojaPonto) return;
+    if (this.foco.topo !== 'loja' || !this.lojaPonto) return;
     const ordem: (CategoriaItem | null)[] = [null, ...this.lojaPonto.categorias];
     const atual = ordem.indexOf(this.lojaFiltro);
     this.lojaFiltro = ordem[(atual + 1) % ordem.length] ?? null;
@@ -1377,12 +1431,12 @@ export class UIScene extends Phaser.Scene {
       this.moverMenu(passo);
       return;
     }
-    if (this.lojaAberta && !this.modalPorCima && this.lojaItens.length > 0) som.tocar(Math.abs(passo) > 1 ? 'ui_pagina' : 'ui_mover');
+    if (this.foco.topo === 'loja' && this.lojaItens.length > 0) som.tocar(Math.abs(passo) > 1 ? 'ui_pagina' : 'ui_mover');
     this.moverListaDaLoja(passo);
   }
 
   private moverListaDaLoja(passo: number): void {
-    if (!this.lojaAberta || this.modalPorCima || this.lojaItens.length === 0) return;
+    if (this.foco.topo !== 'loja' || this.lojaItens.length === 0) return;
     const ultimo = this.lojaItens.length - 1;
     this.lojaCursor = Math.min(ultimo, Math.max(0, this.lojaCursor + passo));
     this.lojaQuantidade = 1;
@@ -1491,7 +1545,7 @@ export class UIScene extends Phaser.Scene {
       const item = this.lojaItens[this.lojaTopo + i];
       const ativo = this.lojaTopo + i === this.lojaCursor;
       linha.fundo.setVisible(Boolean(item));
-      linha.fundo.setFillStyle(ativo ? 0x3a3226 : 0x000000, ativo ? 1 : 0.25);
+      linha.fundo.setFillStyle(ativo ? UI.selecao : UI.poco, ativo ? 1 : UI.alfaPoco);
       linha.icone.setVisible(Boolean(item?.frame));
       linha.iconeCor.setVisible(Boolean(item && !item.frame));
       linha.nome.setVisible(Boolean(item));
@@ -1502,7 +1556,7 @@ export class UIScene extends Phaser.Scene {
         linha.icone.setFrame(item.frame);
         ajustarIcone(linha.icone, ICONE.loja);
       } else {
-        linha.iconeCor.setFillStyle(item.icone ?? 0xa79d8c, 1);
+        linha.iconeCor.setFillStyle(item.icone ?? UI.iconeNeutro, 1);
       }
       const tem = estado.inventario.contar(item.id);
       linha.nome.setColor(ativo ? UI.destaque : UI.texto);
@@ -1560,10 +1614,7 @@ export class UIScene extends Phaser.Scene {
    * de tela cheia. `bloqueado` cuida do resto (player parado, relogio parado).
    */
   abrirComputador(): void {
-    if (this.modalPorCima || this.pcAberto) return;
-    this.inventario.setVisible(false);
-    this.loja.setVisible(false);
-    this.pcAberto = true;
+    if (!this.tomarFoco('computador')) return;
     this.mostrarPrompt(null);
     this.input.enabled = false;
     if (this.input.keyboard) this.input.keyboard.enabled = false;
@@ -1572,8 +1623,12 @@ export class UIScene extends Phaser.Scene {
 
   /** Chamada pela ComputadorScene ao desligar. Devolve o controle do player. */
   fecharComputador(): void {
-    if (!this.pcAberto) return;
-    this.pcAberto = false;
+    this.soltarFoco('computador');
+    this.desenharPrompt();
+  }
+
+  /** O desligamento em si. Chamado pela pilha, ao tirar o PC do foco. */
+  private desligarComputador(): void {
     this.scene.stop('ComputadorScene');
     // UM QUADRO de folga antes de reativar, nao um tempo em ms: o mesmo Esc que
     // fechou o PC ainda pode estar na fila de input deste quadro e cairia aqui
@@ -1589,20 +1644,13 @@ export class UIScene extends Phaser.Scene {
   private criarPainelDeLoja(): Phaser.GameObjects.Container {
     const { x, y, w, h } = LOJA;
     const fundo = this.add.graphics();
-    fundo.fillStyle(UI.fundo, 0.96);
-    fundo.fillRect(x, y, w, h);
-    fundo.lineStyle(1, UI.borda, 1);
-    fundo.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    moldura(fundo, { x, y, w, h });
     // divisa entre a lista e a coluna de detalhe
     const divisa = x + LOJA.margem + LOJA.lista + 5;
     fundo.lineStyle(1, UI.borda, 0.5);
     fundo.lineBetween(divisa, y + LOJA.topo - 6, divisa, y + h - 22);
 
-    this.lojaTitulo = this.add.text(x + LOJA.margem, y + 7, '', {
-      fontFamily: UI.fonte,
-      fontSize: UI.tamanhoTitulo,
-      color: UI.destaque,
-    });
+    this.lojaTitulo = tituloDePainel(this, LOJA, '');
     this.lojaSaldo = this.add
       .text(x + w - LOJA.margem, y + 8, '', {
         fontFamily: UI.fonte,
@@ -1616,7 +1664,7 @@ export class UIScene extends Phaser.Scene {
     for (let i = 0; i < LOJA.linhas; i++) {
       const ly = y + LOJA.topo + i * LOJA.alturaLinha;
       const alvo = this.add
-        .rectangle(x + LOJA.margem, ly, LOJA.lista, LOJA.alturaLinha - 2, 0x000000, 0.25)
+        .rectangle(x + LOJA.margem, ly, LOJA.lista, LOJA.alturaLinha - 2, UI.poco, UI.alfaPoco)
         .setOrigin(0, 0)
         .setInteractive({ useHandCursor: true });
       // passar o mouse ja escolhe e o clique confirma pelo handler global — o
@@ -1633,8 +1681,8 @@ export class UIScene extends Phaser.Scene {
         .image(x + LOJA.margem + 12, ly + LOJA.alturaLinha / 2 - 1, 'itens')
         .setVisible(false);
       const iconeCor = this.add
-        .rectangle(x + LOJA.margem + 12, ly + LOJA.alturaLinha / 2 - 1, 12, 12, 0xa79d8c)
-        .setStrokeStyle(1, 0xf4ead2, 0.8)
+        .rectangle(x + LOJA.margem + 12, ly + LOJA.alturaLinha / 2 - 1, 12, 12, UI.iconeNeutro)
+        .setStrokeStyle(1, UI.iconeBorda, 0.8)
         .setVisible(false);
       const nome = this.add.text(x + LOJA.margem + 26, ly + 4, '', {
         fontFamily: UI.fonte,
@@ -1679,15 +1727,11 @@ export class UIScene extends Phaser.Scene {
     // borda direita do painel.
     this.lojaAviso = this.add.text(x + LOJA.margem, y + h - 26, '', {
       fontFamily: UI.fonte,
-      fontSize: '9px',
+      fontSize: UI.tamanhoMiudo,
       color: UI.textoFraco,
       wordWrap: { width: w - LOJA.margem * 2 },
     });
-    this.lojaRodape = this.add.text(x + LOJA.margem, y + h - 14, '', {
-      fontFamily: UI.fonte,
-      fontSize: '9px',
-      color: UI.textoFraco,
-    });
+    this.lojaRodape = rodapeDePainel(this, LOJA);
     filhos.push(
       this.lojaDetalheNome,
       this.lojaDetalheTexto,
@@ -1702,35 +1746,45 @@ export class UIScene extends Phaser.Scene {
   // --------------------------------------------------------------- input --
 
   /**
-   * Ponto unico de entrada do "acionar" (E / clique). A ordem e a de quem esta
-   * por cima na tela: confirmacao > dialogo > loja > inventario > mundo.
+   * Ponto unico de entrada do "acionar" (E / clique): vai pra janela que esta no
+   * TOPO da pilha de foco, e pro mundo quando nao ha janela nenhuma.
+   *
+   * Antes era uma lista de `if` na ordem escrita a mao
+   * (confirmacao > dialogo > menu > loja), e a ordem estava errada num caso: o
+   * menu de assunto abre o retrato de quem fala por baixo dele, entao
+   * `dialogoAberto` era true e o primeiro E ia pro dialogo — apagava o retrato
+   * em vez de escolher o presente, e o jogador tinha de apertar E duas vezes.
+   * Pelo topo da pilha isso nao tem como acontecer: quem abriu por ultimo e quem
+   * recebe a tecla.
    */
   private acionar(): void {
-    if (this.confirmacaoAberta) {
-      som.tocar('ui_confirmar');
-      this.responderConfirmacao();
-      return;
+    switch (this.foco.topo) {
+      case 'confirmacao':
+        som.tocar('ui_confirmar');
+        this.responderConfirmacao();
+        return;
+      case 'menu':
+        som.tocar('ui_confirmar');
+        this.escolherNoMenu();
+        return;
+      case 'dialogo':
+        som.tocar('ui_pagina');
+        this.avancarDialogo();
+        return;
+      case 'loja':
+        som.tocar('ui_confirmar');
+        this.pedirCompra();
+        return;
+      case 'inventario':
+      case 'computador':
+        // o inventario usa outra tecla pra usar item, e o PC tem input proprio
+        // na cena dele
+        return;
+      default: {
+        const mundo = this.scene.get('FarmScene') as unknown as MundoJogavel | undefined;
+        mundo?.interagir();
+      }
     }
-    if (this.dialogoAberto) {
-      som.tocar('ui_pagina');
-      this.avancarDialogo();
-      return;
-    }
-    // o menu vem antes da loja: quando o jogador escolhe presente com a loja
-    // aberta por baixo, e o menu que esta na frente
-    if (this.menuAberto) {
-      som.tocar('ui_confirmar');
-      this.escolherNoMenu();
-      return;
-    }
-    if (this.lojaAberta) {
-      som.tocar('ui_confirmar');
-      this.pedirCompra();
-      return;
-    }
-    if (this.inventarioAberto) return;
-    const mundo = this.scene.get('FarmScene') as unknown as MundoJogavel | undefined;
-    mundo?.interagir();
   }
 }
 

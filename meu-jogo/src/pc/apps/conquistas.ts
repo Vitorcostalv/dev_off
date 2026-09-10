@@ -34,7 +34,7 @@ export class Conquistas implements AppDoPc {
       ctx.cena.add
         .text(area.x + area.w, area.y + 1, `${estado.progressao.total} / ${CONQUISTAS.length} desbloqueadas`, {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.textoFraco,
         })
         .setOrigin(1, 0),
@@ -58,21 +58,21 @@ export class Conquistas implements AppDoPc {
       const glifo = ctx.cena.add
         .text(x + GRADE.largura / 2, y + 24, c.glifo, {
           fontFamily: UI.fonte,
-          fontSize: '15px',
+          fontSize: UI.tamanhoNumero,
           color: '#4d5769',
         })
         .setOrigin(0.5, 0.5);
       const titulo = ctx.cena.add
         .text(x + GRADE.largura / 2, y + 44, encurtar(c.titulo, 12), {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.textoFraco,
         })
         .setOrigin(0.5, 0);
       const cadeado = ctx.cena.add
         .text(x + GRADE.largura / 2, y + 57, estado.progressao.desbloqueada(c.id) ? 'CONQUISTADA' : 'Bloqueada', {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: '#7d6a4a',
         })
         .setOrigin(0.5, 0);
@@ -82,7 +82,7 @@ export class Conquistas implements AppDoPc {
       return { fundo, medalha };
     });
 
-    this.rodape = texto(ctx.cena, area.x, area.y + area.h - 11, '', { fontSize: '9px' });
+    this.rodape = texto(ctx.cena, area.x, area.y + area.h - 11, '', { fontSize: UI.tamanhoMiudo });
     objetos.push(this.rodape);
 
     this.desenhar();
@@ -109,7 +109,7 @@ export class Conquistas implements AppDoPc {
   private desenhar(): void {
     this.celulas.forEach((celula, i) => {
       const ativo = i === this.cursor;
-      celula.fundo.setFillStyle(ativo ? 0x2f3c52 : PC.painelClaro);
+      celula.fundo.setFillStyle(ativo ? PC.selecionado : PC.painelClaro);
       celula.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
       celula.medalha.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
     });

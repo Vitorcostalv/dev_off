@@ -8,6 +8,7 @@ import { som } from './Som';
 import type { Acao } from '../game/InputRouter';
 import { MAPAS } from '../game/mapas';
 import { ITENS } from '../game/inventario';
+import { UI } from '../game/config';
 import { CLIMAS } from '../game/clima';
 import type { FarmScene } from './FarmScene';
 
@@ -187,15 +188,18 @@ export class MenuScene extends Phaser.Scene {
   }
   private desenhar(): void {
     this.raiz.removeAll(true);
-    const texte = (x: number, y: number, t: string, size = 11, color = COR.texto) => {
-      const o = this.add.text(x, y, t, { fontFamily: 'monospace', fontSize: `${size}px`, color, wordWrap: { width: 392 }, lineSpacing: 3 }); this.raiz.add(o); return o;
+    // a tela de menu tem paleta propria (`COR`) porque e a moldura em volta do
+    // jogo e nao o HUD dentro dele; a ESCALA de texto e a mesma do resto,
+    // `UI.tamanho*`, senao o menu vira um sexto conjunto de tamanhos
+    const texte = (x: number, y: number, t: string, size: string = UI.tamanhoTitulo, color = COR.texto) => {
+      const o = this.add.text(x, y, t, { fontFamily: UI.fonte, fontSize: size, color, wordWrap: { width: 392 }, lineSpacing: 3 }); this.raiz.add(o); return o;
     };
     this.raiz.add(this.add.rectangle(240, 135, 480, 270, COR.fundo, 0.98));
     this.raiz.add(this.add.rectangle(240, 133, 432, 224, estado.preferencias.valores.altoContraste ? 0x0c1712 : COR.papel).setStrokeStyle(2, COR.borda));
-    texte(44, 34, this.titulo, 18);
+    texte(44, 34, this.titulo, UI.tamanhoGrande);
     if (this.pagina === 'calendario') {
       const d = dataDoDia(estado.dia); texte(44, 63, `${d.nomeEstacao} / Ano ${d.ano} - ${estado.clima.paraDia(estado.dia)}`);
-      ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'].forEach((s, i) => texte(64 + i * 54, 86, s, 10, COR.fraco));
+      ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'].forEach((s, i) => texte(64 + i * 54, 86, s, UI.tamanho, COR.fraco));
       for (let i = 0; i < DIAS_POR_ESTACAO; i++) {
         const x = 60 + (i % 7) * 54, y = 112 + Math.floor(i / 7) * 26;
         this.raiz.add(this.add.rectangle(x + 12, y + 8, 40, 23, i + 1 === d.diaEstacao ? COR.foco : COR.fundo).setStrokeStyle(1, COR.borda));
@@ -208,14 +212,14 @@ export class MenuScene extends Phaser.Scene {
         fundo.on('pointerdown', () => { this.cursor = i; op.executar(); }); this.raiz.add(fundo);
         texte(53, y, `${i === this.cursor ? '> ' : '  '}${op.texto}`);
       });
-      if (this.mensagem) texte(44, this.opcoes.length ? 212 : 74, this.mensagem, this.opcoes.length ? 9 : 12, COR.fraco);
+      if (this.mensagem) texte(44, this.opcoes.length ? 212 : 74, this.mensagem, this.opcoes.length ? UI.tamanhoMiudo : UI.tamanhoFala, COR.fraco);
     }
     const rodape = this.pagina === 'titulo'
       ? 'Setas / E / clique para escolher'
       : this.opcoes.some(o => o.ajustar)
         ? '[Esc/B] Voltar   [<>] Ajustar   [E/A] Escolher'
         : '[Esc/B] Voltar   [E/A] Escolher   [setas] Navegar';
-    const footer = texte(44, 249, rodape, 10);
+    const footer = texte(44, 249, rodape, UI.tamanho);
     if (this.pagina !== 'titulo') footer.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.voltar());
   }
 }

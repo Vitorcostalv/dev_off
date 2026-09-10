@@ -130,6 +130,16 @@ const PEDRA_CORPO = { largura: 0.78, altura: 0.34 };
 const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
 /** Overlay de debug: acima de qualquer sprite ordenado por y. */
 const DEPTH_OVERLAY = 100000;
+
+/**
+ * O balao de fala que aparece sobre a cabeca de um NPC num encontro.
+ *
+ * E a UNICA superficie invertida do jogo — letra escura em papel claro, no
+ * contrario da paleta de painel. E de proposito: o balao fica desenhado DENTRO
+ * do mundo, sobre cenario de qualquer cor, e a mesma moldura escura dos paineis
+ * desapareceria contra uma parede de sombra.
+ */
+const BALAO = { texto: '#18202c', fundo: '#fff8dc' } as const;
 /** Halo de poste: acima do veu da noite (850000) e dos efeitos de clima. */
 const DEPTH_LUZ_NOTURNA = 850002;
 
@@ -1276,7 +1286,7 @@ export class FarmScene extends Phaser.Scene {
       const horario = HORARIOS_PORTAS[destino];
       const texto = this.indicadoresPorta.get(porta.id) ?? this.add.text(porta.x, porta.y - 22, '', {
         fontFamily: UI.fonte,
-        fontSize: '10px',
+        fontSize: UI.tamanho,
         color: '#f7f1cc',
         backgroundColor: '#1a1712',
         padding: { x: 4, y: 2 },
@@ -1498,10 +1508,18 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
     if (!this.balaoEncontro) {
-      this.balaoEncontro = this.add.text(visual.sprite.x, visual.sprite.y - this.tamanhoTile * 1.8, '', {
-        fontFamily:UI.fonte, fontSize:'10px', color:'#18202c', backgroundColor:'#fff8dc',
-        padding:{x:6,y:4}, wordWrap:{width:180}, align:'center',
-      }).setOrigin(0.5,1).setDepth(DEPTH_OVERLAY + 20);
+      this.balaoEncontro = this.add
+        .text(visual.sprite.x, visual.sprite.y - this.tamanhoTile * 1.8, '', {
+          fontFamily: UI.fonte,
+          fontSize: UI.tamanho,
+          color: BALAO.texto,
+          backgroundColor: BALAO.fundo,
+          padding: { x: 6, y: 4 },
+          wordWrap: { width: 180 },
+          align: 'center',
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(DEPTH_OVERLAY + 20);
     }
     this.balaoEncontro.setText(fala.texto).setPosition(
       visual.sprite.x,
@@ -1605,7 +1623,7 @@ export class FarmScene extends Phaser.Scene {
           0xd9b56d,
         ).setStrokeStyle(2, 0x563b20).setDepth(projeto.posto.y * t);
         const texto = this.add.text(placa.x, placa.y, 'OBRA', {
-          fontFamily: UI.fonte, fontSize: '8px', color: '#37210f', align: 'center',
+          fontFamily: UI.fonte, fontSize: UI.tamanhoPlaca, color: '#37210f', align: 'center',
         }).setOrigin(0.5).setDepth(placa.depth + 1);
         this.visuaisDeObra.push(placa, texto);
       }
@@ -2019,7 +2037,7 @@ export class FarmScene extends Phaser.Scene {
             x + (zona.x + zona.width / 2) * escala,
             y + (zona.y + zona.height / 2) * escala,
             zona.name.startsWith('casa_') ? zona.name.slice(5) : zona.name,
-            { fontFamily: UI.fonte, fontSize: '8px', color: UI.texto, align: 'center' },
+            { fontFamily: UI.fonte, fontSize: UI.tamanhoPlaca, color: UI.texto, align: 'center' },
           )
           .setOrigin(0.5)
           .setScrollFactor(0),
@@ -2043,7 +2061,7 @@ export class FarmScene extends Phaser.Scene {
         'vermelho: voce   retrato: NPC',
         {
           fontFamily: UI.fonte,
-          fontSize: '8px',
+          fontSize: UI.tamanhoPlaca,
           color: UI.textoFraco,
         },
       ).setScrollFactor(0),
@@ -2160,7 +2178,7 @@ export class FarmScene extends Phaser.Scene {
       rotulos.push(
         this.add.text(zona.x + 3, zona.y + 3, marca, {
           fontFamily: UI.fonte,
-          fontSize: '10px',
+          fontSize: UI.tamanho,
           color: zona.construida ? UI.destaque : UI.texto,
         }),
       );

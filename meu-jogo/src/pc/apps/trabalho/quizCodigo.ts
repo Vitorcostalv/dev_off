@@ -76,7 +76,7 @@ export class QuizCodigo implements Vista {
     this.cabecalho = cena.add
       .text(area.x + area.w, area.y, '', {
         fontFamily: UI.fonte,
-        fontSize: '10px',
+        fontSize: UI.tamanho,
         color: PC.textoFraco,
       })
       .setOrigin(1, 0);
@@ -94,7 +94,7 @@ export class QuizCodigo implements Vista {
     this.raiz.add(
       cena.add.text(painel.x + 10, painel.y + 8, pergunta.codigo, {
         fontFamily: UI.fonte,
-        fontSize: '12px',
+        fontSize: UI.tamanhoFala,
         color: '#cfe3ff',
         lineSpacing: 2,
       }),
@@ -118,7 +118,7 @@ export class QuizCodigo implements Vista {
         .rectangle(area.x + area.w / 2, y + alturaOpcao / 2, area.w, alturaOpcao, PC.painelClaro)
         .setStrokeStyle(1, PC.borda)
         .setInteractive({ useHandCursor: true });
-      const rotulo = texto(cena, area.x + 10, y + 5, `${i + 1}.  ${opcao}`, { fontSize: '11px' });
+      const rotulo = texto(cena, area.x + 10, y + 5, `${i + 1}.  ${opcao}`, { fontSize: UI.tamanhoTitulo });
       fundo.on('pointerdown', () => this.clicar(i));
       this.raiz.add(fundo);
       this.raiz.add(rotulo);
@@ -126,7 +126,7 @@ export class QuizCodigo implements Vista {
     });
 
     this.resultado = texto(cena, area.x, area.y + area.h - 26, '', {
-      fontSize: '10px',
+      fontSize: UI.tamanho,
       wordWrap: { width: area.w },
       lineSpacing: 2,
     });
@@ -221,7 +221,7 @@ export class QuizCodigo implements Vista {
     this.opcoes.forEach((op, i) => {
       const ativo = i === this.cursor;
       if (!this.respondida) {
-        op.fundo.setFillStyle(ativo ? 0x2f3c52 : PC.painelClaro);
+        op.fundo.setFillStyle(ativo ? PC.selecionado : PC.painelClaro);
         op.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
         op.rotulo.setColor(ativo ? PC.destaque : PC.texto);
         return;

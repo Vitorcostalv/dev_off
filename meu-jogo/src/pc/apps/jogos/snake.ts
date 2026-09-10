@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { PC, caixa, texto } from '../../widgets.ts';
 import type { Retangulo } from '../../widgets.ts';
 import type { Vista } from '../../vista.ts';
+import { UI } from '../../../game/config';
 
 /**
  * Snake — implementacao propria, sem biblioteca nova.
@@ -79,7 +80,7 @@ export class Snake implements Vista {
 
     caixa(g, { x: this.origem.x - 2, y: this.origem.y - 2, w: largura + 4, h: altura + 4 }, 0x0a0d13, PC.borda);
 
-    this.placar = texto(cena, area.x, area.y, '', { fontSize: '10px' });
+    this.placar = texto(cena, area.x, area.y, '', { fontSize: UI.tamanho });
     raiz.add(this.placar);
 
     this.fruta = cena.add.rectangle(0, 0, CELULA - 3, CELULA - 3, 0xd66a6a);

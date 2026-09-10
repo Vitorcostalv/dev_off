@@ -4,6 +4,7 @@ import { frameDaPeca, frameDoAparelho } from '../../../game/aparelhos.ts';
 import { PC, ajustarIcone, caixa, encurtar, texto } from '../../widgets.ts';
 import type { Retangulo } from '../../widgets.ts';
 import type { Vista } from '../../vista.ts';
+import { UI } from '../../../game/config';
 
 /**
  * Minigame de CONSERTAR APARELHO: quebra-cabeca de montagem por arraste.
@@ -167,7 +168,7 @@ export class QuebraCabecaConserto implements Vista {
     raiz.add(foto);
     raiz.add(
       texto(cena, vitrine.x + 6, vitrine.y + 4, this.aparelho.nome, {
-        fontSize: '10px',
+        fontSize: UI.tamanho,
         color: PC.textoFraco,
       }),
     );
@@ -178,7 +179,7 @@ export class QuebraCabecaConserto implements Vista {
     caixa(g, { x: xSlots, y: area.y, w: larguraSlots, h: VITRINE.h }, 0x0a0d13, PC.borda);
     raiz.add(
       texto(cena, xSlots + 6, area.y + 4, 'Encaixe aqui', {
-        fontSize: '10px',
+        fontSize: UI.tamanho,
         color: PC.textoFraco,
       }),
     );
@@ -197,8 +198,8 @@ export class QuebraCabecaConserto implements Vista {
       // alta ele some, e ai o jogador tem de reconhecer a peca pela arte
       const rotulo = cena.add
         .text(cx, cy + SLOT.lado / 2 + 2, this.mostrarRotulos ? encurtar(this.aparelho.pecas[indice].nome, LIMITE_ROTULO) : '?', {
-          fontFamily: 'monospace',
-          fontSize: '9px',
+          fontFamily: UI.fonte,
+          fontSize: UI.tamanhoMiudo,
           color: PC.textoFraco,
         })
         .setOrigin(0.5, 0);
@@ -213,7 +214,7 @@ export class QuebraCabecaConserto implements Vista {
     caixa(g, bandeja, 0x0a0d13, PC.borda);
     raiz.add(
       texto(cena, bandeja.x + 6, bandeja.y + 4, 'Pecas soltas', {
-        fontSize: '10px',
+        fontSize: UI.tamanho,
         color: PC.textoFraco,
       }),
     );
@@ -238,7 +239,7 @@ export class QuebraCabecaConserto implements Vista {
 
     // --- estado e barra de tempo ---
     const yEstado = bandeja.y + bandeja.h + 6;
-    this.estado = texto(cena, area.x, yEstado, '', { fontSize: '10px', wordWrap: { width: area.w } });
+    this.estado = texto(cena, area.x, yEstado, '', { fontSize: UI.tamanho, wordWrap: { width: area.w } });
     raiz.add(this.estado);
 
     this.barraLargura = area.w;

@@ -57,18 +57,18 @@ export class Calculadora implements AppDoPc {
     const largura = 208;
     const x = area.x + Math.floor((area.w - largura) / 2);
 
-    caixa(g, { x, y: area.y, w: largura, h: 40 }, 0x0d1119, PC.borda);
+    caixa(g, { x, y: area.y, w: largura, h: 40 }, PC.cova, PC.borda);
     this.memoria = ctx.cena.add
       .text(x + largura - 8, area.y + 5, '', {
         fontFamily: UI.fonte,
-        fontSize: '9px',
+        fontSize: UI.tamanhoMiudo,
         color: PC.textoFraco,
       })
       .setOrigin(1, 0);
     this.display = ctx.cena.add
       .text(x + largura - 8, area.y + 17, '0', {
         fontFamily: UI.fonte,
-        fontSize: '18px',
+        fontSize: UI.tamanhoGrande,
         color: PC.texto,
       })
       .setOrigin(1, 0);
@@ -98,7 +98,7 @@ export class Calculadora implements AppDoPc {
         const legenda = ctx.cena.add
           .text(tx + larguraTecla / 2, ty + alturaTecla / 2, rotulo, {
             fontFamily: UI.fonte,
-            fontSize: '13px',
+            fontSize: UI.tamanhoNome,
             color: operador ? PC.destaque : PC.texto,
           })
           .setOrigin(0.5, 0.5);
@@ -115,7 +115,7 @@ export class Calculadora implements AppDoPc {
         area.x,
         area.y + area.h - 11,
         'Funciona pelo teclado tambem: numeros, + - * /, Enter, Backspace, C.',
-        { fontSize: '9px', color: PC.textoFraco },
+        { fontSize: UI.tamanhoMiudo, color: PC.textoFraco },
       ),
     );
 
