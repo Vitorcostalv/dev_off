@@ -1668,7 +1668,8 @@ export class FarmScene extends Phaser.Scene {
     if (!projeto) return;
     if (!estado.cidade.construido(id)) {
       this.ui.confirmar(
-        `Construir ${projeto.nome} por ${formatarDinheiro(projeto.custo)}?`,
+        `Construir ${projeto.nome} por ${formatarDinheiro(projeto.custo)}`
+          + ` + ${this.textoMateriais(projeto.materiais)}?`,
         () => this.construirProjetoCidade(projeto),
       );
       return;
@@ -1706,10 +1707,30 @@ export class FarmScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Obra publica: dinheiro E material, na mesma transacao da carteira.
+   *
+   * Mesmo formato da compra de comodo (`comprarExpansao`): a falta de
+   * material e avisada ANTES, e dentro da transacao `cabe()` confere de novo,
+   * porque entre o aviso e o gasto o jogador pode ter largado uma tabua.
+   * Se o saldo nao der, nada e consumido.
+   */
   private construirProjetoCidade(projeto: ProjetoCidade): void {
+    const faltas = this.materiaisFaltando(projeto.materiais);
+    if (faltas.length > 0) {
+      this.ui.iniciarDialogo(falasDe('Prefeitura', [
+        `Falta material para a obra: ${faltas.join(', ')}. Nada foi consumido.`,
+        'A madeireira e a pedreira da zona rural vendem; os pontos de coleta sao de graca.',
+      ]));
+      return;
+    }
     const r = estado.carteira.gastar(projeto.custo, {
-      cabe: () => !estado.cidade.construido(projeto.id),
-      entregar: () => { estado.cidade.construir(projeto.id); },
+      cabe: () => !estado.cidade.construido(projeto.id)
+        && this.materiaisFaltando(projeto.materiais).length === 0,
+      entregar: () => {
+        this.consumirMateriais(projeto.materiais);
+        estado.cidade.construir(projeto.id);
+      },
     });
     if (!r.ok) {
       this.ui.iniciarDialogo(falasDe('Prefeitura', [

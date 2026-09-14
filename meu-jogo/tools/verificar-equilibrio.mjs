@@ -40,6 +40,8 @@ const [
   { CATALOGO_ITENS, precoDe },
   { HP_MAXIMO },
   { inimigosDoAndar, faunaDoAndar },
+  { PROJETOS_CIDADE },
+  { NOS_RURAIS },
 ] = await Promise.all([
   import('../src/game/dinheiro.ts'),
   import('../src/game/casa.ts'),
@@ -50,6 +52,8 @@ const [
   import('../src/game/itens.ts'),
   import('../src/game/vida.ts'),
   import('../src/game/andares.ts'),
+  import('../src/game/cidade.ts'),
+  import('../src/game/atividadesRurais.ts'),
 ]);
 
 let conferencias = 0;
@@ -588,6 +592,103 @@ ok(
   `o fundo paga ${razaoFundo.toFixed(1)}x um dia de quadro; o fundo pode pagar melhor que um dia ` +
     'de entregas, mas dez vezes melhor nao e recompensa por profundidade e sim erro de tabela',
   razaoFundo <= 10,
+);
+
+
+// ------------------------------------------------ as obras da cidade e o material
+//
+// Ate esta leva a cidade se construia so com saldo, e era a ultima ponte aberta
+// do roteiro: os dois pontos de madeira e os dois de pedra da zona rural rendiam
+// material que SO a casa do protagonista consumia. Quem nao mobiliava nao tinha
+// motivo nenhum pra ir ate la.
+//
+// A conta que interessa nao e "quanto custa": e quanto do custo de uma obra e
+// TRABALHO e quanto e saldo. Material se compra (madeireira e pedreira vendem),
+// entao a exigencia nunca e tranca — e um segundo preco, pagavel dos dois
+// jeitos. Se esse segundo preco for simbolico, a ponte nao existe na pratica.
+const precoDoMaterial = (id) => CATALOGO_ITENS.find((i) => i.id === id)?.preco ?? 0;
+const contaDaObra = (projeto) => {
+  const material = projeto.materiais.reduce(
+    (s, r) => s + precoDoMaterial(r.itemId) * r.quantidade,
+    0,
+  );
+  return { material, dinheiro: projeto.custo, total: material + projeto.custo };
+};
+
+const obras = Object.values(PROJETOS_CIDADE);
+console.log('\n--- obras da cidade: dinheiro contra material ---');
+const totalDeMaterial = {};
+for (const obra of obras) {
+  const c = contaDaObra(obra);
+  for (const r of obra.materiais) {
+    totalDeMaterial[r.itemId] = (totalDeMaterial[r.itemId] ?? 0) + r.quantidade;
+  }
+  console.log(
+    `  ${obra.nome.padEnd(20)} ${reais(c.dinheiro).padStart(11)} de saldo + ` +
+      `${reais(c.material).padStart(11)} de material ` +
+      `(${obra.materiais.map((r) => `${r.itemId} x${r.quantidade}`).join(', ')})`,
+  );
+  ok(
+    `a obra "${obra.nome}" nao pede material nenhum. Obra publica que se levanta so com saldo e ` +
+      'a ponte da zona rural fechada de novo',
+    obra.materiais.length > 0,
+  );
+  ok(
+    `a obra "${obra.nome}" pede material que nao existe no catalogo, ou de preco zero: ` +
+      JSON.stringify(obra.materiais),
+    obra.materiais.every((r) => r.quantidade > 0 && precoDoMaterial(r.itemId) > 0),
+  );
+  ok(
+    `o material da obra "${obra.nome}" vale ${reais(c.material)} contra ${reais(c.dinheiro)} de ` +
+      'saldo. Abaixo de metade do preco em dinheiro, exigir material vira enfeite: o jogador ' +
+      'compra os tres itens no caminho e nunca descobre que os pontos de coleta existem',
+    c.material >= c.dinheiro * 0.5,
+  );
+}
+
+// O teto: a maior obra publica nao pode pedir mais material que o maior comodo
+// da casa, que e a garagem. Passar disso inverteria a escala do jogo — a cidade
+// sairia mais cara de construir que a casa inteira de quem a constroi.
+const materialDaGaragem = Math.max(
+  ...EXPANSOES.map((e) => e.materiais.reduce((s, r) => s + precoDoMaterial(r.itemId) * r.quantidade, 0)),
+);
+const maiorObra = obras.reduce((a, c) => (contaDaObra(c).material > contaDaObra(a).material ? c : a));
+ok(
+  `a obra "${maiorObra.nome}" pede ${reais(contaDaObra(maiorObra).material)} de material e o maior ` +
+    `comodo da casa pede ${reais(materialDaGaragem)}. A cidade nao pode custar mais material que ` +
+    'a casa de quem a levanta',
+  contaDaObra(maiorObra).material <= materialDaGaragem,
+);
+
+// E a conta em DIAS: os quatro pontos rurais rendem 3 unidades a cada 2 dias
+// cada um, e madeira e pedra se juntam no mesmo dia (sao pontos diferentes).
+const porTipo = {};
+for (const no of NOS_RURAIS) {
+  if (no.tipo === 'canteiro') continue;
+  porTipo[no.tipo] = (porTipo[no.tipo] ?? 0) + 3 / 2; // 3 unidades a cada 2 dias
+}
+const diasDeColeta = Math.max(
+  ...Object.entries(totalDeMaterial)
+    .filter(([id]) => porTipo[id])
+    .map(([id, qtd]) => qtd / porTipo[id]),
+);
+const semPontoDeColeta = Object.keys(totalDeMaterial).filter((id) => !porTipo[id]);
+console.log(
+  `  a cidade inteira: ${Object.entries(totalDeMaterial).map(([id, q]) => `${id} x${q}`).join(', ')}` +
+    ` — ${diasDeColeta.toFixed(0)} dia(s) de coleta no ritmo dos pontos rurais` +
+    (semPontoDeColeta.length > 0 ? ` (${semPontoDeColeta.join(', ')} so na loja)` : ''),
+);
+ok(
+  `juntar o material das quatro obras leva ${diasDeColeta.toFixed(0)} dia(s) de coleta, de um ano ` +
+    'de 112. Menos de dez dias e uma ida a zona rural resolvendo a cidade toda, e a ponte volta a ' +
+    'ser decorativa',
+  diasDeColeta >= 10,
+);
+ok(
+  `juntar o material das quatro obras leva ${diasDeColeta.toFixed(0)} dia(s) de coleta, de um ano ` +
+    'de 112. Acima de sessenta o jogador compra tudo e os pontos de coleta viram cenario de novo, ' +
+    'so que pelo motivo oposto',
+  diasDeColeta <= 60,
 );
 
 if (falhas.length > 0) {

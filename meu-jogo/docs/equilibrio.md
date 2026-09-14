@@ -47,13 +47,34 @@ Duas regras que não são detalhe:
 ## Gameplay
 O combate não mudou, e a medição é a razão: ele passou em tudo. O golpe mais forte do jogo tira 8 de 30 de vida, dois golpes do pior inimigo tiram 16 — o comentário de `inimigos.ts` promete que o pior encontro possível não mata de vida cheia, e o número cumpre. Todo andar rende mais do que gasta de munição, do 10 (sobra R$ 5,84) ao 50 (sobra R$ 475). O golpe corpo a corpo é de graça e mata o inimigo mais duro em oito golpes, que é a saída de quem está sem dinheiro, e a pistola bate mais forte que ele, senão a munição seria dinheiro jogado fora.
 
+## A ponte das obras: material, não só saldo
+As quatro obras municipais subiam só com saldo, e era a última ponte aberta do roteiro: os dois pontos de madeira e os dois de pedra da zona rural rendiam material que **só** a casa do protagonista consumia. Quem não mobiliava não tinha motivo nenhum de ir até lá.
+
+Agora cada obra declara `materiais`, na mesma escala de `EXPANSOES` — o depósito da casa sai por 20 de madeira e 12 de pedra:
+
+| obra | saldo | material |
+| --- | --- | --- |
+| Ponto de Ônibus | R$ 40,00 | madeira ×8, concreto ×6 — R$ 92,00 |
+| Cafeteria da Estação | R$ 80,00 | madeira ×24, pedra ×10 — R$ 156,00 |
+| Padaria do Bairro | R$ 90,00 | madeira ×26, pedra ×12 — R$ 176,00 |
+| Posto de Saúde | R$ 150,00 | madeira ×20, pedra ×18, concreto ×20 — R$ 388,00 |
+
+Isso **não é uma tranca**, e o documento não vai fingir que é: madeira e concreto estão à venda na madeireira, pedra e concreto na pedreira. É um segundo preço, pagável em trabalho ou em dinheiro. O que ele muda é que os pontos de coleta passam a valer dinheiro de verdade — juntar o material das quatro obras é **26 dias** de coleta no ritmo dos pontos rurais (3 unidades a cada 2 dias, por ponto), de um ano de 112. O concreto não tem ponto de coleta: esse só na loja.
+
+A transação tem o mesmo formato da compra de cômodo: a falta é avisada antes, `cabe()` confere de novo dentro da transação da carteira, e se o saldo não der **nada** é consumido.
+
+### E o que a medição escancarou
+Pôr as obras na tabela ao lado do resto deixou visível uma coisa que nenhuma das etapas anteriores tinha olhado: **o preço em dinheiro de uma obra pública ficou fora de escala**. Um Posto de Saúde custa R$ 150,00 num jogo em que um sofá custa R$ 960,00 e a casa inteira R$ 22.540,00. A etapa 6 multiplicou por três o catálogo de mobília e rebaseou as expansões, e não tocou nos quatro números das obras — eles são os mesmos de antes do rebalanceamento.
+
+Com o material, o custo real de uma obra passou a ser majoritariamente material (o Posto de Saúde: R$ 150 de saldo contra R$ 388 de material), o que disfarça o problema sem resolvê-lo. **Não mexi no preço**: multiplicar por trinta o custo das quatro obras é uma decisão de jogo, não um conserto de bug, e não estava no que foi pedido. Fica registrado com o número na mão.
+
 ## Save Compatibility
 Nenhuma versão de save mudou e nada novo é persistido. Preço de móvel e peso de tabela de loot são **tabelas**, não estado: um save antigo abre com o saldo que tinha e com a casa que já comprou, e vê os preços novos nas peças que ainda não comprou. A peça de reposição não guarda nada — ela é consultada no momento do pagamento.
 
 O único efeito visível num save antigo é honesto: quem já tinha dinheiro guardado compra mais barato do que quem começa hoje. O contrário — retroagir preço — exigiria mexer no saldo de um save alheio.
 
 ## Tests
-`npm run verificar-equilibrio`: **55 conferências**, e o retrato completo impresso antes delas. O quadro de trabalho nos 112 dias (cinco vagas todo dia, os três tipos todo dia, pior dia a 45% do melhor), a escada de raridade da sucata na média *e* na prateleira, o tempo até cada compra, as três faixas de material, a renda por faixa de dez andares crescendo com a profundidade, o cofre de enigma pagando mais que a caixa comum da mesma faixa, munição contra salvado em cada faixa, e as duas pontas.
+`npm run verificar-equilibrio`: **70 conferências**, e o retrato completo impresso antes delas. O quadro de trabalho nos 112 dias (cinco vagas todo dia, os três tipos todo dia, pior dia a 45% do melhor), a escada de raridade da sucata na média *e* na prateleira, o tempo até cada compra, as três faixas de material, a renda por faixa de dez andares crescendo com a profundidade, o cofre de enigma pagando mais que a caixa comum da mesma faixa, munição contra salvado em cada faixa, e as duas pontas.
 
 Ele **junta** as falhas em vez de parar na primeira: um piso de equilíbrio quebrado não é bug de código, é decisão de número pendente, e quem for ajustar preço precisa ver o quadro inteiro antes de mexer em qualquer coisa — mexer no preço da casa muda o tempo até a compra de tudo.
 
@@ -65,9 +86,9 @@ Regressão: 19 validadores de domínio (incluindo as 1.458 checagens de economia
 Nada muda por quadro. O simulador é ferramenta de linha de comando; `reposicaoDoConserto` roda uma vez por conserto concluído e varre cinco ids.
 
 ## Known Remaining Work
-A ponte que a etapa fechou é **sucata → reparos**. As outras duas do roteiro continuam abertas:
+As duas pontes fechadas são **sucata → reparos** e **produção rural → obras urbanas**. O que continua aberto:
 
-- **obras** custam só dinheiro (R$ 40 a R$ 150) e não pedem material nenhum. Uma obra municipal que aceitasse madeira e concreto do jogador ligaria a produção rural às obras urbanas, e é a conexão mais natural que falta;
+- o **preço em dinheiro das obras** continua o de antes do rebalanceamento da etapa 6 (R$ 40 a R$ 150), fora de escala com tudo o mais. Ver a seção das obras acima: está medido, e não foi mexido de propósito;
 - **materiais → fabricação** tem exatamente **uma** receita (`RECEITAS` em `atividadesRurais.ts`: lanterna de manutenção, de dois cabos USB e três madeiras). Uma bancada com uma receita não é uma bancada;
 - a **peça de reposição não aparece na tela do quebra-cabeça antes do pagamento** — o jogador só descobre o bônus quando ele já entrou. Anunciar antes ("você tem ferro-velho: +20%") transformaria o bônus em decisão em vez de surpresa;
 - as **11 tabelas de loot** têm peso escrito à mão. A escada de raridade é hoje conferida, mas não gerada: uma tabela nova ainda pode nascer com o peso errado e só o validador avisa.

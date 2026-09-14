@@ -1,3 +1,4 @@
+import type { RequisitoMaterial } from './casa.ts';
 import type { AtividadeMorador, Morador } from './moradores.ts';
 
 export type IdProjetoCidade = 'cafeteria' | 'hospital' | 'padaria' | 'ponto_onibus';
@@ -9,6 +10,21 @@ export interface ProjetoCidade {
   mapa: 'bairro';
   quadro: string;
   custo: number;
+  /**
+   * O que a obra CONSOME do inventario, alem do dinheiro.
+   *
+   * Ate aqui a cidade se construia so com saldo, e era a ultima ponte aberta
+   * do roteiro: os dois pontos de madeira e os dois de pedra da zona rural
+   * rendiam material que so a casa do protagonista usava. Uma obra publica
+   * agora pede o mesmo tipo de coisa que um comodo pede, na escala de
+   * EXPANSOES (o deposito sai por 20 de madeira e 12 de pedra).
+   *
+   * Isso NAO e uma tranca: madeira e concreto estao a venda na madeireira, e
+   * pedra e concreto na pedreira. E um segundo preco, pagavel em trabalho ou
+   * em dinheiro — e o que finalmente faz valer a pena caminhar ate os pontos
+   * de coleta em vez de so comprar.
+   */
+  materiais: readonly RequisitoMaterial[];
   candidatos: readonly string[];
   posto: { x: number; y: number };
   pegada: { w: number; h: number };
@@ -23,21 +39,25 @@ export const PROJETOS_CIDADE: Record<IdProjetoCidade, ProjetoCidade> = {
   cafeteria: {
     id: 'cafeteria', nome: 'Cafeteria da Estacao', lote: 'terreno_baldio', mapa: 'bairro',
     quadro: 'projeto_cafeteria', custo: 8_000, candidatos: ['lucia', 'samanta', 'tulio'],
+    materiais: [{ itemId: 'madeira', quantidade: 24 }, { itemId: 'pedra', quantidade: 10 }],
     posto: { x: 113, y: 66 }, pegada: { w: 7, h: 4 }, atividade: 'turno na cafeteria',
   },
   hospital: {
     id: 'hospital', nome: 'Posto de Saude', lote: 'casa_c3', mapa: 'bairro',
     quadro: 'projeto_hospital', custo: 15_000, candidatos: ['rafael', 'priscila', 'ilda'],
+    materiais: [{ itemId: 'madeira', quantidade: 20 }, { itemId: 'pedra', quantidade: 18 }, { itemId: 'concreto', quantidade: 20 }],
     posto: { x: 99, y: 39 }, pegada: { w: 6, h: 4 }, atividade: 'atendimento no posto de saude',
   },
   padaria: {
     id: 'padaria', nome: 'Padaria do Bairro', lote: 'casa_b8', mapa: 'bairro',
     quadro: 'projeto_padaria', custo: 9_000, candidatos: ['davi', 'neide', 'joao'],
+    materiais: [{ itemId: 'madeira', quantidade: 26 }, { itemId: 'pedra', quantidade: 12 }],
     posto: { x: 128, y: 69 }, pegada: { w: 6, h: 4 }, atividade: 'turno na padaria',
   },
   ponto_onibus: {
     id: 'ponto_onibus', nome: 'Ponto de Onibus', lote: 'casa_c4', mapa: 'bairro',
     quadro: 'projeto_ponto_onibus', custo: 4_000, candidatos: ['julia', 'matheus', 'tulio'],
+    materiais: [{ itemId: 'madeira', quantidade: 8 }, { itemId: 'concreto', quantidade: 6 }],
     posto: { x: 111, y: 39 }, pegada: { w: 5, h: 2 }, atividade: 'operacao da linha de onibus',
   },
 };
