@@ -1,11 +1,11 @@
 {
   "alvo": "http://localhost:5187",
-  "bundle": "index-B8aOb4l5.js",
-  "bytes": 1659037,
+  "bundle": "index-rlXT11Tb.js",
+  "bytes": 1660122,
   "errors": [],
   "checks": [
     "sem window.game/window.estado em producao",
-    "metrica de painel calibrada (mundo 0.00 < limite 14.48 < mapa 43.45)",
+    "metrica de painel calibrada (mundo 0.00 < limite 14.47 < mapa 43.40)",
     "F1-F10 em producao: nenhum painel, save intacto, sem globais",
     "remapeamento pela tela de opcoes de producao persiste, sem tocar nas outras acoes",
     "tecla antiga inativa depois do remapeamento",

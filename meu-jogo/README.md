@@ -1144,6 +1144,9 @@ Auditoria, lacunas e roteiro: [docs/overhaul.md](docs/overhaul.md). A remasteriz
 
 Etapas com documento proprio: [controles e modo de desenvolvimento](docs/controles-dev.md),
 [audio](docs/audio.md), [remap do centro](docs/centro.md),
+[remap do bairro](docs/bairro.md),
+[remap da zona rural](docs/zona-rural.md),
+[remap da estrada da represa](docs/estrada-represa.md),
 [interiores urbanos](docs/interiores.md),
 [distorcao da represa](docs/represa-distorcao.md),
 [clima, estacao e encontros](docs/social.md),
@@ -1161,8 +1164,18 @@ verificar-interiores` guarda o piso. Os cinquenta andares da usina ganharam
 distorcao por capitulo: 1 e 2 industriais, 3 com repeticao encostada de peca
 identica, 4 com mobilia de escritorio onde ela nao tem o que fazer e 5 com
 escritorio e casa sobrepostos — nenhuma ficha, enigma, parada de elevador ou
-regra de inimigo mudou. Bairro, zona rural e acesso da represa seguem
-pendentes. A rotina dos 33 moradores passou a consultar o calendario: verao
+regra de inimigo mudou. Os QUATRO mapas externos estao remapeados. O bairro ganhou calcada em toda via
+(anel que segue a curva da rua, nao retangulo como no centro), treze acessos
+ligando porta a rua, dois largos na rua da estacao, patio na escola e na
+biblioteca, e 38 pecas de mobiliario — e a rua do condominio fechado passou a
+entrar pelo portao e virar rua interna, que e o que tira as casas do Lucas e do
+Tulio de cima do mato. A zona rural nao ganhou calcada de proposito (estrada de
+terra na roca nao tem meio-fio) e ganhou o que faltava: serventia de cada uma
+das tres portas ate a estrada, terreiro nas duas moradias, patio na madeireira,
+eira nas fazendas e 22 pecas de mobiliario de roca. A estrada da represa ganhou
+tres recuos e 16 pecas, com UMA lampada no mapa inteiro, no portao da usina.
+Cada mapa tem conferencia propria: verificar-bairro (153 conferencias),
+verificar-zona-rural (79) e verificar-estrada-represa (52). A rotina dos 33 moradores passou a consultar o calendario: verao
 empurra a atividade ao ar livre do meio do dia pra depois das 16h, inverno tira
 a que comeca depois das 17h, chuva e temporal recolhem quem esta na rua pro
 abrigo de casa (dezessete pessoas na rua do bairro viram tres) e tres encontros

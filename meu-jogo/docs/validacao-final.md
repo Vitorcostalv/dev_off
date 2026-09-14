@@ -49,7 +49,11 @@ Os 21 falsos positivos do canon, descritos acima, e um do teste de progressão q
 
 `npm run test:progressao-browser`: cinco conferências, incluindo a visita aos cinquenta andares em sequência.
 
-O estado final da bateria: **20 validadores de domínio** (`verificar-tudo`) e **16 suítes de navegador**, mais `test:producao` contra o build. Somando as etapas: 29.605 conferências sociais, 1.458 de economia, 453 de interface, 397 de canon, 55 de equilíbrio, e o resto.
+O estado da bateria quando esta etapa fechou era: **20 validadores de domínio** e **16 suítes de navegador**.
+
+As levas que vieram depois — corte do atlas de ícones, material nas obras municipais, folha de NPC por mapa, e o remap dos três mapas externos que faltavam — levaram a bateria a **23 validadores de domínio** (`verificar-tudo`) e **17 suítes de navegador**, mais `test:producao` contra o build. Somando as etapas: 29.605 conferências sociais, 1.458 de economia, 453 de interface, 397 de canon, 209 do centro, 153 do bairro, 79 da zona rural, 70 de equilíbrio, 52 da estrada da represa, e o resto.
+
+**O canon continua travado nas 397 conferências, e as levas seguintes não o tocaram.** O remap dos três mapas move piso e cenário; nenhum nome, casa, família, id de missão, id de segredo, intervalo de ficha ou degrau da escada de revelação mudou — e é `verificar-canon` quem diz isso, não esta frase.
 
 ## Known Remaining Work
 - **o canon travado é o estrutural, não o textual.** Nome, casa, família, id de missão, id de segredo, intervalo de ficha e escada de revelação estão presos. O **texto** das falas não está: `dialogo.ts` tem milhares de linhas e travar cada uma pediria um hash por fala, que quebraria em qualquer correção de acento. As cinco linhas de cada ficha médica também não estão presas, só o cabeçalho do paciente;
