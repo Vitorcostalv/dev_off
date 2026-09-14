@@ -10,3 +10,16 @@ dist/
 .DS_Store
 Thumbs.db
 
+
+# Arquivos que nao sao do jogo e ficavam soltos em arte/.
+# `arte/` e a pasta de ARTE DE ORIGEM: o que os geradores leem pra escrever
+# public/. Planilha, PDF, zip de print e video de referencia nao entram em
+# gerador nenhum e nao pertencem ao historico do repositorio.
+**/arte/*.xlsx
+**/arte/*.pdf
+**/arte/*.zip
+**/arte/*.mp4
+
+# Relatorio de auditoria gerado (~66 MB de HTML e PDF). Sai de ferramenta e
+# pesaria em todo clone; quem precisar dele roda a ferramenta de novo.
+relatorios/
