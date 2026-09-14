@@ -55,7 +55,8 @@
     "test:progressao-browser": "node tools/browser-progressao.mjs",
     "verificar-bairro": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-bairro.mjs",
     "test:bairro-browser": "node tools/browser-bairro.mjs",
-    "verificar-zona-rural": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-zona-rural.mjs"
+    "verificar-zona-rural": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-zona-rural.mjs",
+    "verificar-estrada-represa": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-estrada-represa.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

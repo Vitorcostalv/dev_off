@@ -2333,6 +2333,71 @@ const CERCA_CAIDA_REPRESA = { x: 44, y: 110, w: 14 };
 /** Patio de concreto da casa de forca, entre a porta e a estrada. */
 const PATIO_REPRESA = { x: 28, y: 33, w: 24, h: 4 };
 
+/**
+ * REMAP DA ESTRADA DA REPRESA — o menor dos quatro, e o mais diferente.
+ *
+ * Este mapa ja tinha o que os outros tres nao tinham: dez placas, patio na
+ * frente da casa de forca, mirante calcado e ramal ate ele. O que ele nao tinha
+ * era UM UNICO OBJETO de cenario — nem camada `moveis`. Onze mil tiles de mata,
+ * estrada e agua, e nada no chao alem de arvore sorteada.
+ *
+ * E aqui o mobiliario nao e conforto urbano: e o que sobrou de um lugar que
+ * funcionou e parou. Mesa de piquenique apodrecendo na area abandonada, mourao
+ * de guarda-corpo no mirante, toco e pedra nas curvas.
+ *
+ * UMA LUZ SO NO MAPA INTEIRO, no portao da usina. As outras tres cidades tem
+ * iluminacao publica; esta estrada nao tem nenhuma, e a lampada acesa no portao
+ * de uma usina desativada diz mais sobre o lugar do que qualquer texto de placa.
+ */
+
+/** RECUOS: onde a estrada alarga o bastante pra parar. */
+const PATIOS_REPRESA = [
+  // Recuo do portao, ao lado da guarita. E onde o jogador para antes de entrar
+  // na area restrita — e o unico ponto iluminado da subida.
+  { nome: 'recuo_portao', material: 'concreto_patio', x: 43, y: 41, w: 4, h: 4 },
+  // Area de piquenique abandonada, atras da cerca caida que ja marcava o lugar.
+  { nome: 'area_piquenique', material: 'terra', x: 44, y: 105, w: 13, h: 5 },
+  // Patio do galpao de servico, entre o predio e o ramal.
+  { nome: 'patio_galpao', material: 'cascalho', x: 56, y: 68, w: 10, h: 3 },
+];
+
+/** O caminho da casa de forca ate a estrada: o patio de concreto que ja existia. */
+const ACESSOS_REPRESA = [
+  { lote: 'casa_maquinas', material: 'concreto_patio', trechos: [
+    { x: 28, y: 33, w: 24, h: 4 },
+  ] },
+];
+
+/**
+ * MOBILIARIO DA ESTRADA. Nada de banco de praca: guarda-corpo, mesa apodrecida,
+ * toco e pedra. A unica peca com `luz` do mapa fica no portao.
+ */
+const MOBILIARIO_REPRESA = [
+  // --- recuo do portao: a lampada que ninguem apagou ---
+  { peca: [0, 5], tx: 45, ty: 44, luz: true },
+  { peca: [7, 3], tx: 43, ty: 43 },
+  { peca: [2, 1], tx: 43, ty: 44 },
+
+  // --- mirante sobre o rio de jusante: guarda-corpo virado pra agua ---
+  { peca: [7, 3], tx: 23, ty: 95 },
+  { peca: [7, 3], tx: 27, ty: 95 },
+  { peca: [0, 9], tx: 25, ty: 93 },
+  { peca: [6, 6], tx: 30, ty: 92 },
+
+  // --- area de piquenique abandonada: o mato tomando de volta ---
+  { peca: [0, 8], tx: 44, ty: 107 },
+  { peca: [0, 8], tx: 52, ty: 109 },
+  { peca: [7, 8], tx: 49, ty: 106 },
+  { peca: [5, 4], tx: 55, ty: 106 },
+  { peca: [6, 3], tx: 45, ty: 109 },
+
+  // --- patio do galpao: o que ficou parado do lado de fora ---
+  { peca: [7, 3], tx: 56, ty: 70 },
+  { peca: [7, 3], tx: 64, ty: 70 },
+  { peca: [6, 6], tx: 58, ty: 70 },
+  { peca: [7, 8], tx: 62, ty: 69 },
+];
+
 const ZONAS_REPRESA = [
   // A unica construcao que ABRE no mapa: a casa de forca, no pe da barragem.
   { nome: 'casa_maquinas', classe: 'represa', uso: 'comercio', x: 30, y: 28, w: 20, h: 7 },
@@ -2921,6 +2986,13 @@ const PLACAS_DO_CENTRO = [
  *                    (o nascedouro do jogador), ou null se o mapa nao tem um.
  */
 const REMAPS = {
+  represa: {
+    vias: () => VIAS_REPRESA,
+    // sem calcada: e estrada de mata, e o que ela tem de margem e o mato
+    acessos: () => ACESSOS_REPRESA,
+    patios: () => PATIOS_REPRESA,
+    mobiliario: () => MOBILIARIO_REPRESA,
+  },
   rural: {
     vias: () => VIAS_RURAL,
     // sem calcada de proposito: ver o cabecalho do remap da zona rural
@@ -4601,7 +4673,8 @@ function aguaEmFaixa(obj, x0, y, largura) {
 }
 
 function gerarRepresa(ts) {
-  const { W, H, chao, caminhos, obj, faixa } = baseExterna('represa', VIAS_REPRESA);
+  conferirRemap('represa');
+  const { W, H, chao, caminhos, obj, faixa } = baseExterna('represa', VIAS_REPRESA, 'represa');
 
   // --- reservatorio: bloco de agua parada, 9-slice de ponta a ponta ---
   const r = RESERVATORIO;
@@ -4725,6 +4798,9 @@ function gerarRepresa(ts) {
   }
   for (const b of bordasDoMapa('represa')) bloquearEm(ocupado, b.x - 2, b.y - 2, b.w + 4, b.h + 4);
   for (const alvo of interativos) bloquearEm(ocupado, alvo.x / T - 1, alvo.y / T - 1, 3, 3);
+  // recuo, patio e cada peca do remap: arvore sorteada em cima do recuo do
+  // portao fecharia o unico ponto de parada da subida
+  for (const a of areasSemFloraDoRemap('represa')) bloquearEm(ocupado, a.x, a.y, a.w, a.h);
 
   // entulho de concreto solto: e o que faz a estrada ler como abandonada sem
   // precisar de arte nova
@@ -4759,6 +4835,10 @@ function gerarRepresa(ts) {
         camadaObjetos('flora', 6, [...flora.arvores, ...flora.pedras, ...entulho, ...flora.flores]),
         camadaObjetos('construcoes', 7, fachadas),
         camadaObjetos('bordas', 8, bordas),
+        // O que sobrou de um lugar que funcionou e parou. A camada `moveis` e a
+        // mesma dos interiores: e dela que a cena de mundo tira quais atlas
+        // pedir, entao a estrada passa a buscar `moveis_parque` sob demanda.
+        camadaObjetos('moveis', 9, moveisDoRemap('represa', 'represa')),
       ],
       ts,
     ),
