@@ -1,5 +1,5 @@
 {
-  "alvo": "http://127.0.0.1:5187",
+  "alvo": "http://localhost:5187",
   "bundle": "index-CJpGtJwh.js",
   "bytes": 1656938,
   "errors": [],

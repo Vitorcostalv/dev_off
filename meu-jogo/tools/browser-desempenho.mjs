@@ -9,7 +9,7 @@
  * que so o gerador le. O que importa e o que o NAVEGADOR baixa antes de a
  * primeira tela aparecer, e isso so o navegador informa.
  *
- * Sao cinco perguntas:
+ * Sao seis perguntas:
  *
  *   1. quanto o boot baixa ate o menu, por categoria;
  *   2. que os atlas de movel NAO estao nesse total (eram 35,79 MB de folha de
@@ -17,7 +17,9 @@
  *   3. que eles CHEGAM ao entrar num interior, e a mobilia aparece — carga sob
  *      demanda que nao carrega e sala vazia em silencio;
  *   4. que as treze faixas longas de audio nao entram no boot;
- *   5. que o teto de peso segura: um asset novo que dobre o boot falha aqui.
+ *   5. que o teto de peso segura: um asset novo que dobre o boot falha aqui;
+ *   6. que nenhum icone de item e AMPLIADO na tela — a trava do corte de
+ *      `itens.png`, porque teto baixo demais nao levanta erro, so borra.
  */
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
@@ -210,7 +212,126 @@ try {
   checks.push('a rua do bairro nao pede atlas de interior nenhum');
 
 
-  // ------------------------- 8 e 9. as duas opcoes de acessibilidade valem
+
+  // ------------------- 8. nenhum icone de item e AMPLIADO na tela
+  //
+  // `itens.png` tinha 3,64 MB porque cada peca ia pra folha no tamanho da arte
+  // de origem — de 40 a 200 px de lado. O jogo roda em 480x270 logicos com
+  // `Scale.FIT`: icone desenhado a N px amostra N px de textura, e o resto e
+  // download que ninguem ve. `gerar-itens.mjs` passou a reduzir cada peca pro
+  // teto da CATEGORIA dela (`LADO_MAXIMO`), e a folha caiu pra 1,89 MB.
+  //
+  // O risco dessa mudanca nao e ficar grande demais, e ficar PEQUENA demais:
+  // teto baixo nao levanta erro nenhum, so entrega icone borrado numa tela que
+  // ninguem abriu durante a conferencia. Entao a trava e esta — varrer as telas
+  // que mostram icone grande e cobrar que a arte seja pelo menos do tamanho em
+  // que ela e desenhada.
+  //
+  // As duas telas grandes filtram por categoria, e e desse filtro que os tetos
+  // saem: a DevStore mostra `eletronico` num icone de 72 px, e o jogo da memoria
+  // mostra `normal` numa carta que se dimensiona pela janela.
+  const ampliacoes = ({ ocultos = false, cena: soDaCena = null } = {}) => page.evaluate(([ocultos, soDaCena]) => {
+    const achados = [];
+    const visitar = (o, visivel) => {
+      const vis = visivel && o.visible !== false;
+      if (o.type === 'Container') {
+        for (const f of o.list) visitar(f, vis);
+        return;
+      }
+      if ((!vis && !ocultos) || o.texture?.key !== 'itens' || !o.frame) return;
+      // `__BASE` e o frame que a imagem recebe quando nasce sem frame nomeado — o
+      // slot vazio do inventario, por exemplo. Ela cobre a folha INTEIRA, entao
+      // mede 1,0 de razao sempre e so entraria aqui pra empatar com o pior caso
+      // de verdade e mascarar qual objeto ele e.
+      if (o.frame.name === '__BASE') return;
+      const w = Math.abs(o.displayWidth);
+      const h = Math.abs(o.displayHeight);
+      achados.push({
+        frame: o.frame.name,
+        arte: [o.frame.width, o.frame.height],
+        tela: [Math.round(w), Math.round(h)],
+        razao: Number(Math.max(w / o.frame.width, h / o.frame.height).toFixed(3)),
+      });
+    };
+    for (const cena of window.game.scene.getScenes(true)) {
+      if (soDaCena && cena.scene.key !== soDaCena) continue;
+      for (const o of cena.children.list) visitar(o, true);
+    }
+    return achados;
+  }, [ocultos, soDaCena]);
+
+  /** Erra alto se alguma das imagens varridas estiver esticada acima da arte. */
+  const cobrarSemAmpliar = (lista, onde) => {
+    assert(lista.length > 0, `${onde}: nao achei icone nenhum do atlas "itens" pra medir`);
+    const pior = lista.reduce((a, c) => (c.razao > a.razao ? c : a));
+    assert(
+      pior.razao <= 1.001,
+      `${onde}: o icone "${pior.frame}" e desenhado a ${pior.tela.join('x')} px com arte de ` +
+        `${pior.arte.join('x')} (${pior.razao}x). O teto da categoria em LADO_MAXIMO ` +
+        '(tools/gerar-itens.mjs) ficou baixo demais — suba ele e rode `npm run gerar-itens`',
+    );
+    return pior;
+  };
+
+  // o inventario, com um item de cada categoria que tem arte
+  await page.evaluate(() => {
+    const e = window.estado;
+    for (const id of ['maca', 'ferro_velho', 'analgesico', 'chave_inglesa', 'smartphone']) {
+      try { e.inventario.adicionar(id, 1); } catch { /* id que nao existe mais: o resto basta */ }
+    }
+    window.game.scene.getScene('UIScene').alternarInventario();
+  });
+  await page.waitForTimeout(300);
+  const noInventario = cobrarSemAmpliar(await ampliacoes({ cena: 'UIScene' }), 'inventario');
+  await page.evaluate(() => window.game.scene.getScene('UIScene').alternarInventario());
+
+  // a DevStore, com o card do produto aberto: o maior icone de item do jogo
+  await page.evaluate(() => window.game.scene.getScene('UIScene').abrirComputador());
+  await page.waitForFunction(() => window.game.scene.isActive('ComputadorScene'));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => {
+    // `abrirApp` e privado no TypeScript e publico em runtime; chegar nele pelo
+    // teclado custaria contar icones do desktop, que muda de ordem sozinho
+    const pc = window.game.scene.getScene('ComputadorScene');
+    pc.abrirApp(pc.apps.findIndex((a) => a.id === 'devstore'));
+  });
+  await page.waitForTimeout(400);
+  await page.keyboard.press('e'); // abre o card do produto sob o cursor
+  await page.waitForTimeout(400);
+  const naDevstore = cobrarSemAmpliar(await ampliacoes({ cena: 'ComputadorScene' }), 'DevStore (card do produto)');
+  assert(
+    naDevstore.tela[0] >= 60 || naDevstore.tela[1] >= 60,
+    `o card da DevStore devia desenhar o icone perto de 72 px e o maior mediu ` +
+      `${naDevstore.tela.join('x')} — o card nao abriu, e a conferencia mediu a vitrine`,
+  );
+
+  // e o jogo da memoria, cuja carta se dimensiona pela janela
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const pc = window.game.scene.getScene('ComputadorScene');
+    pc.abrirApp(pc.apps.findIndex((a) => a.id === 'jogos'));
+  });
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Enter'); // o primeiro da biblioteca e a memoria
+  await page.waitForTimeout(400);
+  // as cartas comecam VIRADAS PRA BAIXO: o icone nasce com setVisible(false) e so
+  // aparece quando o jogador vira. O tamanho ja esta decidido nesse instante
+  // (ajustarIcone roda ao montar), entao aqui a varredura inclui o que esta
+  // oculto — virar seis pares por teclado so pra medir um numero que ja existe
+  // seria teste medindo a propria paciencia.
+  const naMemoria = cobrarSemAmpliar(await ampliacoes({ ocultos: true, cena: 'ComputadorScene' }), 'jogo da memoria');
+  await page.evaluate(() => window.game.scene.getScene('UIScene').fecharComputador());
+  await page.waitForTimeout(300);
+
+  checks.push(
+    'nenhum icone de item e ampliado: inventario a ' +
+      `${noInventario.tela.join('x')} (arte ${noInventario.arte.join('x')}), DevStore a ` +
+      `${naDevstore.tela.join('x')} (arte ${naDevstore.arte.join('x')}), memoria a ` +
+      `${naMemoria.tela.join('x')} (arte ${naMemoria.arte.join('x')})`,
+  );
+
+  // ------------------------ 9 e 10. as duas opcoes de acessibilidade valem
   //
   // As duas existiam nas preferencias e valiam por uma coisa cada: o contraste
   // alto trocava UM retangulo (o fundo do painel da tela de menu) e o movimento

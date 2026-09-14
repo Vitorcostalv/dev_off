@@ -3,13 +3,13 @@
 ## Implemented
 A base de desempenho de [docs/overhaul.md](overhaul.md) registrava *"public soma 268.978.461 bytes (tamanho distribuído, não tráfego de boot)"* e dizia, com razão, que o tráfego ainda precisava de medição própria. Esta etapa é ela — e a medição achou coisas que contar bytes no disco não mostra.
 
-**O boot baixava 127,89 MB em 210 arquivos, tudo antes de o menu aparecer.** Agora baixa **36,18 MB em 169**, e o tempo até jogável caiu de **6.290 ms para 2.364 ms**.
+**O boot baixava 127,89 MB em 210 arquivos, tudo antes de o menu aparecer.** Agora baixa **34,42 MB em 169**, e o tempo até jogável caiu de **6.290 ms para 2.364 ms**.
 
 **O deploy carregava 266 MB, dos quais 211 MB o jogo nunca pede.** Agora são **93 MB**.
 
 ## O que a medição achou
 
-Três coisas, e nenhuma delas aparece olhando o tamanho de `public/`.
+Quatro coisas, e nenhuma delas aparece olhando o tamanho de `public/`.
 
 **Os sprites de personagem tinham 6,7 vezes mais pixel do que a tela mostra.** O jogo desenha personagem a `ALTURA_PERSONAGEM_TILES` (1,5) vezes o tile de 32px — quarenta e oito pixels de altura. O quadro da folha de runtime tinha 320. Os 33 NPCs mais os 7 monstros somavam 66,9 MB baixados antes do menu para mostrar bonecos de 48px.
 
@@ -22,6 +22,14 @@ O sprite do **jogador** não passou por isso e continua em 1254×1254 (4,23 MB).
 Agora quem carrega é a cena de mundo, ao entrar no mapa, lendo a camada `moveis` do próprio tilemap — que o gerador já escreve com `atlas` em cada objeto, então não há segunda lista para manter em sincronia. Na casa do protagonista entra também o catálogo de mobília comprável, que não está na camada: as peças que o jogador ainda não comprou aparecem na pré-visualização da loja, e as que ele comprou estão em `estado.casa`.
 
 **E o áudio carregava os 46 WAV, 7,52 MB.** Sete deles são ambiente (3,11) e trilha (4,04): treze arquivos longos que entram com fade de 900 ms. Efeito e som de interface juntos são 0,37 MB, e são os únicos que precisam estar prontos no instante em que o jogador aperta uma tecla — um passo que sai meio segundo depois do passo é um bug. Ambiente e trilha entram na primeira vez que o lugar pede.
+
+**E os 209 ícones de item eram desenhados no tamanho da arte de origem.** `itens.png` tinha 3,64 MB de peças de 40 a 200 px de lado, e a tela nunca pede tudo isso: o jogo roda em 480×270 lógicos com `Scale.FIT`, então ícone desenhado a N px amostra N px de textura e pronto.
+
+O teto não é um só, porque as duas telas que mostram ícone grande filtram por **categoria**, e filtram no código, com o filtro escrito e comentado — não por acaso. A DevStore mostra `eletronico` num ícone de 72 px; o jogo da memória mostra `normal` numa carta que se dimensiona pela janela; e `utilidade`, `remedio`, `sucata` e `material` só aparecem no inventário (16 px), na linha da loja (17) e no chão (14). Daí os tetos de `LADO_MAXIMO` em `gerar-itens.mjs`: **96, 64 e 32**. Categoria nova sem teto declarado para a geração, porque o padrão errado seria cair no menor e entregar ícone borrado numa tela que ninguém conferiu.
+
+A folha caiu de **3,64 para 1,89 MB**, e a redução voltou a ser feita com filtro de caixa ponderado por alfa em vez de vizinho mais próximo do canvas.
+
+O recorte vem antes da redução de propósito: duas peças vizinhas na folha de origem têm caixas que se sobrepõem de verdade (a bandeja de morango encosta no tomate), então reduzir direto da folha puxaria lasca da vizinha para dentro da média de cada pixel do ícone.
 
 ## Architecture
 `garantirAtlasDeMovel` segue o mesmo formato de `garantirTilemap`, que já existia para os 45 andares sob demanda da represa: corta o `create` no mesmo lugar, dispara a carga e reinicia a cena quando ela termina. Sem tarja de "carregando", ao contrário do tilemap — o atlas só falta na primeira vez que se entra num tipo de interior, o arquivo está no mesmo servidor do tilemap que acabou de chegar, e uma tarja que pisca por dois quadros é mais ruído que informação.
@@ -60,9 +68,9 @@ A suíte de desempenho esperava 400 ms fixos depois de entrar num mapa. A cena r
 E o servidor de desenvolvimento acumulava estado de HMR. Depois de dezenas de edições em `Som.ts`, `import('/src/scenes/Som.ts')` de dentro do navegador devolvia uma instância **diferente** da que o jogo usa, e a suíte de áudio media um tocador que nunca tocou nada — falhando de um jeito que parecia bug de produto e não era. As catorze suítes de navegador passaram a aceitar `GAME_URL`, e rodar contra um servidor recém-subido é a única forma de não medir estado velho.
 
 ## Tests
-`npm run test:desempenho-browser`: **nove conferências**, todas medidas na rede ou no pixel.
+`npm run test:desempenho-browser`: **dez conferências**, todas medidas na rede ou no pixel.
 
-O peso do boot por categoria; que nenhum atlas de móvel entra nele; que o áudio do boot cabe em 2 MB; que o total cabe num teto de **40 MB** — não é meta, é o valor de hoje com dez por cento de folga, e existe para ninguém devolver ao boot uma leva de 35 MB sem notar. Depois, que o atlas sob demanda **chega**: o mercado com 32 móveis e um atlas, a casa com 40 móveis e sete, a rua sem pedir atlas de interior nenhum — carga sob demanda que não carrega é sala vazia em silêncio, porque `criarMoveis` avisa no console e segue. E as duas de acessibilidade, com o contraste medido em pixel e a seta conferida contra a lista de tweens da cena.
+O peso do boot por categoria; que nenhum atlas de móvel entra nele; que o áudio do boot cabe em 2 MB; que o total cabe num teto de **40 MB** — não é meta, é o valor de hoje com dez por cento de folga, e existe para ninguém devolver ao boot uma leva de 35 MB sem notar. Depois, que o atlas sob demanda **chega**: o mercado com 32 móveis e um atlas, a casa com 40 móveis e sete, a rua sem pedir atlas de interior nenhum — carga sob demanda que não carrega é sala vazia em silêncio, porque `criarMoveis` avisa no console e segue. E que **nenhum ícone de item é ampliado na tela**: a varredura abre o inventário, o card da DevStore e o jogo da memória e compara, em cada imagem do atlas `itens`, o tamanho desenhado contra o frame de origem. Essa é a trava do corte acima, e ela existe porque o risco do corte não é ficar grande demais — é ficar **pequeno** demais, e teto baixo não levanta erro nenhum, só borra um ícone numa tela que ninguém abriu. O pior caso medido hoje é 0,77 (o card da DevStore, 72 px desenhados sobre arte de 93). Por fim, as duas de acessibilidade, com o contraste medido em pixel e a seta conferida contra a lista de tweens da cena.
 
 Regressão: 19 validadores de domínio, as **catorze** suítes de navegador e o build de produção. Todos os geradores foram rodados novamente depois da mudança de pasta (`gerar-assets`, `processar-sprites-npc`, `processar-sprites-monstro`, `gerar-itens`, `gerar-aparelhos`, `gerar-equipamento`, `gerar-audio`, `andares-represa`), porque mover arquivo de entrada quebra pipeline em silêncio.
 
@@ -71,12 +79,13 @@ Os números, lado a lado:
 
 | | antes | depois |
 | --- | --- | --- |
-| boot até o menu | 127,89 MB / 210 arquivos | 36,18 MB / 169 |
+| boot até o menu | 127,89 MB / 210 arquivos | 34,42 MB / 169 |
 | tempo até jogável | 6.290 ms | 2.364 ms |
 | deploy (`dist/`) | 266 MB | 93 MB |
 | sprites de NPC e monstro | 66,92 MB | 17,81 MB |
 | atlas de móvel no boot | 35,79 MB | 0 |
 | áudio no boot | 7,52 MB (46) | 0,37 MB (33) |
+| ícones de item (`itens.png`) | 3,64 MB | 1,89 MB |
 | bundle JS | 1.655 kB (gzip 468) | 1.657 kB (gzip 468) |
 
 O bundle não mudou: nada aqui é código a mais de qualquer monta.
@@ -84,7 +93,6 @@ O bundle não mudou: nada aqui é código a mais de qualquer monta.
 ## Known Remaining Work
 - **os 32 tilemaps do boot (4,05 MB)** carregam todos, e o jogador está em um deles. O padrão `sobDemanda` que os 45 andares da represa usam serve igual para os interiores urbanos;
 - **os 33 NPCs carregam os 14,99 MB de sprite no boot**, e num mapa qualquer aparecem no máximo dezessete. Carregar por mapa é o próximo maior ganho, e é o mais arriscado: um NPC que entra andando de fora da tela com o sprite ausente fica invisível, sem erro nenhum. Precisaria sair da rotina do dia (`rotinasNpc`), não da posição atual;
-- **`itens.png` tem 3,64 MB para 209 ícones** de 14px na tela — a mesma conta dos sprites de personagem, e a mesma correção provavelmente cabe;
 - **os WAV são sem compressão.** 7,52 MB para 46 faixas; qualquer formato comprimido cortaria isso por cinco, mas o gerador escreve WAV byte a byte e não há encoder no projeto;
 - **o alto contraste mexe na moldura, não no texto.** Cor de letra é aplicada na criação de cada `Text`, e trocá-la ao vivo pede uma paleta mutável no lugar do `UI` congelado;
 - **o DevOS não segue o alto contraste**: ele tem paleta própria (`PC`), e a opção não chega lá;
