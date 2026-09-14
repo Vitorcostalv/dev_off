@@ -2133,6 +2133,122 @@ const CONSTRUCOES_RURAL = {
   casa_rural_2: { pegada: { w: 6, h: 4 }, estilo: 4, interior: 'casa_rural_2', moradiaNpc: true },
 };
 
+// -------------------------------------------- remap do Mapa 3 (zona rural) --
+/**
+ * REMAP DA ZONA RURAL — a mesma leva, na mesma linguagem, com uma decisao
+ * diferente no comeco.
+ *
+ * O bairro e o centro ganharam CALCADA. A zona rural nao ganha, e isso nao e
+ * economia: estrada de terra no meio da roca nao tem meio-fio, e por um tile de
+ * cascalho de cada lado a arte le como barreira listrada (foi o que tirou o
+ * cascalho das vielas do centro). O que falta aqui e outra coisa.
+ *
+ * O que faltava: as tres portas do mapa eram ILHAS. A casa do Joao fica vinte
+ * tiles a oeste da estrada, a do Bruno doze ao norte dela e o balcao da
+ * madeireira sete — e entre a porta e a estrada havia mato, so mato. Chegar em
+ * qualquer uma era cortar gramado na diagonal, e o mapa nao dizia por onde.
+ *
+ * Entao aqui o remap e: ESTRADA DE SERVENTIA de cada porta ate a estrada,
+ * TERREIRO na frente de cada moradia, PATIO de carga na madeireira, EIRA nas
+ * duas fazendas, e mobiliario de roca — mourao, bebedouro, toco, pedra e
+ * arbusto — em vez de banco e bicicletario.
+ */
+
+/**
+ * SERVENTIA: o caminho de terra batida de cada porta ate a estrada.
+ *
+ * Todas de terra batida: e o que uma serventia de propriedade rural e. A
+ * conferencia de acesso do gerador cobra que a ultima ponta encoste na estrada
+ * — e como este mapa nao tem calcada, ela cai na FAIXA da via (ver
+ * `conferirRemap`).
+ */
+const ACESSOS_RURAL = [
+  // A casa do Joao, da Neide e da Priscila: vinte tiles a oeste da estrada.
+  { lote: 'casa_rural_1', material: 'terra', trechos: [
+    { x: 54, y: 70, w: 7, h: 3 },
+    { x: 57, y: 70, w: 21, h: 1 },
+  ] },
+  // A casa do Bruno: doze tiles ao norte do ramal da madeireira.
+  { lote: 'casa_rural_2', material: 'terra', trechos: [
+    { x: 98, y: 34, w: 7, h: 3 },
+    { x: 101, y: 34, w: 1, h: 13 },
+  ] },
+  // O balcao da madeireira. Ela nao tem interior: o atendimento e no balcao
+  // externo, no tile da porta — entao o caminho ate ele e o caminho ate a loja.
+  { lote: 'madeireira', material: 'cascalho', trechos: [
+    { x: 111, y: 35, w: 12, h: 4 },
+    { x: 117, y: 38, w: 2, h: 5 },
+  ] },
+];
+
+/**
+ * TERREIRO, EIRA E PATIO. Area de trabalho, nao de estar: numa propriedade
+ * rural o chao batido em volta da casa e onde se seca grao, se empilha lenha e
+ * se estaciona o que tiver.
+ */
+const PATIOS_RURAL = [
+  // eira das duas fazendas, na beira do plantio
+  { nome: 'eira_fazenda_1', material: 'terra', x: 26, y: 61, w: 14, h: 3 },
+  { nome: 'eira_fazenda_2', material: 'terra', x: 28, y: 87, w: 14, h: 3 },
+  // patio de carga da pedreira, encostado no ramal
+  { nome: 'patio_pedreira', material: 'cascalho', x: 106, y: 73, w: 12, h: 3 },
+];
+
+/** Travessia de cascalho onde a serventia da madeireira encontra o ramal. */
+const TRAVESSIAS_RURAL = [
+  { x: 117, y: 41, w: 2, h: 5 },
+];
+
+/**
+ * MOBILIARIO DE ROCA. Nada de banco de praca e bicicletario: mourao com corda,
+ * bebedouro de pedra, toco, pedra e arbusto. Os dois unicos postes do mapa
+ * ficam nas duas moradias — a roca nao tem iluminacao publica, e uma luz
+ * acendendo no terreiro de cada casa e o que marca que ali mora gente.
+ */
+const MOBILIARIO_RURAL = [
+  // --- terreiro da casa do Joao ---
+  { peca: [2, 6], tx: 54, ty: 72 },
+  { peca: [7, 3], tx: 60, ty: 72 },
+  { peca: [0, 1], tx: 59, ty: 72, luz: true },
+  { peca: [7, 8], tx: 54, ty: 70 },
+
+  // --- terreiro da casa do Bruno ---
+  { peca: [2, 6], tx: 98, ty: 36 },
+  { peca: [7, 3], tx: 104, ty: 36 },
+  { peca: [0, 1], tx: 103, ty: 35, luz: true },
+  { peca: [6, 6], tx: 98, ty: 34 },
+
+  // --- patio da madeireira: mourao, toco e pedra de carga ---
+  { peca: [7, 3], tx: 111, ty: 38 },
+  { peca: [7, 3], tx: 122, ty: 38 },
+  { peca: [7, 8], tx: 112, ty: 37 },
+  { peca: [7, 8], tx: 121, ty: 37 },
+  { peca: [6, 6], tx: 114, ty: 38 },
+
+  // --- eira da fazenda_1 ---
+  { peca: [7, 3], tx: 26, ty: 63 },
+  { peca: [5, 4], tx: 38, ty: 63 },
+  { peca: [7, 8], tx: 30, ty: 62 },
+
+  // --- eira da fazenda_2 ---
+  { peca: [7, 3], tx: 28, ty: 89 },
+  { peca: [6, 3], tx: 40, ty: 89 },
+  { peca: [7, 8], tx: 32, ty: 88 },
+
+  // --- patio da pedreira: pedra solta, que e o que sai dali ---
+  { peca: [6, 6], tx: 106, ty: 75 },
+  { peca: [6, 6], tx: 110, ty: 75 },
+  { peca: [7, 8], tx: 114, ty: 75 },
+];
+
+/** As placas da zona rural: uma por saida, e uma na bifurcacao do ramal. */
+const PLACAS_RURAL = [
+  { nome: 'placa_rumo_bairro_rural', aviso: 'rumo_bairro', x: 68, y: 6 },
+  { nome: 'placa_rumo_centro_rural', aviso: 'rumo_centro', x: 8, y: 46 },
+  { nome: 'placa_madeireira', aviso: 'ramal_madeireira', x: 115, y: 40 },
+  { nome: 'placa_estrada_sul_rural', aviso: 'estrada_sul_rural', x: 58, y: 108 },
+];
+
 // ------------------------------------------- Mapa 4 — Estrada da Represa --
 /**
  * Mapa 4 — "Estrada da Represa" / a usina hidroeletrica velha.
@@ -2505,10 +2621,13 @@ const respiroDoSpawn = () => ({ x: CENTRO.x - 4, y: CENTRO.y - 2, w: 9, h: 7 });
 const LARGURA_DE_CALCADA = { avenida_h: 2, avenida_v: 2 };
 
 function calcadasDasVias(mapa) {
-  const { vias, calcada, calcadaPoli } = remapDe(mapa);
-  // via curva nao tem calcada retangular: ela vem de `anelDeCalcada`, que
-  // precisa das dimensoes do mapa e por isso mora na pavimentacao
-  if (calcadaPoli > 0) return [];
+  const { vias, calcada } = remapDe(mapa);
+  // Via CURVA nao tem calcada retangular. Ela e polilinha (`pontos`) e nao
+  // retangulo (`x/y/w/h`), entao `faixaDaVia` devolveria NaN em silencio — e um
+  // retangulo NaN nunca encosta em nada, o que reprovaria todo acesso do mapa
+  // com a mensagem errada. Quem desenha calcada de via curva e `anelDeCalcada`,
+  // que precisa das dimensoes do mapa e por isso mora na pavimentacao.
+  if (vias.some((v) => Array.isArray(v.pontos))) return [];
   const faixas = [];
   for (const v of vias) {
     const f = faixaDaVia(v);
@@ -2802,6 +2921,15 @@ const PLACAS_DO_CENTRO = [
  *                    (o nascedouro do jogador), ou null se o mapa nao tem um.
  */
 const REMAPS = {
+  rural: {
+    vias: () => VIAS_RURAL,
+    // sem calcada de proposito: ver o cabecalho do remap da zona rural
+    acessos: () => ACESSOS_RURAL,
+    patios: () => PATIOS_RURAL,
+    travessias: () => TRAVESSIAS_RURAL,
+    mobiliario: () => MOBILIARIO_RURAL,
+    placas: () => PLACAS_RURAL,
+  },
   bairro: {
     vias: () => VIAS_BAIRRO,
     calcadaPoli: CALCADA_BAIRRO,
@@ -2890,9 +3018,13 @@ function conferirRemap(mapa) {
   // 2. todo acesso termina em calcada
   const calcadas = calcadasDasVias(mapa);
   const m = MUNDO[mapa];
+  // Mapa sem calcada (a zona rural) confere contra a propria FAIXA da estrada:
+  // uma serventia de roca chega na estrada, e nao num meio-fio que nao existe.
   const anel = r.calcadaPoli > 0
     ? anelDeCalcada(m.largura, m.altura, r.vias, r.calcadaPoli)
-    : null;
+    : calcadas.length > 0
+      ? null
+      : faixaDeVias(m.largura, m.altura, r.vias);
   for (const acesso of r.acessos) {
     // "encostar" e tocar, nao sobrepor: o acesso vai ATE a calcada e para nela,
     // entao o teste roda com o retangulo inflado em um tile.
@@ -4373,7 +4505,8 @@ function gerarBairro(ts) {
 
 // ------------------------------------------------------------- Mapa 3 --
 function gerarRural(ts) {
-  const { W, H, chao, caminhos, obj, faixa } = baseExterna('rural', VIAS_RURAL);
+  conferirRemap('rural');
+  const { W, H, chao, caminhos, obj, faixa } = baseExterna('rural', VIAS_RURAL, 'rural');
 
   // --- plantacoes: leira de terra dentro dos lotes de fazenda ---
   for (const pl of PLANTIOS_RURAL) {
@@ -4391,7 +4524,13 @@ function gerarRural(ts) {
     for (let x = pd.x; x < pd.x + pd.w; x++) caminhos.set(x, y, GID.CASCALHO);
   }
 
-  const { interativos, fachadas } = predionosDoMapa('rural', obj);
+  const { interativos: dosPredios, fachadas } = predionosDoMapa('rural', obj);
+  const interativos = [
+    ...dosPredios,
+    // As placas do remap. A zona rural nao tinha nenhuma: quem chegava do bairro
+    // descobria os tres ramais por tentativa.
+    ...remapDe('rural').placas.map((p) => objeto(p.nome, 'placa', p.x, p.y, { aviso: p.aviso })),
+  ];
   const bordas = objetosDeBorda('rural');
   const zonas = objetosDeZona('rural');
 
@@ -4402,6 +4541,9 @@ function gerarRural(ts) {
   // nao precisar derrubar mata gerada
   bloquearEm(ocupado, RESERVA_MAPA_4.x, H - 6, RESERVA_MAPA_4.w, 6);
   for (const it of interativos) bloquearEm(ocupado, it.x / T - 1, it.y / T - 1, 3, 3);
+  // serventia, terreiro, eira, patio e cada peca do remap: arvore sorteada em
+  // cima da serventia fecha o unico caminho que a porta tem
+  for (const a of areasSemFloraDoRemap('rural')) bloquearEm(ocupado, a.x, a.y, a.w, a.h);
 
   const entulho = entulhoEm('cascalho', pd, SEMENTE + 2702, 0.3, new Set());
 
@@ -4427,6 +4569,9 @@ function gerarRural(ts) {
         camadaObjetos('flora', 6, [...flora.arvores, ...flora.pedras, ...entulho, ...flora.flores]),
         camadaObjetos('construcoes', 7, fachadas),
         camadaObjetos('bordas', 8, bordas),
+        // Mobiliario de roca. A camada `moveis` e a mesma dos interiores, e e
+        // dela que a cena de mundo tira quais atlas pedir.
+        camadaObjetos('moveis', 9, moveisDoRemap('rural', 'rural')),
       ],
       ts,
     ),

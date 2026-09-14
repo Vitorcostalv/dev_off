@@ -63,8 +63,20 @@ try {
   }
   await page.evaluate(() => window.game.scene.getScene('ComputadorScene').desligar());
   for (const m of Object.values(MAPAS)) {
-    await page.evaluate(m => { window.game.scene.getScene('FarmScene').scene.restart({ mapa: m.chave, x: (m.spawnTile.x + .5) * 32, y: (m.spawnTile.y + .5) * 32 }); }, m);
-    await page.waitForFunction(k => window.estado.mapa === k && window.game.scene.getScene('FarmScene').pronto, m.chave);
+    // `pronto` cai na mao ANTES do restart, e a espera cobra tambem o carregador
+    // ocioso. Sem as duas coisas a espera enxerga o `pronto` da cena VELHA e
+    // segue pro mapa seguinte antes de o atual existir — e a cena de mundo hoje
+    // reinicia ate tres vezes por entrada (tilemap, atlas de movel e folha de
+    // NPC, cada um cortando o `create` e pedindo o que falta).
+    await page.evaluate(m => {
+      const f = window.game.scene.getScene('FarmScene');
+      f.pronto = false;
+      f.scene.restart({ mapa: m.chave, x: (m.spawnTile.x + .5) * 32, y: (m.spawnTile.y + .5) * 32 });
+    }, m);
+    await page.waitForFunction(k => {
+      const f = window.game.scene.getScene('FarmScene');
+      return window.estado.mapa === k && f?.pronto === true && f.load.isLoading() === false;
+    }, m.chave);
     log.maps.push(m.chave);
     console.log('mapa', log.maps.length, m.chave);
     fs.writeFileSync(new URL(`${prefix}-browser.json`, out), JSON.stringify(log, null, 2));
@@ -76,6 +88,15 @@ try {
     e.dia = 1; e.relogio.definir(600); e.rotinasNpc.atualizar(1, 600, 0);
     window.game.scene.getScene('FarmScene').scene.restart({ mapa: 'bairro', x: 128.5 * 32, y: 72 * 32 });
   }); await ready();
+  // O sprite de um NPC pode nascer null: as folhas nao vem mais no boot, e a
+  // cena pede a de quem entra em cena no quadro em que ele entra. Esperar por
+  // ele e parte do teste — um `n.sprite.visible` direto viraria TypeError
+  // intermitente em vez de dizer o que faltou.
+  await page.waitForFunction(() => {
+    const f = window.game.scene.getScene('FarmScene');
+    f.sincronizarNpcs(true);
+    return Boolean(f.npcs.find(n => n.estado.id === 'joao')?.sprite);
+  });
   const worker = await page.evaluate(() => {
     const f = window.game.scene.getScene('FarmScene'); f.sincronizarNpcs(true);
     const n = f.npcs.find(n => n.estado.id === 'joao');

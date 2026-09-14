@@ -54,7 +54,8 @@
     "verificar-canon": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-canon.mjs",
     "test:progressao-browser": "node tools/browser-progressao.mjs",
     "verificar-bairro": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-bairro.mjs",
-    "test:bairro-browser": "node tools/browser-bairro.mjs"
+    "test:bairro-browser": "node tools/browser-bairro.mjs",
+    "verificar-zona-rural": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-zona-rural.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

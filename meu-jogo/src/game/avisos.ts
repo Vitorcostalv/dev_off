@@ -212,6 +212,25 @@ const AVISOS_ESCRITOS_A_MAO: Record<string, string[]> = {
     'O interfone tem dois botoes e quatro furos. Os outros dois nunca chegaram a ter morador.',
   ],
 
+
+  /**
+   * As duas placas novas da ZONA RURAL. As outras duas do mapa reaproveitam
+   * `rumo_bairro` e `rumo_centro`, que ja existiam — placa de rumo diz o rumo, e
+   * o texto nao muda por estar do outro lado da estrada.
+   *
+   * Nenhuma conta historia nova: madeireira, pedreira e a reserva da estrada sul
+   * ja estavam no mapa e nas falas.
+   */
+  ramal_madeireira: [
+    'MADEIREIRA SAO BENTO — 500 m. Madeira, cimento e ferragem.',
+    'Embaixo, pregada torta: "PEDREIRA — ramal seguinte, 2 km".',
+  ],
+  estrada_sul_rural: [
+    'ESTRADA DA REPRESA — sentido sul. Trafego de servico.',
+    'A placa e antiga e a tinta descascou no canto de baixo. O que sobrou do '
+      + 'aviso diz o horario de um portao que ninguem mais tranca.',
+  ],
+
   /**
    * A INTERDICAO da ponta sul do Mapa 1 — a reserva pro mapa futuro.
    *
