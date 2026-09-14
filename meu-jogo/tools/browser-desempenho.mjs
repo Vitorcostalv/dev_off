@@ -42,15 +42,22 @@ const ALVO = process.env.GAME_URL ?? 'http://127.0.0.1:5186';
 const TETO_MB = 40;
 
 /** Categorias que NAO podem aparecer no boot, e a razao de cada uma. */
-const PROIBIDOS = [
-  {
-    nome: 'atlas de movel',
-    casa: (u) => /\/sprites\/moveis_/.test(u),
-    razao:
-      'as catorze folhas somam 35,79 MB; a cena de mundo carrega as do mapa ' +
-      '(ver garantirAtlasDeMovel na FarmScene)',
-  },
-];
+const PROIBIDOS = [];
+
+/**
+ * Teto de folhas de movel no boot.
+ *
+ * Ate o remap do bairro este numero era ZERO, e a razao estava escrita: o
+ * jogador comeca na rua, e rua nao usava folha de interior nenhuma. O remap deu
+ * mobiliario urbano ao bairro — banco, poste, quadro de avisos, bicicletario —
+ * e a folha `moveis_parque` passou a ser necessaria pro primeiro quadro
+ * jogavel. Isso e a carga sob demanda funcionando, nao falhando.
+ *
+ * O que continua valendo, e e o que importa, e que as OUTRAS TREZE nao entram:
+ * o teto e UMA folha, e nao quatorze. Uma folha de banheiro no boot volta a
+ * reprovar aqui.
+ */
+const TETO_DE_FOLHAS_DE_MOVEL = 1;
 
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
@@ -112,7 +119,22 @@ try {
     .join(', ');
   checks.push(`boot ate o menu: ${doBoot.size} arquivos, ${mb(total)} MB — ${detalhe}`);
 
-  // ------------------------------------------------- 2 e 4. o que nao entra
+  // ----------------------------------- 2. so a folha de movel do mapa inicial
+  const folhasDeMovel = [...doBoot].filter(([u]) => /\/sprites\/moveis_[^/]*\.png$/.test(u));
+  assert(
+    folhasDeMovel.length <= TETO_DE_FOLHAS_DE_MOVEL,
+    `${folhasDeMovel.length} folhas de movel no boot ` +
+      `(${mb(folhasDeMovel.reduce((s, [, n]) => s + n, 0))} MB): ${folhasDeMovel.map(([u]) => u.split('/').pop()).join(', ')}. ` +
+      'Sao catorze folhas somando 35,79 MB, e a cena de mundo carrega as do mapa ' +
+      '(ver garantirAtlasDeMovel na FarmScene) — mais de uma aqui e carga sob demanda ' +
+      'que deixou de ser sob demanda',
+  );
+  checks.push(
+    `folhas de movel no boot: ${folhasDeMovel.length} de 14 ` +
+      `(${mb(folhasDeMovel.reduce((s, [, n]) => s + n, 0))} MB) — a do mapa em que o jogo abre`,
+  );
+
+  // ------------------------------------------------- 4. o que nao entra
   for (const p of PROIBIDOS) {
     const achados = [...doBoot].filter(([u]) => p.casa(u));
     assert.equal(

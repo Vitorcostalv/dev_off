@@ -52,7 +52,9 @@
     "test:equilibrio-browser": "node tools/browser-equilibrio.mjs",
     "test:desempenho-browser": "node tools/browser-desempenho.mjs",
     "verificar-canon": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-canon.mjs",
-    "test:progressao-browser": "node tools/browser-progressao.mjs"
+    "test:progressao-browser": "node tools/browser-progressao.mjs",
+    "verificar-bairro": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-bairro.mjs",
+    "test:bairro-browser": "node tools/browser-bairro.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.61.0",

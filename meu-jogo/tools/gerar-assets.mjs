@@ -1740,6 +1740,37 @@ function faixaDeVias(W, H, vias) {
   return faixa;
 }
 
+/**
+ * ANEL DE CALCADA de vias em polilinha: o eixo dilatado por `RAIO_FAIXA + n`
+ * menos a propria faixa de terra.
+ *
+ * O centro resolve calcada com retangulo porque as vias dele sao retas. Aqui a
+ * rua desce torta, e o unico jeito honesto de dar borda a ela e seguir a curva.
+ * O resultado e o mesmo em leitura: a rua passa a ter margem, e o que e
+ * passagem para de se confundir com o que e terreno.
+ */
+function anelDeCalcada(W, H, vias, n) {
+  const eixo = eixoDeVias(W, H, vias);
+  const largo = new Grade(W, H, 0);
+  const raio = RAIO_FAIXA + n;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!eixo.get(x, y)) continue;
+      for (let j = -raio; j <= raio; j++) {
+        for (let i = -raio; i <= raio; i++) largo.set(x + i, y + j, 1);
+      }
+    }
+  }
+  const faixa = faixaDeVias(W, H, vias);
+  const anel = new Grade(W, H, 0);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (largo.get(x, y) && !faixa.get(x, y)) anel.set(x, y, 1);
+    }
+  }
+  return anel;
+}
+
 const linha = (nome, pontos) => ({ nome, pontos });
 
 // ------------------------------------------ Mapa 2 — Bairro da Estacao --
@@ -1765,8 +1796,14 @@ const VIAS_BAIRRO = [
   linha('rua_estacao', [[58, 2], [58, 28], [62, 42], [66, 54], [66, 74], [66, 96], [66, 108]]),
   // rua baixa: serve a zona residencial ao sul da principal
   linha('rua_baixa', [[20, 78], [44, 76], [66, 74], [92, 76], [112, 72]]),
-  // acesso ao condominio fechado: sobe da principal ate o portao
-  linha('rua_condominio', [[104, 48], [104, 42]]),
+  // Acesso ao condominio fechado. Ela sobe da principal, passa pelo PORTAO e
+  // vira a rua interna do condominio ate a frente das duas casas.
+  //
+  // Antes ela parava no portao e o miolo do condominio era grama pelada com
+  // duas casas soltas nela. Um condominio fechado tem rua por dentro — e e ela
+  // que da calcada pras duas portas, que de outro jeito nao teriam onde
+  // encostar.
+  linha('rua_condominio', [[104, 48], [104, 42], [105, 42], [105, 32]]),
   // acesso a escola, subindo da principal
   linha('rua_escola', [[26, 65], [26, 36], [42, 30]]),
 ];
@@ -1847,6 +1884,199 @@ const CONSTRUCOES_BAIRRO = {
   casa_c1: { pegada: { w: 5, h: 4 }, estilo: 2, interior: 'casa_c1', moradiaNpc: true },
   casa_c2: { pegada: { w: 5, h: 4 }, estilo: 3, interior: 'casa_c2', moradiaNpc: true },
 };
+
+// ------------------------------------------------- remap do Mapa 2 (bairro) --
+/**
+ * REMAP DO BAIRRO — a mesma leva que o centro recebeu, na mesma linguagem.
+ *
+ * O bairro tinha rua e lote e mais nada: a rua principal descia torta pelo meio
+ * do gramado sem borda nenhuma, nenhuma das treze portas tinha caminho ate ela,
+ * o condominio fechado era grama pelada com duas casas soltas dentro, e o
+ * "Bairro da Estacao" nao tinha estacao nem largo — so o nome.
+ *
+ * A diferenca pro centro esta na geometria da via: aqui ela e POLILINHA, e a
+ * calcada e um anel que segue a curva (ver `anelDeCalcada`). Uma faixa so, e
+ * nao duas como nas avenidas do centro, e a razao e a mesma que la levou a
+ * duas: com faixa estreita nao se poe movel alto na calcada sem fechar a
+ * passagem — entao aqui movel nenhum vai na calcada, e todo ele mora nos largos
+ * e nos patios, que tem folga.
+ */
+
+/** Largura do anel de calcada, em tiles, em toda via do bairro. */
+const CALCADA_BAIRRO = 1;
+
+/**
+ * ACESSO das treze portas.
+ *
+ * A arte de fachada e elevacao frontal e toda porta olha pro SUL, entao a
+ * maioria das casas da as costas pra rua que a serve — o caminho contorna a
+ * construcao por fora antes de subir. Comercio e equipamento publico recebem
+ * calcamento; casa recebe terra batida de entrada.
+ */
+const ACESSOS_BAIRRO = [
+  // --- equipamento publico: patio na frente da porta + ramal ate a rua ---
+  // a oficina do protagonista: apron de trabalho e o ramal ate a principal
+  { lote: 'oficina', material: 'calcada', trechos: [
+    { x: 76, y: 39, w: 8, h: 3 },
+    { x: 79, y: 41, w: 2, h: 8 },
+  ] },
+  { lote: 'escola', material: 'calcada', trechos: [
+    { x: 33, y: 48, w: 10, h: 3 },
+    { x: 37, y: 50, w: 2, h: 12 },
+  ] },
+  { lote: 'biblioteca', material: 'calcada', trechos: [
+    { x: 48, y: 50, w: 10, h: 2 },
+    { x: 52, y: 51, w: 2, h: 4 },
+  ] },
+  // a central telefonica e predio FECHADO: nao tem porta, tem objeto de exame.
+  // O caminho existe porque ela continua sendo um lugar a que se vai.
+  { lote: 'central', material: 'terra', trechos: [{ x: 49, y: 67, w: 1, h: 8 }] },
+
+  // --- casas: entrada de terra batida ate a calcada mais perto ---
+  { lote: 'casa_b1', material: 'terra', trechos: [{ x: 17, y: 48, w: 8, h: 1 }] },
+  { lote: 'casa_b2', material: 'terra', trechos: [{ x: 17, y: 56, w: 8, h: 1 }] },
+  { lote: 'casa_b3', material: 'terra', trechos: [{ x: 37, y: 74, w: 1, h: 2 }] },
+  { lote: 'casa_b4', material: 'terra', trechos: [{ x: 59, y: 72, w: 1, h: 3 }] },
+  { lote: 'casa_b5', material: 'terra', trechos: [{ x: 81, y: 70, w: 1, h: 4 }] },
+  { lote: 'casa_b6', material: 'terra', trechos: [{ x: 7, y: 56, w: 1, h: 9 }] },
+  // a b7 fica entre a rua e o rio, e a porta dela olha pro rio: o caminho sai
+  // pela frente, contorna a casa pelo leste e sobe ate a rua baixa
+  { lote: 'casa_b7', material: 'terra', trechos: [
+    { x: 33, y: 84, w: 5, h: 1 },
+    { x: 37, y: 79, w: 1, h: 6 },
+  ] },
+  // --- dentro do condominio: as duas portas encostam na rua interna ---
+  { lote: 'casa_c1', material: 'calcada', trechos: [
+    { x: 99, y: 28, w: 1, h: 3 },
+    { x: 99, y: 30, w: 5, h: 1 },
+  ] },
+  { lote: 'casa_c2', material: 'calcada', trechos: [
+    { x: 111, y: 28, w: 1, h: 3 },
+    { x: 107, y: 30, w: 5, h: 1 },
+  ] },
+];
+
+/**
+ * LARGOS E PATIOS do bairro. Cada um responde a uma falta concreta.
+ */
+const PATIOS_BAIRRO = [
+  // O bairro se chama "Bairro da Estacao" e nao tinha estacao nem largo. A rua
+  // da estacao subia dezoito tiles de grama ate a borda norte sem nada em volta.
+  // Os dois largos ladeiam a rua e sao o ponto de encontro do bairro.
+  { nome: 'largo_estacao_oeste', material: 'calcada', x: 50, y: 6, w: 6, h: 7 },
+  { nome: 'largo_estacao_leste', material: 'calcada', x: 61, y: 6, w: 6, h: 7 },
+  // Cabeceira norte da ponte: o lugar de onde se olha o rio antes de sair do
+  // mapa. A ponte e a unica travessia, e nao tinha nada que a anunciasse.
+  { nome: 'cabeceira_ponte', material: 'cascalho', x: 70, y: 82, w: 6, h: 4 },
+  // Miolo do condominio: o jardim comum entre as duas casas e o portao.
+  { nome: 'jardim_condominio', material: 'cascalho', x: 96, y: 33, w: 6, h: 5 },
+  { nome: 'jardim_condominio_leste', material: 'cascalho', x: 107, y: 33, w: 7, h: 5 },
+  // Recuo da quadra esportiva: a arquibancada de terra de quem assiste.
+  { nome: 'recuo_quadra', material: 'cascalho', x: 85, y: 60, w: 4, h: 8 },
+];
+
+/**
+ * VIELAS de terra batida. Elas criam VOLTA, e nao so ida e vinda: sem uma
+ * delas, chegar da escola na biblioteca obriga a descer ate a principal e
+ * subir de novo.
+ */
+const VIELAS_BAIRRO = [
+  // fundos da escola e da biblioteca, ligando as duas pelo norte
+  { x: 33, y: 41, w: 25, h: 1 },
+  { x: 58, y: 41, w: 1, h: 3 },
+  // do largo da estacao ate a viela dos fundos, pelo oeste
+  { x: 50, y: 13, w: 1, h: 29 },
+  // atras das casas do oeste, fechando volta entre a rua da escola e a baixa
+  { x: 12, y: 44, w: 1, h: 22 },
+  { x: 12, y: 65, w: 9, h: 1 },
+];
+
+/** Travessias calcadas: onde o pedestre cruza a rua e a prefeitura gastou cimento. */
+const TRAVESSIAS_BAIRRO = [
+  // cruzamento da rua da estacao com a principal
+  { x: 55, y: 53, w: 2, h: 5 },
+  { x: 62, y: 52, w: 5, h: 2 },
+  // onde o ramal da escola cruza a principal
+  { x: 37, y: 60, w: 2, h: 5 },
+  // onde o ramal da oficina cruza a principal
+  { x: 79, y: 47, w: 2, h: 5 },
+  // travessia da rua baixa na frente da casa_b3 e da casa_b4
+  { x: 37, y: 75, w: 1, h: 5 },
+  { x: 59, y: 73, w: 1, h: 5 },
+];
+
+/**
+ * MOBILIARIO do bairro. `tx`/`ty` sao o tile do canto esquerdo-INFERIOR, como
+ * na flora e no centro; `luz: true` marca poste, e a cena acende halo neles.
+ *
+ * Tudo fica em largo ou patio, nunca na calcada: a calcada do bairro tem uma
+ * faixa so, e o corpo de colisao de um poste sobe meio sprite acima da base —
+ * um poste na calcada estreita fecharia a passagem e empurraria pedestre (e
+ * NPC) pra dentro da rua. Foi essa a licao do centro, e aqui ela vem de graca.
+ */
+const MOBILIARIO_BAIRRO = [
+  // --- largo da estacao, oeste: o quadro de avisos do bairro ---
+  { peca: [7, 0], tx: 50, ty: 8 },
+  { peca: [0, 7], tx: 52, ty: 11 },
+  { peca: [0, 5], tx: 54, ty: 10, luz: true },
+  { peca: [2, 1], tx: 50, ty: 12 },
+  { peca: [2, 8], tx: 53, ty: 7 },
+
+  // --- largo da estacao, leste: bicicletario e sombra ---
+  { peca: [8, 0], tx: 61, ty: 11 },
+  { peca: [0, 6], tx: 64, ty: 11 },
+  { peca: [0, 5], tx: 62, ty: 9, luz: true },
+  { peca: [2, 3], tx: 65, ty: 8 },
+  { peca: [5, 4], tx: 61, ty: 7 },
+  { peca: [6, 3], tx: 66, ty: 7 },
+
+  // --- apron da oficina: onde o conserto sai pra rua ---
+  { peca: [0, 5], tx: 76, ty: 41, luz: true },
+  { peca: [2, 1], tx: 83, ty: 41 },
+  { peca: [7, 3], tx: 77, ty: 40 },
+
+  // --- patio da escola: banco e lixeira de portao de escola ---
+  { peca: [0, 7], tx: 34, ty: 50 },
+  { peca: [0, 9], tx: 40, ty: 50 },
+  { peca: [2, 1], tx: 42, ty: 50 },
+  { peca: [0, 5], tx: 34, ty: 48, luz: true },
+  { peca: [2, 6], tx: 33, ty: 49 },
+
+  // --- patio da biblioteca ---
+  { peca: [0, 6], tx: 49, ty: 51 },
+  { peca: [2, 3], tx: 56, ty: 51 },
+  { peca: [0, 4], tx: 55, ty: 50, luz: true },
+
+  // --- recuo da quadra: a arquibancada de quem assiste ---
+  { peca: [0, 7], tx: 85, ty: 63 },
+  { peca: [0, 7], tx: 85, ty: 66 },
+  { peca: [2, 1], tx: 88, ty: 67 },
+  { peca: [0, 1], tx: 87, ty: 61, luz: true },
+
+  // --- jardim do condominio: o unico canto verde cuidado do mapa ---
+  { peca: [2, 8], tx: 97, ty: 36 },
+  { peca: [0, 6], tx: 100, ty: 37 },
+  { peca: [0, 4], tx: 102, ty: 35, luz: true },
+  { peca: [2, 8], tx: 108, ty: 36 },
+  { peca: [0, 6], tx: 111, ty: 37 },
+  { peca: [0, 4], tx: 107, ty: 35, luz: true },
+  { peca: [5, 4], tx: 96, ty: 34 },
+  { peca: [6, 3], tx: 113, ty: 34 },
+
+  // --- cabeceira da ponte: o lugar de onde se olha o rio ---
+  { peca: [0, 9], tx: 70, ty: 85 },
+  { peca: [7, 8], tx: 74, ty: 85 },
+  { peca: [0, 1], tx: 73, ty: 83, luz: true },
+  { peca: [2, 1], tx: 70, ty: 82 },
+];
+
+/** As placas do bairro: cada saida diz pra onde vai, e o largo se apresenta. */
+const PLACAS_BAIRRO = [
+  { nome: 'placa_largo_estacao', aviso: 'largo_estacao', x: 57, y: 13 },
+  { nome: 'placa_rumo_centro', aviso: 'rumo_centro', x: 133, y: 57 },
+  { nome: 'placa_ponte', aviso: 'ponte_do_rio', x: 70, y: 83 },
+  { nome: 'placa_condominio', aviso: 'portao_condominio', x: 101, y: 43 },
+];
 
 // ----------------------------------------------------- Mapa 3 — Zona Rural --
 /**
@@ -2274,11 +2504,15 @@ const respiroDoSpawn = () => ({ x: CENTRO.x - 4, y: CENTRO.y - 2, w: 9, h: 7 });
  */
 const LARGURA_DE_CALCADA = { avenida_h: 2, avenida_v: 2 };
 
-function calcadasDasVias() {
+function calcadasDasVias(mapa) {
+  const { vias, calcada, calcadaPoli } = remapDe(mapa);
+  // via curva nao tem calcada retangular: ela vem de `anelDeCalcada`, que
+  // precisa das dimensoes do mapa e por isso mora na pavimentacao
+  if (calcadaPoli > 0) return [];
   const faixas = [];
-  for (const v of VIAS) {
+  for (const v of vias) {
     const f = faixaDaVia(v);
-    const n = LARGURA_DE_CALCADA[v.nome] ?? 1;
+    const n = calcada[v.nome] ?? 1;
     if (v.h === 1) {
       faixas.push({ x: f.x, y: f.y - n, w: f.w, h: n });
       faixas.push({ x: f.x, y: f.y + f.h, w: f.w, h: n });
@@ -2547,49 +2781,134 @@ const PLACAS_DO_CENTRO = [
   { nome: 'placa_norte', aviso: 'rumo_represa', x: 62, y: 8 },
 ];
 
-/** Todos os retangulos calcados/cascalhados que esta leva acrescenta. */
-function areasDoCentro() {
+/**
+ * O REMAP DE CADA MAPA EXTERNO, na mesma linguagem.
+ *
+ * O centro foi o primeiro e por isso as tabelas dele tem nome proprio; elas
+ * continuam onde estavam e entram aqui como a linha `farm`. Um mapa novo e uma
+ * linha nova: as seis funcoes abaixo (`areasDoRemap`, `conferirRemap`,
+ * `pavimentarRemap`, `moveisDoRemap`, `areasSemFloraDoRemap` e
+ * `calcadasDasVias`) nao sabem de mapa nenhum, so leem daqui.
+ *
+ * Campo por campo:
+ *   - `vias`      — as vias DAQUELE mapa, pra calcular calcada;
+ *   - `calcada`   — largura da calcada por nome de via (padrao 1);
+ *   - `pracas`, `acessos`, `travessias`, `patios`, `vielas` — retangulos de piso;
+ *   - `cercas`    — retangulos de cerca de tela, na camada de objetos;
+ *   - `ralos`     — tiles de grelha;
+ *   - `mobiliario`— pecas a mao, com `tx`/`ty` no canto esquerdo-inferior;
+ *   - `placas`    — objetos de exame;
+ *   - `respiro`   — funcao que devolve o retangulo onde movel nenhum entra
+ *                    (o nascedouro do jogador), ou null se o mapa nao tem um.
+ */
+const REMAPS = {
+  bairro: {
+    vias: () => VIAS_BAIRRO,
+    calcadaPoli: CALCADA_BAIRRO,
+    acessos: () => ACESSOS_BAIRRO,
+    patios: () => PATIOS_BAIRRO,
+    vielas: () => VIELAS_BAIRRO,
+    travessias: () => TRAVESSIAS_BAIRRO,
+    mobiliario: () => MOBILIARIO_BAIRRO,
+    placas: () => PLACAS_BAIRRO,
+  },
+  farm: {
+    vias: () => VIAS,
+    calcada: LARGURA_DE_CALCADA,
+    pracas: () => PRACAS_DO_CRUZAMENTO,
+    acessos: () => ACESSOS_DE_LOTE,
+    travessias: () => TRAVESSIAS,
+    patios: () => PATIOS,
+    vielas: () => VIELAS,
+    materialDeViela: MATERIAL_DE_VIELA,
+    cercas: () => CERCA_PATIO_SERVICO,
+    ralos: () => RALOS,
+    mobiliario: () => MOBILIARIO_URBANO,
+    placas: () => PLACAS_DO_CENTRO,
+    respiro: () => respiroDoSpawn(),
+  },
+};
+
+/** A linha de REMAPS de um mapa, com os buracos preenchidos por lista vazia. */
+function remapDe(mapa) {
+  const r = REMAPS[mapa];
+  if (!r) throw new Error(`o mapa "${mapa}" nao tem linha em REMAPS`);
+  const lista = (fn) => (fn ? fn() : []);
+  return {
+    vias: lista(r.vias),
+    calcada: r.calcada ?? {},
+    pracas: lista(r.pracas),
+    acessos: lista(r.acessos),
+    travessias: lista(r.travessias),
+    patios: lista(r.patios),
+    vielas: lista(r.vielas),
+    materialDeViela: r.materialDeViela ?? MATERIAL_DE_VIELA,
+    // via CURVA: a calcada nao e retangulo, e o anel de `anelDeCalcada`
+    calcadaPoli: r.calcadaPoli ?? 0,
+    cercas: lista(r.cercas),
+    ralos: lista(r.ralos),
+    mobiliario: lista(r.mobiliario),
+    placas: lista(r.placas),
+    respiro: r.respiro ? r.respiro() : null,
+  };
+}
+
+/** Todos os retangulos calcados/cascalhados que o remap de `mapa` acrescenta. */
+function areasDoRemap(mapa) {
+  const r = remapDe(mapa);
   return [
-    ...calcadasDasVias().map((r) => ({ ...r, material: 'calcada' })),
-    ...PRACAS_DO_CRUZAMENTO.map((p) => ({ ...p, material: 'calcada' })),
-    ...ACESSOS_DE_LOTE.flatMap((a) => a.trechos.map((r) => ({ ...r, material: a.material }))),
-    ...PATIOS.map((p) => ({ ...p, material: p.material })),
-    ...VIELAS.map((r) => ({ ...r, material: MATERIAL_DE_VIELA })),
-    ...TRAVESSIAS.map((r) => ({ ...r, material: 'calcada' })),
+    ...calcadasDasVias(mapa).map((f) => ({ ...f, material: 'calcada' })),
+    ...r.pracas.map((p) => ({ ...p, material: 'calcada' })),
+    ...r.acessos.flatMap((a) => a.trechos.map((t) => ({ ...t, material: a.material }))),
+    ...r.patios.map((p) => ({ ...p, material: p.material })),
+    ...r.vielas.map((v) => ({ ...v, material: r.materialDeViela })),
+    ...r.travessias.map((t) => ({ ...t, material: 'calcada' })),
   ];
 }
 
 /**
- * Confere o layout do centro ANTES de escrever o mapa. Sao as tres regras do
- * cabecalho desta secao; cada uma erra alto, com o lote e o tile no texto.
+ * Confere o layout do remap ANTES de escrever o mapa. Sao as tres regras do
+ * cabecalho desta secao; cada uma erra alto, com o mapa, o lote e o tile no
+ * texto.
  */
-function conferirCentro() {
-  const construcoes = construidasDe('farm');
+function conferirRemap(mapa) {
+  const r = remapDe(mapa);
+  const construcoes = construidasDe(mapa);
   const dentro = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
   const emConstrucao = (x, y) => construcoes.find((c) => dentro(c, x, y));
 
   // 1. calcamento nenhum por cima de pegada de construcao
-  for (const area of areasDoCentro()) {
+  for (const area of areasDoRemap(mapa)) {
     for (let y = area.y; y < area.y + area.h; y++) {
       for (let x = area.x; x < area.x + area.w; x++) {
         const c = emConstrucao(x, y);
-        if (c) throw new Error(`calcamento do centro em (${x},${y}) cai na pegada de "${c.nome}"`);
+        if (c) throw new Error(`calcamento de "${mapa}" em (${x},${y}) cai na pegada de "${c.nome}"`);
       }
     }
   }
 
   // 2. todo acesso termina em calcada
-  const calcadas = calcadasDasVias();
-  for (const acesso of ACESSOS_DE_LOTE) {
+  const calcadas = calcadasDasVias(mapa);
+  const m = MUNDO[mapa];
+  const anel = r.calcadaPoli > 0
+    ? anelDeCalcada(m.largura, m.altura, r.vias, r.calcadaPoli)
+    : null;
+  for (const acesso of r.acessos) {
     // "encostar" e tocar, nao sobrepor: o acesso vai ATE a calcada e para nela,
     // entao o teste roda com o retangulo inflado em um tile.
-    const encosta = acesso.trechos.some((r) =>
+    const encosta = acesso.trechos.some((t) =>
       calcadas.some((f) => {
-        const x0 = Math.max(r.x - 1, f.x); const x1 = Math.min(r.x + r.w + 1, f.x + f.w);
-        const y0 = Math.max(r.y - 1, f.y); const y1 = Math.min(r.y + r.h + 1, f.y + f.h);
+        const x0 = Math.max(t.x - 1, f.x); const x1 = Math.min(t.x + t.w + 1, f.x + f.w);
+        const y0 = Math.max(t.y - 1, f.y); const y1 = Math.min(t.y + t.h + 1, f.y + f.h);
         return x1 > x0 && y1 > y0;
-      }));
-    if (!encosta) throw new Error(`o acesso de "${acesso.lote}" nao encosta em nenhuma calcada`);
+      })
+      || (anel !== null && (() => {
+        for (let y = t.y - 1; y < t.y + t.h + 1; y++) {
+          for (let x = t.x - 1; x < t.x + t.w + 1; x++) if (anel.get(x, y)) return true;
+        }
+        return false;
+      })()));
+    if (!encosta) throw new Error(`[${mapa}] o acesso de "${acesso.lote}" nao encosta em nenhuma calcada`);
     const c = construcaoDe(acesso.lote);
     const frente = acesso.trechos.some((r) => dentro(r, c.frente.x, c.frente.y));
     if (!frente) throw new Error(`o acesso de "${acesso.lote}" nao passa pela frente da porta (${c.frente.x},${c.frente.y})`);
@@ -2597,55 +2916,74 @@ function conferirCentro() {
 
   // 3. movel nenhum na frente de porta, no respiro do spawn nem sobre a via
   const frentes = new Set(construcoes.map((c) => `${c.frente.x},${c.frente.y}`));
-  for (const p of MOBILIARIO_URBANO) {
-    const { w } = tamanhoDeMovel('parque', p.peca, p.escala);
+  for (const p of r.mobiliario) {
+    const { w } = tamanhoDeMovel(p.folha ?? 'parque', p.peca, p.escala);
     const largura = Math.max(1, Math.round(w));
     for (let i = 0; i < largura; i++) {
       const x = p.tx + i; const y = p.ty;
-      if (frentes.has(`${x},${y}`)) throw new Error(`movel [${p.peca}] em (${x},${y}) tapa a frente de uma porta`);
-      if (dentro(respiroDoSpawn(), x, y)) throw new Error(`movel [${p.peca}] em (${x},${y}) invade o respiro do spawn`);
+      if (frentes.has(`${x},${y}`)) throw new Error(`[${mapa}] movel [${p.peca}] em (${x},${y}) tapa a frente de uma porta`);
+      if (r.respiro && dentro(r.respiro, x, y)) throw new Error(`[${mapa}] movel [${p.peca}] em (${x},${y}) invade o respiro do spawn`);
       const c = emConstrucao(x, y);
-      if (c) throw new Error(`movel [${p.peca}] em (${x},${y}) cai dentro de "${c.nome}"`);
-      for (const v of VIAS) {
+      if (c) throw new Error(`[${mapa}] movel [${p.peca}] em (${x},${y}) cai dentro de "${c.nome}"`);
+      for (const v of r.vias) {
         const f = faixaDaVia(v);
-        if (dentro(f, x, y)) throw new Error(`movel [${p.peca}] em (${x},${y}) fica no meio da via "${v.nome}"`);
+        if (dentro(f, x, y)) throw new Error(`[${mapa}] movel [${p.peca}] em (${x},${y}) fica no meio da via "${v.nome}"`);
       }
     }
   }
 }
 
 /** Pinta calcada, praca, acesso, patio, viela e travessia na camada de caminhos. */
-function pavimentarCentro(caminhos, quando) {
-  const pinta = (r) => caminhos.rect(r.x, r.y, r.w, r.h, de(r.material));
+function pavimentarRemap(mapa, caminhos, quando) {
+  const r = remapDe(mapa);
+  const pinta = (x) => caminhos.rect(x.x, x.y, x.w, x.h, de(x.material));
   if (quando === 'antes') {
     // antes da terra: a rua tem de vencer a calcada nos cruzamentos
-    for (const r of calcadasDasVias()) pinta({ ...r, material: 'calcada' });
-    for (const p of PRACAS_DO_CRUZAMENTO) pinta({ ...p, material: 'calcada' });
-    for (const a of ACESSOS_DE_LOTE) for (const r of a.trechos) pinta({ ...r, material: a.material });
-    for (const p of PATIOS) pinta(p);
-    for (const r of VIELAS) pinta({ ...r, material: MATERIAL_DE_VIELA });
+    for (const f of calcadasDasVias(mapa)) pinta({ ...f, material: 'calcada' });
+    if (r.calcadaPoli > 0) {
+      const anel = anelDeCalcada(caminhos.w, caminhos.h, r.vias, r.calcadaPoli);
+      for (let y = 0; y < caminhos.h; y++) {
+        for (let x = 0; x < caminhos.w; x++) {
+          if (anel.get(x, y)) caminhos.set(x, y, variante('calcada', x, y));
+        }
+      }
+    }
+    for (const p of r.pracas) pinta({ ...p, material: 'calcada' });
+    for (const a of r.acessos) for (const t of a.trechos) pinta({ ...t, material: a.material });
+    for (const p of r.patios) pinta(p);
+    for (const v of r.vielas) pinta({ ...v, material: r.materialDeViela });
     return;
   }
   // depois da trilha: a travessia calcada interrompe a terra, que e o desenho
-  for (const r of TRAVESSIAS) pinta({ ...r, material: 'calcada' });
+  for (const t of r.travessias) pinta({ ...t, material: 'calcada' });
 }
 
 /** Objetos de movel do mobiliario urbano, ja em coordenada de mundo. */
-function moveisDoCentro() {
-  return objetosDeMovel('centro', MOBILIARIO_URBANO, 'parque');
+function moveisDoRemap(mapa, prefixo) {
+  return objetosDeMovel(prefixo, remapDe(mapa).mobiliario, 'parque');
 }
 
 /** Retangulos que a flora nao pode invadir por causa do remap. */
-function areasSemFloraDoCentro() {
-  const areas = areasDoCentro().map((r) => ({ x: r.x - 1, y: r.y - 1, w: r.w + 2, h: r.h + 2 }));
-  for (const p of MOBILIARIO_URBANO) {
-    const { w, h } = tamanhoDeMovel('parque', p.peca, p.escala);
+function areasSemFloraDoRemap(mapa) {
+  const r = remapDe(mapa);
+  const areas = areasDoRemap(mapa).map((a) => ({ x: a.x - 1, y: a.y - 1, w: a.w + 2, h: a.h + 2 }));
+  for (const p of r.mobiliario) {
+    const { w, h } = tamanhoDeMovel(p.folha ?? 'parque', p.peca, p.escala);
     const largura = Math.max(1, Math.round(w));
     const altura = Math.max(1, Math.round(h));
     areas.push({ x: p.tx - 1, y: p.ty - altura, w: largura + 2, h: altura + 2 });
   }
-  for (const p of PLACAS_DO_CENTRO) areas.push({ x: p.x - 1, y: p.y - 1, w: 3, h: 3 });
-  for (const c of CERCA_PATIO_SERVICO) areas.push({ x: c.x - 1, y: c.y - 1, w: c.w + 2, h: c.h + 2 });
+  for (const p of r.placas) areas.push({ x: p.x - 1, y: p.y - 1, w: 3, h: 3 });
+  for (const c of r.cercas) areas.push({ x: c.x - 1, y: c.y - 1, w: c.w + 2, h: c.h + 2 });
+  // O anel de calcada e mascara, nao retangulo: vira um retangulo de um tile
+  // por tile pintado. Sao alguns milhares, e roda uma vez por geracao.
+  if (r.calcadaPoli > 0) {
+    const m = MUNDO[mapa];
+    const anel = anelDeCalcada(m.largura, m.altura, r.vias, r.calcadaPoli);
+    for (let y = 0; y < m.altura; y++) {
+      for (let x = 0; x < m.largura; x++) if (anel.get(x, y)) areas.push({ x, y, w: 1, h: 1 });
+    }
+  }
   return areas;
 }
 
@@ -3607,7 +3945,7 @@ function gerarFazenda(ts) {
 
   chao.rect(0, 0, W, H, de('grama'));
 
-  conferirCentro();
+  conferirRemap('farm');
 
   // Ordem das passadas de piso, e ela importa:
   //   1. calcada, praca, acesso, patio e viela do remap do centro;
@@ -3615,7 +3953,7 @@ function gerarFazenda(ts) {
   //   3. a trilha clara no eixo da via;
   //   4. o calcamento da praca do parque;
   //   5. as travessias, por cima da terra — e o desenho, nao um acidente.
-  pavimentarCentro(caminhos, 'antes');
+  pavimentarRemap('farm', caminhos, 'antes');
   for (const v of VIAS) {
     const faixa = faixaDaVia(v);
     caminhos.rect(faixa.x, faixa.y, faixa.w, faixa.h, de('terra'));
@@ -3624,7 +3962,7 @@ function gerarFazenda(ts) {
   pintarVias(caminhos, via);
 
   pavimentarPraca(caminhos);
-  pavimentarCentro(caminhos, 'depois');
+  pavimentarRemap('farm', caminhos, 'depois');
 
   obj.moldura(GID.MATO);
   // vao na mata da borda: e por ele que se atravessa pros outros mapas
@@ -3719,7 +4057,7 @@ function gerarFazenda(ts) {
   for (const it of interativos) bloquear(it.x / T - 1, it.y / T - 1, 3, 3);
   // calcada, praca, acesso, patio, viela, travessia, movel urbano e cerca: a
   // flora sorteada nao entra em nada que o remap desenhou
-  for (const a of areasSemFloraDoCentro()) bloquear(a.x, a.y, a.w, a.h);
+  for (const a of areasSemFloraDoRemap('farm')) bloquear(a.x, a.y, a.w, a.h);
 
   const { arvores, flores, pedras } = gerarFlora(W, H, faixasDeVias(W, H), ocupado);
 
@@ -3737,7 +4075,7 @@ function gerarFazenda(ts) {
         camadaObjetos('construcoes', 7, fachadas),
         // o parque e o unico mobiliario do mapa externo; a cena le esta camada
         // com o MESMO `criarMoveis` dos interiores
-        camadaObjetos('moveis', 8, [...moveisDoParque(), ...moveisDoCentro()]),
+        camadaObjetos('moveis', 8, [...moveisDoParque(), ...moveisDoRemap('farm', 'centro')]),
         camadaObjetos('bordas', 9, objetosDeBorda('farm')),
       ],
       ts,
@@ -3756,7 +4094,7 @@ function gerarFazenda(ts) {
  * vias retas. Nao vale a pena reescrever a fazenda so pra ela passar por aqui:
  * o resultado seria o mesmo mapa com risco de regressao.
  */
-function baseExterna(chave, vias) {
+function baseExterna(chave, vias, remap = null) {
   const m = MUNDO[chave];
   const W = m.largura;
   const H = m.altura;
@@ -3766,6 +4104,11 @@ function baseExterna(chave, vias) {
 
   chao.rect(0, 0, W, H, de(m.grama));
 
+  // Ordem das passadas de piso, e ela importa: primeiro o que o remap desenha
+  // (calcada, largo, acesso, patio e viela), depois a faixa de terra da via,
+  // que VENCE a calcada nos cruzamentos, depois a trilha clara do eixo e por
+  // fim as travessias, que interrompem a terra de proposito.
+  if (remap) pavimentarRemap(remap, caminhos, 'antes');
   // 1a passada: faixa de terra batida (o eixo dilatado). 2a: a trilha clara.
   const faixa = faixaDeVias(W, H, vias);
   for (let y = 0; y < H; y++) {
@@ -3774,6 +4117,7 @@ function baseExterna(chave, vias) {
     }
   }
   pintarVias(caminhos, eixoDeVias(W, H, vias));
+  if (remap) pavimentarRemap(remap, caminhos, 'depois');
 
   obj.moldura(GID.MATO);
   // as zonas de transicao sao buracos na moldura: e por elas que se sai do mapa
@@ -3897,7 +4241,8 @@ function bloquearEm(ocupado, x, y, w, h) {
 
 // ------------------------------------------------------------- Mapa 2 --
 function gerarBairro(ts) {
-  const { W, H, chao, caminhos, obj, faixa } = baseExterna('bairro', VIAS_BAIRRO);
+  conferirRemap('bairro');
+  const { W, H, chao, caminhos, obj, faixa } = baseExterna('bairro', VIAS_BAIRRO, 'bairro');
 
   // --- rio ondulado na faixa de baixo, com a ponte na coluna da rua ---
   const ponte = RIO_BAIRRO.ponte;
@@ -3958,7 +4303,14 @@ function gerarBairro(ts) {
     if (y % 3 !== 2) obj.set(tb.x + tb.w - 1, y, GID.MURO);
   }
 
-  const { interativos, fachadas } = predionosDoMapa('bairro', obj);
+  const { interativos: dosPredios, fachadas } = predionosDoMapa('bairro', obj);
+  const interativos = [
+    ...dosPredios,
+    // As placas do remap: cada saida diz pra onde vai, e o largo se apresenta.
+    // O texto sai de `AVISOS_DE_EXAME` (src/game/avisos.ts), como qualquer
+    // outra placa do jogo.
+    ...remapDe('bairro').placas.map((p) => objeto(p.nome, 'placa', p.x, p.y, { aviso: p.aviso })),
+  ];
   const bordas = objetosDeBorda('bairro');
   const zonas = objetosDeZona('bairro');
 
@@ -3972,6 +4324,10 @@ function gerarBairro(ts) {
   for (let x = 0; x < W; x++) bloquearEm(ocupado, x, topoDoRio(x) - 2, 1, RIO_BAIRRO.altura + 4);
   for (const b of bordasDoMapa('bairro')) bloquearEm(ocupado, b.x - 2, b.y - 2, b.w + 4, b.h + 4);
   for (const it of interativos) bloquearEm(ocupado, it.x / T - 1, it.y / T - 1, 3, 3);
+  // calcada, largo, acesso, patio, viela e cada peca de mobiliario do remap:
+  // arvore sorteada em cima de calcada nova e o jeito mais rapido de desfazer
+  // o caminho que a calcada acabou de abrir
+  for (const a of areasSemFloraDoRemap('bairro')) bloquearEm(ocupado, a.x, a.y, a.w, a.h);
 
   // entulho DENTRO do terreno abandonado (fora do bloqueio geral do lote, que
   // so vale pra flora sorteada)
@@ -3999,6 +4355,11 @@ function gerarBairro(ts) {
         camadaObjetos('flora', 6, [...flora.arvores, ...flora.pedras, ...entulho, ...flora.flores]),
         camadaObjetos('construcoes', 7, fachadas),
         camadaObjetos('bordas', 8, bordas),
+        // O mobiliario urbano do remap. A camada `moveis` e a mesma que os
+        // interiores usam, e e dela que a cena de mundo tira quais atlas pedir
+        // (ver `atlasDeMovelNecessarios` na FarmScene) — entao o bairro passa a
+        // carregar `moveis_parque` sob demanda, como todo interior ja fazia.
+        camadaObjetos('moveis', 9, moveisDoRemap('bairro', 'bairro')),
       ],
       ts,
     ),

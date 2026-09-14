@@ -185,6 +185,34 @@ const AVISOS_ESCRITOS_A_MAO: Record<string, string[]> = {
   ],
 
   /**
+   * As quatro placas do BAIRRO remapeado. Mesma regra das do centro: cada uma
+   * diz o rumo e uma coisa so sobre o lugar.
+   *
+   * Nenhuma delas conta historia nova. O bairro ja se chamava "Bairro da
+   * Estacao" em toda fala do jogo e ja tinha condominio, ponte e quadra
+   * desenhados no mapa — o que faltava era o lugar dizer isso de si mesmo.
+   */
+  largo_estacao: [
+    'LARGO DA ESTACAO — Bairro da Estacao.',
+    'A plataforma que dava nome ao bairro foi desmontada antes de voce nascer. '
+      + 'O largo ficou, e o nome tambem.',
+    'No quadro de avisos ao lado, um papel desbotado anuncia aula de reforco na escola.',
+  ],
+  rumo_centro: [
+    'CENTRO — 1 km a leste. Mercado, farmacia, academia e o bar.',
+    'A seta e de metal e foi repintada de branco por cima do verde antigo.',
+  ],
+  ponte_do_rio: [
+    'PONTE DO RIO CLARO — Peso maximo 8 t. Zona rural adiante.',
+    'O rio corre baixo quase o ano todo. Na cheia ele cobre a cabeceira, e ai '
+      + 'ninguem atravessa por aqui.',
+  ],
+  portao_condominio: [
+    'RESIDENCIAL ALTO DA ESTACAO — Portao de acesso.',
+    'O interfone tem dois botoes e quatro furos. Os outros dois nunca chegaram a ter morador.',
+  ],
+
+  /**
    * A INTERDICAO da ponta sul do Mapa 1 — a reserva pro mapa futuro.
    *
    * O texto e a unica coisa que impede a barreira de ler como bug: sem ele, uma

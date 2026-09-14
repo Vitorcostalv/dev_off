@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "bairro: 38 pecas de mobiliario com 1 atlas sob demanda (moveis_parque)",
+    "postes do bairro: 0 halos ao meio-dia, 9 as 23h",
+    "a placa do largo abre: \"LARGO DA ESTACAO — Bairro da Estacao....\"",
+    "caminhada pelo patio da escola: 5.2 tiles sem travar",
+    "o condominio abre as duas casas pelo portao (casa_c1, casa_c2)"
+  ]
+}

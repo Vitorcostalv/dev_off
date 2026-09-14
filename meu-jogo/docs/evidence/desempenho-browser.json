@@ -2,28 +2,29 @@
   "errors": [],
   "warnings": [],
   "checks": [
-    "boot ate o menu: 103 arquivos, 19.44 MB — jogador 4.23 MB, tilemaps 4.05 MB, flora 3.37 MB, sprite de npc/monstro 3.16 MB, icones de item 2.39 MB, fachadas 1.42 MB, tilesets 0.45 MB, audio 0.37 MB, outros 0.00 MB",
-    "nenhum arquivo de \"atlas de movel\" no boot",
+    "boot ate o menu: 105 arquivos, 22.51 MB — jogador 4.23 MB, tilemaps 4.06 MB, flora 3.37 MB, sprite de npc/monstro 3.16 MB, atlas de movel 3.06 MB, icones de item 2.39 MB, fachadas 1.42 MB, tilesets 0.45 MB, audio 0.37 MB, outros 0.00 MB",
+    "folhas de movel no boot: 1 de 14 (3.04 MB) — a do mapa em que o jogo abre",
     "audio no boot: 33 arquivos, 0.37 MB (era 7,52 MB nos 46)",
-    "o boot cabe no teto de 40 MB com 19.44 MB",
-    "mercado: 32 moveis na tela com 1 atlas carregado(s) (moveis_mercado)",
-    "casa do protagonista: 40 moveis com 7 atlas",
+    "o boot cabe no teto de 40 MB com 22.51 MB",
+    "mercado: 32 moveis na tela com 2 atlas carregado(s) (moveis_mercado, moveis_parque)",
+    "casa do protagonista: 40 moveis com 8 atlas",
     "a rua do bairro nao pede atlas de interior nenhum",
-    "nenhum icone de item e ampliado: inventario a 14x16 (arte 28x32), DevStore a 38x72 (arte 49x93), memoria a 38x43 (arte 57x64)",
-    "um dia inteiro no bairro (6h-22h) sem morador invisivel: pico de 12 em cena, espera maxima de 136 ms pela folha de quem saiu de casa no meio do dia",
+    "nenhum icone de item e ampliado: inventario a 14x16 (arte 28x32), DevStore a 38x72 (arte 49x93), memoria a 43x36 (arte 64x53)",
+    "um dia inteiro no bairro (6h-22h) sem morador invisivel: pico de 12 em cena, espera maxima de 123 ms pela folha de quem saiu de casa no meio do dia",
     "contraste alto na caixa de fala sobre o centro ao meio-dia: #1e1b16 (a 12 de UI.fundo) vira #1a1712 (a 0) — cenario claro para de vazar por tras das letras",
     "movimento reduzido para a seta [Enter] da caixa de fala (alpha 0.6, parada) e mantem ela visivel"
   ],
-  "bootMB": 19.44,
+  "bootMB": 22.51,
   "porCategoria": {
-    "tilemaps": 4245672,
-    "tilesets": 470759,
+    "tilemaps": 4256765,
     "fachadas": 1484834,
     "flora": 3536347,
     "icones de item": 2506464,
     "outros": 3577,
+    "tilesets": 470759,
     "jogador": 4432240,
     "audio": 388214,
-    "sprite de npc/monstro": 3311210
+    "sprite de npc/monstro": 3311210,
+    "atlas de movel": 3210900
   }
 }
