@@ -2,10 +2,10 @@ import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { MAPAS, buscarMapa } from '../game/mapas';
 import type { SpriteNpc } from '../game/npcs';
-import { NPCS } from '../game/npcs';
 import { carregar } from '../game/save';
 import { CATALOGO_INIMIGOS } from '../game/inimigos';
 import { Som, som } from './Som';
+import { recortarFolhaNpc } from './spritesNpc';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
 const PLAYER_RECORTE = {
@@ -122,10 +122,10 @@ export class BootScene extends Phaser.Scene {
     this.load.json('equipamento-ancoras', 'assets/sprites/equipamento.ancoras.json');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
-    for (const npc of Object.values(NPCS)) {
-      if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
-      if (npc.spriteParado) this.load.image(`npc-${npc.id}-parado`, npc.spriteParado.arquivo);
-    }
+    // As 66 folhas dos 33 moradores NAO entram aqui. Eram 14,99 MB baixados
+    // antes do menu pra um mapa que usa nove deles; quem pede agora e a cena de
+    // mundo, pelas folhas de quem esta NAQUELE mapa (ver `garantirFolhasDeNpc`
+    // e `garantirSpriteDeNpc` na FarmScene).
 
     // Monstros eletronicos da represa. As folhas saem de
     // tools/processar-sprites-monstro.mjs no MESMO formato 4x4 das de NPC — e
@@ -150,7 +150,6 @@ export class BootScene extends Phaser.Scene {
     this.criarFramesPlayer('run');
     this.criarFramesDeSegurar();
     this.criarAnimacoes();
-    this.criarSpritesNpcs();
     this.criarSpritesMonstros();
     const inicio = this.aplicarSave();
 
@@ -283,59 +282,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   /**
-   * Registra os recortes de uma folha de NPC e devolve os frames por direcao.
-   * Os nomes de recorte (`down-0`...) sao por TEXTURA, e caminhada e parado sao
-   * texturas diferentes, entao as duas folhas podem usar os mesmos nomes.
-   */
-  private recortarFolhaNpc(
-    chaveTextura: string,
-    folha: SpriteNpc,
-  ): Record<string, Phaser.Types.Animations.AnimationFrame[]> {
-    const textura = this.textures.get(chaveTextura);
-    const fonte = textura.source[0];
-    const porDirecao: Record<string, Phaser.Types.Animations.AnimationFrame[]> = {};
-    for (const [direcao, faixa] of Object.entries(folha.frames)) {
-      porDirecao[direcao] = faixa.colunas.map((coluna, indice) => {
-        const x0 = Math.floor((coluna * fonte.width) / folha.colunas);
-        const x1 = Math.floor(((coluna + 1) * fonte.width) / folha.colunas);
-        const y0 = Math.floor((faixa.linha * fonte.height) / folha.linhas);
-        const y1 = Math.floor(((faixa.linha + 1) * fonte.height) / folha.linhas);
-        const nome = `${direcao}-${indice}`;
-        textura.add(nome, 0, x0, y0, x1 - x0, y1 - y0);
-        return { key: chaveTextura, frame: nome };
-      });
-    }
-    return porDirecao;
-  }
-
-  /** Recortes e animacoes sao inteiramente descritos pela entrada do NPC. */
-  private criarSpritesNpcs(): void {
-    for (const npc of Object.values(NPCS)) {
-      if (!npc.sprite) continue;
-      const andando = this.recortarFolhaNpc(`npc-${npc.id}-sprites`, npc.sprite);
-      // Sem folha de parado, o idle cai no 1o frame da caminhada — que e uma
-      // pose de passo, e le como se o NPC estivesse andando no lugar.
-      const parado = npc.spriteParado
-        ? this.recortarFolhaNpc(`npc-${npc.id}-parado`, npc.spriteParado)
-        : null;
-
-      for (const [direcao, frames] of Object.entries(andando)) {
-        if (!this.anims.exists(`npc-${npc.id}-walk-${direcao}`)) this.anims.create({
-          key: `npc-${npc.id}-walk-${direcao}`,
-          frames,
-          frameRate: 8,
-          repeat: -1,
-        });
-        if (!this.anims.exists(`npc-${npc.id}-idle-${direcao}`)) this.anims.create({
-          key: `npc-${npc.id}-idle-${direcao}`,
-          frames: [(parado?.[direcao] ?? frames)[0]],
-          frameRate: 1,
-        });
-      }
-    }
-  }
-
-  /**
    * Recortes e animacoes dos monstros. Identico ao dos NPCs, com o prefixo
    * `monstro-` em vez de `npc-`: as duas folhas ja saem do mesmo processador,
    * na mesma grade 4x4 e na mesma ordem de direcao.
@@ -353,8 +299,8 @@ export class BootScene extends Phaser.Scene {
       },
     };
     for (const id of Object.keys(CATALOGO_INIMIGOS)) {
-      const andando = this.recortarFolhaNpc(`monstro-${id}-sprites`, folha);
-      const parado = this.recortarFolhaNpc(`monstro-${id}-parado`, folha);
+      const andando = recortarFolhaNpc(this, `monstro-${id}-sprites`, folha);
+      const parado = recortarFolhaNpc(this, `monstro-${id}-parado`, folha);
       for (const [direcao, quadros] of Object.entries(andando)) {
         this.anims.create({
           key: `monstro-${id}-walk-${direcao}`,

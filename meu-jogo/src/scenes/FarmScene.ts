@@ -38,6 +38,7 @@ import { PONTOS_ITENS_MISSAO } from '../game/missoesNpc';
 import type { MissaoNpc } from '../game/missoesNpc';
 import { jogadorOuveEncontro } from '../game/encontrosNpc';
 import { atividadeComEmprego, PROJETOS_CIDADE } from '../game/cidade';
+import { enfileirarFolhasNpc, prepararNpc } from './spritesNpc';
 import type { IdProjetoCidade, ProjetoCidade } from '../game/cidade';
 import type {
   Direcao,
@@ -398,6 +399,13 @@ export class FarmScene extends Phaser.Scene {
 
   /** Os dados com que a cena foi iniciada, pra poder reiniciar igual. */
   private entradaAtual: { mapa?: string; x?: number; y?: number; salvar?: boolean } | undefined;
+  /**
+   * NPCs cuja folha ja foi pedida ao loader nesta montagem de cena.
+   *
+   * Sem isto, um NPC visivel e ainda sem textura reenfileiraria a folha a cada
+   * quadro ate ela chegar — dezenas de pedidos pro mesmo arquivo.
+   */
+  private folhasDeNpcPedidas = new Set<string>();
 
   /** Texto de espera enquanto um andar da represa e baixado. */
   private avisoDeCarga: Phaser.GameObjects.Text | null = null;
@@ -440,6 +448,11 @@ export class FarmScene extends Phaser.Scene {
     this.marcadoresNpc = [];
     this.interagiveis = [];
     this.npcs = [];
+    // Limpo a cada montagem de proposito: um pedido que FALHOU (rede caindo no
+    // meio) deixaria o id marcado pra sempre, e o morador ficaria invisivel pelo
+    // resto da sessao. Reenfileirar o que ja esta em textura nao custa nada —
+    // `enfileirarFolhasNpc` confere o cache antes de pedir.
+    this.folhasDeNpcPedidas.clear();
     this.figurantesAmbientais = [];
     this.luzesNoturnas = [];
     this.luzBiblioteca = null;
@@ -524,6 +537,11 @@ export class FarmScene extends Phaser.Scene {
     // ATLAS DE MOVEL SOB DEMANDA: idem. Corta o `create` no mesmo lugar e pela
     // mesma razao — a cena reinicia com o atlas em cache.
     if (!this.garantirAtlasDeMovel(def)) return;
+    // FOLHA DE NPC SOB DEMANDA: idem, pelos mesmos 14,99 MB que sairam do boot.
+    // Vem depois das outras duas de proposito — a conta de quem esta em cena usa
+    // o mapa, nao o tilemap, mas reiniciar por causa de tres coisas de uma vez
+    // custa uma volta a menos se as duas primeiras ja estiverem em cache.
+    if (!this.garantirFolhasDeNpc()) return;
 
     const map = this.make.tilemap({ key: def.tilemapKey });
     this.tamanhoTile = map.tileWidth;
@@ -633,8 +651,13 @@ export class FarmScene extends Phaser.Scene {
         if (this.obstaculos.length > 0) this.physics.add.collider(monstros, this.obstaculos);
       }
     }
-    if (this.npcs.length > 0) {
-      this.physics.add.collider(this.player, this.npcs.map((npc) => npc.sprite));
+    // Quem ainda nao tem folha nao tem sprite; `montarSpriteDeNpc` acrescenta
+    // o colisor de cada um na hora em que ele entra em cena.
+    const corposDeNpc = this.npcs
+      .map((npc) => npc.sprite)
+      .filter((sprite): sprite is Phaser.Physics.Arcade.Sprite => sprite !== null);
+    if (corposDeNpc.length > 0) {
+      this.physics.add.collider(this.player, corposDeNpc);
     }
     if (this.obstaculos.length > 0) this.physics.add.collider(this.player, this.obstaculos);
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -1419,23 +1442,92 @@ export class FarmScene extends Phaser.Scene {
         y: estadoNpc.y * this.tamanhoTile,
         props: { npcId: def.id },
       };
-      const textura = def.sprite ? `npc-${def.id}-sprites` : 'player-idle-sprites';
-      const sprite = this.physics.add.sprite(alvo.x, alvo.y, textura, 'down-0');
-      this.configurarNpc(sprite);
-      sprite.setImmovable(true);
-      if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
-      sprite.anims.play(`${def.sprite ? `npc-${def.id}-` : ''}idle-down`);
       this.interagiveis.push(alvo);
-      sprite.setVisible(false);
-      this.npcs.push({
+      const npc: NpcVisual = {
         estado: estadoNpc,
-        sprite,
+        sprite: null,
         interagivel: alvo,
         animacao: def.sprite ? `npc-${def.id}-` : '',
         visivelAplicado: false,
-      });
+      };
+      this.npcs.push(npc);
+      this.montarSpriteDeNpc(npc);
     }
     this.sincronizarNpcs(true);
+  }
+
+  /**
+   * Monta o sprite de um NPC, se a folha dele ja estiver em textura.
+   *
+   * Idempotente, e sem efeito nenhum quando a folha falta: devolve false e quem
+   * chamou decide se pede. O colisor com o jogador entra aqui porque o da
+   * montagem da cena so conhece quem existia naquele instante.
+   */
+  private montarSpriteDeNpc(npc: NpcVisual): boolean {
+    if (npc.sprite) return true;
+    const def = buscarNpc(npc.estado.id);
+    if (!def || !prepararNpc(this, def)) return false;
+
+    const textura = def.sprite ? `npc-${def.id}-sprites` : 'player-idle-sprites';
+    const sprite = this.physics.add.sprite(
+      npc.interagivel.x,
+      npc.interagivel.y,
+      textura,
+      'down-0',
+    );
+    this.configurarNpc(sprite);
+    sprite.setImmovable(true);
+    if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
+    sprite.anims.play(`${npc.animacao}idle-down`);
+    sprite.setVisible(false);
+    npc.sprite = sprite;
+    this.physics.add.collider(this.player, sprite);
+    return true;
+  }
+
+  /**
+   * Pede a folha de um NPC que precisa aparecer e ainda nao tem sprite.
+   *
+   * Nao ha listener de COMPLETE aqui de proposito: a cena ja escuta esse evento
+   * pra reiniciar depois de buscar tilemap e atlas de movel, e uma folha de NPC
+   * chegando no meio disso dispararia o restart. Em vez disso `sincronizarNpcs`
+   * tenta montar de novo a cada quadro — quando a textura chega, ela monta.
+   */
+  private garantirSpriteDeNpc(npc: NpcVisual): void {
+    if (this.montarSpriteDeNpc(npc)) return;
+    const def = buscarNpc(npc.estado.id);
+    if (!def || this.folhasDeNpcPedidas.has(def.id)) return;
+    this.folhasDeNpcPedidas.add(def.id);
+    if (enfileirarFolhasNpc(this, def) > 0) this.load.start();
+  }
+
+  /**
+   * As folhas de quem esta em cena AGORA, antes de a cena montar.
+   *
+   * Mesmo formato de `garantirTilemap` e `garantirAtlasDeMovel`: corta o
+   * `create` no mesmo lugar, dispara a carga e reinicia quando ela termina.
+   *
+   * O conjunto e pequeno porque quem esta dentro de casa nao conta — no mapa
+   * mais povoado sao dezessete dos trinta e tres. O minimapa entra na mesma
+   * conta: ele mostra retrato de quem esta no mapa EXTERNO, mesmo com o jogador
+   * dentro de um interior, e por isso `posicaoNpcNoMapaAberto` tambem pesa.
+   */
+  private garantirFolhasDeNpc(): boolean {
+    let pedidos = 0;
+    estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, 0);
+    for (const estadoNpc of estado.rotinasNpc.todos) {
+      const emCena = this.posicaoNpcNoMapa(estadoNpc) !== null
+        || this.posicaoNpcNoMapaAberto(estadoNpc.id) !== null;
+      if (!emCena) continue;
+      const def = buscarNpc(estadoNpc.id);
+      if (!def) continue;
+      this.folhasDeNpcPedidas.add(def.id);
+      pedidos += enfileirarFolhasNpc(this, def);
+    }
+    if (pedidos === 0) return true;
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => this.scene.restart(this.entradaAtual));
+    this.load.start();
+    return false;
   }
 
   /**
@@ -1450,9 +1542,10 @@ export class FarmScene extends Phaser.Scene {
    * esmaecimento de saida: sem ele, cada quadro reiniciaria o tween.
    */
   private aplicarVisibilidadeDeNpc(npc: NpcVisual, visivel: boolean, instantaneo = false): void {
-    if (npc.visivelAplicado === visivel) return;
+    if (npc.visivelAplicado === visivel || !npc.sprite) return;
+    const boneco = npc.sprite;
     npc.visivelAplicado = visivel;
-    this.tweens.killTweensOf(npc.sprite);
+    this.tweens.killTweensOf(boneco);
     // Na montagem da cena nao ha o que esmaecer: a camera inteira ja entra com
     // fade. Fazer isso aqui tambem deixaria o NPC em alpha 0 se o primeiro
     // quadro demorasse.
@@ -1460,28 +1553,33 @@ export class FarmScene extends Phaser.Scene {
     // montagem de cena. Um NPC surgindo e desaparecendo em fade a cada troca de
     // rotina e movimento nao pedido, e o mesmo `setVisible` resolve.
     if (instantaneo || estado.preferencias.valores.movimentoReduzido) {
-      npc.sprite.setVisible(visivel).setAlpha(1);
+      boneco.setVisible(visivel).setAlpha(1);
       return;
     }
     if (visivel) {
-      npc.sprite.setVisible(true).setAlpha(0);
-      this.tweens.add({ targets: npc.sprite, alpha: 1, duration: DURACAO_FADE_NPC });
+      boneco.setVisible(true).setAlpha(0);
+      this.tweens.add({ targets: boneco, alpha: 1, duration: DURACAO_FADE_NPC });
       return;
     }
     this.tweens.add({
-      targets: npc.sprite,
+      targets: boneco,
       alpha: 0,
       duration: DURACAO_FADE_NPC,
       // pode ter voltado a ser visivel no meio do caminho
-      onComplete: () => { if (!npc.visivelAplicado) npc.sprite.setVisible(false); },
+      onComplete: () => { if (!npc.visivelAplicado) boneco.setVisible(false); },
     });
   }
 
   private sincronizarNpcs(instantaneo = false): void {
     for (const npc of this.npcs) {
-      const { sprite, interagivel } = npc;
       const posicao = this.posicaoNpcNoMapa(npc.estado);
       const visivel = posicao !== null;
+      // Quem precisa aparecer e nao tem sprite: pede a folha agora. Enquanto ela
+      // nao chega o NPC simplesmente nao esta em cena, e o `continue` o mantem
+      // fora tambem do alvo de conversa — nao existe interlocutor invisivel.
+      if (visivel && !npc.sprite) this.garantirSpriteDeNpc(npc);
+      const { sprite, interagivel } = npc;
+      if (!sprite) continue;
       this.aplicarVisibilidadeDeNpc(npc, visivel, instantaneo);
       sprite.setActive(visivel);
       if (sprite.body) sprite.body.enable = visivel;
@@ -1502,20 +1600,23 @@ export class FarmScene extends Phaser.Scene {
     const ativo = estado.encontrosNpc.ativo;
     const fala = ativo?.definicao.falas[ativo.indiceFala];
     const visual = fala ? this.npcs.find((n) => n.interagivel.props.npcId === fala.npcId) : null;
+    // Sem sprite o NPC nao esta em cena (a folha dele ainda vem vindo), e balao
+    // de fala precisa de alguem embaixo dele pra sair da boca de quem fala.
+    const boneco = visual?.sprite ?? null;
     const perto = Boolean(
-      visual?.sprite.visible &&
+      boneco?.visible &&
       jogadorOuveEncontro(
-        Phaser.Math.Distance.Between(this.player.x, this.player.y, visual.sprite.x, visual.sprite.y) / this.tamanhoTile,
+        Phaser.Math.Distance.Between(this.player.x, this.player.y, boneco.x, boneco.y) / this.tamanhoTile,
       ),
     );
-    if (!fala || !visual || !perto) {
+    if (!fala || !boneco || !perto) {
       this.balaoEncontro?.destroy();
       this.balaoEncontro = null;
       return;
     }
     if (!this.balaoEncontro) {
       this.balaoEncontro = this.add
-        .text(visual.sprite.x, visual.sprite.y - this.tamanhoTile * 1.8, '', {
+        .text(boneco.x, boneco.y - this.tamanhoTile * 1.8, '', {
           fontFamily: UI.fonte,
           fontSize: UI.tamanho,
           color: BALAO.texto,
@@ -1528,8 +1629,8 @@ export class FarmScene extends Phaser.Scene {
         .setDepth(DEPTH_OVERLAY + 20);
     }
     this.balaoEncontro.setText(fala.texto).setPosition(
-      visual.sprite.x,
-      visual.sprite.y - this.tamanhoTile * 1.8,
+      boneco.x,
+      boneco.y - this.tamanhoTile * 1.8,
     );
   }
 
@@ -2101,21 +2202,15 @@ export class FarmScene extends Phaser.Scene {
     // marcador; `atualizarMarcadoresMapa` mostra apenas quem esta neste mapa.
     const idsNpc = estado.rotinasNpc.todos.map((npc) => npc.id);
     this.marcadoresNpc = idsNpc.map((npcId) => {
-      const perfil = buscarNpc(npcId);
-      const chaveTextura = perfil?.spriteParado
-        ? `npc-${npcId}-parado`
-        : perfil?.sprite
-          ? `npc-${npcId}-sprites`
-          : 'player-idle-sprites';
       const fundoRetrato = this.add.circle(0, 0, 7, 0xfff4d0, 0.96)
         .setStrokeStyle(1, 0x3a2b08)
         .setScrollFactor(0);
-      const retrato = this.add.image(0, 5, chaveTextura, 'down-0')
+      const retrato = this.add.image(0, 5, this.texturaDeRetrato(npcId), 'down-0')
         .setDisplaySize(10, 13)
         .setScrollFactor(0);
       const marcador = this.add.container(0, 0, [fundoRetrato, retrato]).setScrollFactor(0);
       filhos.push(marcador);
-      return { npcId, marcador };
+      return { npcId, marcador, retrato };
     });
 
     this.overlayMapa = this.add
@@ -2134,11 +2229,40 @@ export class FarmScene extends Phaser.Scene {
       this.marcadorPlayer.setVisible(true);
     } else this.marcadorPlayer.setVisible(false);
 
-    this.marcadoresNpc.forEach(({ npcId, marcador }) => {
+    this.marcadoresNpc.forEach(({ npcId, marcador, retrato }) => {
       const posicao = this.posicaoNpcNoMapaAberto(npcId);
       marcador.setVisible(posicao !== null);
-      if (posicao) marcador.setPosition(...this.paraCoordenadaDoMapa(posicao.x, posicao.y));
+      if (!posicao) return;
+      // A folha pode ter chegado depois do desenho do mapa — quem esta em cena
+      // tem sprite, e o retrato do minimapa usa a MESMA textura.
+      const chave = this.texturaDeRetrato(npcId);
+      if (retrato.texture.key !== chave) {
+        retrato.setTexture(chave, 'down-0').setDisplaySize(10, 13);
+      }
+      marcador.setPosition(...this.paraCoordenadaDoMapa(posicao.x, posicao.y));
     });
+  }
+
+  /**
+   * A textura do retrato de minimapa de um NPC.
+   *
+   * As folhas nao vem mais no boot, entao o retrato de quem nao esta neste mapa
+   * pode nao ter textura nenhuma. O recuo e a folha do jogador: o marcador so
+   * fica VISIVEL pra quem esta no mapa externo atual, e esse ja teve a folha
+   * pedida por `garantirFolhasDeNpc` — mas entre o pedido e a chegada existem
+   * alguns quadros, e um `add.image` com chave inexistente desenha o quadrado
+   * verde de textura faltando.
+   */
+  private texturaDeRetrato(npcId: string): string {
+    const perfil = buscarNpc(npcId);
+    const candidatas = [
+      perfil?.spriteParado ? `npc-${npcId}-parado` : null,
+      perfil?.sprite ? `npc-${npcId}-sprites` : null,
+    ].filter((chave): chave is string => chave !== null);
+    return (
+      candidatas.find((chave) => this.textures.exists(chave) && this.textures.get(chave).has('down-0'))
+      ?? 'player-idle-sprites'
+    );
   }
 
   /** Posicao externa de qualquer NPC, mesmo se o jogador estiver num interior. */
@@ -3997,7 +4121,19 @@ export class FarmScene extends Phaser.Scene {
 /** O que a cena precisa saber pra montar um sprite da camada `flora`. */
 interface NpcVisual {
   estado: EstadoNpc;
-  sprite: Phaser.Physics.Arcade.Sprite;
+  /**
+   * null enquanto a folha do NPC nao chegou.
+   *
+   * As folhas nao vem mais no boot (eram 14,99 MB antes do menu): a cena pede
+   * as de quem esta neste mapa e reinicia quando elas chegam. Quem aparece
+   * DEPOIS disso — o morador que entra andando de fora da tela no meio do dia —
+   * cai em `garantirSpriteDeNpc`, que busca a folha e monta o sprite sem
+   * reiniciar a cena.
+   *
+   * Nao criar o sprite e deliberado: um sprite com textura ausente vira um
+   * quadrado verde parado no meio da rua, e isso e pior que a ausencia.
+   */
+  sprite: Phaser.Physics.Arcade.Sprite | null;
   interagivel: Interagivel;
   animacao: string;
   /**
@@ -4011,6 +4147,8 @@ interface NpcVisual {
 interface MarcadorNpcMapa {
   npcId: string;
   marcador: Phaser.GameObjects.Container;
+  /** o retrato dentro do marcador, guardado pra trocar de textura quando a folha chega */
+  retrato: Phaser.GameObjects.Image;
 }
 
 interface ReceitaFlora {

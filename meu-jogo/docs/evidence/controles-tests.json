@@ -42,7 +42,7 @@
   {
     "file": "verificar-interface.mjs",
     "status": 0,
-    "output": "[interface] 160 sequencias de abertura conferidas\n[interface] 453 conferencias passaram\n"
+    "output": "[interface] 160 sequencias de abertura conferidas\n[interface] 457 conferencias passaram\n"
   },
   {
     "file": "verificar-interiores.mjs",

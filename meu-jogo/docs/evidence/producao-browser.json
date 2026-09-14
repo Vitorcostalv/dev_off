@@ -1,7 +1,7 @@
 {
   "alvo": "http://localhost:5187",
-  "bundle": "index-CJpGtJwh.js",
-  "bytes": 1656938,
+  "bundle": "index-B8aOb4l5.js",
+  "bytes": 1659037,
   "errors": [],
   "checks": [
     "sem window.game/window.estado em producao",

@@ -19,7 +19,9 @@
  *   4. que as treze faixas longas de audio nao entram no boot;
  *   5. que o teto de peso segura: um asset novo que dobre o boot falha aqui;
  *   6. que nenhum icone de item e AMPLIADO na tela — a trava do corte de
- *      `itens.png`, porque teto baixo demais nao levanta erro, so borra.
+ *      `itens.png`, porque teto baixo demais nao levanta erro, so borra;
+ *   7. que um dia inteiro no mapa mais povoado nao deixa nenhum morador
+ *      invisivel — a trava do corte das folhas de NPC, pelo mesmo motivo.
  */
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
@@ -331,7 +333,70 @@ try {
       `${naMemoria.tela.join('x')} (arte ${naMemoria.arte.join('x')})`,
   );
 
-  // ------------------------ 9 e 10. as duas opcoes de acessibilidade valem
+  // ------------ 9. um dia inteiro no bairro sem NPC invisivel
+  //
+  // Esta e a trava do corte maior: as 66 folhas dos 33 moradores sairam do boot
+  // (14,99 MB) e agora sao pedidas pela cena de mundo. O modo de falhar nao e
+  // erro nenhum no console — e um morador que entra andando de fora da tela com
+  // a folha ausente e simplesmente NAO APARECE, em silencio.
+  //
+  // Entao: o bairro, que e o mapa mais povoado (vinte dos trinta e tres
+  // moradores), hora a hora das 6h as 22h. A cada hora se pergunta ao proprio
+  // jogo quem deveria estar em cena, e se cobra que cada um desses tenha sprite
+  // com textura de verdade. A cena NAO reinicia entre as horas: e exatamente o
+  // caso do morador que sai de casa no meio do dia.
+  const emCenaSemSprite = () => page.evaluate(() => {
+    const f = window.game.scene.getScene('FarmScene');
+    const faltando = [];
+    let emCena = 0;
+    for (const npc of f.npcs) {
+      if (f.posicaoNpcNoMapa(npc.estado) === null) continue;
+      emCena += 1;
+      const chave = npc.sprite?.texture?.key ?? null;
+      if (chave === null || chave === '__MISSING' || chave === '__DEFAULT') {
+        faltando.push({ id: npc.estado.id, chave });
+      }
+    }
+    return { emCena, faltando };
+  });
+
+  await entrar('bairro');
+  let maiorLotacao = 0;
+  let esperaMaxima = 0;
+  for (let hora = 6; hora <= 22; hora += 1) {
+    await page.evaluate((h) => {
+      window.estado.relogio.definir(h * 60);
+      // um tique manual: o motor de rotina so recalcula quando o relogio anda
+      window.estado.rotinasNpc.atualizar(window.estado.dia, h * 60, 16);
+    }, hora);
+    // a folha que falta e pedida no proximo `sincronizarNpcs`; dar tempo de ela
+    // chegar e legitimo, contanto que o tempo seja MEDIDO e nao presumido
+    const inicio = Date.now();
+    let estadoDaHora = await emCenaSemSprite();
+    while (estadoDaHora.faltando.length > 0 && Date.now() - inicio < 8000) {
+      await page.waitForTimeout(100);
+      estadoDaHora = await emCenaSemSprite();
+    }
+    esperaMaxima = Math.max(esperaMaxima, Date.now() - inicio);
+    maiorLotacao = Math.max(maiorLotacao, estadoDaHora.emCena);
+    assert.equal(
+      estadoDaHora.faltando.length, 0,
+      `as ${hora}h no bairro, ${estadoDaHora.faltando.length} morador(es) em cena continuaram sem ` +
+        `sprite depois de oito segundos: ${JSON.stringify(estadoDaHora.faltando)}. A folha por mapa ` +
+        'nao chegou, e NPC sem folha nao levanta erro — ele so nao aparece',
+    );
+  }
+  assert(
+    maiorLotacao >= 8,
+    `o bairro teve no maximo ${maiorLotacao} morador(es) em cena no dia inteiro. Com tao pouca ` +
+      'gente a conferencia nao prova nada: ou a hora nao esta andando, ou as rotinas nao rodaram',
+  );
+  checks.push(
+    `um dia inteiro no bairro (6h-22h) sem morador invisivel: pico de ${maiorLotacao} em cena, ` +
+      `espera maxima de ${esperaMaxima} ms pela folha de quem saiu de casa no meio do dia`,
+  );
+
+  // ----------------------- 10 e 11. as duas opcoes de acessibilidade valem
   //
   // As duas existiam nas preferencias e valiam por uma coisa cada: o contraste
   // alto trocava UM retangulo (o fundo do painel da tela de menu) e o movimento
