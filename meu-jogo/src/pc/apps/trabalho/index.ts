@@ -548,7 +548,9 @@ export class Trabalho implements AppDoPc {
     if (vaga.tipo === 'conserto') {
       estado.worldEvents.definir('protagonistaConsertouAlgo', true);
     }
-    this.avisar(`${motivo}: recebeu ${formatarDinheiro(centavos)}. [Esc] volta ao quadro.`, PC.sucesso);
+    this.avisar(vaga.missaoNpcId === 'wendel_hd'
+      ? `Fotos e videos recuperados. Uma pasta permanece ilegivel. Recebeu ${formatarDinheiro(centavos)}. Fale com Wendel.`
+      : `${motivo}: recebeu ${formatarDinheiro(centavos)}. [Esc] volta ao quadro.`, PC.sucesso);
     return true;
   }
 

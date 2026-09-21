@@ -1,12 +1,20 @@
 # Meu Jogo
 
-### Continuação narrativa: registros 51–200
+### Campanha narrativa e registros 51–200
 
-Após recolher a ficha 50 na represa, abra **Arquivos [J] → Psicoterapia → Continuar**.
-A seção apresenta 150 registros em sequência, salva a leitura concluída e permite
-reler documentos anteriores. Saves antigos com a ficha 50 também liberam a seção.
-O mundo continua com 50 andares: a expansão física e as cenas da nova campanha
-estão descritas no [roteiro consolidado](docs/narrativa-consolidada.md).
+Ao entrar no jogo, o prólogo inicia a campanha de 25 cenas, com encontros na cidade,
+recaída, cuidado dos moradores, retorno à represa, desfecho e epílogo.
+**Pausa → Sua história** mostra o próximo encontro e permite retomar uma cena interrompida.
+Depois da cena da ficha 50, examine novamente o documento para descer a escada:
+são 150 salas compactas exploráveis, com registros, vestígios e progresso salvo.
+Os primeiros 50 andares continuam nos mapas Tiled; a expansão usa uma cena própria.
+**Arquivos [J] → Psicoterapia** permite reler os registros; durante a campanha,
+novas leituras ficam limitadas à profundidade alcançada. Saves antigos são preservados.
+Detalhes, gatilhos e adaptações estão no [roteiro consolidado](docs/narrativa-consolidada.md).
+
+`npm run verificar-campanha` verifica a ordem das cenas e os caminhos das 150 salas.
+`npm run test:campanha-browser` percorre a campanha no Chrome com Vite em
+`http://127.0.0.1:5190` (ou `GAME_URL`), incluindo retomada de cena e exploração após reload.
 
 `npm run importar-psicoterapia` recompõe o catálogo a partir da fonte autoral;
 `npm run verificar-psicoterapia` confere os textos, a sequência e a persistência.

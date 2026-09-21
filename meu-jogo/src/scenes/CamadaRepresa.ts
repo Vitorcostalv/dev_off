@@ -187,6 +187,8 @@ export class CamadaRepresa {
   }
 
   private criarInimigos(map: Phaser.Tilemaps.Tilemap): void {
+    // O reconhecimento no último arquivo termina em silêncio, sem combate.
+    if (estado.mapa === 'represa_f50') return;
     const camada = map.getObjectLayer('inimigos');
     if (!camada) return;
     const t = this.tamanhoTile;

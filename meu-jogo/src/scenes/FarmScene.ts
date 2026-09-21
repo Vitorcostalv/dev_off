@@ -7,6 +7,7 @@ import { dataDoDia } from '../game/calendario';
 import { intensidadeNoturna } from '../game/clima';
 import { AmbienteMundo } from './AmbienteMundo';
 import Phaser from 'phaser';
+import { cenaNoContexto, cenaPendente, motivoEspera, viuCena } from '../game/campanha';
 import { PROP_COLIDE } from '../game/colisao';
 import { CONFIG, COR_ZONA, ROTULOS, UI } from '../game/config';
 import { formatarDinheiro } from '../game/dinheiro';
@@ -290,6 +291,34 @@ export class FarmScene extends Phaser.Scene {
   private direcao: Direcao = 'down';
 
   private interagiveis: Interagivel[] = [];
+  private campanhaSuspensa = false;
+  private campanhaApos = 0;
+
+  suspenderCampanha(suspensa: boolean): void {
+    this.campanhaSuspensa = suspensa;
+    this.campanhaApos = this.time.now + 1500;
+  }
+
+  iniciarCenaCampanha(id: string): void {
+    const cena = cenaPendente(estado);
+    if (!cena || cena.id !== id || motivoEspera(estado, cena)) return;
+    this.campanhaSuspensa = false;
+    this.player.setVelocity(0, 0);
+    this.scene.pause('UIScene');
+    this.scene.pause();
+    this.scene.launch('CampanhaScene', { id });
+  }
+
+  entrarProfundezas(): void {
+    if (!viuCena(estado, 'andar50') || estado.mapa !== 'represa_f50') {
+      this.ui.avisoRapido('A escada fica além do arquivo do andar 50. Continue sua história.', UI.textoFraco);
+      return;
+    }
+    this.player.setVelocity(0, 0);
+    this.scene.pause('UIScene');
+    this.scene.pause();
+    this.scene.launch('ProfundezasScene');
+  }
   private alvo: Interagivel | null = null;
   private npcs: NpcVisual[] = [];
   private balaoEncontro: Phaser.GameObjects.Text | null = null;
@@ -765,6 +794,11 @@ export class FarmScene extends Phaser.Scene {
     // O `create` pode ter parado no meio esperando o tilemap de um andar (ver
     // `garantirTilemap`): nesse quadro nao ha player, nem camada, nem teclas.
     if (!this.pronto) return;
+    if (!this.campanhaSuspensa && this.time.now > this.campanhaApos && !this.ui.bloqueado && !this.transicionando && !this.mapaAberto
+      && !this.scene.isActive('MenuScene') && !this.scene.isActive('CampanhaScene') && !this.scene.isActive('ProfundezasScene')) {
+      const cena = cenaNoContexto(estado);
+      if (cena) { this.iniciarCenaCampanha(cena.id); return; }
+    }
     // reordena o player entre as arvores conforme ele anda
     this.player.setDepth(this.player.y);
 
@@ -2371,6 +2405,8 @@ export class FarmScene extends Phaser.Scene {
     // basta ABORDAR pra o NPC entrar na aba Relacionamento do Navegador: uma
     // conversa que rendeu 0 ponto ainda foi uma conversa
     estado.relacoes.registrarInteracao(def.id);
+    const cena = cenaNoContexto(estado, def.id);
+    if (cena) { this.iniciarCenaCampanha(cena.id); return; }
     const condicional = estado.worldEvents.consumirFala(def.id);
     const abertura = condicional ? [condicional.texto, ...def.dialogoAtual] : def.dialogoAtual;
     this.ui.iniciarDialogo(falasDe(def.nome, abertura, def.id), () =>
@@ -3937,6 +3973,13 @@ export class FarmScene extends Phaser.Scene {
    * fachada mas nao tem interior — ver `AVISOS_DE_PREDIO`.
    */
   private examinarPlaca(alvo: Interagivel): void {
+    if (estado.mapa === 'represa_f50' && Number(alvo.props.ficha) === 50 && viuCena(estado, 'andar50')) {
+      this.ui.abrirMenu('Além do arquivo', [
+        { rotulo: 'Descer a escada', aoEscolher: () => this.entrarProfundezas() },
+        { rotulo: 'Reler a última folha', aoEscolher: () => this.ui.iniciarDialogo(falasDe('Última folha', AVISOS_DE_PREDIO[String(alvo.props.aviso ?? '')] ?? [])) },
+      ]);
+      return;
+    }
     // FICHA MEDICA: o objeto tem a prop `ficha` com o numero do andar. Ler
     // arquiva; o texto sai igual ao de qualquer placa, logo abaixo.
     const andarDaFicha = Number(alvo.props.ficha);

@@ -5,6 +5,8 @@ import { FarmScene } from './scenes/FarmScene';
 import { ComputadorScene } from './scenes/ComputadorScene';
 import { UIScene } from './scenes/UIScene';
 import { MenuScene } from './scenes/MenuScene';
+import { CampanhaScene } from './scenes/CampanhaScene';
+import { ProfundezasScene } from './scenes/ProfundezasScene';
 import './style.css';
 import { controles } from './game/InputRouter';
 import { som } from './scenes/Som';
@@ -32,7 +34,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, FarmScene, UIScene, ComputadorScene, MenuScene],
+  scene: [BootScene, FarmScene, UIScene, ComputadorScene, MenuScene, CampanhaScene, ProfundezasScene],
 };
 
 const game = new Phaser.Game(config);

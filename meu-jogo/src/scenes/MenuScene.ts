@@ -3,6 +3,7 @@ import { estado } from '../game/estado';
 import { dataDoDia, DIAS_POR_ESTACAO } from '../game/calendario';
 import { MISSOES_NPC } from '../game/missoesNpc';
 import { TOTAL_DOCUMENTOS } from '../game/fichas';
+import { cenaPendente, motivoEspera, viuCena } from '../game/campanha';
 import { apagar } from '../game/save';
 import { controles, CONTROLES } from '../game/InputRouter';
 import { som } from './Som';
@@ -13,7 +14,7 @@ import { UI } from '../game/config';
 import { CLIMAS } from '../game/clima';
 import type { FarmScene } from './FarmScene';
 
-type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'estatisticas' | 'controles' | 'dev' | 'dev_mapas' | 'dev_itens';
+type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'historia' | 'estatisticas' | 'controles' | 'dev' | 'dev_mapas' | 'dev_itens';
 /** `ajustar` existe nas linhas de escala (volume): setas laterais mexem no valor. */
 interface Opcao { texto: string; executar: () => void; ajustar?: (delta: number) => void; }
 /** Volumes ajustaveis, na ordem em que aparecem na tela. */
@@ -85,7 +86,12 @@ export class MenuScene extends Phaser.Scene {
     this.opcoes = [];
     if (pagina === 'titulo') {
       this.mensagem = 'Uma oficina. Uma cidade. Algo sob a represa.';
-      this.opcoes = [{ texto: 'Entrar na cidade', executar: () => this.fechar() }, ir('Opcoes', 'opcoes'), {
+      this.opcoes = [{ texto: 'Entrar na cidade', executar: () => {
+        this.fechar();
+        const pendente = cenaPendente(estado);
+        if (pendente && (pendente.id === 'prologo' || estado.worldEvents.obter('campanha:ativa') === pendente.id))
+          (this.scene.get('FarmScene') as FarmScene).iniciarCenaCampanha(pendente.id);
+      } }, ir('Opcoes', 'opcoes'), {
         texto: 'Novo jogo', executar: () => {
           this.titulo = 'Iniciar uma nova historia?'; this.mensagem = 'O save atual sera guardado em backup.';
           this.opcoes = [{ texto: 'Cancelar', executar: () => this.abrir('titulo') }, { texto: 'Confirmar novo jogo', executar: () => { if (apagar()) location.reload(); else { this.mensagem = 'Falha ao guardar backup. Save preservado.'; this.desenhar(); } } }];
@@ -93,8 +99,17 @@ export class MenuScene extends Phaser.Scene {
         },
       }];
     } else if (pagina === 'pausa') {
-      this.opcoes = [{ texto: 'Continuar', executar: () => this.fechar() }, ir('Calendario', 'calendario'), ir('Diario de missoes', 'diario'), ir('Estatisticas e colecoes', 'estatisticas'), ir('Opcoes', 'opcoes')];
+      this.opcoes = [{ texto: 'Continuar', executar: () => this.fechar() }, ir('Sua história', 'historia'), ir('Calendario', 'calendario'), ir('Diario de missoes', 'diario'), ir('Estatisticas e colecoes', 'estatisticas'), ir('Opcoes', 'opcoes')];
       if (import.meta.env.DEV) this.opcoes.push(ir('Desenvolvimento', 'dev'));
+    } else if (pagina === 'historia') {
+      this.titulo = 'Sua história';
+      const cena = cenaPendente(estado);
+      const lugares: Record<string, string> = { oficina: 'sua casa e oficina', farm: 'o centro', farmacia: 'a farmácia', bar: 'o bar', represa: 'a estrada da represa', 'represa*': 'o interior da represa', represa_f50: 'o arquivo do andar 50', profundezas: 'a escada além do arquivo do andar 50', inicio: 'a chegada à cidade' };
+      this.mensagem = cena ? `${cena.capitulo}\n${motivoEspera(estado, cena) ?? (cena.npc ? `Converse com ${cena.npc === 'wendel' ? 'Wendel' : cena.npc[0]!.toUpperCase() + cena.npc.slice(1)}.` : `Volte para ${lugares[cena.local] ?? cena.local}.`)}` : 'A vida tranquila veio depois. E foi você que fez.\nA cidade continua aqui.';
+      const retomar = cena && !motivoEspera(estado, cena) && (cena.id === 'prologo' || estado.worldEvents.obter('campanha:ativa') === cena.id);
+      this.opcoes = [{ texto: 'Voltar', executar: () => this.abrir('pausa') }];
+      if (retomar) this.opcoes.unshift({ texto: 'Retomar cena', executar: () => { this.fechar(); (this.scene.get('FarmScene') as FarmScene).iniciarCenaCampanha(cena.id); } });
+      if (viuCena(estado, 'andar50') && estado.mapa === 'represa_f50') this.opcoes.unshift({ texto: 'Escada além do arquivo', executar: () => { this.fechar(); (this.scene.get('FarmScene') as FarmScene).entrarProfundezas(); } });
     } else if (pagina === 'opcoes') {
       const v = estado.preferencias.valores;
       const alterar = (fn: () => void) => { fn(); const i = this.cursor; const t = this.topo; const salvo = estado.preferencias.salvar(); this.abrir('opcoes'); this.cursor = i; this.topo = t; if (!salvo) this.mensagem = 'Opcoes aplicadas; nao foi possivel salvar.'; this.desenhar(); };

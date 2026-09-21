@@ -42,7 +42,7 @@ const FALAS_CONDICIONAIS: readonly FalaCondicional[] = [
     id: 'reacao_missao_hd_wendel',
     flag: 'missaoWendelHdConcluida',
     npcs: {
-      wendel: 'Voce recuperou. Certo... obrigado. Eu vou guardar no lugar certo.',
+      wendel: 'As fotos e os videos voltaram. Uma pasta nao. Eu nao pedi tudo. Ja e mais do que eu tinha ontem.',
     },
   },
   {

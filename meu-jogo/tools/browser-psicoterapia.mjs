@@ -8,7 +8,11 @@ const erros = [];
 page.on('pageerror', e => erros.push(e.message));
 const iniciar = async () => {
   await page.waitForFunction(() => window.game?.scene.isActive('MenuScene'));
-  await page.keyboard.press('Enter');
+  // Isola a compatibilidade do arquivo legado, anterior ao início da campanha.
+  await page.evaluate(() => {
+    window.game.scene.getScene('FarmScene').suspenderCampanha(true);
+    window.game.scene.getScene('MenuScene').fechar();
+  });
   await page.waitForFunction(() => window.game.scene.getScene('FarmScene')?.pronto);
 };
 try {

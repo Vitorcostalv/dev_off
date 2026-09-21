@@ -63,6 +63,7 @@ export class SistemaMissoesNpc {
     this.estados.set(id, 'concluida');
     destino.relacoes.ganharRelacao(missao.npcId, missao.bonusRelacao);
     destino.worldEvents.definir(missao.worldEvent, true);
+    if (id === 'wendel_hd') destino.worldEvents.definir('missaoWendelHdPastaIrrecuperavel', true);
     return missao;
   }
   porNpc(npcId: string): MissaoNpc | null {

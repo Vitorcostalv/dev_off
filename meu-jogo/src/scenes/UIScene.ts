@@ -29,6 +29,7 @@ import {
 } from '../game/equipar';
 import { buscarArma } from '../game/armas';
 import { fichaDoAndar, linhasDaFicha, tituloDaFicha, buscarRegistroPsicoterapia, tituloRegistroPsicoterapia, REGISTROS_PSICOTERAPIA } from '../game/fichas';
+import { viuCena } from '../game/campanha';
 import { PilhaDeFoco } from '../game/foco';
 import type { JanelaDaUi } from '../game/foco';
 import {
@@ -519,6 +520,11 @@ export class UIScene extends Phaser.Scene {
   }
 
   private lerRegistroPsicoterapia(numero: number): void {
+    if (viuCena(estado, 'prologo') && !estado.arquivo.tem(numero)
+      && numero > (Number(estado.worldEvents.obter('campanha:profundidade')) || 50)) {
+      this.avisoRapido('Encontre esta folha na escada além do arquivo do andar 50.', UI.textoFraco);
+      return;
+    }
     if (!estado.arquivo.podeLerRegistro(numero)) return;
     const registro = buscarRegistroPsicoterapia(numero);
     if (!registro) return;

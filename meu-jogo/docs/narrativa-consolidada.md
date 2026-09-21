@@ -2,17 +2,21 @@
 
 ## Estado deste documento
 
-Consolidação dos dois textos fornecidos pelo autor e das 50 fichas existentes. O runtime atual possui 50 andares, as 50 fichas médicas originais e os 150 registros de psicoterapia integrados ao arquivo. As cenas de campanha descritas abaixo continuam sendo direção narrativa, não cenas já implementadas.
+Consolidação dos dois textos fornecidos pelo autor e das 50 fichas existentes. O jogo implementa agora 25 cenas de campanha, os 50 andares originais e uma continuação com 150 salas compactas exploráveis, cada uma contendo o registro correspondente. A encenação adapta o tratamento para diálogos interativos e ambientes com os sprites do jogo.
 
-### Primeira entrega jogável: continuação do prontuário
+### Campanha jogável
 
-Após recolher a ficha 50, abra **Arquivos [J] → Psicoterapia → Continuar**. Cada registro só libera o seguinte quando a leitura termina. É possível reler os anteriores e sair do menu entre registros. Os títulos das folhas futuras não revelam temas. O progresso é salvo ao concluir cada registro e sobrevive ao carregamento de saves antigos; saves que já possuem a ficha 50 recebem acesso à seção.
+O prólogo começa ao entrar no jogo. **Pausa → Sua história** informa o próximo encontro, seus requisitos e permite retomar cenas interrompidas. As conversas com os moradores acionam cenas quando chega sua vez na sequência; os demais sistemas da cidade continuam disponíveis. A mensagem do cliente exige chegar ao dia 16, e a conversa de Wendel exige concluir a missão do HD. Reconhecimento e retorno acompanham as fichas 10, 30, 40 e 50. Os cuidados de Davi e Wendel ocorrem em dias separados.
 
-Este acesso pelo anexo permite ler a continuação na versão atual. Não representa a distribuição final dos registros pelos andares 51–200: esses mapas e as novas cenas ainda precisam ser implementados. Não foram acrescentados andares vazios nem datas de sessões inventadas.
+Depois de concluir a cena do andar 50, examine novamente sua ficha e escolha **Descer a escada**. Nas salas 51–200, caminhe com WASD/setas e use E para examinar documentos, vestígios e escadas; Esc retorna ao andar 50. É necessário terminar a leitura de cada registro para avançar. O andar atual, a profundidade alcançada e as leituras são salvos. **Arquivos [J] → Psicoterapia** permite releitura; após iniciar a campanha, registros inéditos exigem alcançar seu andar. Saves anteriores mantêm seus documentos já lidos.
+
+As 25 cenas incluem prólogo, caixas, chegada, oficina, Letícia, Edu, Mari, Alice, HD de Wendel, antigo cliente, entrada na represa, julgamento, Hiago, reconhecimento, recaída, rio, compras, pão, visita, cuidado, amizade sem dívida, retorno, andar 50, desfecho e epílogo. Tempo e combate ficam pausados durante a encenação. Enter/E avança, setas escolhem respostas e Esc suspende a cena. O quadro atual é salvo para retomada.
+
+**Adaptações de escopo:** os andares 51–200 são salas determinísticas com obstáculos, vestígios e escadas em `ProfundezasScene`, não 150 mapas Tiled artesanais. As cenas usam dioramas e texto interativo; a câmera livre e animações cinematográficas específicas do tratamento foram adaptadas para quadros e ações explícitas. A recaída é encenada, sem impor falhas aleatórias nos controles ou penalizar tarefas cotidianas. Os últimos 50 novos andares não têm inimigos. O andar 50 original também fica sem combate, com pausa de silêncio e três ações distintas para levantar. O desfecho acontece após o registro 200; voltar à oficina inicia o epílogo.
 
 Os registros preservam o texto autoral, com duas edições de continuidade: o 141 não antecipa a palavra “falecimento” e o 173 usa “dobrado em quatro”. As notas de direção entre blocos ficam na fonte, fora das falas do prontuário. As primeiras 50 fichas permanecem intactas.
 
-Validação desta entrega: build de produção, 397 verificações do cânone existente, regressão de save, comparação dos 150 textos com a fonte, leitura sequencial completa e teste no Chrome de 199 páginas renderizadas, incluindo retomada após recarregar e verificação de que o texto cabe na caixa.
+Validação: build de produção; verificadores de campanha, textos, cânone, save e relações; percurso automatizado no Chrome pelas 25 cenas e 150 salas, com retomada após recarregar e verificação de texto nas caixas. O teste acelera dias, missão e coleta das fichas originais para validar os gatilhos narrativos sem repetir todo o ciclo econômico. Um teste separado preserva a leitura do arquivo em saves anteriores à campanha.
 
 Fontes preservadas integralmente:
 
@@ -108,7 +112,7 @@ A missão atual envolve perder o notebook durante uma caminhada. A nova fala pro
 
 ### Wendel
 
-A missão atual conclui a recuperação do HD sem uma pasta irrecuperável. A nova versão exige estado próprio para recuperação parcial, diálogo correspondente e conclusão bem-sucedida mesmo sem recuperar tudo. “Eu não pedi tudo” deve encerrar o arco sem exigir que o jogador continue tentando uma solução inexistente.
+A missão agora registra a pasta irrecuperável em estado próprio ao concluir a recuperação. O app Trabalho e a resposta de Wendel informam o resultado parcial, mantendo a missão concluída e sua recompensa. A cena “Eu não pedi tudo” encerra o arco sem exigir recuperar a pasta perdida.
 
 ### Escopo dos andares
 
@@ -136,7 +140,7 @@ Os desenhos infantis em 101–150 podem antecipar formas reconhecidas apenas em 
 
 ## Encenação e conclusão
 
-O silêncio do andar 50 marca reconhecimento, sem chefe ou fanfarra. A proposta de três tentativas de levantar ainda precisa ser resolvida como interação: recomendação de mostrar esforço numa animação com resposta perceptível ao comando, sem aparentar falha de controle.
+O silêncio do andar 50 marca reconhecimento, sem chefe ou fanfarra. Três comandos sucessivos de levantar recebem respostas diferentes na encenação, precedidos por uma pausa de silêncio, sem simular falha de controle.
 
 Nos últimos andares, reduzir o combate e ampliar o vazio. O confronto final retoma as mensagens do prólogo: o protagonista interrompe a resposta, levanta e sai. Não atribuir vitória a eliminar uma criatura que represente sua condição.
 
