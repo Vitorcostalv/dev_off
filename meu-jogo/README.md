@@ -1,5 +1,13 @@
 # Meu Jogo
 
+### Direção visual em transição
+
+A estrutura continua **2D top-down**. A primeira base da [direção visual ilustrada](docs/direcao-visual.md)
+inclui figurantes modulares em camadas, hitbox fixa nos pés, sombras de contato,
+halos suaves, matiz regional e poças após chuva. Protagonista, moradores principais
+e tilesets mantêm sua arte atual enquanto os novos conjuntos são produzidos.
+`npm run verificar-visual` e `npm run test:visual-browser` validam essa base.
+
 ### Tela inicial e lembranças
 
 A tela inicial muda com as amizades e a exploração clínica. **Carregar** reúne

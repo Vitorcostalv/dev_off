@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "verificar-visual": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-visual.mjs",
+    "test:visual-browser": "node tools/browser-visual.mjs",
     "verificar-partidas": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-partidas.mjs",
     "test:partidas-browser": "node tools/browser-partidas.mjs",
     "verificar-campanha": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-campanha.mjs",

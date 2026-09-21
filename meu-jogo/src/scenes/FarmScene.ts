@@ -4,6 +4,9 @@ import { controles } from '../game/InputRouter';
 import { ambienteDoLugar, pisoDoMapa, somDoPasso, trilhaDoLugar } from '../game/audio';
 import { som } from './Som';
 import { obterMiniatura } from './capturaSave';
+import { PersonagemModular } from './PersonagemModular';
+import { aparenciaPorSemente } from '../game/visualPersonagem';
+import { corpoNosPes, sombraDeContato, texturaRadial } from './luzESombra';
 import { dataDoDia } from '../game/calendario';
 import { intensidadeNoturna } from '../game/clima';
 import { AmbienteMundo } from './AmbienteMundo';
@@ -98,14 +101,6 @@ import { fichaDoAndar } from '../game/fichas';
 const TILES_VISIVEIS_X = 18;
 /** Altura do player em TILES (fica 1,5 tile, como antes). */
 const ALTURA_PERSONAGEM_TILES = 1.5;
-// Hitbox do player, em px do RECORTE (o frame tem 200x320), nao do mundo:
-// o Arcade multiplica tanto setSize quanto setOffset pela escala do sprite
-// (Body.js: `width = sourceWidth * _sx`, `position.x = ... + scaleX * offset.x`).
-// Por isso estes quatro numeros nao mudam quando o tile muda de tamanho.
-const CORPO_LARGURA = 70;
-const CORPO_ALTURA = 50;
-const CORPO_OFFSET_X = 65;
-const CORPO_OFFSET_Y = 265;
 
 /**
  * Altura desejada de cada estagio de arvore, em TILES. A escala do sprite sai
@@ -162,7 +157,7 @@ interface FiguranteAmbiental {
   fim: { x: number; y: number };
   janela: { inicio: number; fim: number };
   seed: number;
-  conta: Phaser.GameObjects.Container;
+  conta: PersonagemModular;
 }
 
 const VETOR: Record<Direcao, { x: number; y: number }> = {
@@ -324,7 +319,7 @@ export class FarmScene extends Phaser.Scene {
   private npcs: NpcVisual[] = [];
   private balaoEncontro: Phaser.GameObjects.Text | null = null;
   private figurantesAmbientais: FiguranteAmbiental[] = [];
-  private luzesNoturnas: Phaser.GameObjects.Graphics[] = [];
+  private luzesNoturnas: Phaser.GameObjects.Image[] = [];
   private luzBiblioteca: Phaser.GameObjects.Graphics | null = null;
   private indicadoresPorta = new Map<string, Phaser.GameObjects.Text>();
   private visuaisDeItens = new Map<string, Phaser.GameObjects.Rectangle>();
@@ -656,7 +651,7 @@ export class FarmScene extends Phaser.Scene {
     this.atualizarPortasEIluminacao();
     this.criarMoveis(map);
     this.criarMobiliaDoJogador();
-    this.ambiente = new AmbienteMundo(this, def.externo);
+    this.ambiente = new AmbienteMundo(this, def.externo, estado.mapa);
     this.criarFlora(map);
     this.criarAtividadesRurais();
     // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
@@ -1278,16 +1273,10 @@ export class FarmScene extends Phaser.Scene {
       // Em dois de cada tres dias, exatamente um dos quatro slots da janela
       // descansa; no terceiro aparecem os quatro. Sempre ficam 3-4 simultaneos.
       if (estado.dia % 3 !== 0 && (estado.dia + rota.seed) % 4 === 0) continue;
-      const corpo = this.add.container(rota.inicio.x * this.tamanhoTile, rota.inicio.y * this.tamanhoTile);
-      const cabeca = this.add.circle(0, -11, 7, rota.tipo === 'crianca' ? 0xf3d5a8 : 0xe7b98b)
-        .setDepth(1);
-      const tronco = this.add.rectangle(0, 2, rota.tipo === 'crianca' ? 10 : 14, rota.tipo === 'adulto' || rota.tipo === 'idoso' ? 18 : 16, rota.tipo === 'jovem' ? 0x5a8bd6 : rota.tipo === 'crianca' ? 0xeb7b51 : 0x7e8f5f)
-        .setOrigin(0.5, 0.5)
-        .setDepth(1);
-      const pernas = this.add.rectangle(0, 18, 12, 12, rota.tipo === 'crianca' ? 0x5e4254 : 0x433a3a)
-        .setOrigin(0.5, 0.5)
-        .setDepth(1);
-      corpo.add([cabeca, tronco, pernas]);
+      const aparencia = aparenciaPorSemente(rota.id.split('').reduce((n, c) => n + c.charCodeAt(0), 0));
+      if (rota.tipo === 'idoso') aparencia.cabelo = 3;
+      const corpo = new PersonagemModular(this, rota.inicio.x * this.tamanhoTile, rota.inicio.y * this.tamanhoTile,
+        aparencia, this.tamanhoTile * (rota.tipo === 'crianca' ? 1.05 : 1.5));
       corpo.setDepth(rota.inicio.y * this.tamanhoTile);
       corpo.setVisible(false);
       this.figurantesAmbientais.push({ ...rota, conta: corpo });
@@ -1320,6 +1309,9 @@ export class FarmScene extends Phaser.Scene {
       const x = Phaser.Math.Linear(figurante.inicio.x, figurante.fim.x, passo) * this.tamanhoTile;
       const y = Phaser.Math.Linear(figurante.inicio.y, figurante.fim.y, passo) * this.tamanhoTile;
       figurante.conta.setPosition(x, y).setVisible(true).setDepth(y);
+      const dx = figurante.fim.x - figurante.inicio.x, dy = figurante.fim.y - figurante.inicio.y;
+      const direcao = Math.abs(dx) > Math.abs(dy) ? dx < 0 ? 'left' : 'right' : dy < 0 ? 'up' : 'down';
+      figurante.conta.pose(passo < 1 ? 'walk' : 'idle', direcao, this.time.now, estado.preferencias.valores.movimentoReduzido);
     }
   }
 
@@ -1428,12 +1420,8 @@ export class FarmScene extends Phaser.Scene {
    * poca de luz de verdade no calcamento.
    */
   private acenderLuzNoturna(ponto: { x: number; y: number; r: number }): void {
-    // Quatro circulos concentricos em vez de um: a alfa acumula pro centro e a
-    // poca ganha queda de intensidade na borda. Um circulo so lia como disco
-    // cinza colado no chao, nao como luz.
-    const grafico = this.add.graphics();
-    grafico.fillStyle(0xffe3a3, 0.085);
-    for (let anel = 0; anel < 4; anel++) grafico.fillCircle(ponto.x, ponto.y, ponto.r * (1 - anel * 0.21));
+    const grafico = this.add.image(ponto.x, ponto.y, texturaRadial(this))
+      .setDisplaySize(ponto.r * 2, ponto.r * 2).setTint(0xffd59b).setBlendMode(Phaser.BlendModes.ADD);
     grafico.setDepth(DEPTH_LUZ_NOTURNA);
     grafico.setVisible(false);
     this.luzesNoturnas.push(grafico);
@@ -2382,17 +2370,15 @@ export class FarmScene extends Phaser.Scene {
     // depth = y coloca o personagem na mesma ordenacao da flora: quem esta
     // mais pra baixo na tela desenha por cima. O player se reajusta no update.
     sprite.setOrigin(0.5, 1).setScale(escala).setDepth(sprite.y);
-    sprite.body
-      ?.setSize(CORPO_LARGURA, CORPO_ALTURA)
-      .setOffset(CORPO_OFFSET_X, CORPO_OFFSET_Y);
+    corpoNosPes(sprite, this.tamanhoTile);
+    sombraDeContato(this, sprite, this.tamanhoTile);
   }
 
   private configurarNpc(sprite: Phaser.Physics.Arcade.Sprite): void {
     const escala = (ALTURA_PERSONAGEM_TILES * this.tamanhoTile) / sprite.height;
     sprite.setOrigin(0.5, 1).setScale(escala).setDepth(sprite.y);
-    sprite.body
-      ?.setSize(sprite.width * 0.34, sprite.height * 0.16)
-      .setOffset(sprite.width * 0.33, sprite.height * 0.8);
+    corpoNosPes(sprite, this.tamanhoTile);
+    sombraDeContato(this, sprite, this.tamanhoTile);
   }
 
   /**
