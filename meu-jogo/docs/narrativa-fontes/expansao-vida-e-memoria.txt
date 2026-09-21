@@ -1,0 +1,571 @@
+Hoje eu faria uma tela inicial já conectada ao clima psicológico do jogo.
+Visual: protagonista sentado em uma sala escura perto de uma janela, chuva ou vento dependendo da estação estética escolhida. Uma luminária fraca. Ao fundo, quase imperceptível, a silhueta da represa.
+Menu:
+- Continuar 
+- Novo jogo 
+- Carregar 
+- Configurações 
+- Créditos 
+- Sair 
+O interessante é ela mudar de acordo com o progresso.
+No começo:
+-  casa escura; 
+-  caixas fechadas; 
+-  nenhum retrato; 
+-  protagonista sozinho. 
+Depois de fazer amizades:
+-  objetos dados pelos NPCs aparecem; 
+-  uma caneca diferente; 
+-  fotografia; 
+-  planta; 
+-  ferramentas; 
+-  luz um pouco mais quente. 
+Depois de descobrir a história da esposa e filha:
+-  pode surgir discretamente uma moldura virada para baixo. 
+Depois de avançar profundamente na represa:
+-  pequenos elementos da represa aparecem na casa; 
+-  um corredor ao fundo parece longo demais; 
+-  em raras vezes uma lâmpada pisca. 
+Sem jumpscare.
+Só desconforto.
+Antes da mudança para a cidade, uns 10–15 minutos.
+O jogador controla o protagonista em sua antiga casa.
+Não precisa combate.
+Só:
+-  notebook; 
+-  celular; 
+-  café; 
+-  pia; 
+-  relógio; 
+-  mensagens; 
+-  trabalho; 
+-  madrugada. 
+O jogador recebe:
+“Consegue olhar uma coisa rapidinho?”
+Depois:
+“É urgente.”
+Depois:
+“Só você conhece isso.”
+A madrugada passa enquanto ele trabalha.
+Isso faria o jogador sentir o burnout antes de ler sobre ele em documentos.
+Depois corta diretamente para:
+carro chegando à cidade.
+Em vez de:
+SAVE 1 — Dia 48
+Use algo mais emocional.
+Exemplo:
+Outono — Ano 2
+ Quinta-feira — 18:32
+ Casa da Estação
+ Último evento: aniversário de Letícia
+Com uma pequena captura automática da última cena.
+Ter:
+-  3–5 saves; 
+-  autosave; 
+-  backup anterior; 
+-  indicador de tempo jogado; 
+-  aviso de save incompatível. 
+Como você já tem save versionado e migração, isso encaixa muito bem na infraestrutura existente. 
+Esse seria um dos meus sistemas favoritos para seu jogo.
+Não é quest log.
+É um diário que muda de escrita conforme o estado dele.
+No começo:
+Comprar madeira.
+ Terminar conserto do mercado.
+ Cliente X amanhã.
+Tudo objetivo.
+Mais tarde:
+Alice perguntou se eu queria ficar no bar depois de fechar.
+ Fiquei.
+Depois:
+Hoje não fiz nada útil.
+ Foi um dia bom.
+O jogador não escreve.
+O personagem escreve automaticamente em momentos importantes.
+Isso mostra evolução sem precisar de monólogo constante.
+Separado do diário pessoal.
+Depois dos primeiros 50 prontuários, desbloqueia:
+Arquivo clínico → Psicoterapia
+Lá entram os prontuários 51–200 que acabamos de construir.
+Mas alguns trechos poderiam estar inicialmente censurados:
+Paciente fala novamente sobre [████████].
+Mais tarde a informação é revelada.
+Isso permite transformar documentos antigos conforme o jogador progride.
+Não faria apenas:
+❤️❤️❤️❤️❤️
+Mostraria a natureza da relação.
+Exemplo:
+Confiança: alta
+ Proximidade: moderada
+ Conhecimento sobre você: elevado
+Confiança: alta
+ Proximidade: alta
+ Afeto: crescente
+Confiança: muito alta
+ Proximidade: reservada
+Isso permite relações mais humanas do que um único número.
+Esse é importantíssimo.
+Seu worldEvents já guarda acontecimentos permanentes. 
+Expanda isso para padrões.
+Se você passa semanas trabalhando até tarde:
+Edu: “Você ainda está trabalhando nesse horário?”
+Se não aparece no bar por semanas:
+Alice: “Achei que tinha ido embora sem avisar.”
+Se sempre passa na praça:
+Letícia: “Você tem vindo bastante aqui.”
+Se entra frequentemente na represa machucado:
+Wendel: “Você está ficando bom demais em precisar de curativo.”
+A cidade começa a perceber como você vive, não apenas missões concluídas.
+Não só esperando pelo jogador.
+Você entra no mercado:
+Mari está falando com Jaqueline.
+Vai ao bar:
+Alice está discutindo com Vitor.
+Passa pela praça:
+Luke e Arthur estão brincando.
+Algumas conversas poderiam mudar conforme relações.
+Isso aumenta absurdamente a sensação de cidade viva.
+Jaqueline seria perfeita para isso.
+Alguma coisa acontece.
+No dia seguinte NPCs comentam.
+Mas cada pessoa interpreta diferente.
+Exemplo:
+Você passou a noite inteira na represa.
+Jaqueline:
+“Disseram que tinha luz naquela estrada ontem.”
+Hiago:
+“Você estava lá, não estava?”
+Alice:
+“Não quero saber o que você estava fazendo. Só tenta não morrer.”
+Não somente missão.
+Cada NPC importante recebe 3–6 cenas de vínculo.
+Por exemplo, Wendel:
+1 coração → conversa comum.
+ 3 → menciona a esposa.
+ 5 → entrega HD.
+ 7 → revela algo mais íntimo.
+ 9 → convida protagonista para jantar.
+ 10 → cena sem recompensa material.
+A recompensa final é conhecer aquela pessoa.
+Isso falta muito em jogos similares.
+Não só protagonist + NPC.
+Exemplo:
+-  Alice + Wendel + protagonista; 
+-  Mari + Letícia + Edu; 
+-  Jaqueline + Luke; 
+-  Vitor + Hiago; 
+-  família de João; 
+-  Roberto + Ilda + Ravi. 
+As relações que você já construiu passam a existir visualmente.
+Não faria dez.
+Uns 4 ou 5 muito bons.
+Feira da cidade.
+Noite junto ao rio.
+Festival da Estação.
+Jantar comunitário.
+Memorial da antiga usina.
+Cada ano pode ter diálogos diferentes.
+Simples, mas ajuda muito.
+O protagonista pode:
+-  dar presente; 
+-  esquecer; 
+-  visitar; 
+-  ser convidado. 
+E NPCs lembrariam do aniversário dele.
+No primeiro ano talvez quase ninguém saiba.
+Mais tarde começam a aparecer mensagens/presentes.
+Isso demonstra pertencimento.
+Seu jogo se passa em época moderna, então aproveitaria isso.
+Telefone com:
+Mensagens
+ Blog da cidade
+ Calendário
+ Contatos
+ Fotos
+ Trabalhos
+ Mapa
+O blog já existe. 
+Então você pode transformá-lo numa interface dentro do celular.
+Não precisam conversar o dia inteiro.
+Pequenas mensagens.
+Letícia: Vi uma coisa que você ia gostar hoje.
+Alice: sua peça chegou.
+ e não venha depois das 23h.
+Edu: vai caminhar?
+Em alguns momentos o protagonista demora para responder.
+Isso também pode fazer parte da história.
+Letícia pode introduzir o sistema.
+O jogador fotografa:
+-  cidade; 
+-  NPCs; 
+-  animais; 
+-  eventos; 
+-  paisagens; 
+-  objetos estranhos da represa. 
+Algumas fotos poderiam revelar coisas que o jogador não percebeu enquanto estava jogando.
+Nada muito sobrenatural no começo.
+Depois...
+talvez uma porta apareça onde não havia porta.
+Extremamente importante para o arco psicológico.
+No começo elas não estão disponíveis.
+Depois aparecem no arquivo:
+Fotografias antigas — 0/??
+Você descobre:
+-  esposa; 
+-  filha; 
+-  apartamento; 
+-  aniversário; 
+-  viagem; 
+-  momentos banais. 
+Não faça tudo triste.
+Quanto mais felizes forem algumas fotos, maior o impacto da perda.
+Um móvel na casa.
+No começo trancado.
+Depois pode abrir.
+Contém objetos antigos:
+-  aliança; 
+-  desenho; 
+-  brinquedo; 
+-  foto; 
+-  crachá; 
+-  celular antigo; 
+-  cartão; 
+-  recibo; 
+-  pen drive. 
+Cada objeto pode gerar uma cena curta.
+Não todo dia.
+Eventos raros.
+O sonho começa normal.
+Apartamento antigo.
+Escritório.
+Casa atual.
+Rua.
+E lentamente os lugares se conectam impossivelmente.
+Uma porta da casa leva para a represa.
+Um corredor industrial leva ao quarto antigo.
+Isso prepara psicologicamente os andares profundos.
+Não como punição de gameplay irritante.
+Como evento narrativo.
+Algumas noites:
+02:47
+O protagonista acorda.
+O jogador pode:
+-  levantar; 
+-  beber água; 
+-  olhar celular; 
+-  sentar na varanda; 
+-  trabalhar; 
+-  tentar dormir. 
+As decisões podem gerar pequenos textos, mas sem transformar saúde mental em “barra de sanidade”.
+Eu evitaria completamente uma barra de depressão.
+Pequenas interações:
+-  café; 
+-  banho; 
+-  rádio; 
+-  janela; 
+-  correio; 
+-  alimentar animal. 
+Não obrigatórias.
+Servem para criar intimidade com a casa.
+Não como survival.
+Mas refeições podem ocorrer com pessoas.
+Exemplo:
+Comer sozinho: rápido.
+Comer no bar: conversa.
+Jantar com alguém: evento social.
+Cozinhar em casa: pode convidar NPC.
+A comida vira ferramenta de relacionamento.
+Receitas aprendidas com moradores.
+Davi ensina pão.
+Neide ensina conservas.
+Alice talvez pratos simples do bar.
+Receitas podem carregar histórias familiares.
+Sua oficina merece um minigame próprio.
+Equipamento chega.
+Você abre.
+Inspeciona.
+Encontra:
+-  capacitor; 
+-  cabo; 
+-  fusível; 
+-  bateria; 
+-  solda; 
+-  placa. 
+Não precisa simulação eletrônica complexa.
+Mas 4–5 tipos de diagnóstico fariam o trabalho parecer atividade real.
+Em vez de vaga aleatória sempre descartável.
+Alguns clientes retornam.
+Você começa reparando rádio.
+Depois televisão.
+Depois computador.
+O cliente passa a conversar.
+Eventualmente você conhece a história daquela pessoa.
+Não um número genérico.
+Categorias:
+Confiabilidade
+ Velocidade
+ Qualidade
+ Preço
+Você pode ser conhecido de formas diferentes.
+E trabalhos chegam baseados nisso.
+Isso tem uma conexão narrativa excelente.
+O jogador escolhe quantos contratos aceita.
+Você pode ganhar mais trabalhando demais.
+Mas a história não deve te impedir.
+Isso coloca o jogador na mesma situação do protagonista:
+“Só mais um trabalho.”
+Não precisa dar penalidade pesada.
+Só algumas consequências narrativas e de rotina.
+Alguns eventos poderiam oferecer:
+Hoje você não precisa fazer nada.
+Sem quest.
+Sem deadline.
+Sem bônus.
+Isso parece simples, mas combina perfeitamente com o tema.
+Sentar.
+Só isso.
+Tempo passa.
+NPCs passam.
+Alguns sentam.
+Pode acontecer uma conversa.
+É literalmente uma mecânica de não fazer nada.
+No seu jogo isso tem significado.
+Especialmente Edu e Letícia.
+Sem objetivo.
+Sem recompensa.
+Você caminha com eles.
+Pequenos diálogos aparecem conforme lugares atravessados.
+Isso seria muito bom.
+Você vê NPC em determinado lugar e pode simplesmente:
+Acompanhar
+Não é missão.
+Vai caminhar junto até o destino dele.
+Às vezes conversa.
+Às vezes não.
+Cachorro ou gato.
+Não só decoração.
+Ele:
+-  dorme em lugares diferentes; 
+-  espera você; 
+-  reage à chuva; 
+-  acompanha até parte da rua; 
+-  aparece na oficina. 
+Depois de uma história tão pesada, isso dá conforto sem precisar de diálogo.
+Gatos conhecidos pelos moradores.
+Cachorros de algumas casas.
+Pássaros.
+Sapos durante chuva.
+Vagalumes.
+Pequenas coisas fazem muito pela atmosfera.
+Excelente para ambientação.
+Programação por horário:
+Manhã: notícias locais.
+ Tarde: música.
+ Noite: programa de mensagens.
+ Madrugada: música antiga.
+Às vezes falam da represa.
+Semanal.
+Pode informar:
+-  obras; 
+-  eventos; 
+-  clima; 
+-  moradores; 
+-  história; 
+-  rumores. 
+Conforme o jogador financia projetos, as manchetes mudam.
+Clara já é bibliotecária.
+Transformaria livros em conteúdo real.
+Categorias:
+História local
+ Represa
+ Ferrovia
+ Eletrônica
+ Agricultura
+ Romances
+ Jornais antigos
+Alguns dão conhecimento.
+Outros apenas história.
+Clara e Ilda já têm motivações ligadas à memória da cidade.
+O jogador pode ajudar a construir um arquivo.
+Documentos coletados passam para lá.
+Isso cria um codex diegético, não menu genérico.
+Projeto tardio.
+Pode reunir:
+-  história da ferrovia; 
+-  fotos antigas; 
+-  peças da usina; 
+-  relatos; 
+-  objetos. 
+Conforme você encontra coisas, o lugar cresce.
+Você já tem história da estação.
+Aproveite muito isso.
+Trechos antigos dos trilhos podem ser descobertos.
+Fotografias mostram a cidade décadas antes.
+Talvez alguns túneis tenham relação indireta com a represa.
+Sem necessariamente fazer conspiração.
+Você já tem serviço de ônibus depois da obra. 
+Em vez de apenas teletransportar:
+uma animação curta:
+-  jogador entra; 
+-  janela; 
+-  chuva; 
+-  paisagem; 
+-  NPC ocasional. 
+Skippable.
+Ajuda muito na atmosfera.
+Seu sistema climático já suporta oito condições e variações por estação. 
+Acrescente eventos raros:
+-  temporal muito forte; 
+-  neblina densa; 
+-  primeira geada; 
+-  onda de calor; 
+-  vários dias consecutivos de chuva; 
+-  cheia do Rio Claro. 
+A cidade reage.
+Perfeito para seu cenário.
+Durante temporal:
+cidade apaga.
+Algumas casas têm velas.
+Bar continua funcionando.
+Farmácia usa luz de emergência.
+O protagonista pode ajudar com gerador.
+E à distância...
+a represa continua iluminada.
+Você já tem obras públicas. 
+Expanda.
+Com o tempo:
+-  pintura nova; 
+-  banco reformado; 
+-  muro grafitado; 
+-  árvore crescendo; 
+-  comércio fechando/abrindo; 
+-  placas mudando; 
+-  lote sendo usado. 
+A cidade do ano 3 não deve parecer idêntica à do dia 1.
+No inverno:
+-  cobertores; 
+-  janelas fechadas; 
+-  roupas diferentes. 
+No verão:
+-  ventiladores; 
+-  janelas abertas; 
+-  NPCs fora de casa. 
+Atualmente a vegetação já muda por estação. 
+Fazer o comportamento humano acompanhar isso aumenta muito a sensação de tempo.
+Não faria sistema gigantesco.
+Uns conjuntos:
+-  casual; 
+-  chuva; 
+-  inverno; 
+-  trabalho; 
+-  represa. 
+Talvez algumas peças dadas pelos NPCs.
+Barba/cabelo crescendo lentamente seria interessante.
+Especialmente depois de determinados eventos psicológicos.
+Nada excessivamente complexo.
+Objeto aparentemente banal.
+No começo:
+“Você parece cansado.”
+Depois:
+“Preciso cortar o cabelo.”
+Mais tarde:
+“...”
+E em algum momento:
+“Estou melhor.”
+Não estatística.
+Narrativa.
+Represa é zona perigosa.
+Se voltar machucado:
+-  curativo; 
+-  animação diferente; 
+-  NPC percebe. 
+Não apenas barra de HP.
+Seu posto de saúde já oferece serviço. 
+Faça algumas consultas se transformarem em cenas.
+Especialmente porque o personagem tem passado médico.
+Entrar num consultório poderia gerar desconforto nas primeiras vezes.
+Você já está indo nessa direção narrativamente.
+Eu fecharia em quatro grandes atos:
+1–50 — Trabalho
+ 51–100 — Relacionamentos / solidão
+ 101–150 — Infância / trauma
+ 151–200 — Esposa, filha, culpa e identidade
+Isso conecta os 200 prontuários diretamente aos 200 andares.
+Um documento por andar.
+A dungeon inteira vira a biografia dele.
+Não apenas inimigo mais forte.
+Industrial.
+Espaços domésticos aparecem.
+Geometria começa a quebrar.
+Quase nenhum sentido arquitetônico permanece.
+O cenário passa de instalação abandonada para memória.
+Pequenas salas onde:
+-  inimigos não entram; 
+-  jogador pode sentar; 
+-  ouvir ambiente; 
+-  ler documento. 
+Quanto mais fundo, mais estranhas.
+Uma delas eventualmente parece uma sala da antiga casa dele.
+A cada 10 ou 20 níveis:
+-  elevador; 
+-  escada; 
+-  painel; 
+-  chave mestre. 
+Evita repetição e transforma progresso em conquista física.
+No começo preciso.
+Depois:
+linhas riscadas.
+Anotações.
+Corredores que não cabem.
+“Isso não estava aqui.”
+O próprio mapa vira elemento narrativo.
+Muito raros.
+Um brinquedo da filha.
+Uma caneca antiga.
+Um teclado.
+Uma fotografia.
+A ideia é nunca banalizar.
+Se aparecer um objeto pessoal a cada sala, perde força.
+Alguns documentos podem ter gravações.
+Não jumpscares.
+Um trabalhador antigo.
+Ruído.
+Conversa.
+Uma sessão.
+Uma mensagem.
+Mais tarde talvez uma gravação tenha a voz do protagonista.
+Você já tem câmera inexplicavelmente ativa na mitologia da represa.
+Permita acessar alguns terminais.
+O jogador vê corredores.
+Em algumas gravações:
+ele próprio aparece.
+Mesmo antes de ter chegado naquele andar.
+Você pode ter combate importante, mas ligado ao ambiente.
+Exemplo:
+Máquina de ponto
+ controla portas e relógios.
+Servidor central
+ mantém sistemas reativando.
+Linha de montagem
+ força movimentação constante.
+A metáfora existe, mas continua plausível dentro da estética industrial.
+Quando achar determinado documento:
+Continuar descendo
+ Voltar para casa
+Nenhum é “correto”.
+Às vezes o protagonista pode dizer:
+“Chega por hoje.”
+Isso reforça exatamente o desenvolvimento do personagem.
+Você já possui estrutura para conquistas. 
+Além das tradicionais:
+Hoje não
+ Recuse um trabalho após seu horário.
+Fica mais um pouco
+ Passe uma noite inteira no bar sem realizar missão.
+Nenhum compromisso
+ Passe um domingo sem aceitar trabalho.
+Eu lembro
+ Encontre determinado objeto da filha.
+Casa
+ Tenha cinco pessoas diferentes visitando sua casa.
+Essas conquistas reforçam o tema em vez de só “mate 500 inimigos”.

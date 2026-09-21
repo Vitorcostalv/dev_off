@@ -159,6 +159,11 @@ export function restaurarSnapshot(indice: number): boolean {
   } catch { return false; }
 }
 
+/** Carregamento explícito preserva a sessão ativa antes de substituí-la. */
+export function restaurarDados(dados: DadosSave): boolean {
+  return validateSave(dados) && gravarValidado(dados);
+}
+
 export function apagar(): boolean {
   try {
     if (!criarSnapshot()) return false;

@@ -10,6 +10,7 @@ import { ProfundezasScene } from './scenes/ProfundezasScene';
 import './style.css';
 import { controles } from './game/InputRouter';
 import { som } from './scenes/Som';
+import { capturarMiniatura } from './scenes/capturaSave';
 
 export const GAME_WIDTH = 480;
 export const GAME_HEIGHT = 270;
@@ -38,10 +39,24 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 const game = new Phaser.Game(config);
+let capturaEm = 0, autosaveEm = 0;
 game.events.on(Phaser.Core.Events.PRE_STEP, () => controles.atualizarPad());
 game.events.on(Phaser.Core.Events.POST_STEP, (_tempo: number, delta: number) => {
   controles.fimQuadro();
   som.atualizar(delta);
+  const jogando = !document.hidden && !game.scene.isActive('MenuScene') &&
+    ['FarmScene', 'CampanhaScene', 'ProfundezasScene', 'ComputadorScene'].some(s => game.scene.isActive(s));
+  if (jogando) {
+    const passo = Math.min(Math.max(delta, 0), 1000);
+    estado.worldEvents.definir('sessao:segundos', (Number(estado.worldEvents.obter('sessao:segundos')) || 0) + passo / 1000);
+    capturaEm += passo; autosaveEm += passo;
+    if (capturaEm >= 5000) { capturaEm = 0; capturarMiniatura(game); }
+    if (autosaveEm >= 60000 && game.scene.isActive('FarmScene') && !(game.scene.getScene('UIScene') as UIScene).bloqueado) {
+      autosaveEm = 0;
+      if (!(game.scene.getScene('FarmScene') as FarmScene).salvarJogo())
+        (game.scene.getScene('UIScene') as UIScene).avisoRapido('Não foi possível salvar automaticamente. Tente guardar o momento pelo menu.');
+    }
+  }
 });
 som.ligar(game);
 

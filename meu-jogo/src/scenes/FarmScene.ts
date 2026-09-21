@@ -3,6 +3,7 @@ import { CULTIVOS, NOS_RURAIS, RECEITAS, fabricar } from '../game/atividadesRura
 import { controles } from '../game/InputRouter';
 import { ambienteDoLugar, pisoDoMapa, somDoPasso, trilhaDoLugar } from '../game/audio';
 import { som } from './Som';
+import { obterMiniatura } from './capturaSave';
 import { dataDoDia } from '../game/calendario';
 import { intensidadeNoturna } from '../game/clima';
 import { AmbienteMundo } from './AmbienteMundo';
@@ -1145,6 +1146,8 @@ export class FarmScene extends Phaser.Scene {
   }
 
   salvarJogo(): boolean {
+    const miniatura = obterMiniatura();
+    if (miniatura) estado.worldEvents.definir('save:miniatura', miniatura);
     return salvar({
       dia: estado.dia,
       progressao: estado.progressao.serializar(),

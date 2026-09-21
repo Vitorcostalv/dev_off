@@ -1,5 +1,19 @@
 # Meu Jogo
 
+### Tela inicial e lembranças
+
+A tela inicial muda com as amizades e a exploração clínica. **Carregar** reúne
+o autosave, quatro lembranças manuais e o backup anterior. Durante o jogo, use
+**Pausa → Guardar momento** para salvar em um dos quatro espaços. Cada momento
+mostra estação, horário, local, último marco narrativo, tempo jogado e miniatura.
+O autosave também ocorre a cada minuto de jogo ativo, quando não há diálogo aberto.
+No navegador, **Sair** mantém o jogo pausado para você fechar a aba.
+
+O texto mais recente do autor foi organizado em [oito etapas](docs/expansao-vida-e-memoria.md).
+Esta entrega implementa a etapa 1; o documento identifica as próximas etapas como pendentes.
+Validação: `npm run verificar-partidas` e `npm run test:partidas-browser`
+(Vite em `http://127.0.0.1:5190`, ou variável `GAME_URL`).
+
 ### Campanha narrativa e registros 51–200
 
 Ao entrar no jogo, o prólogo inicia a campanha de 25 cenas, com encontros na cidade,

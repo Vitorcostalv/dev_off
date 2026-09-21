@@ -4,7 +4,11 @@ import { dataDoDia, DIAS_POR_ESTACAO } from '../game/calendario';
 import { MISSOES_NPC } from '../game/missoesNpc';
 import { TOTAL_DOCUMENTOS } from '../game/fichas';
 import { cenaPendente, motivoEspera, viuCena } from '../game/campanha';
-import { apagar } from '../game/save';
+import { apagar, restaurarDados } from '../game/save';
+import { listarPartidas, guardarPartida } from '../game/partidas';
+import type { Partida } from '../game/partidas';
+import { carregarMobiliaNarrativa } from './arteNarrativa';
+import { desenharTelaInicial } from './TelaInicial';
 import { controles, CONTROLES } from '../game/InputRouter';
 import { som } from './Som';
 import type { Acao } from '../game/InputRouter';
@@ -14,7 +18,7 @@ import { UI } from '../game/config';
 import { CLIMAS } from '../game/clima';
 import type { FarmScene } from './FarmScene';
 
-type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'historia' | 'estatisticas' | 'controles' | 'dev' | 'dev_mapas' | 'dev_itens';
+type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'historia' | 'estatisticas' | 'controles' | 'carregar' | 'salvar' | 'creditos' | 'confirmar' | 'sair' | 'dev' | 'dev_mapas' | 'dev_itens';
 /** `ajustar` existe nas linhas de escala (volume): setas laterais mexem no valor. */
 interface Opcao { texto: string; executar: () => void; ajustar?: (delta: number) => void; }
 /** Volumes ajustaveis, na ordem em que aparecem na tela. */
@@ -37,11 +41,16 @@ export class MenuScene extends Phaser.Scene {
   private raiz!: Phaser.GameObjects.Container;
   private veioDoTitulo = false;
   private aceitarPadApos = 0;
+  private climaTitulo?: Phaser.GameObjects.Graphics;
+  private partidas: Partida[] = [];
+  private previaId = 0;
+  private texturaPrevia = '';
   constructor() { super({ key: 'MenuScene' }); }
+  preload(): void { carregarMobiliaNarrativa(this); }
   create(dados: { pagina?: Pagina } = {}): void {
     this.pagina = dados.pagina ?? 'pausa'; this.veioDoTitulo = this.pagina === 'titulo';
     this.aceitarPadApos = this.time.now + 180;
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => controles.cancelarCaptura());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { controles.cancelarCaptura(); this.previaId++; if (this.texturaPrevia) this.textures.remove(this.texturaPrevia); });
     this.scene.pause('FarmScene'); this.scene.pause('UIScene');
     this.scene.bringToTop(); this.raiz = this.add.container(0, 0);
     this.input.keyboard?.addCapture(['UP', 'DOWN', 'SPACE', 'ENTER', 'ESC', 'PAGE_UP', 'PAGE_DOWN']);
@@ -60,6 +69,18 @@ export class MenuScene extends Phaser.Scene {
     this.abrir(this.pagina);
   }
   update(): void {
+    if (this.pagina === 'titulo' && this.climaTitulo?.active) {
+      const g = this.climaTitulo; g.clear();
+      if (!estado.preferencias.valores.movimentoReduzido) {
+        const inverno = dataDoDia(estado.dia).estacao === 3;
+        g.lineStyle(1, 0x92b6c6, .22);
+        for (let i = 0; i < 24; i++) {
+          const x = 263 + (i * 31) % 101, y = 38 + (this.time.now * (inverno ? .018 : .07) + i * 23) % 95;
+          if (inverno) g.lineBetween(x, y, x + 4, y + 1); else g.lineBetween(x, y, x - 2, y + 5);
+        }
+        if (estado.arquivo.tem(100) && this.time.now % 47000 < 130) g.fillStyle(0x10171e, .12).fillRect(355, 117, 47, 82);
+      }
+    }
     if (this.time.now < this.aceitarPadApos || controles.capturando) return;
     if (controles.apertouPad('cima')) this.mover(-1);
     if (controles.apertouPad('baixo')) this.mover(1);
@@ -80,27 +101,54 @@ export class MenuScene extends Phaser.Scene {
     const ir = (texto: string, p: Pagina): Opcao => ({ texto, executar: () => { som.tocar('ui_confirmar'); this.abrir(p); } });
     // Os titulos de desenvolvimento ficam dentro do guarda de DEV pro bundle de
     // producao nao carregar nem o vocabulario das telas que ele nao alcanca.
-    const titulos: Partial<Record<Pagina, string>> = { titulo: 'MEU JOGO', pausa: 'Um momento na cidade', opcoes: 'Opcoes', calendario: 'Calendario', diario: 'Diario', estatisticas: 'Sua jornada', som: 'Som e volume', controles: 'Controles' };
+    const titulos: Partial<Record<Pagina, string>> = { titulo: 'MEU JOGO', pausa: 'Um momento na cidade', opcoes: 'Configurações', calendario: 'Calendario', diario: 'Diario', estatisticas: 'Sua jornada', som: 'Som e volume', controles: 'Controles', carregar: 'Voltar a um momento', salvar: 'Guardar este momento', creditos: 'Créditos', sair: 'Até outro dia' };
     if (import.meta.env.DEV) Object.assign(titulos, { dev: 'Desenvolvimento', dev_mapas: 'Desenvolvimento: mapas', dev_itens: 'Desenvolvimento: itens' });
     this.titulo = titulos[pagina] ?? '';
     this.opcoes = [];
     if (pagina === 'titulo') {
-      this.mensagem = 'Uma oficina. Uma cidade. Algo sob a represa.';
-      this.opcoes = [{ texto: 'Entrar na cidade', executar: () => {
-        this.fechar();
-        const pendente = cenaPendente(estado);
-        if (pendente && (pendente.id === 'prologo' || estado.worldEvents.obter('campanha:ativa') === pendente.id))
-          (this.scene.get('FarmScene') as FarmScene).iniciarCenaCampanha(pendente.id);
-      } }, ir('Opcoes', 'opcoes'), {
-        texto: 'Novo jogo', executar: () => {
-          this.titulo = 'Iniciar uma nova historia?'; this.mensagem = 'O save atual sera guardado em backup.';
-          this.opcoes = [{ texto: 'Cancelar', executar: () => this.abrir('titulo') }, { texto: 'Confirmar novo jogo', executar: () => { if (apagar()) location.reload(); else { this.mensagem = 'Falha ao guardar backup. Save preservado.'; this.desenhar(); } } }];
-          this.cursor = 0; this.desenhar();
-        },
-      }];
+      const ativo = listarPartidas()[0];
+      this.mensagem = ativo?.estado === 'disponivel' ? `${ativo.data}\n${ativo.lugar}` : 'Uma casa ainda por habitar.';
+      this.opcoes = [
+        { texto: ativo?.estado === 'disponivel' ? 'Continuar' : 'Continuar — indisponível', executar: () => {
+          if (ativo?.estado === 'disponivel') this.entrar();
+          else { this.mensagem = ativo?.estado === 'incompativel' ? 'Save de uma versão mais recente. Abra Carregar.' : 'Comece em Novo jogo ou escolha Carregar.'; this.desenhar(); }
+        } },
+        { texto: 'Novo jogo', executar: () => {
+          if (ativo?.estado === 'vazio') { this.entrar(); return; }
+          this.confirmar('Começar uma nova história?', 'O autosave atual ficará no backup. Suas quatro lembranças serão preservadas.', () => { if (apagar()) location.reload(); else this.falhaSave(); }, 'titulo');
+        } },
+        ir('Carregar', 'carregar'), ir('Configurações', 'opcoes'), ir('Créditos', 'creditos'), ir('Sair', 'sair'),
+      ];
+      if (ativo?.estado === 'vazio') this.cursor = 1;
+      som.musica(null); som.ambiente('amb_interior');
     } else if (pagina === 'pausa') {
       this.opcoes = [{ texto: 'Continuar', executar: () => this.fechar() }, ir('Sua história', 'historia'), ir('Calendario', 'calendario'), ir('Diario de missoes', 'diario'), ir('Estatisticas e colecoes', 'estatisticas'), ir('Opcoes', 'opcoes')];
+      this.opcoes.push(ir('Guardar momento', 'salvar'), ir('Carregar momento', 'carregar'), { texto: 'Tela inicial', executar: () => {
+        if (!(this.scene.get('FarmScene') as FarmScene).salvarJogo()) { this.falhaSave(); return; }
+        this.veioDoTitulo = true; this.abrir('titulo');
+      } });
       if (import.meta.env.DEV) this.opcoes.push(ir('Desenvolvimento', 'dev'));
+    } else if (pagina === 'carregar' || pagina === 'salvar') {
+      this.partidas = listarPartidas().filter(p => pagina === 'carregar' || !['auto', 'backup'].includes(p.id));
+      this.opcoes = this.partidas.map(p => ({ texto: p.nome, executar: () => {
+        if (pagina === 'salvar') {
+          const guardar = () => {
+            if (!(this.scene.get('FarmScene') as FarmScene).salvarJogo() || !guardarPartida(p.id)) { this.falhaSave(); return; }
+            this.abrir('salvar'); this.cursor = this.partidas.findIndex(s => s.id === p.id); this.mensagem = 'Momento guardado.'; this.desenhar();
+          };
+          if (p.estado !== 'vazio') this.confirmar('Substituir esta lembrança?', `${p.nome}: ${p.data || p.estado}. O autosave e os outros espaços serão preservados.`, guardar, 'salvar'); else guardar();
+        } else if (p.estado === 'disponivel') {
+          this.confirmar('Voltar a este momento?', `${p.data}. A sessão atual será guardada no backup antes de carregar.`, () => {
+            if (!this.veioDoTitulo && !(this.scene.get('FarmScene') as FarmScene).salvarJogo()) { this.falhaSave(); return; }
+            if (p.dados && restaurarDados(p.dados)) location.reload(); else this.falhaSave();
+          }, 'carregar');
+        } else { this.mensagem = p.estado === 'incompativel' ? 'Save de uma versão mais recente. Dados preservados.' : p.estado === 'danificado' ? 'Não foi possível ler este save. Tente o backup.' : 'Este espaço ainda está vazio.'; this.desenhar(); }
+      } }));
+    } else if (pagina === 'creditos') {
+      this.mensagem = 'História e direção\nVitor\n\nDesenvolvimento assistido por Codex\n\nMotor: Phaser 3\nTypeScript e Vite\n\nObrigado por habitar esta cidade.';
+    } else if (pagina === 'sair') {
+      this.mensagem = 'O jogo está pausado. Você pode fechar esta aba.\n\nSuas lembranças continuam aqui.';
+      som.silenciar();
     } else if (pagina === 'historia') {
       this.titulo = 'Sua história';
       const cena = cenaPendente(estado);
@@ -202,8 +250,23 @@ export class MenuScene extends Phaser.Scene {
     if (this.cursor >= this.topo + 6) this.topo = this.cursor - 5;
     this.desenhar();
   }
+  private entrar(): void {
+    this.fechar();
+    const pendente = cenaPendente(estado);
+    if (pendente && (pendente.id === 'prologo' || estado.worldEvents.obter('campanha:ativa') === pendente.id))
+      (this.scene.get('FarmScene') as FarmScene).iniciarCenaCampanha(pendente.id);
+  }
+  private falhaSave(): void { this.mensagem = 'Não foi possível gravar. Libere espaço no navegador e tente novamente. Seus dados anteriores foram preservados.'; this.desenhar(); }
+  private confirmar(titulo: string, mensagem: string, executar: () => void, retorno: Pagina): void {
+    this.pagina = 'confirmar'; this.titulo = titulo; this.mensagem = mensagem; this.cursor = 0; this.topo = 0;
+    this.opcoes = [{ texto: 'Cancelar', executar: () => this.abrir(retorno) }, { texto: 'Confirmar', executar }]; this.desenhar();
+  }
   private desenhar(): void {
+    this.previaId++;
+    if (this.texturaPrevia) { this.textures.remove(this.texturaPrevia); this.texturaPrevia = ''; }
     this.raiz.removeAll(true);
+    if (this.pagina === 'titulo') { this.desenharTitulo(); return; }
+    if (this.pagina === 'carregar' || this.pagina === 'salvar') { this.desenharPartidas(); return; }
     // a tela de menu tem paleta propria (`COR`) porque e a moldura em volta do
     // jogo e nao o HUD dentro dele; a ESCALA de texto e a mesma do resto,
     // `UI.tamanho*`, senao o menu vira um sexto conjunto de tamanhos
@@ -230,12 +293,55 @@ export class MenuScene extends Phaser.Scene {
       });
       if (this.mensagem) texte(44, this.opcoes.length ? 212 : 74, this.mensagem, this.opcoes.length ? UI.tamanhoMiudo : UI.tamanhoFala, COR.fraco);
     }
-    const rodape = this.pagina === 'titulo'
-      ? 'Setas / E / clique para escolher'
-      : this.opcoes.some(o => o.ajustar)
+    const rodape = this.opcoes.some(o => o.ajustar)
         ? '[Esc/B] Voltar   [<>] Ajustar   [E/A] Escolher'
         : '[Esc/B] Voltar   [E/A] Escolher   [setas] Navegar';
     const footer = texte(44, 249, rodape, UI.tamanho);
-    if (this.pagina !== 'titulo') footer.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.voltar());
+    footer.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.voltar());
+  }
+  private desenharTitulo(): void {
+    this.climaTitulo = desenharTelaInicial(this, this.raiz);
+    const texto = (x: number, y: number, t: string, size: string, color: string) => {
+      const o = this.add.text(x, y, t, { fontFamily: UI.fonte, fontSize: size, color, wordWrap: { width: 208 }, lineSpacing: 3 }); this.raiz.add(o); return o;
+    };
+    texto(26, 27, 'MEU JOGO', '24px', '#dddaca');
+    texto(28, 61, 'A vida tranquila veio depois.', '10px', '#a7b5b3');
+    this.opcoes.forEach((op, i) => {
+      const y = 99 + i * 21;
+      if (i === this.cursor) this.raiz.add(this.add.rectangle(122, y + 6, 202, 20, 0x425353, .58));
+      texto(28, y, `${i === this.cursor ? '› ' : '  '}${op.texto}`, '12px', i === this.cursor ? '#f0dfb4' : '#a8b4b7')
+        .setInteractive({ useHandCursor: true }).on('pointerdown', () => { this.cursor = i; op.executar(); });
+    });
+    texto(28, 234, this.mensagem, '9px', '#859797');
+    texto(294, 253, 'Setas · Enter · clique', '9px', '#a2afad');
+  }
+  private desenharPartidas(): void {
+    const texto = (x: number, y: number, t: string, width: number, size = '10px', color = COR.texto) => {
+      const o = this.add.text(x, y, t, { fontFamily: UI.fonte, fontSize: size, color, wordWrap: { width }, lineSpacing: 2 }); this.raiz.add(o); return o;
+    };
+    this.raiz.add(this.add.rectangle(240, 135, 480, 270, 0x101c23));
+    texto(20, 16, this.titulo, 440, '18px');
+    this.partidas.forEach((p, i) => {
+      const y = 49 + i * 29;
+      const b = this.add.rectangle(125, y + 12, 214, 27, i === this.cursor ? 0x344b4c : 0x1b2b32).setInteractive({ useHandCursor: true });
+      this.raiz.add(b); b.on('pointerdown', () => { if (this.cursor !== i) { this.cursor = i; this.desenhar(); } else this.opcoes[i]?.executar(); });
+      texto(25, y + 2, `${p.nome} · ${p.estado === 'disponivel' ? p.data : p.estado === 'vazio' ? 'Vazio' : p.estado === 'incompativel' ? 'Incompatível' : 'Danificado'}`, 201, '9px');
+    });
+    const p = this.partidas[this.cursor];
+    this.raiz.add(this.add.rectangle(353, 101, 208, 106, 0x253841).setStrokeStyle(1, 0x536667));
+    if (p?.miniatura) {
+      const id = this.previaId, imagem = new Image();
+      imagem.onload = () => {
+        if (id !== this.previaId || !this.scene.isActive()) return;
+        const key = `partida-previa-${id}`; this.textures.addImage(key, imagem); this.texturaPrevia = key;
+        this.raiz.add(this.add.image(353, 101, key).setDisplaySize(206, 104));
+      };
+      imagem.src = p.miniatura;
+    } else texto(277, 95, 'Sem fotografia', 174, '10px', '#93a6a8');
+    if (p?.dados) texto(249, 161, `${p.hora}\n${p.lugar}\nÚltimo marco: ${p.evento}\nTempo jogado: ${p.tempo}`, 211, '10px');
+    else texto(249, 164, p?.estado === 'incompativel' ? 'Esta lembrança precisa de uma versão mais recente do jogo.' : p?.estado === 'danificado' ? 'Dados ilegíveis. O backup pode permitir a recuperação.' : 'Um espaço para guardar sua história.', 211, '11px');
+    if (this.mensagem) texto(20, 228, this.mensagem, 440, '9px', '#e3c994');
+    texto(20, 253, 'Esc/B: voltar · Enter/A: escolher · Clique duas vezes: escolher', 446, '9px', '#95a9a8')
+      .setInteractive().on('pointerdown', () => this.voltar());
   }
 }
