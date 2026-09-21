@@ -1,5 +1,8 @@
 # Meu Jogo
 
+Veja o [checklist consolidado de pendências](docs/PENDENCIAS.md) para acompanhar
+o que falta em narrativa, sistemas, personagens, cenários e direção visual.
+
 ### Direção visual em transição
 
 A estrutura continua **2D top-down**. A primeira base da [direção visual ilustrada](docs/direcao-visual.md)
