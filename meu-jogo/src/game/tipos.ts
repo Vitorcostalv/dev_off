@@ -117,6 +117,7 @@ export interface ZonaReservada {
 /** O que a UI precisa saber da cena de mundo, sem depender da classe dela. */
 export interface MundoJogavel {
   interagir(): void;
+  salvarJogo(): boolean;
   /** equipa um item do inventario, respeitando a zona do mapa atual */
   equiparItem(id: string): void;
   desequiparItem(id: string): void;

@@ -1,5 +1,18 @@
 # Meu Jogo
 
+### Continuação narrativa: registros 51–200
+
+Após recolher a ficha 50 na represa, abra **Arquivos [J] → Psicoterapia → Continuar**.
+A seção apresenta 150 registros em sequência, salva a leitura concluída e permite
+reler documentos anteriores. Saves antigos com a ficha 50 também liberam a seção.
+O mundo continua com 50 andares: a expansão física e as cenas da nova campanha
+estão descritas no [roteiro consolidado](docs/narrativa-consolidada.md).
+
+`npm run importar-psicoterapia` recompõe o catálogo a partir da fonte autoral;
+`npm run verificar-psicoterapia` confere os textos, a sequência e a persistência.
+`npm run test:psicoterapia-browser` testa a leitura no Chrome com Vite em
+`http://127.0.0.1:5189` (ou `GAME_URL`).
+
 Phaser 3 + TypeScript + Vite. Top-down, pixel art, tilemaps feitos no Tiled.
 
 ## Rodar

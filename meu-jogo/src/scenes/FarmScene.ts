@@ -3520,7 +3520,9 @@ export class FarmScene extends Phaser.Scene {
     if (!ficha) return;
     if (estado.arquivo.coletar(andar)) {
       this.ui.avisoRapido(
-        `Ficha ${String(andar).padStart(3, '0')} arquivada (${estado.arquivo.quantas}/50).`,
+        andar === 50
+          ? 'Ficha 050 arquivada. Seção de psicoterapia disponível nos Arquivos [J].'
+          : `Ficha ${String(andar).padStart(3, '0')} arquivada (${estado.arquivo.quantasFichas}/50).`,
         UI.sucesso,
       );
     }

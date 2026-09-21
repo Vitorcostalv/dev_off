@@ -39,6 +39,19 @@
  */
 
 import { diasDaFicha, idDaFicha } from './andares.ts';
+import { REGISTROS_PSICOTERAPIA } from './registrosPsicoterapia.ts';
+
+export { REGISTROS_PSICOTERAPIA } from './registrosPsicoterapia.ts';
+export const TOTAL_DOCUMENTOS = 50 + REGISTROS_PSICOTERAPIA.length;
+
+export function buscarRegistroPsicoterapia(numero: number) {
+  return REGISTROS_PSICOTERAPIA.find((r) => r.numero === numero) ?? null;
+}
+
+/** O título não revela família, luto ou qualquer assunto de uma folha futura. */
+export function tituloRegistroPsicoterapia(numero: number): string {
+  return `REGISTRO ${String(numero).padStart(3, '0')}`;
+}
 
 export interface FichaMedica {
   id: string;
@@ -498,9 +511,9 @@ export const TEXTOS_DE_FICHA: Record<string, string[]> = Object.fromEntries(
  * examinar uma ficha no chao do andar, ela e ARQUIVADA aqui, e a partir dai da
  * pra reler a qualquer momento pela tela de Arquivos.
  *
- * O que fica guardado e so o NUMERO do andar: o texto e estatico e mora em
- * `FICHAS`. Assim o save nao cresce com o tamanho do prontuario, e corrigir uma
- * virgula numa ficha nao invalida nada.
+ * Guarda números de fichas recolhidas (1–50) e de registros de psicoterapia
+ * lidos (51–200). Os últimos são documentos do anexo, não andares já criados.
+ * Os textos são estáticos; corrigir uma vírgula não invalida o save.
  */
 export class SistemaArquivo {
   private recolhidas = new Set<number>();
@@ -517,6 +530,45 @@ export class SistemaArquivo {
 
   get quantas(): number {
     return this.recolhidas.size;
+  }
+
+  get quantasFichas(): number {
+    return FICHAS.filter((f) => this.tem(f.andar)).length;
+  }
+
+  get quantosRegistros(): number {
+    return REGISTROS_PSICOTERAPIA.filter((r) => this.tem(r.numero)).length;
+  }
+
+  /** A transferência encerra a seção médica e abre a leitura do anexo. */
+  get psicoterapiaDisponivel(): boolean {
+    return this.tem(50);
+  }
+
+  proximoRegistro(): number | null {
+    if (!this.psicoterapiaDisponivel) return null;
+    return REGISTROS_PSICOTERAPIA.find((r) => !this.tem(r.numero))?.numero ?? null;
+  }
+
+  podeLerRegistro(numero: number): boolean {
+    return this.psicoterapiaDisponivel && buscarRegistroPsicoterapia(numero) !== null
+      && (this.tem(numero) || this.proximoRegistro() === numero);
+  }
+
+  /** Só uma leitura concluída avança; abrir a janela não libera a próxima. */
+  concluirRegistro(numero: number): boolean {
+    if (!this.podeLerRegistro(numero) || this.tem(numero)) return false;
+    this.recolhidas.add(numero);
+    return true;
+  }
+
+  indicePsicoterapia(): { numero: number; titulo: string; disponivel: boolean }[] {
+    if (!this.psicoterapiaDisponivel) return [];
+    return REGISTROS_PSICOTERAPIA.map((r) => ({
+      numero: r.numero,
+      titulo: `${tituloRegistroPsicoterapia(r.numero)}  ${this.tem(r.numero) ? '[lido]' : this.proximoRegistro() === r.numero ? '[continuar]' : '?????'}`,
+      disponivel: this.podeLerRegistro(r.numero),
+    }));
   }
 
   /** As fichas ja recolhidas, em ordem de andar. */
@@ -550,6 +602,14 @@ export class SistemaArquivo {
     for (const n of bruto) {
       const andar = Number(n);
       if (Number.isInteger(andar) && FICHA_POR_ANDAR.has(andar)) this.recolhidas.add(andar);
+    }
+    // Aceita saves antigos e preserva apenas um prefixo contínuo da seção nova.
+    // Um ID isolado/corrompido não pode liberar as revelações finais.
+    if (!this.psicoterapiaDisponivel) return;
+    const numeros = new Set(bruto.filter((n) => typeof n === 'number' && Number.isInteger(n)));
+    for (const registro of REGISTROS_PSICOTERAPIA) {
+      if (!numeros.has(registro.numero)) break;
+      this.recolhidas.add(registro.numero);
     }
   }
 }

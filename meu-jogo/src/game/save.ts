@@ -75,7 +75,7 @@ export interface DadosSave {
   /** cartuchos no carregador de cada arma; ausente = carregador vazio */
   armas?: DadosArmas;
   /**
-   * Numeros das fichas medicas ja recolhidas na represa (1 a 50). Guarda so o
+   * Fichas recolhidas (1 a 50) e registros de psicoterapia lidos (51 a 200). Guarda so o
    * numero: o texto e estatico, entao o save nao cresce com o prontuario e
    * corrigir uma virgula numa ficha nao invalida nada. Ausente = arquivo vazio.
    */

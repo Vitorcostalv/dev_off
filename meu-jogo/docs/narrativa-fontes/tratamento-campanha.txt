@@ -1,0 +1,1243 @@
+Prólogo — “Você não veio para começar de novo”
+
+O jogo não deveria começar com a mudança.
+
+Começaria algumas semanas antes.
+
+Tela preta.
+
+Som de chuva.
+
+O ruído distante de um computador funcionando.
+
+Aparece o protagonista sentado diante de três monitores em um apartamento quase completamente escuro.
+
+Não precisamos ver direito o rosto dele.
+
+Uma mensagem chega.
+
+23:48 — “consegue ver uma coisa rapidinho?”
+
+Ele responde.
+
+Outra mensagem.
+
+Outra.
+
+O relógio muda.
+
+01:17.
+
+02:43.
+
+04:06.
+
+A tela apaga por um instante.
+
+Quando volta, está amanhecendo.
+
+Ele ainda está sentado.
+
+Não existe grande crise.
+
+Não existe grito.
+
+Não existe música dramática.
+
+Ele simplesmente percebe que não consegue lembrar se jantou.
+
+Esse tipo de cena combina muito mais com as duas referências que você mandou: alguém presente fisicamente, mas completamente distante.
+
+Então corta.
+
+Algum tempo depois.
+
+Um carro entra na cidade.
+
+Chove.
+
+Uma placa velha aparece na estrada.
+
+Nenhuma música alegre de Stardew Valley.
+
+Só pneu no asfalto molhado, limpador de para-brisa e rádio baixo.
+
+Ele chega à casa nova.
+
+Abre a porta.
+
+Coloca uma caixa no chão.
+
+Fica parado.
+
+E aí vem a primeira frase do protagonista:
+
+“É silencioso.”
+
+Pausa.
+
+“Silencioso demais.”
+
+Esse é o começo.
+
+Capítulo I — O homem que chegou
+
+Nos primeiros dias, o jogador aparentemente está entrando em um jogo confortável sobre cidade pequena.
+
+Só que existe alguma coisa errada.
+
+O protagonista acorda tarde mesmo dormindo cedo.
+
+Às vezes fica alguns segundos parado na frente da cama antes de o jogador assumir o controle.
+
+A pia acumula louça.
+
+Existem caixas que demoram semanas para serem abertas.
+
+O celular vibra e ele automaticamente olha para ele.
+
+Às vezes é apenas propaganda.
+
+Mesmo assim o personagem fica imóvel por um instante.
+
+Quando encontra o notebook antigo numa caixa, aparece:
+
+[Interagir]
+
+Se o jogador apertar, ele abre o notebook.
+
+Tela de login.
+
+O personagem fecha imediatamente.
+
+Nenhuma explicação.
+
+Nos primeiros dez ou quinze dias, quase ninguém pergunta por que ele veio.
+
+E isso é importante.
+
+Porque ele preparou mentalmente respostas para perguntas que ninguém faz.
+
+“Queria algo mais tranquilo.”
+
+“Cansei da cidade.”
+
+“Gosto do interior.”
+
+Mas ninguém parece se importar muito.
+
+Jaqueline só pergunta se ele encontrou o açúcar.
+
+Alice pergunta se ele sabe consertar uma vitrola.
+
+Hiago reclama de uma rua esburacada.
+
+Luke quer saber se existe alguma coisa interessante dentro da oficina.
+
+Isso começa a desmontar algo dentro dele.
+
+Ele está acostumado a ser definido pelo que faz.
+
+Naquela cidade, pela primeira vez, as pessoas simplesmente o tratam como o cara novo.
+
+A oficina
+
+A oficina precisa ser muito mais importante narrativamente.
+
+Ela não é apenas um sistema de crafting.
+
+Ela representa a maneira como o protagonista entende o mundo.
+
+No começo, ele gosta de equipamentos quebrados porque equipamentos são simples.
+
+Uma televisão não diz:
+
+“Estou bem.”
+
+Uma placa eletrônica não esconde que está queimada.
+
+Um rádio não sente vergonha de precisar de ajuda.
+
+Você mede.
+
+Encontra o defeito.
+
+Troca a peça.
+
+Testa.
+
+Funciona.
+
+Fim.
+
+Isso dá ao protagonista uma sensação de controle que ele não encontra em pessoas.
+
+Por isso as missões que você já criou são perfeitas: câmera de Letícia, notebook de Edu, caixa do mercado, vitrola de Alice e principalmente o HD da esposa de Wendel.
+
+Eu faria essas missões formarem um arco silencioso.
+
+No começo:
+
+Objeto quebrado → protagonista conserta → pessoa agradece.
+
+Mais tarde:
+
+Objeto quebrado → protagonista descobre a história da pessoa → percebe que consertar o objeto não resolve a dor.
+
+E finalmente:
+
+Pessoa precisa de ajuda → não existe objeto para consertar.
+
+Essa última parte seria extremamente importante.
+
+Wendel seria um dos personagens centrais
+
+A missão do HD da esposa dele pode se tornar uma das cenas mais importantes de todo o jogo.
+
+Wendel perdeu a esposa e guardou o HD durante anos.
+
+Ele finalmente entrega ao protagonista.
+
+Você consegue recuperar quase tudo.
+
+Fotos.
+
+Documentos.
+
+Alguns vídeos.
+
+Mas existe uma pasta que está realmente corrompida.
+
+Irrecuperável.
+
+O jogador tenta tudo.
+
+A interface mostra repetidamente:
+
+FALHA NA RECUPERAÇÃO
+
+Quando o protagonista conta isso para Wendel, ele espera raiva.
+
+Mas Wendel apenas pergunta:
+
+“E o resto?”
+
+“Consegui recuperar.”
+
+“Então já é mais do que eu tinha ontem.”
+
+O protagonista talvez responda:
+
+“Mas eu não consegui tudo.”
+
+E Wendel:
+
+“Eu não pedi tudo.”
+
+Essa frase ficaria com ele pelo resto do jogo.
+
+Porque o protagonista ainda acredita que recuperação significa voltar a ser exatamente quem era antes.
+
+Wendel é uma das primeiras pessoas a mostrar que não.
+
+Letícia — a personagem que entende o silêncio
+
+Eu evitaria transformar Letícia imediatamente em interesse romântico.
+
+Ela funciona muito melhor primeiro como alguém que consegue ficar perto do protagonista sem exigir conversa.
+
+Ela fotografa coisas aparentemente insignificantes.
+
+Uma janela.
+
+Uma poça.
+
+Um cachorro dormindo.
+
+Uma bicicleta encostada.
+
+O protagonista pergunta:
+
+“Por que tirar foto disso?”
+
+Ela responde:
+
+“Porque amanhã talvez não esteja igual.”
+
+Ele não entende.
+
+Mais tarde entende.
+
+Uma das relações já existentes mais interessantes é justamente Letícia evitando perguntas sobre carreira enquanto Mari a pressiona sobre o futuro.
+
+Ela e o protagonista carregam a mesma pergunta por motivos diferentes:
+
+“O que você vai fazer da vida?”
+
+Ele já respondeu essa pergunta uma vez.
+
+E quase morreu tentando sustentar a resposta.
+
+Ela ainda não sabe responder.
+
+Os dois aprendem juntos que talvez não exista obrigação de ter uma resposta definitiva.
+
+Edu — o espelho
+
+Edu deveria incomodar o protagonista.
+
+Não porque seja mau.
+
+Mas porque ele é desenvolvedor remoto.
+
+Ele trabalha.
+
+Fecha o notebook.
+
+Sai para caminhar.
+
+Volta para casa.
+
+Parece simples.
+
+No começo o protagonista sente uma espécie de irritação irracional com ele.
+
+Talvez pense:
+
+“Ele ainda consegue.”
+
+O jogador não sabe exatamente o que isso significa.
+
+Depois os dois conversam mais.
+
+Edu revela que também já teve períodos ruins.
+
+Ele só aprendeu algumas regras.
+
+Quando termina o horário, fecha.
+
+Quando está caminhando, não leva notebook.
+
+Se alguém mandar mensagem às 23h, continua existindo às 8h.
+
+O protagonista pergunta:
+
+“E se for urgente?”
+
+Edu olha para ele.
+
+“Quase nunca é.”
+
+Essa frase também volta algumas vezes durante o jogo.
+
+Mari — produtividade
+
+Mari é importante porque inicialmente ela deveria ser uma personagem que o protagonista evita.
+
+Academia.
+
+Disciplina.
+
+Horários.
+
+Metas.
+
+“Tem que manter constância.”
+
+Para alguém que acabou de sair de um colapso causado por produtividade, ela parece representar exatamente aquilo de que ele fugiu.
+
+Mas aos poucos descobrimos que Mari não é segura.
+
+Ela está apavorada com a ideia de ficar para trás.
+
+O material atual já aponta para essa insegurança e para as cobranças que ela faz a Letícia.
+
+Então ocorre uma inversão.
+
+Mari pergunta ao protagonista como ele conseguiu “largar tudo”.
+
+Ele responde:
+
+“Eu não larguei.”
+
+Pausa.
+
+“Eu não consegui continuar.”
+
+Talvez seja a primeira vez que ele admite isso para alguém.
+
+Alice
+
+Alice seria provavelmente a pessoa que percebe primeiro.
+
+Não porque saiba o que aconteceu.
+
+Mas porque reconhece alguém tentando parecer normal.
+
+Ela nunca pergunta:
+
+“Você está bem?”
+
+Ela pergunta:
+
+“Vai querer outra?”
+
+“Não.”
+
+“Ótimo.”
+
+E muda de assunto.
+
+Alice não trata o protagonista como frágil.
+
+Isso faz com que ele eventualmente fale com ela.
+
+Numa noite, quase no fechamento do bar:
+
+“Você nunca pergunta por que eu vim.”
+
+Alice continua limpando um copo.
+
+“Se você quisesse contar, já tinha contado.”
+
+Pausa.
+
+“E se eu não quiser?”
+
+“Aí você não conta.”
+
+Talvez esse seja o momento em que ele começa a gostar daquela cidade.
+
+Não porque todo mundo quer salvá-lo.
+
+Mas porque ninguém exige que ele explique por que precisa ser salvo.
+
+A cidade inteira pode girar ao redor do mesmo tema sem parecer artificial
+
+O elenco que você criou já tem algo muito bom: quase todos carregam alguma coisa incompleta. Caio trabalha demais e percebe que está perdendo tempo com Helena; Júlia quer crescer profissionalmente mas teme perder tempo com Arthur; Roberto tenta registrar memórias por medo de esquecê-las; Davi perdeu temporariamente a capacidade de exercer justamente o trabalho que definia sua identidade; Rafael tem dificuldade de deixar o sofrimento dos pacientes fora de casa; Suzan assume tarefas demais; João esconde o cansaço; Priscila trabalha remotamente e procura um espaço próprio.
+
+Isso cria uma cidade com um tema comum sem fazer todo mundo sofrer da mesma coisa.
+
+A pergunta escondida do jogo passa a ser:
+
+Quanto de nós existe fora daquilo que fazemos?
+
+Capítulo II — Ele começa a melhorar
+
+E aqui eu colocaria uma armadilha narrativa.
+
+O jogador vai acreditar que ele está se recuperando.
+
+A casa fica arrumada.
+
+Ele faz amigos.
+
+A oficina começa a funcionar.
+
+Talvez tenha um relacionamento.
+
+Começa a acordar cedo.
+
+Participa da feira.
+
+Ajuda na cidade.
+
+Você financia a padaria.
+
+Ajuda Davi.
+
+Ajuda Clara.
+
+Ajuda Wendel.
+
+A música muda um pouco.
+
+A chuva diminui.
+
+As cores ficam levemente mais quentes.
+
+E então aparece uma mensagem.
+
+Um antigo cliente.
+
+“Oi. Sei que você não está pegando muita coisa, mas só você conhece esse sistema.”
+
+O protagonista fica parado.
+
+O jogador pode recusar.
+
+Mas mesmo recusando, naquela noite ele não dorme.
+
+Essa é uma coisa que eu manteria durante todo o jogo:
+
+fazer a escolha correta não produz imediatamente a sensação correta.
+
+Ele pode impor limite e ainda sentir culpa.
+
+Pode descansar e sentir que está desperdiçando tempo.
+
+Pode passar um dia inteiro com amigos e depois voltar para casa e se sentir vazio.
+
+Isso deixa a recuperação muito mais humana.
+
+Capítulo III — A represa
+
+A represa não deveria começar como “dungeon maligna”.
+
+Ela deveria ser apenas um lugar abandonado.
+
+Existem histórias.
+
+Uma usina antiga.
+
+Uma estrada.
+
+Portão.
+
+Ruínas.
+
+A documentação que você já possui é ótima justamente porque mistura coisas plausíveis com detalhes errados: o cadeado foi cortado pelo lado de dentro, equipamentos apresentam calor ou energia quando não deveriam, existem cabos recentes, datas posteriores ao desligamento e um nível que supostamente não existia no projeto.
+
+O protagonista provavelmente vai até lá primeiro por uma razão banal.
+
+Alguma peça.
+
+Um pedido.
+
+Uma curiosidade.
+
+Uma câmera.
+
+Uma interferência elétrica.
+
+O jogador entra.
+
+Não acontece nada.
+
+Primeiro andar vazio.
+
+Segundo andar vazio.
+
+Você encontra documentos técnicos.
+
+E então:
+
+4471
+
+Número de série da Turbina 2.
+
+Nada demais.
+
+Mais tarde:
+
+PACIENTE 4471-C
+
+O jogador percebe a coincidência antes do protagonista.
+
+A descida
+
+Os primeiros documentos nunca devem dizer “burnout”.
+
+Eles falam de alguém que está cansado.
+
+Alguém que trabalha demais.
+
+Alguém que promete parar.
+
+Alguém que não para.
+
+Isso já está muito bem construído nas suas fichas: o paciente começa minimizando o cansaço, passa a trabalhar durante afastamentos, chega a jornadas de 60–70 horas, perde memória de commits e compromissos e demora muito para aceitar que precisa parar.
+
+O importante é o protagonista não reagir como o jogador espera.
+
+Ele não diz:
+
+“Isso aconteceu comigo.”
+
+Ele diz:
+
+“Que idiota.”
+
+Depois:
+
+“Por que ele não simplesmente parou?”
+
+Mais tarde:
+
+“Ele sabia que estava fazendo isso consigo mesmo.”
+
+Até perceber que está falando sobre si.
+
+A dungeon deve copiar a linguagem mental dele
+
+Não de forma explícita.
+
+No começo, concreto.
+
+Tubulação.
+
+Água.
+
+Ferrugem.
+
+Geradores.
+
+Depois surgem pequenas coisas impossíveis.
+
+Um relógio de parede.
+
+Uma cadeira de escritório.
+
+Um monitor.
+
+Uma caneca.
+
+Uma luminária.
+
+Cada objeto ainda poderia estar ali.
+
+Mas juntos começam a parecer errados.
+
+Depois corredores começam a ter dimensões próximas do antigo apartamento.
+
+Uma porta industrial abre para uma sala cujo tamanho lembra a antiga sala de trabalho.
+
+O protagonista nunca diz isso.
+
+Até um NPC visitar a represa.
+
+Esse detalhe é importante.
+
+Por exemplo, Hiago acompanha o protagonista durante uma missão.
+
+Eles entram num setor.
+
+O protagonista vê uma antiga estação de trabalho.
+
+Monitor.
+
+Mesa.
+
+Cadeira.
+
+Quadro.
+
+Hiago pergunta:
+
+“Por que você está olhando para a parede?”
+
+Para ele existe apenas concreto.
+
+A partir daí o jogador perde a certeza.
+
+Não faça “era tudo imaginação”
+
+Esse seria provavelmente o pior caminho.
+
+Porque reduziria a represa inteira a uma explicação.
+
+Eu deixaria evidências físicas suficientes para provar que alguma coisa realmente existe lá.
+
+Outras pessoas escutam sons.
+
+Máquinas realmente aparecem danificadas.
+
+Objetos são trazidos para fora.
+
+A energia existe.
+
+Os registros existem.
+
+A câmera com cabo cortado continua gravando; um monitor sem conexão funciona; estruturas permanecem quentes; existem soldas e cabos recentes.
+
+Mas aquilo que o protagonista vê não necessariamente corresponde exatamente ao que outras pessoas enxergam.
+
+A represa é real.
+
+A experiência dela talvez não seja completamente objetiva.
+
+Isso é bem mais perturbador.
+
+O momento em que ele entende
+
+Eu preservaria a estrutura que você já tem.
+
+4471-C.
+
+Depois V.A.
+
+Depois 34 anos.
+
+Depois desenvolvedor.
+
+Depois trabalho remoto.
+
+Depois mudança.
+
+Depois oficina.
+
+Até chegar à pergunta que você já escreveu:
+
+“Eu escolhi vir ou fui trazido?”
+
+Ela é excelente.
+
+Mas aqui eu mudaria a interpretação.
+
+Ele não está perguntando se alguém fisicamente o sequestrou.
+
+Está perguntando:
+
+“Essa vida foi uma escolha minha ou foi simplesmente o lugar onde eu caí depois de não conseguir continuar?”
+
+E essa pergunta define o resto da história.
+
+Capítulo IV — O protagonista piora novamente
+
+Isso é fundamental.
+
+A revelação não deve libertá-lo.
+
+Deve piorá-lo.
+
+Depois de perceber que os prontuários são dele, o jogador começa a perder algumas rotinas.
+
+Ele dorme tarde.
+
+A oficina pode ficar fechada.
+
+Alguns NPCs perguntam por ele.
+
+O protagonista evita a praça.
+
+Evita Edu.
+
+Evita Letícia.
+
+Talvez nem consiga entrar na represa durante alguns dias.
+
+Ele começa a pensar que toda a nova vida é falsa.
+
+Que aquela cidade só existe porque ele falhou na antiga.
+
+Que os amigos que possui são consequências do colapso.
+
+Que a oficina existe porque ele não aguentou continuar sendo desenvolvedor.
+
+E aí chegamos a uma pergunta muito dolorosa:
+
+“Se aquilo não tivesse acontecido comigo, eu teria conhecido vocês?”
+
+Ninguém consegue responder.
+
+Uma cena com Letícia
+
+Ela e o protagonista estão sentados perto do rio.
+
+Ele conta uma parte.
+
+Não tudo.
+
+Ele diz:
+
+“Eu fico pensando que essa vida só existe porque a outra deu errado.”
+
+Letícia fica em silêncio.
+
+“Então parece que tudo daqui é consequência de uma coisa ruim.”
+
+Ela pensa.
+
+“Eu tirei uma foto uma vez depois de uma tempestade.”
+
+Ele olha para ela.
+
+“Uma árvore tinha caído e aberto um espaço no meio do mato. O pôr do sol passava exatamente por ali.”
+
+Ele espera alguma frase bonita.
+
+Ela completa:
+
+“Eu preferia que a árvore não tivesse caído.”
+
+Pausa.
+
+“Mas o sol estava lá mesmo assim.”
+
+Esse é o tipo de filosofia que eu usaria no jogo.
+
+Nada de:
+
+“Tudo acontece por uma razão.”
+
+Muito pelo contrário.
+
+Coisas ruins podem simplesmente ser ruins.
+
+Ainda assim, alguma coisa pode nascer depois.
+
+Capítulo V — As relações começam a se inverter
+
+Até aqui o protagonista ajudava todo mundo.
+
+Agora os NPCs começam a ajudá-lo.
+
+Mas sem uma sequência melodramática de “todos os amigos aparecem”.
+
+Pequenas coisas.
+
+Jaqueline deixa uma sacola de compras porque percebeu que ele não passou pelo mercado.
+
+Davi leva pão.
+
+Alice manda Vitor entregar alguma coisa sem dizer que foi ideia dela.
+
+Luke aparece querendo ajuda com alguma besteira.
+
+Wendel apenas pergunta:
+
+“Dormindo?”
+
+“Mais ou menos.”
+
+“Comeu?”
+
+“Sim.”
+
+“Certo.”
+
+Vai embora.
+
+Isso é mais poderoso do que discursos.
+
+O protagonista precisa aprender algo particularmente difícil
+
+Até então ele acreditava que receber ajuda criava uma dívida.
+
+Isso vem do mundo profissional.
+
+Se alguém cobre seu turno, você deve um turno.
+
+Se alguém resolve um problema, você deve outro favor.
+
+Se alguém perde tempo com você, aquilo precisa ser compensado.
+
+Então ele começa a tentar “pagar” todo mundo.
+
+Conserta alguma coisa de graça.
+
+Oferece ajuda.
+
+Tenta trabalhar mais.
+
+Até Alice perceber.
+
+“Você sabe que amizade não tem nota fiscal, né?”
+
+Ele ri.
+
+Mas depois fica quieto.
+
+Capítulo VI — O retorno à represa
+
+Ele decide voltar.
+
+Não porque está “forte”.
+
+Mas porque está cansado de não saber.
+
+Essa distinção importa.
+
+Antes de entrar, alguém pergunta:
+
+“Tem certeza?”
+
+Ele responde:
+
+“Não.”
+
+Essa talvez seja uma das maiores mudanças dele.
+
+No começo do jogo ele sempre dizia:
+
+“Tá tudo bem.”
+
+“Eu consigo.”
+
+“Só preciso terminar isso.”
+
+Agora:
+
+“Não sei.”
+
+E mesmo assim continua.
+
+Andar 50
+
+Sua revelação atual funciona muito bem:
+
+“Você não veio pra cá porque quis uma vida tranquila. Você veio porque estava se acabando e essa foi a única coisa que sobrou pra tentar. A vida tranquila veio depois, e foi você que fez.”
+
+Ela é justamente a resposta para a principal dúvida dele.
+
+Eu faria o jogo ficar completamente silencioso depois dessa frase.
+
+Sem música.
+
+Sem monstro.
+
+Sem boss.
+
+Só o personagem sentado no chão.
+
+O jogador ainda tem controle da câmera.
+
+Mas não consegue fazê-lo levantar durante alguns segundos.
+
+Depois aparece:
+
+[Levantar]
+
+Você aperta.
+
+Nada.
+
+Aperta novamente.
+
+Nada.
+
+Na terceira vez ele apoia a mão na parede.
+
+Levanta.
+
+Não é uma metáfora complicada.
+
+É simplesmente difícil levantar.
+
+Mas o andar 50 não deveria encerrar a represa
+
+Se você mantiver a estrutura maior da dungeon, eu usaria os primeiros 50 como a revelação do passado e faria a parte realmente psicológica começar depois.
+
+Dos 51 aos 100, a pergunta seria:
+
+“O que aconteceu comigo?”
+
+Esses andares seriam sobre memória.
+
+Os corredores começam a misturar casa, hospital, escritório e represa. Existem coisas que ele lembra errado. Documentos começam a contradizer a própria memória dele.
+
+Dos 101 aos 150:
+
+“O que eu fiz comigo?”
+
+Aqui entra culpa.
+
+Desenhos.
+
+Frases nas paredes.
+
+Pedidos de ajuda.
+
+Ambientes impossíveis.
+
+O protagonista começa a confrontar não apenas o que fizeram com ele, mas todas as vezes em que ele próprio ignorou seus limites.
+
+E isso é importante:
+
+não transformar o protagonista somente em vítima da empresa.
+
+A pressão existiu.
+
+A exploração existiu.
+
+Mas ele também internalizou aquela lógica.
+
+Mesmo sozinho ele continuava se cobrando.
+
+Nos 151–200:
+
+“Quem sou eu agora?”
+
+Aqui eu reduziria drasticamente os monstros.
+
+Quanto mais fundo, mais vazio.
+
+Longos corredores.
+
+Casas.
+
+Salas.
+
+Lugares que parecem quase seguros.
+
+Isso incomoda mais do que sangue na parede.
+
+O verdadeiro “boss final”
+
+Eu não colocaria uma criatura gigante representando depressão.
+
+O último conflito seria muito mais simples.
+
+Uma sala.
+
+Uma mesa.
+
+Um computador.
+
+O mesmo ambiente do início do jogo.
+
+O protagonista senta.
+
+O monitor liga.
+
+Uma mensagem aparece.
+
+“Precisamos de você.”
+
+Depois outra.
+
+“É urgente.”
+
+Outra.
+
+“Só você sabe resolver.”
+
+Outra.
+
+“Vai levar cinco minutos.”
+
+O jogador pode interagir com teclado.
+
+Não existe barra de vida.
+
+Não existe inimigo.
+
+Se apertar:
+
+[Responder]
+
+o personagem começa a digitar.
+
+Para.
+
+Apaga.
+
+Levanta.
+
+O telefone toca.
+
+Ele olha.
+
+Continua tocando.
+
+E então sai da sala.
+
+Não como um gesto épico.
+
+Ele simplesmente vai embora.
+
+O mistério da represa
+
+Eu não resolveria tudo.
+
+Seu próprio material deixa propositalmente sem resposta quem levou os prontuários para lá, o que são os monstros, por que o setor continuava energizado e o que existe nas partes profundas.
+
+Eu manteria parte disso até os créditos.
+
+Talvez exista uma explicação física.
+
+Talvez exista algo anômalo.
+
+Talvez a represa reaja a quem entra.
+
+Talvez alguém tenha descido antes.
+
+Talvez a letra seja realmente dele.
+
+O protagonista eventualmente percebe que precisa aceitar algo desconfortável:
+
+ele pode continuar vivendo mesmo sem compreender tudo que aconteceu com ele.
+
+Isso vale para a represa.
+
+E para o colapso.
+
+O final não é “ele ficou feliz”
+
+Eu faria o final meses depois.
+
+Outono.
+
+Chuva fraca.
+
+A oficina está aberta.
+
+Não perfeita.
+
+Existe uma xícara na bancada.
+
+Uma caixa que ainda não foi organizada.
+
+Uma planta meio torta perto da janela.
+
+Ele está consertando um rádio.
+
+O celular vibra.
+
+Ele olha.
+
+Uma mensagem de cliente.
+
+“Consegue ver isso hoje?”
+
+Ele olha o relógio.
+
+17:58.
+
+O horário da oficina termina às 18:00.
+
+Ele responde:
+
+“Amanhã de manhã.”
+
+Fecha o celular.
+
+Dois minutos depois:
+
+18:00.
+
+Ele desliga a luz.
+
+Sai.
+
+Não acontece nada extraordinário.
+
+Na praça algumas pessoas estão conversando.
+
+Ele passa por elas.
+
+Alguém chama seu nome.
+
+Ele volta.
+
+A câmera fica.
+
+O grupo vai embora aos poucos.
+
+A praça fica vazia.
+
+Então corta para a casa.
+
+O notebook antigo continua dentro de uma caixa.
+
+Mas agora a caixa está aberta.
+
+Ele não precisa mais esconder aquilo.
+
+Também não precisa usar.
+
+Essa seria a diferença.
+
+A última cena
+
+De manhã.
+
+A mesma composição do começo.
+
+Pouca luz.
+
+O protagonista sentado perto de uma janela.
+
+Algo muito parecido com a segunda imagem que você enviou.
+
+Só que agora existe som vindo da rua.
+
+Uma bicicleta.
+
+Alguém abrindo uma loja.
+
+Cachorro latindo.
+
+Crianças indo para escola.
+
+Ele toma café.
+
+Não sorri.
+
+Isso é importante.
+
+Ele simplesmente parece presente.
+
+Letícia passa do lado de fora.
+
+Tira uma foto.
+
+Ele percebe.
+
+“Você tirou foto minha?”
+
+Ela continua andando.
+
+“Talvez.”
+
+“Ficou boa?”
+
+Ela olha a câmera.
+
+“Ainda não sei.”
+
+Ele dá um pequeno sorriso.
+
+Corta para preto.
+
+E então a última frase:
+
+“A vida tranquila veio depois.”
+
+Pausa.
+
+“E foi você que fez.”
+
+O que faria essa história funcionar
+
+O jogo não seria exatamente uma história “sobre depressão”. Seria uma história sobre identidade depois do colapso.
+
+E isso evita uma coisa que costuma deixar histórias assim artificiais: transformar tristeza em estética.
+
+As imagens que você mandou funcionam porque não parecem pessoas dramaticamente desesperadas.
+
+Parecem pessoas cansadas de existir naquele momento.
+
+É outra sensação.
+
+Então eu faria o começo ter muita chuva, interiores escuros, televisão ligada sem ninguém assistir, cômodos grandes demais, silêncio, ruído de geladeira, relógios, telefone vibrando, luz entrando pela janela e o personagem frequentemente aparecendo pequeno dentro do cenário.
+
+E conforme ele melhora, eu não tornaria o mundo subitamente colorido.
+
+As mesmas ruas continuam.
+
+A mesma chuva continua.
+
+A mesma cidade continua.
+
+Quem muda lentamente é a maneira como ele ocupa esses lugares.
+
+No começo ele está quase sempre sozinho no enquadramento.
+
+Mais tarde começam a existir pessoas próximas.
+
+No começo ele chega em casa e a primeira coisa que aparece é o computador.
+
+Mais tarde, aparecem fotos, objetos dados pelos NPCs, coisas reparadas, plantas, ferramentas, bilhetes.
+
+A reconstrução dele acontece no cenário antes de ele próprio conseguir dizer que está melhor.
+
+E eu usaria uma frase como essência do jogo inteiro:
+
+“Consertar não significa voltar a ser como antes.”
+
+Porque esse é exatamente o aprendizado do protagonista.
+
+Ele passa o jogo inteiro tentando descobrir como voltar a ser quem era.
+
+E o verdadeiro final acontece quando ele percebe que não quer mais voltar.

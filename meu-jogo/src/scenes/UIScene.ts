@@ -28,7 +28,7 @@ import {
   podeDescartar,
 } from '../game/equipar';
 import { buscarArma } from '../game/armas';
-import { fichaDoAndar, linhasDaFicha, tituloDaFicha } from '../game/fichas';
+import { fichaDoAndar, linhasDaFicha, tituloDaFicha, buscarRegistroPsicoterapia, tituloRegistroPsicoterapia, REGISTROS_PSICOTERAPIA } from '../game/fichas';
 import { PilhaDeFoco } from '../game/foco';
 import type { JanelaDaUi } from '../game/foco';
 import {
@@ -465,7 +465,7 @@ export class UIScene extends Phaser.Scene {
   abrirArquivo(): void {
     if (!this.foco.podeAbrir('menu') || this.lojaAberta || this.computadorAberto) return;
     const indice = estado.arquivo.indice();
-    const total = estado.arquivo.quantas;
+    const total = estado.arquivo.quantasFichas;
     if (total === 0) {
       this.avisoRapido('Nenhuma ficha recolhida ainda.', UI.textoFraco);
       return;
@@ -475,7 +475,10 @@ export class UIScene extends Phaser.Scene {
     this.soltarFoco('inventario');
     this.abrirMenu(
       `Arquivos — ${total} de ${indice.length} fichas`,
-      indice.map((linha) => ({
+      [...(estado.arquivo.psicoterapiaDisponivel ? [{
+        rotulo: `Psicoterapia — ${estado.arquivo.quantosRegistros}/${REGISTROS_PSICOTERAPIA.length} registros lidos`,
+        aoEscolher: () => this.abrirPsicoterapia(),
+      }] : []), ...indice.map((linha) => ({
         rotulo: linha.titulo,
         aoEscolher: () => {
           if (!linha.tem) {
@@ -484,7 +487,55 @@ export class UIScene extends Phaser.Scene {
           }
           this.lerFicha(linha.andar);
         },
-      })),
+      }))],
+    );
+  }
+
+  /** Continuação do prontuário, sem expor títulos temáticos das folhas futuras. */
+  private abrirPsicoterapia(): void {
+    if (!estado.arquivo.psicoterapiaDisponivel) return;
+    const indice = estado.arquivo.indicePsicoterapia();
+    const proximo = estado.arquivo.proximoRegistro();
+    this.abrirMenu(
+      `Psicoterapia — ${estado.arquivo.quantosRegistros}/${indice.length}`,
+      [
+        { rotulo: 'Voltar aos arquivos', aoEscolher: () => this.abrirArquivo() },
+        ...(proximo === null ? [] : [{
+          rotulo: `Continuar: ${tituloRegistroPsicoterapia(proximo)}`,
+          aoEscolher: () => this.lerRegistroPsicoterapia(proximo),
+        }]),
+        ...indice.map((r) => ({
+          rotulo: r.titulo,
+          aoEscolher: () => {
+            if (!r.disponivel) {
+              this.avisoRapido('Continue a leitura dos registros anteriores.', UI.textoFraco);
+              return;
+            }
+            this.lerRegistroPsicoterapia(r.numero);
+          },
+        })),
+      ],
+    );
+  }
+
+  private lerRegistroPsicoterapia(numero: number): void {
+    if (!estado.arquivo.podeLerRegistro(numero)) return;
+    const registro = buscarRegistroPsicoterapia(numero);
+    if (!registro) return;
+    // Mede com a própria fonte/largura da caixa, sem cortar frases por pontuação.
+    this.desenharRetrato(undefined);
+    const quebras = this.dialogoTexto.getWrappedText(registro.texto);
+    const linhas: string[] = [];
+    for (let i = 0; i < quebras.length; i += 2) linhas.push(quebras.slice(i, i + 2).join('\n'));
+    this.iniciarDialogo(
+      linhas.map((texto) => ({ nome: tituloRegistroPsicoterapia(numero), texto })),
+      () => {
+        const mudou = estado.arquivo.concluirRegistro(numero);
+        if (mudou && !this.mundo?.salvarJogo()) {
+          this.avisoRapido('Leitura concluída. Não foi possível salvar; tente salvar novamente.', UI.alerta);
+        }
+        this.abrirPsicoterapia();
+      },
     );
   }
 

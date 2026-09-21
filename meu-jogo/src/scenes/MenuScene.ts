@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { dataDoDia, DIAS_POR_ESTACAO } from '../game/calendario';
 import { MISSOES_NPC } from '../game/missoesNpc';
+import { TOTAL_DOCUMENTOS } from '../game/fichas';
 import { apagar } from '../game/save';
 import { controles, CONTROLES } from '../game/InputRouter';
 import { som } from './Som';
@@ -174,7 +175,7 @@ export class MenuScene extends Phaser.Scene {
       if (!this.opcoes.length) this.mensagem = 'Nenhuma missao iniciada. Conheca os moradores.';
     } else if (pagina === 'estatisticas') {
       const p = estado.progressao.serializar();
-      this.mensagem = `Dia ${estado.dia + 1} | ${estado.progressao.total}/10 conquistas\n${p.descobertos.length} itens descobertos | ${p.trabalhos} trabalhos\n${estado.relacoes.listaInteragidos().length} moradores conhecidos\n${estado.arquivo.serializar().length}/50 arquivos da represa`;
+      this.mensagem = `Dia ${estado.dia + 1} | ${estado.progressao.total}/10 conquistas\n${p.descobertos.length} itens descobertos | ${p.trabalhos} trabalhos\n${estado.relacoes.listaInteragidos().length} moradores conhecidos\n${estado.arquivo.quantas}/${TOTAL_DOCUMENTOS} documentos arquivados`;
     }
     this.desenhar();
   }
