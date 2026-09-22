@@ -9,6 +9,13 @@ import { listarPartidas, guardarPartida } from '../game/partidas';
 import type { Partida } from '../game/partidas';
 import { carregarMobiliaNarrativa } from './arteNarrativa';
 import { desenharTelaInicial } from './TelaInicial';
+import { lerDiario, sincronizarDiario } from '../game/diarioPessoal';
+import { ANIVERSARIO_PROTAGONISTA, aniversarioDe, aniversariantesDoDia, dataLegivel, ehAniversario, meuAniversarioHoje, quemSabeDoMeuAniversario } from '../game/aniversarios';
+import { mensagensDisponiveis, responderMensagem, conversaCelular, fotosPessoais } from '../game/celular';
+import { feedAte } from '../game/blog';
+import { naturezaDaRelacao } from '../game/vidaSocial';
+import { memoriasDisponiveis } from '../game/memoriasPessoais';
+import { encontroDoDia } from '../game/rotinaSocial';
 import { controles, CONTROLES } from '../game/InputRouter';
 import { som } from './Som';
 import type { Acao } from '../game/InputRouter';
@@ -18,7 +25,7 @@ import { UI } from '../game/config';
 import { CLIMAS } from '../game/clima';
 import type { FarmScene } from './FarmScene';
 
-type Pagina = 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'historia' | 'estatisticas' | 'controles' | 'carregar' | 'salvar' | 'creditos' | 'confirmar' | 'sair' | 'dev' | 'dev_mapas' | 'dev_itens';
+type Pagina = 'celular' | 'mensagens' | 'contatos' | 'blog' | 'fotos' | 'album' | 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'pessoal' | 'entradaPessoal' | 'historia' | 'estatisticas' | 'controles' | 'carregar' | 'salvar' | 'creditos' | 'confirmar' | 'sair' | 'dev' | 'dev_mapas' | 'dev_itens';
 /** `ajustar` existe nas linhas de escala (volume): setas laterais mexem no valor. */
 interface Opcao { texto: string; executar: () => void; ajustar?: (delta: number) => void; }
 /** Volumes ajustaveis, na ordem em que aparecem na tela. */
@@ -93,6 +100,8 @@ export class MenuScene extends Phaser.Scene {
   private voltar(): void {
     if (this.pagina === 'titulo') return;
     som.tocar('ui_cancelar');
+    if (this.pagina === 'entradaPessoal') { this.abrir('pessoal'); return; }
+    if (['mensagens', 'contatos', 'blog', 'fotos', 'album'].includes(this.pagina)) { this.abrir('celular'); return; }
     if (this.pagina === 'pausa') this.fechar(); else this.abrir(this.veioDoTitulo ? 'titulo' : 'pausa');
   }
   private abrir(pagina: Pagina): void {
@@ -127,7 +136,58 @@ export class MenuScene extends Phaser.Scene {
         if (!(this.scene.get('FarmScene') as FarmScene).salvarJogo()) { this.falhaSave(); return; }
         this.veioDoTitulo = true; this.abrir('titulo');
       } });
+      this.opcoes.splice(2, 0, ir('Diário pessoal', 'pessoal'));
+      this.opcoes.splice(3, 0, ir('Celular', 'celular'));
       if (import.meta.env.DEV) this.opcoes.push(ir('Desenvolvimento', 'dev'));
+    } else if (pagina === 'celular') {
+      this.titulo = `Celular · ${estado.relogio.texto}`;
+      this.opcoes = [ir('Mensagens', 'mensagens'), ir('Blog da cidade', 'blog'), ir('Calendário', 'calendario'), ir('Contatos', 'contatos'), ir('Fotografias', 'fotos'), ir('Álbum antigo', 'album'),
+        { texto: 'Trabalhos', executar: () => { this.fechar(); (this.scene.get('UIScene') as import('./UIScene').UIScene).abrirComputador(); } },
+        { texto: 'Mapa', executar: () => { this.fechar(); (this.scene.get('FarmScene') as FarmScene).abrirMapaCelular(); } }];
+    } else if (pagina === 'mensagens') {
+      this.titulo = 'Mensagens';
+      this.opcoes = mensagensDisponiveis(estado).map(m => ({ texto: m.npc, executar: () => {
+        this.titulo = m.npc; this.mensagem = conversaCelular(estado, m);
+        this.opcoes = estado.worldEvents.obter(`celular:resposta:${m.id}`) === undefined ? [{ texto: m.resposta, executar: () => { responderMensagem(estado, m.id); (this.scene.get('FarmScene') as FarmScene).salvarJogo(); this.abrir('mensagens'); } }] : [];
+        this.cursor = 0; this.topo = 0; this.desenhar();
+      } }));
+      if (!this.opcoes.length) this.mensagem = 'Nenhuma mensagem nova.';
+    } else if (pagina === 'contatos') {
+      this.titulo = 'Contatos';
+      this.opcoes = estado.relacoes.listaInteragidos().map(id => ({ texto: id, executar: () => {
+        this.titulo = id;
+        const data = aniversarioDe(id);
+        const linhas = [naturezaDaRelacao(estado, id)];
+        if (data) linhas.push(`Aniversário: ${dataLegivel(data)}`);
+        this.mensagem = linhas.join('\n');
+        this.opcoes = []; this.desenhar();
+      } }));
+    } else if (pagina === 'blog') {
+      this.titulo = 'Blog da cidade';
+      this.opcoes = feedAte(estado.dia, estado.relogio.minutos).map(p => ({ texto: `${p.npcId} · dia ${p.dia + 1}`, executar: () => { this.mensagem = p.texto; this.opcoes = []; this.desenhar(); } }));
+    } else if (pagina === 'album') {
+      this.titulo = 'Álbum antigo';
+      this.opcoes = memoriasDisponiveis(estado).filter(m => ['foto', 'cartao', 'pendrive'].includes(m.id)).map(m => ({ texto: m.nome, executar: () => { this.mensagem = m.texto; this.opcoes = []; this.desenhar(); } }));
+      if (!this.opcoes.length) this.mensagem = 'Ainda não abri essa pasta.';
+    } else if (pagina === 'fotos') {
+      this.titulo = 'Fotografias';
+      const fotos = fotosPessoais(estado.worldEvents.serializar().flags);
+      this.opcoes = fotos.map(f => ({ texto: `Dia ${f.dia + 1} · ${f.mapa}`, executar: () => {
+        this.opcoes = []; this.mensagem = ''; this.desenhar();
+        const key = `foto-pessoal-${f.id}`;
+        const mostrar = () => { if (this.scene.isActive() && this.pagina === 'fotos') this.raiz.add(this.add.image(240, 138, key).setDisplaySize(288, 162)); };
+        if (this.textures.exists(key)) mostrar(); else { this.textures.once(`addtexture-${key}`, mostrar); this.textures.addBase64(key, f.imagem); }
+      } }));
+      if (estado.worldEvents.ativa('fotografia:liberada') || estado.worldEvents.ativa('campanha:cena:leticia')) this.opcoes.unshift({ texto: fotos.length >= 20 ? 'Álbum cheio (20 fotos)' : 'Fotografar este lugar', executar: () => { if (fotos.length < 20) { this.fechar(); (this.scene.get('FarmScene') as FarmScene).fotografar(); } } });
+      else this.mensagem = 'Talvez Letícia possa me ensinar por onde começar.';
+    } else if (pagina === 'pessoal') {
+      this.titulo = 'Meu caderno';
+      sincronizarDiario(estado);
+      const entradas = lerDiario(estado.worldEvents.serializar().flags).reverse();
+      this.opcoes = entradas.map(e => ({ texto: `Dia ${e.dia + 1} · ${e.texto.slice(0, 31)}…`, executar: () => {
+        this.pagina = 'entradaPessoal'; this.titulo = `Meu caderno · dia ${e.dia + 1}`; this.opcoes = []; this.mensagem = e.texto; this.desenhar();
+      } }));
+      if (!entradas.length) this.mensagem = 'Ainda não encontrei as palavras.';
     } else if (pagina === 'carregar' || pagina === 'salvar') {
       this.partidas = listarPartidas().filter(p => pagina === 'carregar' || !['auto', 'backup'].includes(p.id));
       this.opcoes = this.partidas.map(p => ({ texto: p.nome, executar: () => {
@@ -166,6 +226,7 @@ export class MenuScene extends Phaser.Scene {
         { texto: `Tempo do mundo: ${v.tempo}x`, executar: () => alterar(() => { v.tempo = v.tempo === 0.5 ? 1 : v.tempo === 1 ? 2 : 0.5; }) },
         { texto: `Movimento reduzido: ${v.movimentoReduzido ? 'sim' : 'nao'}`, executar: () => alterar(() => { v.movimentoReduzido = !v.movimentoReduzido; }) },
         { texto: `Particulas: ${v.particulas ? 'sim' : 'nao'}`, executar: () => alterar(() => { v.particulas = !v.particulas; }) },
+        { texto: `Retratos ilustrados: ${v.retratos ? 'sim' : 'não'}`, executar: () => alterar(() => { v.retratos = !v.retratos; }) },
         { texto: `Contraste alto: ${v.altoContraste ? 'sim' : 'nao'}`, executar: () => alterar(() => { v.altoContraste = !v.altoContraste; }) },
         { texto: `Qualidade: ${v.qualidade}`, executar: () => alterar(() => { v.qualidade = v.qualidade === 'baixa' ? 'normal' : v.qualidade === 'normal' ? 'alta' : 'baixa'; }) },
         ir('Som e volume', 'som'),
@@ -282,16 +343,30 @@ export class MenuScene extends Phaser.Scene {
       for (let i = 0; i < DIAS_POR_ESTACAO; i++) {
         const x = 60 + (i % 7) * 54, y = 112 + Math.floor(i / 7) * 26;
         this.raiz.add(this.add.rectangle(x + 12, y + 8, 40, 23, i + 1 === d.diaEstacao ? COR.foco : COR.fundo).setStrokeStyle(1, COR.borda));
-        texte(x + 4, y, String(i + 1));
+        const diaDoQuadro = estado.dia - d.diaEstacao + i + 1;
+        const encontro = encontroDoDia(diaDoQuadro);
+        // Aniversario de quem o jogador ja conhece, e o dele proprio, no mesmo quadro.
+        const conhecidos = estado.relacoes.listaInteragidos();
+        const temAniversario = aniversariantesDoDia(diaDoQuadro).some(npc => conhecidos.includes(npc));
+        const meu = ehAniversario(ANIVERSARIO_PROTAGONISTA, diaDoQuadro);
+        texte(x + 4, y, `${i + 1}${encontro?.diaDaEstacao ? '*' : ''}${meu ? '+' : temAniversario ? '°' : ''}`);
       }
+      const hoje = encontroDoDia(estado.dia);
+      texte(44, 221, hoje ? `${hoje.nome} · ${Math.floor(hoje.inicio / 60)}h–${Math.floor(hoje.fim / 60)}h` : '* Encontro comunitário   ° Aniversário   + O meu', UI.tamanhoMiudo);
+      const aniversariantes = aniversariantesDoDia(estado.dia).filter(npc => estado.relacoes.listaInteragidos().includes(npc));
+      const sabem = quemSabeDoMeuAniversario(estado).length;
+      texte(44, 239, meuAniversarioHoje(estado.dia)
+        ? `Hoje é o meu aniversário. ${sabem ? `${sabem} pessoa(s) sabem da data.` : 'Ninguém aqui sabe a data.'}`
+        : aniversariantes.length ? `Aniversário hoje: ${aniversariantes.join(', ')}` : `Meu aniversário: ${dataLegivel(ANIVERSARIO_PROTAGONISTA)}`, UI.tamanhoMiudo);
     } else {
+      const conversa = this.pagina === 'mensagens' && !!this.mensagem;
       this.opcoes.slice(this.topo, this.topo + 6).forEach((op, n) => {
-        const i = n + this.topo, y = 68 + n * 23;
+        const i = n + this.topo, y = (conversa ? 205 : 68) + n * 23;
         const fundo = this.add.rectangle(240, y + 8, 392, 21, i === this.cursor ? COR.foco : COR.fundo).setInteractive({ useHandCursor: true });
         fundo.on('pointerdown', () => { this.cursor = i; op.executar(); }); this.raiz.add(fundo);
         texte(53, y, `${i === this.cursor ? '> ' : '  '}${op.texto}`);
       });
-      if (this.mensagem) texte(44, this.opcoes.length ? 212 : 74, this.mensagem, this.opcoes.length ? UI.tamanhoMiudo : UI.tamanhoFala, COR.fraco);
+      if (this.mensagem) texte(44, conversa ? 70 : this.opcoes.length ? 212 : 74, this.mensagem, conversa ? UI.tamanho : this.opcoes.length ? UI.tamanhoMiudo : UI.tamanhoFala, COR.fraco);
     }
     const rodape = this.opcoes.some(o => o.ajustar)
         ? '[Esc/B] Voltar   [<>] Ajustar   [E/A] Escolher'

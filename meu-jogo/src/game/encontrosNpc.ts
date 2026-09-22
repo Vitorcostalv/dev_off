@@ -1,9 +1,14 @@
 import type { EstadoNpc } from './rotinasNpc.ts';
 
 export interface FalaEncontro { npcId: string; texto: string }
-export interface DefinicaoEncontro { id: string; participantes: readonly [string, string]; falas: readonly FalaEncontro[] }
+export interface DefinicaoEncontro { id: string; participantes: readonly string[]; falas: readonly FalaEncontro[] }
 
 export const ENCONTROS_NPC: readonly DefinicaoEncontro[] = [
+  { id: 'mari_leticia_edu', participantes: ['mari', 'leticia', 'edu'], falas: [{ npcId: 'mari', texto: 'Vocês vieram caminhando tão devagar.' }, { npcId: 'edu', texto: 'A gente parou.' }, { npcId: 'leticia', texto: 'Mais de uma vez. Quer tentar também?' }] },
+  { id: 'jaqueline_luke', participantes: ['jaqueline', 'luke'], falas: [{ npcId: 'jaqueline', texto: 'Dessa vez você vai guardar os parafusos?' }, { npcId: 'luke', texto: 'Eu guardei. Só não lembro em qual aparelho.' }, { npcId: 'jaqueline', texto: 'Isso explica bastante coisa.' }] },
+  { id: 'vitor_hiago', participantes: ['vitor', 'hiago'], falas: [{ npcId: 'vitor', texto: 'Trouxe uma música.' }, { npcId: 'hiago', texto: 'Trouxe a bicicleta. Mas ela pode esperar.' }] },
+  { id: 'familia_joao', participantes: ['joao', 'neide', 'priscila'], falas: [{ npcId: 'joao', texto: 'Anotei tudo no papel.' }, { npcId: 'priscila', texto: 'Esse papel embrulhava um pão.' }, { npcId: 'neide', texto: 'O pão eu guardei. O papel é de vocês.' }] },
+  { id: 'roberto_ilda_ravi', participantes: ['roberto', 'ilda', 'ravi'], falas: [{ npcId: 'ravi', texto: 'Vocês lembram da mesma história diferente.' }, { npcId: 'ilda', texto: 'A gente estava em lugares diferentes.' }, { npcId: 'roberto', texto: 'E um de nós estava prestando atenção.' }] },
   { id:'edu_leticia', participantes:['edu','leticia'], falas:[
     {npcId:'edu',texto:'Voce anda demais.'},{npcId:'leticia',texto:'Voce tambem.'},
     {npcId:'edu',texto:'Eu tenho lugares para nao chegar.'},{npcId:'leticia',texto:'...faz sentido.'},
@@ -47,7 +52,7 @@ export class SistemaEncontrosNpc {
   private dia = -1;
 
   /** Retorna os IDs que devem ser pausados quando um encontro acaba de iniciar. */
-  atualizar(dia: number, deltaMs: number, estados: readonly EstadoNpc[], forcar = false): readonly string[] {
+  atualizar(dia: number, deltaMs: number, estados: readonly EstadoNpc[], forcar = false, relacao: (id: string) => number = () => 0): readonly string[] {
     if (dia !== this.dia) { this.dia = dia; this.tentados.clear(); this.ativo = null; }
     if (this.ativo) {
       this.ativo.restanteFalaMs -= deltaMs;
@@ -62,13 +67,15 @@ export class SistemaEncontrosNpc {
     for (const encontro of ENCONTROS_NPC) {
       const chave = `${dia}:${encontro.id}`;
       if (this.tentados.has(chave)) continue;
-      const [a,b] = encontro.participantes.map((id) => porId.get(id));
-      if (!a || !b || !a.visivel || !b.visivel || a.dentro !== b.dentro) continue;
-      if (Math.hypot(a.x-b.x,a.y-b.y) > 2.2) continue;
+      const presentes = encontro.participantes.map((id) => porId.get(id));
+      const a = presentes[0];
+      if (!a || presentes.some(p => !p || (!p.visivel && !p.dentro) || p.dentro !== a.dentro || p.mapaAtual !== a.mapaAtual || Math.hypot(a.x - p.x, a.y - p.y) > 3.2)) continue;
       this.tentados.add(chave);
       const acontece = forcar || hash(chave) / 0xffffffff < 0.36;
       if (!acontece) continue;
-      this.ativo = { definicao:encontro, indiceFala:0, restanteFalaMs:1450 };
+      const proximos = encontro.participantes.every(id => relacao(id) >= 5);
+      const definicao = proximos ? { ...encontro, falas: [...encontro.falas, { npcId: encontro.participantes[0]!, texto: 'Depois a gente passa na oficina. Hoje só para conversar.' }] } : encontro;
+      this.ativo = { definicao, indiceFala:0, restanteFalaMs:1450 };
       return encontro.participantes;
     }
     return [];

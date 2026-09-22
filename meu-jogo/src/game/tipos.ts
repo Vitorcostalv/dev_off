@@ -2,6 +2,7 @@ export type Direcao = 'up' | 'down' | 'left' | 'right';
 
 /** Classes de objeto usadas na camada `interativos` dos tilemaps do Tiled. */
 export type TipoInteragivel =
+  | 'domestico'
   | 'atividade_rural'
   | 'placa'
   | 'npc'
@@ -23,7 +24,9 @@ export type TipoInteragivel =
   /** caixa de despacho da oficina: revende o salvado da represa */
   | 'revenda'
   /** cabine do elevador de servico da represa: abre o menu de paradas */
-  | 'elevador';
+  | 'elevador'
+  /** bicho de rua ou animal de companhia; a presenca muda com hora e clima */
+  | 'bicho';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
 export type TipoZona =
@@ -134,6 +137,7 @@ export interface MundoJogavel {
 
 /** Um bloco de fala do dialogo. */
 export interface Fala {
+  expressao?: 'neutro' | 'feliz' | 'preocupado' | 'triste' | 'irritado' | 'surpreso';
   nome: string;
   texto: string;
   /**

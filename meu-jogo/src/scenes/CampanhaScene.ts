@@ -7,6 +7,7 @@ import { controles } from '../game/InputRouter';
 import { som } from './Som';
 import type { FarmScene } from './FarmScene';
 import { carregarPessoas, pessoaNarrativa, carregarMobiliaNarrativa, movelNarrativo } from './arteNarrativa';
+import { enfileirarRetrato, prepararRetrato, expressaoDaFala, idRetrato } from './retratos';
 
 /** Encenação em pixel art nativa: tempo e combate ficam pausados durante a cena. */
 export class CampanhaScene extends Phaser.Scene {
@@ -23,6 +24,7 @@ export class CampanhaScene extends Phaser.Scene {
   preload(): void {
     carregarMobiliaNarrativa(this);
     carregarPessoas(this, [...this.cena.quadros.map(q => q.nome ?? ''), this.cena.npc ?? '', 'Letícia', 'Hiago']);
+    if (estado.preferencias.valores.retratos) for (const q of this.cena.quadros) if (q.nome) enfileirarRetrato(this, idRetrato(q.nome));
   }
   create(dados: { id: string }): void {
     const cena = cenaPendente(estado);
@@ -50,7 +52,7 @@ export class CampanhaScene extends Phaser.Scene {
   private salvar(): void {
     const mundo = this.scene.get('FarmScene') as FarmScene;
     if (!mundo.salvarJogo()) {
-      this.add.text(15, 28, 'Não foi possível salvar. Seu progresso continua nesta sessão.', { fontFamily: UI.fonte, fontSize: '10px', color: '#f2c58b' }).setDepth(5);
+      this.add.text(15, 28, 'Não foi possível salvar. Seu progresso continua nesta sessão.', { fontFamily: UI.fonte, fontSize: UI.tamanho, color: '#f2c58b' }).setDepth(5);
     }
   }
   private mostrar(): void {
@@ -160,6 +162,8 @@ export class CampanhaScene extends Phaser.Scene {
     rect(8, 161, 464, 78, 0x101922);
     texto(18, 166, this.quadro.nome || this.cena.titulo, '11px', '#c7b38b');
     texto(18, 184, this.quadro.texto, '12px', '#e3e5df', 437);
+    const retrato = estado.preferencias.valores.retratos && this.quadro.nome ? prepararRetrato(this, idRetrato(this.quadro.nome)) : null;
+    if (retrato) this.raiz.add(this.add.image(424, 111, retrato, expressaoDaFala(this.quadro.texto)).setDisplaySize(84, 84).setAlpha(.98));
     if (this.quadro.escolha) {
       this.quadro.escolha.forEach((op, i) => {
         texto(16 + i * 232, 243, `${this.escolha === i ? '> ' : ''}${op}`, '10px', this.escolha === i ? '#e8d9ae' : '#8e9da8', 220)

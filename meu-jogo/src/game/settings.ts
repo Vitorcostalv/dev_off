@@ -1,4 +1,4 @@
-export const DEFAULT_SETTINGS = { master: 0.7, efeitos: 0.6, ambiente: 0.4, musica: 0.5, interface: 0.6, tempo: 1, movimentoReduzido: false, altoContraste: false, particulas: true, qualidade: 'normal' as 'baixa' | 'normal' | 'alta' };
+export const DEFAULT_SETTINGS = { master: 0.7, efeitos: 0.6, ambiente: 0.4, musica: 0.5, interface: 0.6, tempo: 1, movimentoReduzido: false, altoContraste: false, particulas: true, retratos: true, qualidade: 'normal' as 'baixa' | 'normal' | 'alta' };
 export type Settings = typeof DEFAULT_SETTINGS;
 export class Preferencias {
   valores: Settings = { ...DEFAULT_SETTINGS };
@@ -9,7 +9,7 @@ export class Preferencias {
     this.valores = { ...DEFAULT_SETTINGS }; if (!bruto || typeof bruto !== 'object') return;
     const d = bruto as Partial<Settings>;
     for (const k of ['master', 'efeitos', 'ambiente', 'musica', 'interface'] as const) if (typeof d[k] === 'number' && Number.isFinite(d[k])) this.valores[k] = Math.max(0, Math.min(1, d[k]!));
-    for (const k of ['movimentoReduzido', 'altoContraste', 'particulas'] as const) if (typeof d[k] === 'boolean') this.valores[k] = d[k]!;
+    for (const k of ['movimentoReduzido', 'altoContraste', 'particulas', 'retratos'] as const) if (typeof d[k] === 'boolean') this.valores[k] = d[k]!;
     if ([0.5, 1, 2].includes(d.tempo!)) this.valores.tempo = d.tempo!;
     if (['baixa', 'normal', 'alta'].includes(d.qualidade!)) this.valores.qualidade = d.qualidade!;
   }

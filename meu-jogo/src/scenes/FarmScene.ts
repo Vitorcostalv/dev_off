@@ -1,4 +1,10 @@
 import { HORARIO_EMPREGO, TURNO_CIDADE } from '../game/cidade';
+import { VidaDomestica } from './VidaDomestica';
+import { BichosDoMundo } from './BichosDoMundo';
+import { adotar, aproximar, companhia, falaSobreCompanhia, PRETENDENTES, textoDaCompanhia } from '../game/companhia';
+import { comentarioDaPeca, conjuntoAtual, crescimento, pecaAtual } from '../game/guardaRoupa';
+import { aniversarioDe, comentarioDeEsquecimento, contarMeuAniversario, conviteDeAniversario, dataLegivel, ehAniversario, falaDeAniversario, felicitacaoDeHoje, lembrarDoAniversario, sabeDoMeuAniversario, visitaDeAniversario, ANIVERSARIO_PROTAGONISTA } from '../game/aniversarios';
+import { eventoNoLugar, dialogoDoEvento, concluirEvento } from '../game/eventosDeConvivencia';
 import { CULTIVOS, NOS_RURAIS, RECEITAS, fabricar } from '../game/atividadesRurais';
 import { controles } from '../game/InputRouter';
 import { ambienteDoLugar, pisoDoMapa, somDoPasso, trilhaDoLugar } from '../game/audio';
@@ -7,6 +13,7 @@ import { obterMiniatura } from './capturaSave';
 import { PersonagemModular } from './PersonagemModular';
 import { aparenciaPorSemente } from '../game/visualPersonagem';
 import { corpoNosPes, sombraDeContato, texturaRadial } from './luzESombra';
+import { observarVida, registrarConvivencia, comentarioDoPadrao, naturezaDaRelacao, vinculoDisponivel, concluirVinculo } from '../game/vidaSocial';
 import { dataDoDia } from '../game/calendario';
 import { intensidadeNoturna } from '../game/clima';
 import { AmbienteMundo } from './AmbienteMundo';
@@ -302,7 +309,7 @@ export class FarmScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.scene.pause('UIScene');
     this.scene.pause();
-    this.scene.launch('CampanhaScene', { id });
+    this.scene.launch(id === 'prologo' && !estado.worldEvents.ativa('prologo:explorado') && !estado.worldEvents.obter('campanha:quadro') ? 'PrologoScene' : 'CampanhaScene', { id });
   }
 
   entrarProfundezas(): void {
@@ -445,6 +452,9 @@ export class FarmScene extends Phaser.Scene {
    * `player.setDepth`.
    */
   private pronto = false;
+  private vidaDomestica?: VidaDomestica;
+  private bichos?: BichosDoMundo;
+  private curativo?: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('FarmScene');
@@ -635,6 +645,7 @@ export class FarmScene extends Phaser.Scene {
     this.configurarPersonagem(this.player);
     // hitbox menor que o sprite, so os pes -> parece melhor em top-down
     this.player.setCollideWorldBounds(true);
+    this.curativo = this.add.graphics();
 
     // SAIU DA ZONA: o que a zona nova nao permite volta pra mochila. Roda no
     // create e nao na troca de mapa porque troca de mapa E um restart de cena —
@@ -779,6 +790,11 @@ export class FarmScene extends Phaser.Scene {
     }
 
     this.pronto = true;
+    this.vidaDomestica = new VidaDomestica(this, this.ui);
+    this.interagiveis.push(...this.vidaDomestica.montar());
+    this.bichos = new BichosDoMundo(this, this.tamanhoTile);
+    this.interagiveis.push(...this.bichos.montar(estado.mapa));
+    if (estado.mapa === MAPA_DA_CASA) this.visitaDeHoje();
     if (this.entradaAtual?.salvar) this.salvarJogo();
     if (!estado.tituloVisto) {
       estado.tituloVisto = true;
@@ -797,6 +813,7 @@ export class FarmScene extends Phaser.Scene {
     }
     // reordena o player entre as arvores conforme ele anda
     this.player.setDepth(this.player.y);
+    this.desenharAparencia();
 
     if (!this.ui.bloqueado && !this.transicionando && !this.mapaAberto) {
       const diaAntes = estado.dia;
@@ -804,6 +821,7 @@ export class FarmScene extends Phaser.Scene {
       estado.dia += estado.relogio.avancar(delta * estado.preferencias.valores.tempo);
       if (estado.dia !== diaAntes) { estado.eventos.emit('DAY_STARTED', { dia: estado.dia }); this.atualizarVisuaisRurais(); }
       if (estado.relogio.minutos !== minutoAntes) estado.eventos.emit('TIME_CHANGED', { dia: estado.dia, minuto: estado.relogio.minutos });
+      if (estado.relogio.minutos !== minutoAntes) observarVida(estado, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile);
       estado.vida.atualizar(delta);
       // a tensao da represa conta MINUTO DE JOGO, entao ela so avanca quando o
       // relogio vira — nao a cada quadro
@@ -813,8 +831,8 @@ export class FarmScene extends Phaser.Scene {
         estado.represa.avancar(estado.mapa, antes < 0 ? 0 : CONFIG_TEMPO.minutosPorTick);
       }
       estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, delta);
-      const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos);
-      if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, 5800);
+      const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos, false, id => estado.relacoes.getScore(id));
+      if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, (estado.encontrosNpc.ativo?.definicao.falas.length ?? 4) * 1450);
       this.sincronizarNpcs();
     }
 
@@ -822,6 +840,7 @@ export class FarmScene extends Phaser.Scene {
     this.atualizarBalaoEncontro();
 
     this.atualizarFigurantesAmbientais();
+    this.bichos?.atualizar(delta, estado.mapa, estado.relogio.minutos, estado.clima.paraDia(estado.dia), dataDoDia(estado.dia).estacao, this.player, this.ui.bloqueado || this.mapaAberto);
     this.atualizarPortasEIluminacao();
     this.atualizarLuzesNoturnas();
     this.ambiente.atualizar(this.ui.bloqueado || this.mapaAberto ? 0 : delta, estado.relogio.minutos, dataDoDia(estado.dia).estacao, estado.clima.paraDia(estado.dia), estado.preferencias.valores);
@@ -917,6 +936,12 @@ export class FarmScene extends Phaser.Scene {
   interagir(): void {
     if (this.posicionando || !this.alvo) return;
     switch (this.alvo.tipo) {
+      case 'domestico':
+        this.vidaDomestica?.interagir(String(this.alvo.props.acao));
+        break;
+      case 'bicho':
+        this.interagirComBicho(this.alvo);
+        break;
       case 'placa':
         this.examinarPlaca(this.alvo);
         break;
@@ -1090,18 +1115,23 @@ export class FarmScene extends Phaser.Scene {
   // -------------------------------------------------------------- dormir --
 
   /** Fluxo unico usado por qualquer cama, preservando o interior no save. */
-  private dormir(zonaAtual: string): void {
+  private dormir(zonaAtual: string, depoisDaNoite = false): void {
     if (zonaAtual !== estado.mapa) {
       console.warn(`[dormir] zona mudou de "${zonaAtual}" para "${estado.mapa}" antes da confirmacao`);
       return;
+    }
+    if (!depoisDaNoite && zonaAtual === 'oficina' && estado.dia >= 7 && !estado.worldEvents.ativa(`noite:vivida:${estado.dia}`) && (estado.dia % 17 === 8 || estado.dia % 13 === 7)) {
+      this.scene.launch('NoiteScene', { tipo: estado.dia % 17 === 8 ? 'sonho' : 'insonia', aoDormir: () => this.dormir(zonaAtual, true) }); return;
     }
     this.transicionando = true;
     som.tocar('dormir');
     const cam = this.cameras.main;
     cam.fadeOut(300, 0, 0, 0);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      estado.dia += 1;
-      estado.eventos.emit('DAY_STARTED', { dia: estado.dia });
+      const mudouDia = estado.worldEvents.obter('noite:amanhecer') !== estado.dia || estado.relogio.minutos >= 360;
+      if (mudouDia) estado.dia += 1;
+      estado.worldEvents.definir('noite:amanhecer', -1);
+      if (mudouDia) estado.eventos.emit('DAY_STARTED', { dia: estado.dia });
       this.atualizarVisuaisRurais();
       estado.relogio.definir(CONFIG_TEMPO.horaAoAcordar);
       // dormir na propria cama cura por inteiro. E a unica cura gratuita do
@@ -1815,7 +1845,12 @@ export class FarmScene extends Phaser.Scene {
       if (estado.vida.cheio) { this.ui.avisoRapido('Sua saude esta em dia.'); return; }
       this.ui.confirmar('Atendimento e recuperacao completa: R$ 15,00?', () => {
         const r = estado.carteira.gastar(1500, { cabe: () => !estado.vida.cheio, entregar: () => estado.vida.restaurarTudo() });
-        this.ui.avisoRapido(r.ok ? 'Atendimento concluido. Cuide-se!' : 'Saldo insuficiente ou atendimento desnecessario.'); this.salvarJogo();
+        if (r.ok) {
+          const primeira = !estado.worldEvents.ativa('cuidado:consulta');
+          estado.worldEvents.definir('cuidado:consulta', true);
+          this.ui.iniciarDialogo([{ nome: 'Você', texto: primeira ? 'A cadeira e a luz branca me fazem prender a respiração antes que alguém diga qualquer coisa.' : 'Reconheço a cadeira. Dessa vez consigo apoiar as costas.' }, { nome: 'Atendimento', texto: 'Vou explicar antes de tocar. Se precisar de uma pausa, você pode pedir.' }, { nome: 'Você', texto: 'Eu peço um minuto. Ninguém discute.' }]);
+        } else this.ui.avisoRapido('Saldo insuficiente ou atendimento desnecessário.');
+        this.salvarJogo();
       });
     } else if (projeto.id === 'ponto_onibus') {
       this.ui.abrirMenu('Linha municipal - R$ 5,00 / 30 min', ['farm', 'rural'].filter(id => Object.hasOwn(MAPAS, id)).map(id => ({
@@ -2093,6 +2128,31 @@ export class FarmScene extends Phaser.Scene {
    */
   private zoomDeJogo(): number {
     return CONFIG.largura / (TILES_VISIVEIS_X * this.tamanhoTile);
+  }
+
+  abrirMapaCelular(): void { if (!this.mapaAberto) this.alternarMapa(); }
+
+  fotografar(): void {
+    if (!this.pronto || this.ui.bloqueado || this.transicionando) return;
+    if (!estado.worldEvents.ativa('fotografia:liberada') && !estado.worldEvents.ativa('campanha:cena:leticia')) return;
+    const flags = estado.worldEvents.serializar().flags;
+    if (Object.keys(flags).filter(k => k.startsWith('foto:')).length >= 20) return;
+    const mapa = estado.mapa, dia = estado.dia;
+    this.player.setVelocity(0, 0); this.scene.pause(); this.scene.pause('UIScene'); this.scene.setVisible(false, 'UIScene');
+    this.game.renderer.snapshot(imagem => {
+      try {
+        if (!(imagem instanceof HTMLImageElement)) return;
+        const canvas = document.createElement('canvas'); canvas.width = 240; canvas.height = 135;
+        const ctx = canvas.getContext('2d')!; ctx.drawImage(imagem, 0, 0, 240, 135);
+        // Só na região profunda e raramente: uma sombra deslocada, sem figuras familiares.
+        if (mapa.startsWith('represa') && estado.arquivo.tem(100) && (dia + Object.keys(flags).filter(k => k.startsWith('foto:')).length) % 13 === 0) {
+          ctx.fillStyle = 'rgba(14,22,30,.11)'; ctx.fillRect(160, 20, 5, 78);
+        }
+        const id = `${dia}-${Math.floor(estado.relogio.minutos)}-${Object.keys(flags).filter(k => k.startsWith('foto:')).length}`;
+        estado.worldEvents.definir(`foto:${id}`, JSON.stringify({ id, dia, mapa, imagem: canvas.toDataURL('image/jpeg', .65) }));
+        this.salvarJogo(); this.ui.avisoRapido('Fotografia guardada no celular.');
+      } finally { this.scene.resume(); this.scene.resume('UIScene'); this.scene.setVisible(true, 'UIScene'); }
+    });
   }
 
   private alternarMapa(): void {
@@ -2394,10 +2454,20 @@ export class FarmScene extends Phaser.Scene {
     // basta ABORDAR pra o NPC entrar na aba Relacionamento do Navegador: uma
     // conversa que rendeu 0 ponto ainda foi uma conversa
     estado.relacoes.registrarInteracao(def.id);
+    registrarConvivencia(estado, def.id);
     const cena = cenaNoContexto(estado, def.id);
     if (cena) { this.iniciarCenaCampanha(cena.id); return; }
     const condicional = estado.worldEvents.consumirFala(def.id);
-    const abertura = condicional ? [condicional.texto, ...def.dialogoAtual] : def.dialogoAtual;
+    const padrao = comentarioDoPadrao(estado, def.id);
+    const bicho = falaSobreCompanhia(estado, def.id);
+    const roupa = comentarioDaPeca(estado, def.id);
+    // Aniversario dele, esquecimento do dia anterior e felicitacao pelo meu.
+    const dele = falaDeAniversario(estado, def.id);
+    const convite = dele ? conviteDeAniversario(estado, def.id) : null;
+    const esquecido = comentarioDeEsquecimento(estado, def.id);
+    const meu = felicitacaoDeHoje(estado, def.id);
+    const abertura = [...(dele ? [dele] : []), ...(convite ? [convite] : []), ...(esquecido ? [esquecido] : []), ...(meu ? [meu] : []),
+      ...(padrao ? [padrao] : []), ...(bicho ? [bicho] : []), ...(roupa ? [roupa] : []), ...(condicional ? [condicional.texto] : []), ...def.dialogoAtual];
     this.ui.iniciarDialogo(falasDe(def.nome, abertura, def.id), () =>
       this.abrirMenuDeConversa(def),
     );
@@ -2409,6 +2479,36 @@ export class FarmScene extends Phaser.Scene {
       rotulo: tema.rotulo,
       aoEscolher: () => this.conversarSobre(def, tema),
     }));
+    const vinculo = vinculoDisponivel(estado, def.id);
+    const evento = eventoNoLugar(estado);
+    if (evento && dialogoDoEvento(estado).some(f => f.npcId === def.id) && !estado.worldEvents.ativa(`social:evento:${evento.id}:${estado.dia}`)) opcoes.unshift({ rotulo: `Ficar: ${evento.nome}`, aoEscolher: () => this.ui.iniciarDialogo(dialogoDoEvento(estado), () => { concluirEvento(estado); this.salvarJogo(); }) });
+    if (vinculo) opcoes.unshift({ rotulo: vinculo.cena.titulo, aoEscolher: () => this.ui.iniciarDialogo(falasDe(def.nome, [...vinculo.cena.falas], def.id), () => {
+      concluirVinculo(estado, def.id, vinculo.indice); this.salvarJogo();
+    }) });
+    const dataDele = aniversarioDe(def.id);
+    if (dataDele && ehAniversario(dataDele, estado.dia) && !estado.worldEvents.ativa(`aniversario:lembrei:${def.id}:${dataDoDia(estado.dia).ano}`)) {
+      opcoes.unshift({ rotulo: 'Desejar feliz aniversário', aoEscolher: () => {
+        lembrarDoAniversario(estado, def.id, false);
+        estado.relacoes.ganharRelacao(def.id, 0.5);
+        this.salvarJogo();
+        this.ui.iniciarDialogo(falasDe(def.nome, ['Obrigado. Você lembrou sem eu avisar, e isso já é o presente.'], def.id));
+      } });
+    }
+    if (estado.relacoes.getScore(def.id) >= 4 && !sabeDoMeuAniversario(estado, def.id)) {
+      opcoes.push({ rotulo: 'Contar quando é meu aniversário', aoEscolher: () => {
+        contarMeuAniversario(estado, def.id);
+        this.salvarJogo();
+        this.ui.iniciarDialogo([
+          { nome: 'Você', texto: `É ${dataLegivel(ANIVERSARIO_PROTAGONISTA)}. Não é uma data importante; eu só nunca disse a ninguém daqui.` },
+          { nome: def.nome, npcId: def.id, texto: 'Anotei. Não prometo nada, mas anotei.' },
+        ]);
+      } });
+    }
+    opcoes.push({ rotulo: 'Nossa relação', aoEscolher: () => this.ui.iniciarDialogo(naturezaDaRelacao(estado, def.id).split('\n').map(texto => ({ nome: def.nome, texto, npcId: def.id }))) });
+    if (estado.relacoes.getScore(def.id) >= 5 && !estado.worldEvents.ativa(`social:confidencia:${def.id}`)) opcoes.push({ rotulo: 'Contar um pouco sobre mim', aoEscolher: () => this.ui.iniciarDialogo([
+      { nome: 'Você', texto: estado.arquivo.tem(188) ? 'Eu perdi pessoas da minha família. Ainda não sei como falar disso sem tentar explicar tudo.' : 'Antes de vir, eu não conseguia mais separar quem eu era do que precisava entregar.' },
+      { nome: def.nome, npcId: def.id, texto: 'Obrigado por me contar. Você pode parar por aqui hoje, se quiser.' },
+    ], () => { estado.worldEvents.definir(`social:confidencia:${def.id}`, true); this.salvarJogo(); }) });
     const morador = buscarMorador(def.id);
     if (morador) {
       opcoes.push({ rotulo: 'Perguntar sobre o dia', aoEscolher: () => this.conversarComMorador(morador) });
@@ -2570,6 +2670,7 @@ export class FarmScene extends Phaser.Scene {
     const tier = calcularTierPresente(def.id, itemId);
     const nomeItem = ITENS[itemId]?.nome ?? itemId;
     const falas = [reacaoPresente(def.id, tier)];
+    if (lembrarDoAniversario(estado, def.id, true)) falas.push('Você trouxe isso hoje. Eu não tinha dito que era hoje, e você trouxe.');
 
     if (estado.relacoes.podePresentear(def.id, estado.dia)) {
       estado.relacoes.registrarPresente(def.id, estado.dia);
@@ -2621,6 +2722,8 @@ export class FarmScene extends Phaser.Scene {
         const npc = estado.rotinasNpc.porId(String(alvo.props.npcId));
         if (!npc || !this.posicaoNpcNoMapa(npc)) continue;
       }
+      // bicho fora do horario/clima dele nao esta desenhado, e nao interage
+      if (alvo.tipo === 'bicho' && alvo.props.presente !== true) continue;
       const dx = alvo.x - px;
       const dy = alvo.y - py;
       const dist = Math.hypot(dx, dy);
@@ -2647,6 +2750,86 @@ export class FarmScene extends Phaser.Scene {
    * do destino de uma entrega em andamento, que vira "Entregar" — o jogador
    * precisa ver ali, na porta, que aquele e o lugar certo.
    */
+  /**
+   * APARENCIA DO PROTAGONISTA sobre a folha autoral: curativo, acento do
+   * conjunto de roupa, peca recebida de morador e crescimento de cabelo/barba.
+   * Sao marcas pequenas em Graphics — a folha nao muda, a hitbox nao muda, e a
+   * arte ilustrada definitiva (paper doll) entra sem desfazer nada disto.
+   */
+  private desenharAparencia(): void {
+    const g = this.curativo;
+    if (!g) return;
+    g.clear();
+    g.setDepth(this.player.y + .1);
+    const e = this.tamanhoTile / 32;
+    const x = this.player.x, y = this.player.y, lado = this.direcao === 'left' ? -1 : 1;
+    const frente = this.direcao !== 'up';
+    if (estado.vida.fracao < .75) g.fillStyle(0xd6d1b9).fillRect(x + (this.direcao === 'left' ? -6 : 4) * e, y - 15 * e, 3 * e, 6 * e);
+    const conjunto = conjuntoAtual(estado);
+    if (conjunto.id !== 'casual') {
+      g.fillStyle(conjunto.cor, .8).fillRect(x - 6 * e, y - 34 * e, 12 * e, 3 * e);
+      g.fillStyle(conjunto.detalhe, .75).fillRect(x + (lado > 0 ? 2 : -5) * e, y - 31 * e, 3 * e, 8 * e);
+    }
+    const peca = pecaAtual(estado);
+    if (peca) {
+      g.fillStyle(peca.cor, .9);
+      if (peca.id === 'bone' && frente) g.fillRect(x - 6 * e, y - 45 * e, 12 * e, 2 * e).fillRect(x + (lado > 0 ? 5 : -8) * e, y - 44 * e, 3 * e, 1.5 * e);
+      else if (peca.id === 'cachecol') g.fillRect(x - 6 * e, y - 36 * e, 12 * e, 2.5 * e).fillRect(x + lado * 3 * e, y - 34 * e, 2 * e, 5 * e);
+      else if (peca.id === 'luva') g.fillRect(x + 6 * e, y - 24 * e, 2.5 * e, 3 * e).fillRect(x - 8 * e, y - 24 * e, 2.5 * e, 3 * e);
+      else g.fillRect(x - 5 * e, y - 26 * e, 10 * e, 6 * e);
+    }
+    const { cabelo, barba } = crescimento(estado);
+    if (cabelo > 0) g.fillStyle(0x2b2622, .5).fillRect(x - 7 * e, y - (40 + cabelo) * e, 14 * e, (1.5 + cabelo) * e);
+    if (barba > 0 && frente) g.fillStyle(0x30281f, .3 + barba * .13).fillEllipse(x + lado * e, y - 38 * e, 8 * e, (2 + barba * 1.5) * e);
+  }
+
+  /**
+   * BICHO: fauna de rua (observar e reconhecer), pretendente a companhia
+   * (aproximar por tres dias e dar um nome) e o proprio animal de companhia.
+   */
+  private interagirComBicho(alvo: Interagivel): void {
+    const clima = estado.clima.paraDia(estado.dia);
+    if (typeof alvo.props.pretendente === 'string') {
+      const pretendente = PRETENDENTES.find(p => p.id === alvo.props.pretendente);
+      if (!pretendente) return;
+      const passo = aproximar(estado, pretendente.id);
+      if (!passo) return;
+      this.ui.iniciarDialogo(falasDe('Você', [pretendente.apresentacao, passo.texto]), () => {
+        this.salvarJogo();
+        if (!passo.adotavel) return;
+        this.ui.abrirMenu('Ele está esperando alguma coisa. Talvez um nome.', [
+          ...pretendente.nomes.map(nome => ({ rotulo: nome, aoEscolher: () => {
+            if (!adotar(estado, pretendente.id, nome)) return;
+            this.salvarJogo();
+            this.ui.iniciarDialogo(falasDe('Você', [nome + ' vem atrás de mim sem pressa. Ele já sabe o caminho de casa melhor do que eu.']));
+          } })),
+          { rotulo: 'Hoje não', aoEscolher: () => {} },
+        ]);
+      });
+      return;
+    }
+    if (alvo.props.companhia === true) {
+      const bicho = companhia(estado);
+      if (!bicho) return;
+      const dentro = estado.mapa === 'oficina';
+      this.ui.iniciarDialogo(falasDe('Você', [textoDaCompanhia(estado, clima, dentro)]), () => this.salvarJogo());
+      return;
+    }
+    const texto = this.bichos?.textoDe(String(alvo.props.animal));
+    if (texto) this.ui.iniciarDialogo(falasDe('Você', texto.split('\n\n')), () => this.salvarJogo());
+  }
+
+  /** Uma visita por ano, em casa, no aniversario do protagonista. */
+  private visitaDeHoje(): void {
+    const visita = visitaDeAniversario(estado);
+    if (!visita) return;
+    const def = buscarNpc(visita.npc);
+    this.time.delayedCall(700, () => {
+      if (this.ui.bloqueado || !this.pronto) return;
+      this.ui.iniciarDialogo(falasDe(def?.nome ?? visita.npc, [...visita.falas], visita.npc), () => this.salvarJogo());
+    });
+  }
+
   private rotuloDe(alvo: Interagivel): string {
     return this.ehPortaDeEntrega(alvo) ? 'Entregar' : alvo.rotulo;
   }

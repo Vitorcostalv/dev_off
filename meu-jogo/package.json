@@ -4,6 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "verificar-vida-pessoal": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-vida-pessoal.mjs",
+    "verificar-vida-na-cidade": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-vida-na-cidade.mjs",
+    "verificar-aniversarios": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-aniversarios.mjs",
+    "test:vida-na-cidade-browser": "node tools/browser-vida-na-cidade.mjs",
+    "test:pendencias-browser": "node tools/browser-pendencias.mjs",
     "verificar-visual": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-visual.mjs",
     "test:visual-browser": "node tools/browser-visual.mjs",
     "verificar-partidas": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-partidas.mjs",

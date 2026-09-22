@@ -1,8 +1,8 @@
 # Pendências consolidadas do jogo
 
-Atualizado em **21/09/2026**, considerando as entregas até o commit `dfdc1f2`.
+Atualizado em **22/09/2026**. As entregas estão descritas em [vida pessoal e convivência](vida-pessoal-convivencia.md) e em [vida na cidade](vida-na-cidade.md). Os itens listados continuam pendentes; o arquivo só deve ser removido quando todos forem atendidos.
 
-Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e direção visual. Uma caixa desmarcada indica trabalho restante. **Parcial** significa que já existe uma base, mas a proposta completa ainda não está entregue. Sistemas antigos semelhantes devem ser reaproveitados, sem serem confundidos com a implementação das novas propostas.
+Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e direção visual. Toda linha aqui é trabalho restante: o que é entregue e verificado sai do arquivo e passa a constar em "O que já existe" e no documento da etapa. **Parcial** significa que já existe uma base, mas a proposta completa ainda não está entregue. A numeração dos blocos segue a proposta original, então há lacunas onde um bloco inteiro foi concluído. Sistemas antigos semelhantes devem ser reaproveitados, sem serem confundidos com a implementação das novas propostas.
 
 ## Direção e regras permanentes
 
@@ -25,51 +25,22 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 - Paper doll vetorial inicial aplicado aos figurantes do bairro e centro; contrato com 13 poses. Protagonista e moradores principais ainda usam suas folhas autorais.
 - Hitbox fixa nos pés, origem inferior central, ordenação por Y e sombras de contato nos personagens.
 - Halos suaves nos postes, matiz regional discreta e poças persistentes após chuva observada no mapa.
+- Prólogo explorável na antiga casa, diário pessoal, oito pontos domésticos, celular, baú de memórias, fotografia liberada por Letícia, sonhos e insônia das 02:47.
+- Dimensões sociais (confiança, proximidade, conhecimento, afeto), padrões de 28 dias, rumores, conversas em grupo e os cinco eventos comunitários com variação anual.
+- Retratos com seis expressões para os oito moradores principais, integrados aos diálogos e desligáveis nas configurações.
+- Animal de companhia adotável em três dias, com sono em lugares diferentes, espera na porta, recolhimento na chuva e presença na oficina; fauna de rua determinística por hora, clima e estação, com bichos que ganham nome depois de encontros repetidos.
+- Guarda-roupa com cinco conjuntos, quatro peças recebidas de moradores, comentário do protagonista quando a roupa não combina com o dia, e cabelo/barba em três estágios com cuidado no espelho.
+- Dezesseis moradores com cenas de vínculo (cinco nos oito dos retratos, três nos demais) e aniversários dos 33 moradores mais o do protagonista, com presente, esquecimento, convite, visita em casa e lembrança progressiva.
 
 ## 1. Prólogo, casa e diário pessoal
 
 - [ ] **Parcial — prólogo:** transformar a encenação atual em uma sequência explorável de aproximadamente 10–15 minutos na antiga casa, antes da mudança.
-- [ ] Permitir interações com notebook, celular, café, pia, relógio, mensagens e trabalho durante a madrugada, sem combate.
-- [ ] Fazer a passagem da noite e os pedidos urgentes serem vividos pelo jogador; encerrar com o carro chegando à cidade.
-- [ ] Criar diário pessoal automático, separado do diário de missões.
-- [ ] Alterar gradualmente a escrita do diário: tarefas objetivas, convivência, descanso e pertencimento.
-- [ ] Criar interações domésticas opcionais: café, banho, rádio, janela, correio e alimentar o animal.
-- [ ] Fazer a casa evoluir visualmente com a narrativa: caixas, cortinas, louça e sinais de vida, sem exigir uma casa perfeita.
-- [ ] Materializar presentes e lembranças específicas dos moradores: foto de Letícia, pão de Davi, lembrança de Luke e peça de Wendel.
-- [ ] Criar interações narrativas com o espelho, conforme o momento da história.
-- [ ] Criar conjuntos de roupa casual, chuva, inverno, trabalho e represa, incluindo peças recebidas de NPCs.
-- [ ] Avaliar crescimento discreto de cabelo e barba associado à passagem do tempo e a acontecimentos narrativos.
-
-## 2. Relações, memória social e eventos
-
-- [ ] **Parcial — relações:** complementar o score existente com confiança, proximidade, conhecimento sobre o protagonista e afeto.
-- [ ] Registrar padrões de vida, além de acontecimentos isolados: trabalho noturno recorrente, ausência do bar, visitas à praça e entradas na represa estando ferido.
-- [ ] Criar falas de Edu, Alice, Letícia e Wendel reagindo a esses padrões.
-- [ ] **Parcial — encontros:** ampliar conversas entre NPCs que acontecem independentemente do jogador e variam com as relações.
-- [ ] Criar rumores que circulam no dia seguinte, com interpretações distintas de Jaqueline, Hiago, Alice e outros moradores.
-- [ ] Criar de 3 a 6 cenas de vínculo para cada morador importante, sem reduzir a recompensa a dinheiro ou itens.
-- [ ] Ampliar o arco de Wendel com conversas íntimas, convite para jantar e encerramento sem recompensa material.
-- [ ] Criar cenas em grupo: Alice/Wendel, Mari/Letícia/Edu, Jaqueline/Luke, Vitor/Hiago, família de João e Roberto/Ilda/Ravi.
-- [ ] Criar os cinco eventos propostos: feira da cidade, noite junto ao rio, Festival da Estação, jantar comunitário e memorial da antiga usina.
-- [ ] Variar os diálogos dos eventos entre os anos.
-- [ ] Ampliar aniversários com presentes, esquecimentos, visitas e convites.
-- [ ] Fazer os moradores conhecerem e lembrarem progressivamente do aniversário do protagonista.
-- [ ] Integrar os eventos sociais reais aos resumos das partidas; atualmente o último marco considera cenas da campanha.
 
 ## 3. Celular, fotografia e memórias pessoais
 
-- [ ] Criar celular com mensagens, blog da cidade, calendário, contatos, fotos, trabalhos e mapa, reaproveitando os sistemas existentes.
-- [ ] Criar pequenas mensagens de moradores e respostas que podem demorar conforme a narrativa.
-- [ ] Introduzir fotografia por meio de Letícia.
-- [ ] Permitir fotografar cidade, NPCs, animais, eventos, paisagens e objetos da represa.
-- [ ] Criar diferenças visuais raras em fotografias da represa, com progressão gradual e sem antecipar o sobrenatural.
+- [ ] **Parcial — fotografia:** captura e álbum de até 20 imagens do mundo principal prontos; ampliar captura para a cena das profundezas e para a fauna nova quando implementada.
 - [ ] Criar álbum de fotografias antigas desbloqueado pela história.
-- [ ] Incluir lembranças felizes e banais de esposa, filha, apartamento, aniversário e viagem.
-- [ ] Criar baú de memórias inicialmente fechado, com abertura vinculada à progressão.
-- [ ] Incluir aliança, desenho, brinquedo, foto, crachá, celular antigo, cartão, recibo e pen drive.
-- [ ] Vincular objetos a cenas curtas, sem revelar seu significado antes da hora.
-- [ ] **Parcial — arquivo clínico:** implementar trechos inicialmente censurados e revelados depois, mantendo o texto integral no catálogo.
-- [ ] Fazer fotografias de eventos aparecerem em porta-retratos, mural, casa e tela inicial.
+- [ ] **Parcial — fotografias no ambiente:** a mesma captura já aparece em molduras na casa e na tela inicial; ampliar para o mural e a seleção de fotos de eventos.
 
 ## 4. Trabalho, refeições e descanso
 
@@ -86,17 +57,12 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 
 ## 5. Noites, sonhos e cuidado
 
-- [ ] Criar sonhos raros que conectam apartamento, escritório, casa, rua e represa de maneira impossível.
-- [ ] Criar noites de insônia às 02:47, com escolhas de levantar, beber água, olhar o celular, sentar na varanda, trabalhar ou tentar dormir.
-- [ ] Fazer essas escolhas gerarem textos e cenas, sem uma barra de sanidade.
 - [ ] Representar ferimentos com curativos e alterações visuais/animações, além do HP.
 - [ ] Fazer moradores perceberem a volta da represa com ferimentos.
 - [ ] Transformar algumas consultas no posto de saúde em cenas, incluindo desconforto inicial com o consultório.
 
 ## 6. Animais, cultura e memória da cidade
 
-- [ ] Criar animal de companhia que dorme em lugares diferentes, espera o protagonista, reage à chuva, acompanha parte do caminho e aparece na oficina.
-- [ ] Ampliar animais de rua e fauna: gatos conhecidos, cachorros, pássaros, sapos na chuva e vagalumes.
 - [ ] Criar programação de rádio por horário: notícias de manhã, música à tarde, mensagens à noite e música antiga de madrugada.
 - [ ] Incluir referências ocasionais à represa na programação.
 - [ ] Criar jornal semanal sobre obras, eventos, clima, moradores, história e rumores.
@@ -143,7 +109,6 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 - [ ] Expandir combinações válidas por configuração JSON/TS para NPCs secundários.
 - [ ] Criar combinações autorais para protagonista e moradores importantes, preservando suas identidades.
 - [ ] Produzir bustos ilustrados dos moradores importantes com expressões neutra, feliz, irritada, triste e preocupada.
-- [ ] Integrar retratos aos diálogos e permitir escolher retratos grandes ou diálogo simples.
 - [ ] Criar expressões sobre NPCs secundários: surpresa, dúvida, raiva, sono e tristeza.
 - [ ] Ampliar sombras de contato para animais, móveis externos e objetos grandes.
 
@@ -232,3 +197,41 @@ Essa ordem é uma proposta de organização, não uma indicação de que os iten
 - [Narrativa consolidada](narrativa-consolidada.md).
 - [Etapas da expansão de vida e memória](expansao-vida-e-memoria.md).
 - [Estado da direção visual](direcao-visual.md).
+
+
+Retratos dos personagens principais. É provavelmente o maior ganho por esforço neste momento. Edu, Mari, Jaqueline, Letícia, Wendel, Alice, Hiago, Vitor e os NPCs importantes ganham bustos com 4–6 expressões: neutro, feliz, preocupado, triste, irritado e surpreso. O sprite pode continuar simples no mapa, porque o jogador passa a associar o personagem ao retrato.
+Novo modelo visual para os personagens principais. Não precisa modularizá-los completamente. Faça um corpo-base padronizado com a mesma altura, origem nos pés e quantidade de frames, mas preserve cabelo, roupa, silhueta e detalhes exclusivos. Isso elimina boa parte dos bugs sem tirar personalidade.
+Tileset urbano renovado. Eu começaria pelo Bairro da Estação e pela Cidade, porque são os lugares que o jogador mais vê. Troque primeiro chão, calçadas, paredes, telhados, janelas e portas. Depois móveis e decoração. Não tente redesenhar os 74 interiores de uma vez.
+Sistema de decals. Folhas, rachaduras, sujeira, musgo, papéis, pedras pequenas, manchas de umidade, marcas de pneu e variações de grama. Isso ajuda muito a esconder a grade do tilemap sem exigir mapas novos.
+Vegetação em múltiplas camadas. Tronco abaixo do personagem, copa acima, transparência quando ele entra sob a árvore. Arbustos e grama com pequenas animações de vento. Isso deve melhorar muito a Zona Rural e a estrada da represa.
+Interiores com identidade de iluminação. Bar quente e amarelado; farmácia mais fria; mercado fluorescente; biblioteca com luz suave; academia mais dura; oficina com luminária forte de bancada. Mesmo compartilhando tiles, os prédios passam a parecer lugares diferentes.
+Chuva visual 2.0. Você já tem poças persistentes. O próximo passo é chão escurecido, pequenos highlights nos postes, gotas em telhados/calhas e talvez algumas reflexões falsas. Uma noite chuvosa pode virar uma das assinaturas visuais do jogo.
+Transições de ambiente. Entrou no bar durante uma tempestade: fade curto, som da chuva fica abafado e luz quente entra. Saiu: chuva volta forte. Entrou na represa: música desaparece gradualmente, iluminação muda e reverberação entra.
+Câmera melhorada. Lerp suave, pequeno deslocamento para a direção em que o personagem está caminhando e zoom discreto em eventos narrativos. Sem câmera flutuante demais.
+Cenas sem HUD. Durante eventos importantes, esconda relógio, dinheiro, vida e interface. A câmera pode enquadrar os personagens e deixar a cena respirar. Isso será especialmente importante para Letícia, Wendel e os eventos relacionados à família do protagonista.
+Casa como representação do protagonista. No início: caixas, pouca decoração, iluminação fria, cortinas mais fechadas. Conforme vínculos surgem, entram objetos dos NPCs, fotos, plantas, livros e coisas reparadas. Não precisa ficar mais “bonita”; precisa ficar mais habitada.
+Tela inicial dinâmica por progresso. Agora que sua iluminação e composição ambiental estão evoluindo, eu faria isso logo depois. Use a própria casa como cenário. No começo o protagonista aparece sozinho em ambiente escuro. Depois surgem objetos e fotografias. Mais tarde aparecem elementos extremamente sutis da represa.
+
+O ponto em que eu teria cuidado é não deixar figurantes modulares visualmente melhores que os personagens principais. Isso pode acontecer fácil agora: você melhora iluminação, sombra e composição dos NPCs genéricos enquanto os principais continuam usando sprites antigos, e o jogador percebe imediatamente a diferença.
+
+Eu estabeleceria um padrão obrigatório para todos os personagens, inclusive os antigos:
+
+mesma escala → mesmo ponto nos pés → mesma hitbox → mesma sombra → mesma lógica de depth → mesmo número de frames básicos.
+
+A arte pode ser diferente. A infraestrutura visual não.
+
+Também não redesenharia todos os mapas de uma vez. Pegaria uma pequena vertical slice visual:
+
+Casa do protagonista → rua do Bairro da Estação → praça → bar → estrada da represa → andar 1 da represa.
+
+Esses seis lugares representariam praticamente toda a identidade do jogo: casa, cidade, social, transição e horror psicológico. Você leva esses seis até o nível visual final que deseja e só depois usa isso como referência para converter o resto.
+
+E para a direção artística em si, eu iria cada vez menos para “Stardew-like” e mais para algo próprio:
+
+2D top-down ilustrado, melancólico, levemente dessaturado, sombras profundas, luz quente localizada e muita textura ambiental.
+
+Cidade não precisa parecer triste o tempo inteiro. A graça seria justamente ter uma noite chuvosa quase opressiva e, no dia seguinte, uma manhã fria bonita na praça.
+
+A represa seria o único lugar em que eu começaria a quebrar progressivamente as próprias regras visuais que você estabeleceu no mundo normal. Nos primeiros andares ela respeita perfeitamente perspectiva, tiles, iluminação e proporções. Mais fundo, algumas paredes ficam compridas demais, sombras apontam para direções erradas, objetos pessoais começam a aparecer e a geometria deixa de fechar perfeitamente.
+
+Aí a renovação visual deixa de ser somente “gráfico melhor” e começa a participar da história.

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { textoClinicoVisivel } from '../game/arquivoVisivel';
 import { estado } from '../game/estado';
 import { viuCena } from '../game/campanha';
 import { buscarRegistroPsicoterapia, tituloRegistroPsicoterapia } from '../game/fichas';
@@ -32,12 +33,12 @@ export class ProfundezasScene extends Phaser.Scene {
     this.andar = Math.min(200, Math.max(51, Number(estado.worldEvents.obter('campanha:andarAtual')) || 51));
     this.scene.pause('FarmScene'); this.scene.pause('UIScene'); this.scene.bringToTop();
     this.raiz = this.add.container(0, 0); this.corpo = pessoaNarrativa(this, 48, 184).setDepth(2); this.ameaca = this.add.graphics().setDepth(1);
-    this.aviso = this.add.text(15, 241, '', { fontFamily: UI.fonte, fontSize: '10px', color: '#d3d4c7' }).setDepth(3);
+    this.aviso = this.add.text(15, 241, '', { fontFamily: UI.fonte, fontSize: UI.tamanho, color: '#d3d4c7' }).setDepth(3);
     this.painel = this.add.container(0, 0).setDepth(5).setVisible(false);
     this.painel.add(this.add.rectangle(240, 190, 464, 90, 0x101922).setStrokeStyle(1, 0x8c9a94));
-    this.leitura = this.add.text(20, 156, '', { fontFamily: UI.fonte, fontSize: '12px', color: '#e3e5df', wordWrap: { width: 438 }, lineSpacing: 3 });
+    this.leitura = this.add.text(20, 156, '', { fontFamily: UI.fonte, fontSize: UI.tamanhoFala, color: '#e3e5df', wordWrap: { width: 438 }, lineSpacing: 3 });
     this.painel.add(this.leitura);
-    const continuar = this.add.text(20, 215, '[Enter/E/A] continuar · [Esc/B] fechar', { fontFamily: UI.fonte, fontSize: '10px', color: '#c7b38b' }).setInteractive().on('pointerdown', () => this.interagir());
+    const continuar = this.add.text(20, 215, '[Enter/E/A] continuar · [Esc/B] fechar', { fontFamily: UI.fonte, fontSize: UI.tamanho, color: '#c7b38b' }).setInteractive().on('pointerdown', () => this.interagir());
     this.painel.add(continuar);
     this.setas = this.input.keyboard!.createCursorKeys();
     const tecla = (e: KeyboardEvent) => {
@@ -80,7 +81,7 @@ export class ProfundezasScene extends Phaser.Scene {
     if (sala.tema === 'culpa' || this.andar >= 173) {
       g.lineStyle(1, 0xb99a59, .6); g.strokeCircle(348, 61, 8); g.lineBetween(370, 75, 382, 59); g.lineBetween(382, 59, 398, 75); g.strokeRect(374, 75, 20, 15);
     }
-    const t = this.add.text(15, 13, `A-${this.andar} · ${this.andar <= 100 ? 'O que aconteceu comigo?' : this.andar <= 150 ? 'O que eu fiz comigo?' : 'Quem sou eu agora?'}`, { fontFamily: UI.fonte, fontSize: '12px', color: '#d1d6ce' });
+    const t = this.add.text(15, 13, `A-${this.andar} · ${this.andar <= 100 ? 'O que aconteceu comigo?' : this.andar <= 150 ? 'O que eu fiz comigo?' : 'Quem sou eu agora?'}`, { fontFamily: UI.fonte, fontSize: UI.tamanhoFala, color: '#d1d6ce' });
     this.raiz.add(t);
     this.aviso.setText('Mover: WASD/setas · E: examinar · Esc: voltar ao arquivo');
     this.guardar();
@@ -109,7 +110,7 @@ export class ProfundezasScene extends Phaser.Scene {
     if (Math.hypot(this.x - 96, this.y - 69) < 30) {
       if (!estado.arquivo.podeLerRegistro(this.andar)) { this.abrirTexto('Uma folha anterior ainda não foi lida. Você pode retomá-la nos Arquivos.'); return; }
       const r = buscarRegistroPsicoterapia(this.andar)!;
-      this.abrirTexto(`${tituloRegistroPsicoterapia(this.andar)}. ${r.texto}`, true); return;
+      this.abrirTexto(`${tituloRegistroPsicoterapia(this.andar)}. ${textoClinicoVisivel(this.andar, r.texto, estado.arquivo)}`, true); return;
     }
     if (Math.hypot(this.x - 64, this.y - 119) < 29) {
       const observacao = salaMemoria(this.andar).observacao;

@@ -26,6 +26,7 @@ export const CONFIG = {
 
 /** Verbo mostrado no prompt para cada classe de objeto. */
 export const ROTULOS: Record<TipoInteragivel, string> = {
+  domestico: 'Examinar',
   atividade_rural: 'Cuidar',
   placa: 'Ler',
   npc: 'Falar',
@@ -41,6 +42,7 @@ export const ROTULOS: Record<TipoInteragivel, string> = {
   sucata: 'Recolher',
   revenda: 'Despachar sucata',
   elevador: 'Chamar elevador',
+  bicho: 'Observar',
 };
 
 /** Cor da demarcacao de cada tipo de zona reservada (overlay de debug, F6). */

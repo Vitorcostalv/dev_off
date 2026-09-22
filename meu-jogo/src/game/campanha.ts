@@ -1,3 +1,4 @@
+import { registrarCenaNoDiario } from './diarioPessoal.ts';
 /** Campanha autoral. Condições e escolhas persistem nas flags do save existente. */
 export type CenarioNarrativo = 'apartamento' | 'estrada' | 'casa' | 'oficina' | 'praca' | 'rio' | 'bar' | 'represa';
 export interface QuadroNarrativo {
@@ -217,6 +218,7 @@ export function concluirCena(c: ContextoCampanha, id: string): boolean {
   const s = cenaPendente(c);
   if (!s || s.id !== id || motivoEspera(c, s)) return false;
   c.worldEvents.definir(chaveCena(id), true);
+  registrarCenaNoDiario(c, id);
   c.worldEvents.definir(`campanha:dia:${id}`, c.dia);
   c.worldEvents.definir('campanha:quadro', 0);
   c.worldEvents.definir('campanha:ativa', '');

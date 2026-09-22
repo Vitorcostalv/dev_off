@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { textoClinicoVisivel } from '../game/arquivoVisivel';
 import { nomeDoDia, dataDoDia } from '../game/calendario';
 import { CONFIG, UI } from '../game/config';
 import { formatarDinheiro } from '../game/dinheiro';
@@ -19,6 +20,8 @@ import {
 import type { PontoDeLoja } from '../game/loja';
 import { controles } from '../game/InputRouter';
 import { som } from './Som';
+import { prepararRetrato, enfileirarRetrato, expressaoDaFala } from './retratos';
+import type { ExpressaoRetrato } from './retratos';
 import type { Fala, MundoJogavel } from '../game/tipos';
 import {
   NOME_DO_SLOT,
@@ -494,6 +497,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Continuação do prontuário, sem expor títulos temáticos das folhas futuras. */
   private abrirPsicoterapia(): void {
+    if (!this.foco.podeAbrir('menu') || this.lojaAberta || this.computadorAberto) return;
     if (!estado.arquivo.psicoterapiaDisponivel) return;
     const indice = estado.arquivo.indicePsicoterapia();
     const proximo = estado.arquivo.proximoRegistro();
@@ -530,7 +534,7 @@ export class UIScene extends Phaser.Scene {
     if (!registro) return;
     // Mede com a própria fonte/largura da caixa, sem cortar frases por pontuação.
     this.desenharRetrato(undefined);
-    const quebras = this.dialogoTexto.getWrappedText(registro.texto);
+    const quebras = this.dialogoTexto.getWrappedText(textoClinicoVisivel(numero, registro.texto, estado.arquivo));
     const linhas: string[] = [];
     for (let i = 0; i < quebras.length; i += 2) linhas.push(quebras.slice(i, i + 2).join('\n'));
     this.iniciarDialogo(
@@ -680,7 +684,15 @@ export class UIScene extends Phaser.Scene {
     if (falas.length === 0) return;
     // ja aberta (uma fala emendando na outra) nao pede foco de novo
     if (!this.dialogoAberto && !this.tomarFoco('dialogo')) return;
-    this.falas = falas;
+    this.falas = falas.flatMap(fala => {
+      const retrato = !!fala.npcId && estado.preferencias.valores.retratos;
+      const largura = CAIXA.w - (retrato ? this.caixaDoRetrato().w + 27 : 18);
+      this.dialogoTexto.setWordWrapWidth(largura);
+      const linhas = this.dialogoTexto.getWrappedText(fala.texto);
+      const paginas: Fala[] = [];
+      for (let i = 0; i < linhas.length; i += 2) paginas.push({ ...fala, expressao: fala.expressao ?? expressaoDaFala(fala.texto), texto: linhas.slice(i, i + 2).join('\n') });
+      return paginas.length ? paginas : [fala];
+    });
     this.indiceFala = 0;
     this.aoFimDoDialogo = aoFim ?? null;
     this.dialogo.setVisible(true);
@@ -709,7 +721,7 @@ export class UIScene extends Phaser.Scene {
     const fala = this.falas[this.indiceFala];
     // o retrato vem ANTES do texto: e ele que decide de onde o texto comeca e
     // que largura ele tem pra quebrar
-    this.desenharRetrato(fala.npcId);
+    this.desenharRetrato(fala.npcId, fala.expressao ?? expressaoDaFala(fala.texto));
     this.dialogoNome.setText(fala.nome);
     this.dialogoTexto.setText(fala.texto);
   }
@@ -791,16 +803,25 @@ export class UIScene extends Phaser.Scene {
    * A imagem e ampliada pra encher a moldura, com `NEAREST` preservado pelo
    * `pixelArt` do jogo, entao ela cresce em bloco em vez de borrar.
    */
-  private desenharRetrato(npcId: string | undefined): void {
-    const chaves = npcId ? [`npc-${npcId}-parado`, `npc-${npcId}-sprites`] : [];
-    const chave = chaves.find((k) => this.textures.exists(k) && this.textures.get(k).has('down-0'));
+  private desenharRetrato(npcId: string | undefined, expressao: ExpressaoRetrato = 'neutro'): void {
+    const mostrar = estado.preferencias.valores.retratos;
+    const ilustrado = npcId && mostrar ? prepararRetrato(this, npcId) : null;
+    if (npcId && mostrar && !ilustrado && enfileirarRetrato(this, npcId)) {
+      const id = npcId;
+      this.load.once(`filecomplete-image-retrato-${id}`, () => {
+        if (this.dialogoAberto && this.falas[this.indiceFala]?.npcId === id) this.desenharFala();
+      });
+      if (!this.load.isLoading()) this.load.start();
+    }
+    const chaves = npcId && mostrar ? [`npc-${npcId}-parado`, `npc-${npcId}-sprites`] : [];
+    const chave = ilustrado ?? chaves.find((k) => this.textures.exists(k) && this.textures.get(k).has('down-0'));
 
     const r = this.caixaDoRetrato();
     this.dialogoMolduraRetrato.setVisible(Boolean(chave));
     this.dialogoRetrato.setVisible(Boolean(chave));
 
     if (chave) {
-      this.dialogoRetrato.setTexture(chave, 'down-0');
+      this.dialogoRetrato.setTexture(chave, ilustrado ? expressao : 'down-0');
       // encaixa pela dimensao mais apertada e nunca passa da moldura
       const escala = Math.min(
         (r.w - 6) / this.dialogoRetrato.width,

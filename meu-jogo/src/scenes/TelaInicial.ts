@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { pessoaNarrativa, movelNarrativo } from './arteNarrativa';
+import { lembrancasDaCasa } from '../game/memoriasPessoais';
+import { fotografiaEmMoldura, desenharObjetoLembranca } from './FotografiaMemoria';
 
 /** A casa sugere progresso sem antecipar as perdas narradas nos documentos. */
 export function desenharTelaInicial(cena: Phaser.Scene, raiz: Phaser.GameObjects.Container): Phaser.GameObjects.Graphics {
@@ -36,6 +38,8 @@ export function desenharTelaInicial(cena: Phaser.Scene, raiz: Phaser.GameObjects
   r(411, 210, 29, 27, 0x665746); r(442, 225, 27, 22, 0x504739); r(423, 210, 3, 27, 0x8b7a59);
   if (amigos) { movel('planta_alta', 273, 226, 28, 51); r(388, 55, 12, 16, 0x88734e); r(390, 57, 8, 12, 0x869492); r(417, 203, 15, 2, 0x8e9799); r(428, 200, 3, 8, 0x7b6652); }
   if (familia) { r(373, 203, 12, 3, 0x8f7b60); r(377, 199, 5, 4, 0x5a5046); }
+  lembrancasDaCasa(estado).forEach((m, i) => desenharObjetoLembranca(g, m.id, 407 + i * 14, 197));
+  fotografiaEmMoldura(cena, raiz, 391, 65, 25);
   // Gradiente por faixas: menu legível, imagem sem moldura de painel.
   for (let i = 0; i < 12; i++) r(i * 23, 0, 24, 270, 0x0a1118, Math.max(.04, .96 - i * .075));
   const clima = cena.add.graphics(); raiz.add(clima); return clima;

@@ -27,7 +27,7 @@ export function descreverPartida(id: string, nome: string, bruto: string | null)
     return { ...p, estado: 'disponivel', dados, data: `${d.nomeEstacao} — Ano ${d.ano}`,
       hora: `${nomeDoDia(dados.dia)} — ${String(Math.floor(dados.minutos / 60)).padStart(2, '0')}:${String(dados.minutos % 60).padStart(2, '0')}`,
       lugar: f['campanha:ativa'] ? 'Uma lembrança em andamento' : lugares[dados.mapa] ?? (dados.mapa.startsWith('represa') ? 'Interior da represa' : 'Na cidade'),
-      evento: evento?.titulo ?? 'Chegada à cidade', tempo: `${Math.floor(minutos / 60)}h ${minutos % 60}min`,
+      evento: typeof f['social:ultimoMarco'] === 'string' && Number(f['social:diaMarco']) >= Number(f[`campanha:dia:${evento?.id}`] ?? -1) ? f['social:ultimoMarco'] : evento?.titulo ?? 'Chegada à cidade', tempo: `${Math.floor(minutos / 60)}h ${minutos % 60}min`,
       miniatura: typeof f['save:miniatura'] === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(f['save:miniatura']) && f['save:miniatura'].length < 180000 ? f['save:miniatura'] : '' };
   } catch { return { ...p, estado: 'danificado' }; }
 }

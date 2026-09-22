@@ -12,6 +12,7 @@ try {
   assert.equal(await page.evaluate(() => window.game.scene.getScene('MenuScene').opcoes.length), 6);
   fs.mkdirSync('docs/evidence', { recursive: true });
   await page.screenshot({ path: 'docs/evidence/inicio-casa-escura.png' });
+  await page.evaluate(() => window.estado.worldEvents.definir('prologo:explorado', true));
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => window.game.scene.isActive('CampanhaScene'));
   await page.waitForTimeout(6000);

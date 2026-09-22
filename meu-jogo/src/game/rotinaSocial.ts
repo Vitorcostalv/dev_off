@@ -153,6 +153,10 @@ export interface Encontro {
  * e nos 8 climas.
  */
 export const ENCONTROS: readonly Encontro[] = [
+  { id: 'noite_rio', nome: 'Noite junto ao rio', diaDaEstacao: 7, inicio: 19 * 60, fim: 21 * 60, construcao: null, mapa: 'bairro', ids: ['edu', 'leticia', 'mari'], vagas: [{ x: 69.5, y: 95.5 }, { x: 70.5, y: 95.5 }, { x: 71.5, y: 95.5 }], aviso: 'noite_rio' },
+  { id: 'festival_estacao', nome: 'Festival da Estação', diaDaEstacao: 21, inicio: 18 * 60, fim: 21 * 60, construcao: null, mapa: 'farm', ids: ['suzan', 'vitor', 'hiago', 'jaqueline', 'luke', 'edu'], vagas: [{ x: 51.5, y: 49.5 }, { x: 53.5, y: 49.5 }, { x: 55.5, y: 49.5 }, { x: 51.5, y: 50.5 }, { x: 53.5, y: 50.5 }, { x: 55.5, y: 50.5 }], aviso: 'festival_estacao' },
+  { id: 'jantar_comunitario', nome: 'Jantar comunitário', diaDaEstacao: 25, inicio: 19 * 60, fim: 22 * 60, construcao: 'bar', mapa: 'farm', ids: ['alice', 'wendel', 'joao', 'neide', 'priscila', 'davi'], vagas: [{ x: 4.5, y: 8.5 }, { x: 6.5, y: 8.5 }, { x: 8.5, y: 8.5 }, { x: 4.5, y: 10.5 }, { x: 6.5, y: 10.5 }, { x: 8.5, y: 10.5 }], aviso: 'jantar_comunitario' },
+  { id: 'memorial_usina', nome: 'Memorial da antiga usina', diaDaEstacao: 28, inicio: 16 * 60, fim: 18 * 60, construcao: null, mapa: 'farm', ids: ['clara', 'ilda', 'roberto', 'ravi', 'wendel', 'alice'], vagas: [{ x: 54.5, y: 40.5 }, { x: 55.5, y: 40.5 }, { x: 54.5, y: 41.5 }, { x: 55.5, y: 41.5 }, { x: 51.5, y: 42.5 }, { x: 52.5, y: 42.5 }], aviso: 'memorial_usina' },
   {
     id: 'sabado_no_bar',
     nome: 'Sabado no bar',
@@ -185,6 +189,7 @@ export const ENCONTROS: readonly Encontro[] = [
   },
   {
     id: 'feira_da_estacao',
+    ids: ['jaqueline', 'davi', 'leticia'],
     nome: 'Feira da estacao',
     diaDaEstacao: 14,
     inicio: 16 * 60,
@@ -241,7 +246,7 @@ export function aplicarEncontro(
   encontro: Encontro,
   vaga: PontoTile,
 ): AcaoRotinaNpc[] {
-  const fora = rotina.filter((acao) => acao.horario < encontro.inicio || acao.horario >= encontro.fim);
+  const fora = rotina.filter((acao) => acao.tipo === 'posto_interior' || acao.horario < encontro.inicio || acao.horario >= encontro.fim);
   const anterior = [...fora].filter((a) => a.horario < encontro.inicio).sort((a, b) => b.horario - a.horario)[0];
   // Duas trocas de lugar ao ar livre seguidas no mesmo mapa seriam teleporte na
   // frente do jogador (a conferencia de rotinas reprova). Quando a acao anterior

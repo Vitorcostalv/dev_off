@@ -8,6 +8,8 @@ const erros = [];
 page.on('pageerror', e => erros.push(e.message));
 const entrar = async () => {
   await page.waitForFunction(() => window.game?.scene.isActive('MenuScene'));
+  // Este teste cobre a retomada da encenação legada; o prólogo novo tem teste próprio.
+  await page.evaluate(() => window.estado.worldEvents.definir('prologo:explorado', true));
   await page.keyboard.press('Enter');
 };
 const medir = async () => page.evaluate(() => {
