@@ -1,4 +1,42 @@
+import { HORARIO_EMPREGO, TURNO_CIDADE } from '../game/cidade';
+import { VidaDomestica } from './VidaDomestica';
+import { BichosDoMundo } from './BichosDoMundo';
+import { Biblioteca } from './Biblioteca';
+import { coletarDocumento, documentoDisponivel, documentosDoMapa, temDocumento } from '../game/memoriaDaCidade';
+import {
+  ajudarComGerador, apagaoAtivo, avisarEvento, climaDoEvento, reacaoAoEvento,
+  represaIluminada, textoDoApagao, TEXTO_REPRESA_ACESA,
+} from '../game/climaExtremo';
+import { marcasDaEstacao, mudancasVisiveis, trajeDaEstacao, deslocamentoDaEstacao } from '../game/mudancasUrbanas';
+import { adotar, aproximar, companhia, falaSobreCompanhia, PRETENDENTES, textoDaCompanhia } from '../game/companhia';
+import { comentarioDaPeca, conjuntoAtual, crescimento, pecaAtual } from '../game/guardaRoupa';
+import {
+  acompanhamentoAtual, caminhadaAtual, encerrarAcompanhamento, encerrarCaminhada, falaDeQuemSenta,
+  iniciarAcompanhamento, iniciarCaminhada, lugarDoPonto, observacaoDoBanco, podeCaminhar, quemSenta,
+  registrarBanco, registrarLugar, textoAoSentar,
+} from '../game/convivencia';
+import type { Lugar } from '../game/convivencia';
+import { comer, podeConvidar, pratosAprendidos } from '../game/refeicoes';
+import {
+  cenaDaConsulta, falaDeQuemViu, mancando, marcasDeFerimento, nivelDeFerimento,
+  registrarConsulta, registrarFerimentoNaRepresa,
+} from '../game/cuidado';
+import { aniversarioDe, comentarioDeEsquecimento, contarMeuAniversario, conviteDeAniversario, dataLegivel, ehAniversario, falaDeAniversario, felicitacaoDeHoje, lembrarDoAniversario, sabeDoMeuAniversario, visitaDeAniversario, ANIVERSARIO_PROTAGONISTA } from '../game/aniversarios';
+import { eventoNoLugar, dialogoDoEvento, concluirEvento } from '../game/eventosDeConvivencia';
+import { CULTIVOS, NOS_RURAIS, RECEITAS, fabricar } from '../game/atividadesRurais';
+import { controles } from '../game/InputRouter';
+import { ambienteDoLugar, pisoDoMapa, somDoPasso, trilhaDoLugar } from '../game/audio';
+import { som } from './Som';
+import { obterMiniatura } from './capturaSave';
+import { PersonagemModular } from './PersonagemModular';
+import { aparenciaPorSemente } from '../game/visualPersonagem';
+import { corpoNosPes, sombraDeContato, texturaRadial } from './luzESombra';
+import { observarVida, registrarConvivencia, comentarioDoPadrao, naturezaDaRelacao, vinculoDisponivel, concluirVinculo } from '../game/vidaSocial';
+import { dataDoDia } from '../game/calendario';
+import { intensidadeNoturna } from '../game/clima';
+import { AmbienteMundo } from './AmbienteMundo';
 import Phaser from 'phaser';
+import { cenaNoContexto, cenaPendente, motivoEspera, viuCena } from '../game/campanha';
 import { PROP_COLIDE } from '../game/colisao';
 import { CONFIG, COR_ZONA, ROTULOS, UI } from '../game/config';
 import { formatarDinheiro } from '../game/dinheiro';
@@ -21,14 +59,16 @@ import { PONTOS_POR_TIER_PRESENTE, calcularTierPresente, reacaoPresente } from '
 import { CONFIG_TEMPO } from '../game/relogio';
 import { ITEM_ENCOMENDA } from '../game/trabalhos';
 import type { EstadoNpc } from '../game/rotinasNpc';
-import { apagar, salvar } from '../game/save';
+import { apagar, salvar, snapshots, restaurarSnapshot } from '../game/save';
 import { USOS_DE_MORADIA, falasDe } from '../game/tipos';
-import { avisosDaSemana, segredosDoMapa } from '../game/ambientacao';
+import { AVISOS_DE_ENCONTRO, avisosDaSemana, segredosDoMapa } from '../game/ambientacao';
+import { encontroDoDia } from '../game/rotinaSocial';
 import type { SegredoDoMapa } from '../game/ambientacao';
 import { PONTOS_ITENS_MISSAO } from '../game/missoesNpc';
 import type { MissaoNpc } from '../game/missoesNpc';
 import { jogadorOuveEncontro } from '../game/encontrosNpc';
 import { atividadeComEmprego, PROJETOS_CIDADE } from '../game/cidade';
+import { enfileirarFolhasNpc, prepararNpc } from './spritesNpc';
 import type { IdProjetoCidade, ProjetoCidade } from '../game/cidade';
 import type {
   Direcao,
@@ -70,6 +110,7 @@ import { buscarArma, direcaoDaMira } from '../game/armas';
 import {
   ANDARES,
   ANDARES_DE_PARADA,
+  andarDoMapa,
   andarDoMapaDef,
   buscarAndar,
   flagDeCheckpoint,
@@ -85,14 +126,6 @@ import { fichaDoAndar } from '../game/fichas';
 const TILES_VISIVEIS_X = 18;
 /** Altura do player em TILES (fica 1,5 tile, como antes). */
 const ALTURA_PERSONAGEM_TILES = 1.5;
-// Hitbox do player, em px do RECORTE (o frame tem 200x320), nao do mundo:
-// o Arcade multiplica tanto setSize quanto setOffset pela escala do sprite
-// (Body.js: `width = sourceWidth * _sx`, `position.x = ... + scaleX * offset.x`).
-// Por isso estes quatro numeros nao mudam quando o tile muda de tamanho.
-const CORPO_LARGURA = 70;
-const CORPO_ALTURA = 50;
-const CORPO_OFFSET_X = 65;
-const CORPO_OFFSET_Y = 265;
 
 /**
  * Altura desejada de cada estagio de arvore, em TILES. A escala do sprite sai
@@ -121,6 +154,18 @@ const MOVEL_CORPO = { largura: 0.92, altura: 0.5 };
 /** Overlay de debug: acima de qualquer sprite ordenado por y. */
 const DEPTH_OVERLAY = 100000;
 
+/**
+ * O balao de fala que aparece sobre a cabeca de um NPC num encontro.
+ *
+ * E a UNICA superficie invertida do jogo — letra escura em papel claro, no
+ * contrario da paleta de painel. E de proposito: o balao fica desenhado DENTRO
+ * do mundo, sobre cenario de qualquer cor, e a mesma moldura escura dos paineis
+ * desapareceria contra uma parede de sombra.
+ */
+const BALAO = { texto: '#18202c', fundo: '#fff8dc' } as const;
+/** Halo de poste: acima do veu da noite (850000) e dos efeitos de clima. */
+const DEPTH_LUZ_NOTURNA = 850002;
+
 const HORARIOS_PORTAS: Record<string, { nome: string; abre: number; fecha: number }> = {
   mercado: { nome: 'Mercado', abre: 8 * 60, fecha: 18 * 60 },
   academia: { nome: 'Academia', abre: 6 * 60, fecha: 22 * 60 },
@@ -137,7 +182,7 @@ interface FiguranteAmbiental {
   fim: { x: number; y: number };
   janela: { inicio: number; fim: number };
   seed: number;
-  conta: Phaser.GameObjects.Container;
+  conta: PersonagemModular;
 }
 
 const VETOR: Record<Direcao, { x: number; y: number }> = {
@@ -261,18 +306,45 @@ const TILE_DA_REVENDA = { x: 17, y: 20 };
 const DURACAO_FADE_NPC = 220;
 
 export class FarmScene extends Phaser.Scene {
+  private ambiente!: AmbienteMundo;
   private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private teclas!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
-  private correr!: Phaser.Input.Keyboard.Key;
   private direcao: Direcao = 'down';
 
   private interagiveis: Interagivel[] = [];
+  private campanhaSuspensa = false;
+  private campanhaApos = 0;
+
+  suspenderCampanha(suspensa: boolean): void {
+    this.campanhaSuspensa = suspensa;
+    this.campanhaApos = this.time.now + 1500;
+  }
+
+  iniciarCenaCampanha(id: string): void {
+    const cena = cenaPendente(estado);
+    if (!cena || cena.id !== id || motivoEspera(estado, cena)) return;
+    this.campanhaSuspensa = false;
+    this.player.setVelocity(0, 0);
+    this.scene.pause('UIScene');
+    this.scene.pause();
+    this.scene.launch(id === 'prologo' && !estado.worldEvents.ativa('prologo:explorado') && !estado.worldEvents.obter('campanha:quadro') ? 'PrologoScene' : 'CampanhaScene', { id });
+  }
+
+  entrarProfundezas(): void {
+    if (!viuCena(estado, 'andar50') || estado.mapa !== 'represa_f50') {
+      this.ui.avisoRapido('A escada fica além do arquivo do andar 50. Continue sua história.', UI.textoFraco);
+      return;
+    }
+    this.player.setVelocity(0, 0);
+    this.scene.pause('UIScene');
+    this.scene.pause();
+    this.scene.launch('ProfundezasScene');
+  }
   private alvo: Interagivel | null = null;
   private npcs: NpcVisual[] = [];
   private balaoEncontro: Phaser.GameObjects.Text | null = null;
   private figurantesAmbientais: FiguranteAmbiental[] = [];
-  private luzesNoturnas: Phaser.GameObjects.Graphics[] = [];
+  private luzesNoturnas: Phaser.GameObjects.Image[] = [];
   private luzBiblioteca: Phaser.GameObjects.Graphics | null = null;
   private indicadoresPorta = new Map<string, Phaser.GameObjects.Text>();
   private visuaisDeItens = new Map<string, Phaser.GameObjects.Rectangle>();
@@ -351,11 +423,13 @@ export class FarmScene extends Phaser.Scene {
   /** Painel de enigma em andamento; `null` fora de um. */
   private painelAtivo: ProgressoPainel | null = null;
 
-  /** Tecla do golpe (a chave inglesa). */
-  private teclaAtaque!: Phaser.Input.Keyboard.Key;
-
-  /** Tecla de recarga (R). */
-  private teclaRecarga!: Phaser.Input.Keyboard.Key;
+  /**
+   * Relogios do audio. A escolha de ambiente/trilha e barata, mas nao precisa
+   * rodar por quadro: hora, clima e mapa mudam devagar. Os passos, ao contrario,
+   * dependem do ritmo da caminhada.
+   */
+  private proximaTrilhaSonora = 0;
+  private proximoPasso = 0;
 
   /**
    * O item equipado desenhado na mao do jogador, mais a mira. Existe em TODO
@@ -374,7 +448,14 @@ export class FarmScene extends Phaser.Scene {
   private escuridaoDoComodo: { ret: RetTiles; valor: number }[] = [];
 
   /** Os dados com que a cena foi iniciada, pra poder reiniciar igual. */
-  private entradaAtual: { mapa?: string; x?: number; y?: number } | undefined;
+  private entradaAtual: { mapa?: string; x?: number; y?: number; salvar?: boolean } | undefined;
+  /**
+   * NPCs cuja folha ja foi pedida ao loader nesta montagem de cena.
+   *
+   * Sem isto, um NPC visivel e ainda sem textura reenfileiraria a folha a cada
+   * quadro ate ela chegar — dezenas de pedidos pro mesmo arquivo.
+   */
+  private folhasDeNpcPedidas = new Set<string>();
 
   /** Texto de espera enquanto um andar da represa e baixado. */
   private avisoDeCarga: Phaser.GameObjects.Text | null = null;
@@ -389,6 +470,14 @@ export class FarmScene extends Phaser.Scene {
    * `player.setDepth`.
    */
   private pronto = false;
+  private vidaDomestica?: VidaDomestica;
+  private bichos?: BichosDoMundo;
+  private biblioteca?: Biblioteca;
+  /** Sentado num banco: o tempo corre mais rapido ate o jogador levantar. */
+  private sentado: { lugar: Lugar; desde: number; proxima: number; indice: number; companhia: boolean } | null = null;
+  /** Ha quantos ms o morador acompanhado esta em movimento. */
+  private acompanhandoMs = 0;
+  private curativo?: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('FarmScene');
@@ -402,7 +491,7 @@ export class FarmScene extends Phaser.Scene {
    * Roda a cada `scene.restart` — e onde o estado mutavel volta ao zero.
    * Campos de classe com inicializador NAO sao reexecutados no restart.
    */
-  init(dados?: { mapa?: string; x?: number; y?: number }): void {
+  init(dados?: { mapa?: string; x?: number; y?: number; salvar?: boolean }): void {
     if (dados?.mapa) estado.mapa = dados.mapa;
     // Guardado pra o carregamento SOB DEMANDA poder reiniciar a cena no mesmo
     // ponto depois de o tilemap chegar (ver `garantirTilemap`).
@@ -417,6 +506,11 @@ export class FarmScene extends Phaser.Scene {
     this.marcadoresNpc = [];
     this.interagiveis = [];
     this.npcs = [];
+    // Limpo a cada montagem de proposito: um pedido que FALHOU (rede caindo no
+    // meio) deixaria o id marcado pra sempre, e o morador ficaria invisivel pelo
+    // resto da sessao. Reenfileirar o que ja esta em textura nao custa nada —
+    // `enfileirarFolhasNpc` confere o cache antes de pedir.
+    this.folhasDeNpcPedidas.clear();
     this.figurantesAmbientais = [];
     this.luzesNoturnas = [];
     this.luzBiblioteca = null;
@@ -498,6 +592,14 @@ export class FarmScene extends Phaser.Scene {
     // dispara a carga e reinicia a cena quando ela termina — e por isso que ele
     // corta o `create` aqui, antes de qualquer objeto ser criado.
     if (!this.garantirTilemap(def)) return;
+    // ATLAS DE MOVEL SOB DEMANDA: idem. Corta o `create` no mesmo lugar e pela
+    // mesma razao — a cena reinicia com o atlas em cache.
+    if (!this.garantirAtlasDeMovel(def)) return;
+    // FOLHA DE NPC SOB DEMANDA: idem, pelos mesmos 14,99 MB que sairam do boot.
+    // Vem depois das outras duas de proposito — a conta de quem esta em cena usa
+    // o mapa, nao o tilemap, mas reiniciar por causa de tres coisas de uma vez
+    // custa uma volta a menos se as duas primeiras ja estiverem em cache.
+    if (!this.garantirFolhasDeNpc()) return;
 
     const map = this.make.tilemap({ key: def.tilemapKey });
     this.tamanhoTile = map.tileWidth;
@@ -554,8 +656,10 @@ export class FarmScene extends Phaser.Scene {
     this.comodos = this.lerComodos(map);
     this.escuridaoDoComodo = this.lerEscuridaoDosComodos(map);
 
+    const spawnValido = this.spawn && this.spawn.x >= 0 && this.spawn.y >= 0
+      && this.spawn.x < map.widthInPixels && this.spawn.y < map.heightInPixels;
     const nasce =
-      this.spawn ??
+      (spawnValido ? this.spawn : null) ??
       {
         x: (def.spawnTile.x + 0.5) * this.tamanhoTile,
         y: (def.spawnTile.y + 0.5) * this.tamanhoTile,
@@ -564,6 +668,7 @@ export class FarmScene extends Phaser.Scene {
     this.configurarPersonagem(this.player);
     // hitbox menor que o sprite, so os pes -> parece melhor em top-down
     this.player.setCollideWorldBounds(true);
+    this.curativo = this.add.graphics();
 
     // SAIU DA ZONA: o que a zona nova nao permite volta pra mochila. Roda no
     // create e nao na troca de mapa porque troca de mapa E um restart de cena —
@@ -576,11 +681,13 @@ export class FarmScene extends Phaser.Scene {
     this.criarItensColetaveis();
     this.criarConstrucoes(map);
     this.criarProjetosCidade();
-    this.criarLuzesNoturnas();
+    this.criarLuzesNoturnas(map);
     this.atualizarPortasEIluminacao();
     this.criarMoveis(map);
     this.criarMobiliaDoJogador();
+    this.ambiente = new AmbienteMundo(this, def.externo, estado.mapa);
     this.criarFlora(map);
+    this.criarAtividadesRurais();
     // NPCs entram por ultimo: assim a busca de posicao segura ja conhece
     // predios, moveis, arvores e pedras do mapa carregado.
     this.criarNpcs();
@@ -603,8 +710,13 @@ export class FarmScene extends Phaser.Scene {
         if (this.obstaculos.length > 0) this.physics.add.collider(monstros, this.obstaculos);
       }
     }
-    if (this.npcs.length > 0) {
-      this.physics.add.collider(this.player, this.npcs.map((npc) => npc.sprite));
+    // Quem ainda nao tem folha nao tem sprite; `montarSpriteDeNpc` acrescenta
+    // o colisor de cada um na hora em que ele entra em cena.
+    const corposDeNpc = this.npcs
+      .map((npc) => npc.sprite)
+      .filter((sprite): sprite is Phaser.Physics.Arcade.Sprite => sprite !== null);
+    if (corposDeNpc.length > 0) {
+      this.physics.add.collider(this.player, corposDeNpc);
     }
     if (this.obstaculos.length > 0) this.physics.add.collider(this.player, this.obstaculos);
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -619,9 +731,6 @@ export class FarmScene extends Phaser.Scene {
     this.ui.mostrarPrompt(null);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.teclas = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.teclas &
-      Record<string, Phaser.Input.Keyboard.Key>;
-    this.correr = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
     // Modo de posicionar mobilia: o fantasma segue o ponteiro e solta no clique.
     // E o mesmo trio pointerdown/pointermove/pointerup do minigame de conserto,
@@ -638,67 +747,115 @@ export class FarmScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-ESC', () => this.cancelarPosicionamento());
 
     // M abre/fecha o mapa da cidade.
-    this.input.keyboard!.on('keydown-M', () => this.alternarMapa());
+    this.input.keyboard!.on('keydown', (e: KeyboardEvent) => { if (!e.repeat && controles.corresponde('mapa', e)) this.alternarMapa(); });
 
     // ESPACO golpeia com a chave inglesa. So faz algo dentro da represa: a
     // cidade nao tem com quem brigar, e a tecla continua livre lá.
-    this.teclaAtaque = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard!.addCapture('SPACE');
 
     // R recarrega a arma de fogo equipada.
-    this.teclaRecarga = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
-    // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
-    this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
+    if (import.meta.env.DEV) {
+      this.input.keyboard!.on('keydown-F10', () => { if (!this.ui.bloqueado && !this.mapaAberto) this.scene.launch('MenuScene', { pagina: 'dev' }); });
+      // F6 mostra/esconde a demarcacao das zonas reservadas (debug)
+      this.input.keyboard!.on('keydown-F6', () => this.alternarZonas());
 
-    // F7 avanca uma hora para inspecionar rotinas sem esperar (debug).
-    this.input.keyboard!.on('keydown-F7', () => {
-      estado.dia += estado.relogio.avancarMinutos(60);
-      estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, 0);
-      this.sincronizarNpcs();
-      console.info(`[tempo] avancado para ${estado.relogio.texto}`);
-    });
+      // F7 avanca uma hora para inspecionar rotinas sem esperar (debug).
+      this.input.keyboard!.on('keydown-F7', () => {
+        estado.dia += estado.relogio.avancarMinutos(60);
+        estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, 0);
+        this.sincronizarNpcs();
+        console.info(`[tempo] avancado para ${estado.relogio.texto}`);
+      });
 
-    // F2 continua util para testar capacidade sem depender do mapa.
-    this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('cabo_usb', 1));
-    // F3 da o KIT DE EXPLORACAO. Substituiu o "adiciona uma bateria" porque
-    // testar o ciclo da represa a mao — descer, achar a pistola no cofre da
-    // portaria, comprar municao na madeireira, voltar — leva dez minutos de
-    // jogo a cada tentativa, e o que se quer testar e o combate, nao a coleta.
-    this.input.keyboard!.on('keydown-F3', () => {
-      for (const [id, qtd] of KIT_DE_DEBUG) estado.inventario.adicionar(id, qtd);
-      this.ui.avisoRapido('Kit de exploracao no inventario (F3).', UI.sucesso);
-    });
+      // F2 continua util para testar capacidade sem depender do mapa.
+      this.input.keyboard!.on('keydown-F2', () => estado.inventario.adicionar('cabo_usb', 1));
+      // F3 da o KIT DE EXPLORACAO. Substituiu o "adiciona uma bateria" porque
+      // testar o ciclo da represa a mao — descer, achar a pistola no cofre da
+      // portaria, comprar municao na madeireira, voltar — leva dez minutos de
+      // jogo a cada tentativa, e o que se quer testar e o combate, nao a coleta.
+      this.input.keyboard!.on('keydown-F3', () => {
+        for (const [id, qtd] of KIT_DE_DEBUG) estado.inventario.adicionar(id, qtd);
+        this.ui.avisoRapido('Kit de exploracao no inventario (F3).', UI.sucesso);
+      });
 
-    // F9 salva na hora (debug); no jogo, quem salva e o dormir
-    this.input.keyboard!.on('keydown-F9', () => {
-      console.info('[save] gravado:', this.salvarJogo());
-    });
+      // F9 salva na hora (debug); no jogo, quem salva e o dormir
+      this.input.keyboard!.on('keydown-F9', () => {
+        console.info('[save] gravado:', this.salvarJogo());
+      });
 
-    // F4 apaga o save (debug)
-    this.input.keyboard!.on('keydown-F4', () => {
-      apagar();
-      console.info('[save] apagado');
-    });
+      // F4 apaga o save (debug)
+      this.input.keyboard!.on('keydown-F4', () => {
+        if (this.ui.bloqueado || this.mapaAberto) return;
+        this.ui.confirmar('Apagar o save ativo? Um backup sera preservado.', () => {
+          this.ui.avisoRapido(apagar() ? 'Save apagado; backup preservado.' : 'Nao foi possivel criar backup. Save mantido.');
+        });
+      });
 
-    // F1 liga/desliga o debug das colisoes
-    this.input.keyboard!.on('keydown-F1', () => {
-      this.physics.world.drawDebug = !this.physics.world.drawDebug;
-      if (!this.physics.world.drawDebug) this.physics.world.debugGraphic?.clear();
-    });
+      this.input.keyboard!.on('keydown-F8', () => {
+        if (this.ui.bloqueado || this.mapaAberto) return;
+        const backups = snapshots();
+        if (!backups.length) { this.ui.avisoRapido('Nenhum backup disponivel.'); return; }
+        this.ui.abrirMenu('Restaurar qual backup? Datas em UTC.', backups.map((backup, indice) => ({
+          rotulo: `${indice + 1}. ${backup.criadoEm.slice(0, 19).replace('T', ' ')}`,
+          aoEscolher: () => this.ui.confirmar('Restaurar este backup? A sessao sera recarregada.', () => {
+            if (restaurarSnapshot(indice)) window.location.reload();
+            else this.ui.avisoRapido('Backup invalido ou sem espaco. Save mantido.');
+          }),
+        })));
+      });
+
+      // F1 liga/desliga o debug das colisoes
+      this.input.keyboard!.on('keydown-F1', () => {
+        this.physics.world.drawDebug = !this.physics.world.drawDebug;
+        if (!this.physics.world.drawDebug) this.physics.world.debugGraphic?.clear();
+      });
+    }
 
     this.pronto = true;
+    this.vidaDomestica = new VidaDomestica(this, this.ui);
+    this.interagiveis.push(...this.vidaDomestica.montar());
+    this.bichos = new BichosDoMundo(this, this.tamanhoTile);
+    this.interagiveis.push(...this.bichos.montar(estado.mapa));
+    this.biblioteca = new Biblioteca(this, this.ui);
+    this.interagiveis.push(...this.biblioteca.montar());
+    this.desenharMudancasDaCidade();
+    this.anunciarClimaExtremo();
+    // DOCUMENTOS HISTORICOS: some do mapa quando recolhidos, e voltam ao quadro
+    // de interacao so num save que ainda nao os tem.
+    for (const doc of documentosDoMapa(estado.mapa)) {
+      if (temDocumento(estado, doc.id) || !documentoDisponivel(estado, doc)) continue;
+      this.interagiveis.push({ id: `documento:${doc.id}`, tipo: 'documento', rotulo: 'Recolher',
+        x: (doc.tile.x + .5) * this.tamanhoTile, y: (doc.tile.y + .5) * this.tamanhoTile, props: { documento: doc.id } });
+    }
+    if (estado.mapa === MAPA_DA_CASA) this.visitaDeHoje();
+    if (this.entradaAtual?.salvar) this.salvarJogo();
+    if (!estado.tituloVisto) {
+      estado.tituloVisto = true;
+      this.time.delayedCall(1, () => this.scene.launch('MenuScene', { pagina: 'titulo' }));
+    }
   }
 
   update(_tempo: number, delta: number): void {
     // O `create` pode ter parado no meio esperando o tilemap de um andar (ver
     // `garantirTilemap`): nesse quadro nao ha player, nem camada, nem teclas.
     if (!this.pronto) return;
+    if (!this.campanhaSuspensa && this.time.now > this.campanhaApos && !this.ui.bloqueado && !this.transicionando && !this.mapaAberto
+      && !this.scene.isActive('MenuScene') && !this.scene.isActive('CampanhaScene') && !this.scene.isActive('ProfundezasScene')) {
+      const cena = cenaNoContexto(estado);
+      if (cena) { this.iniciarCenaCampanha(cena.id); return; }
+    }
     // reordena o player entre as arvores conforme ele anda
     this.player.setDepth(this.player.y);
+    this.desenharAparencia();
 
-    if (!this.ui.bloqueado && !this.transicionando) {
-      estado.dia += estado.relogio.avancar(delta);
+    if (!this.ui.bloqueado && !this.transicionando && !this.mapaAberto) {
+      const diaAntes = estado.dia;
+      const minutoAntes = estado.relogio.minutos;
+      estado.dia += estado.relogio.avancar(delta * estado.preferencias.valores.tempo * (this.sentado ? 6 : 1));
+      if (estado.dia !== diaAntes) { estado.eventos.emit('DAY_STARTED', { dia: estado.dia }); this.atualizarVisuaisRurais(); this.anunciarClimaExtremo(); }
+      if (estado.relogio.minutos !== minutoAntes) estado.eventos.emit('TIME_CHANGED', { dia: estado.dia, minuto: estado.relogio.minutos });
+      if (estado.relogio.minutos !== minutoAntes) { observarVida(estado, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile); registrarFerimentoNaRepresa(estado); }
       estado.vida.atualizar(delta);
       // a tensao da represa conta MINUTO DE JOGO, entao ela so avanca quando o
       // relogio vira — nao a cada quadro
@@ -708,18 +865,25 @@ export class FarmScene extends Phaser.Scene {
         estado.represa.avancar(estado.mapa, antes < 0 ? 0 : CONFIG_TEMPO.minutosPorTick);
       }
       estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, delta);
-      const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos);
-      if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, 5800);
+      const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos, false, id => estado.relacoes.getScore(id));
+      if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, (estado.encontrosNpc.ativo?.definicao.falas.length ?? 4) * 1450);
       this.sincronizarNpcs();
+      this.atualizarConvivio(delta);
     }
 
     estado.armas.atualizar(delta);
     this.atualizarBalaoEncontro();
 
     this.atualizarFigurantesAmbientais();
+    const climaAgora = climaDoEvento(estado.dia, estado.clima.paraDia(estado.dia));
+    this.bichos?.atualizar(delta, estado.mapa, estado.relogio.minutos, climaAgora, dataDoDia(estado.dia).estacao, this.player, this.ui.bloqueado || this.mapaAberto);
     this.atualizarPortasEIluminacao();
     this.atualizarLuzesNoturnas();
+    this.ambiente.atualizar(this.ui.bloqueado || this.mapaAberto ? 0 : delta, estado.relogio.minutos, dataDoDia(estado.dia).estacao, climaAgora, estado.preferencias.valores);
 
+    this.atualizarTrilhaSonora(delta);
+
+    if (controles.apertouPad('mapa')) this.alternarMapa();
     if (this.mapaAberto) {
       this.player.setVelocity(0, 0);
       this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
@@ -731,6 +895,7 @@ export class FarmScene extends Phaser.Scene {
     this.represa?.atualizar(delta, this.player, this.ui.bloqueado || this.transicionando);
 
     this.atualizarAlvo();
+    if (this.atualizarBanco()) return;
     if (this.atravessarBordaSeEncostou()) return;
 
     // com dialogo/menu aberto — ou com uma peca na mao — o player fica parado
@@ -748,20 +913,21 @@ export class FarmScene extends Phaser.Scene {
     const armaNaMao = this.armaEquipada();
     if (armaNaMao) {
       const p = this.input.activePointer;
-      const dx = p.worldX - this.player.x;
-      const dy = p.worldY - (this.player.y - this.tamanhoTile * 0.6);
+      const dx = controles.usandoMiraPad ? controles.mira.x * 100 : p.worldX - this.player.x;
+      const dy = controles.usandoMiraPad ? controles.mira.y * 100 : p.worldY - (this.player.y - this.tamanhoTile * 0.6);
       if (Math.hypot(dx, dy) > 2) this.direcao = direcaoDaMira(dx, dy);
-      this.mao.atualizarMira(p, true);
-      if (p.leftButtonDown()) this.atirar(dx, dy);
-      if (Phaser.Input.Keyboard.JustDown(this.teclaRecarga)) this.recarregarArma();
+      this.mao.atualizarMira(controles.usandoMiraPad ? { worldX: this.player.x + dx, worldY: this.player.y - this.tamanhoTile * .6 + dy } : p, true);
+      if (p.leftButtonDown() || controles.atirando) this.atirar(dx, dy);
+      if (controles.apertou('recarregar')) this.recarregarArma();
     } else {
       this.mao.atualizarMira(this.input.activePointer, false);
     }
 
     // golpe: trava o movimento pela duracao da animacao, o que e o que impede
     // andar e bater ao mesmo tempo e o que da peso ao ataque
-    if (this.represa && Phaser.Input.Keyboard.JustDown(this.teclaAtaque)) {
+    if (this.represa && controles.apertou('atacar')) {
       this.represa.atacar(this.player, this.direcao, this.danoDoGolpe());
+      som.tocar('golpe');
     }
     if (this.represa?.atacando) {
       this.player.setVelocity(0, 0);
@@ -770,17 +936,16 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
 
-    const k = this.teclas as unknown as Record<string, Phaser.Input.Keyboard.Key>;
-    const esquerda = this.cursors.left.isDown || k.A.isDown;
-    const direita = this.cursors.right.isDown || k.D.isDown;
-    const cima = this.cursors.up.isDown || k.W.isDown;
-    const baixo = this.cursors.down.isDown || k.S.isDown;
+    const esquerda = this.cursors.left.isDown || controles.pressionada('esquerda');
+    const direita = this.cursors.right.isDown || controles.pressionada('direita');
+    const cima = this.cursors.up.isDown || controles.pressionada('cima');
+    const baixo = this.cursors.down.isDown || controles.pressionada('baixo');
 
     const vx = (direita ? 1 : 0) - (esquerda ? 1 : 0);
     const vy = (baixo ? 1 : 0) - (cima ? 1 : 0);
 
-    const correndo = this.correr.isDown;
-    const velocidade = correndo ? CONFIG.movimento.correr : CONFIG.movimento.andar;
+    const correndo = controles.pressionada('correr');
+    const velocidade = (correndo ? CONFIG.movimento.correr : CONFIG.movimento.andar) * (estado.equipamento.equipado('acessorio') === 'smartwatch' ? 1.05 : 1);
     const v = new Phaser.Math.Vector2(vx, vy).normalize().scale(velocidade);
     this.player.setVelocity(v.x, v.y);
 
@@ -796,7 +961,9 @@ export class FarmScene extends Phaser.Scene {
         this.mao.animacaoDoCorpo(correndo ? 'run' : 'walk', this.direcao),
         true,
       );
+      this.pisar(correndo);
     } else {
+      this.proximoPasso = 0;
       this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
     }
     this.mao.atualizar(delta, this.player, this.direcao);
@@ -806,6 +973,20 @@ export class FarmScene extends Phaser.Scene {
   interagir(): void {
     if (this.posicionando || !this.alvo) return;
     switch (this.alvo.tipo) {
+      case 'domestico': {
+        const acao = String(this.alvo.props.acao);
+        if (!this.biblioteca?.interagir(acao)) this.vidaDomestica?.interagir(acao);
+        break;
+      }
+      case 'documento':
+        this.recolherDocumento(this.alvo);
+        break;
+      case 'bicho':
+        this.interagirComBicho(this.alvo);
+        break;
+      case 'banco':
+        this.sentarNoBanco(this.alvo);
+        break;
       case 'placa':
         this.examinarPlaca(this.alvo);
         break;
@@ -828,7 +1009,13 @@ export class FarmScene extends Phaser.Scene {
         this.abrirLojaDeExpansao();
         break;
       case 'mobilia':
-        this.abrirCatalogoDeMobilia();
+        this.ui.abrirMenu('Bancada de trabalho', [
+          { rotulo: 'Moveis e decoracao', aoEscolher: () => this.abrirCatalogoDeMobilia() },
+          ...RECEITAS.map(r => ({ rotulo: `${r.nome}: ${r.ingredientes.map(([id, n]) => `${n} ${ITENS[id]?.nome ?? id}`).join(' + ')}`, aoEscolher: () => { this.ui.avisoRapido(fabricar(r.id, estado.inventario)); this.salvarJogo(); } })),
+        ]);
+        break;
+      case 'atividade_rural':
+        this.abrirAtividadeRural(this.alvo.id);
         break;
       case 'obra':
         this.abrirProjetoCidade(this.alvo);
@@ -933,6 +1120,7 @@ export class FarmScene extends Phaser.Scene {
         : { x: (destino.spawnTile.x + 0.5) * t, y: (destino.spawnTile.y + 0.5) * t };
 
     this.transicionando = true;
+    som.tocar('porta');
     const cam = this.cameras.main;
     cam.fadeOut(220, 0, 0, 0);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -940,19 +1128,56 @@ export class FarmScene extends Phaser.Scene {
     });
   }
 
+  // --------------------------------------------------------------- audio --
+
+  /**
+   * Ambiente e trilha do lugar onde o jogador esta. As duas decisoes moram em
+   * `game/audio.ts`; aqui so entram mapa, hora, clima e andar.
+   */
+  private atualizarTrilhaSonora(delta: number): void {
+    this.proximaTrilhaSonora -= delta;
+    if (this.proximaTrilhaSonora > 0) return;
+    this.proximaTrilhaSonora = 500;
+    const lugar = {
+      mapa: estado.mapa,
+      minuto: estado.relogio.minutos,
+      clima: estado.clima.paraDia(estado.dia),
+      externo: buscarMapa(estado.mapa)?.externo ?? false,
+      andar: andarDoMapa(estado.mapa),
+    };
+    som.ambiente(ambienteDoLugar(lugar));
+    som.musica(trilhaDoLugar(lugar));
+  }
+
+  /** Passo no ritmo da caminhada; a superficie vem do mapa. */
+  private pisar(correndo: boolean): void {
+    const agora = this.time.now;
+    if (agora < this.proximoPasso) return;
+    this.proximoPasso = agora + (correndo ? 260 : 380);
+    som.tocar(somDoPasso(pisoDoMapa(estado.mapa)));
+  }
+
   // -------------------------------------------------------------- dormir --
 
   /** Fluxo unico usado por qualquer cama, preservando o interior no save. */
-  private dormir(zonaAtual: string): void {
+  private dormir(zonaAtual: string, depoisDaNoite = false): void {
     if (zonaAtual !== estado.mapa) {
       console.warn(`[dormir] zona mudou de "${zonaAtual}" para "${estado.mapa}" antes da confirmacao`);
       return;
     }
+    if (!depoisDaNoite && zonaAtual === 'oficina' && estado.dia >= 7 && !estado.worldEvents.ativa(`noite:vivida:${estado.dia}`) && (estado.dia % 17 === 8 || estado.dia % 13 === 7)) {
+      this.scene.launch('NoiteScene', { tipo: estado.dia % 17 === 8 ? 'sonho' : 'insonia', aoDormir: () => this.dormir(zonaAtual, true) }); return;
+    }
     this.transicionando = true;
+    som.tocar('dormir');
     const cam = this.cameras.main;
     cam.fadeOut(300, 0, 0, 0);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      estado.dia += 1;
+      const mudouDia = estado.worldEvents.obter('noite:amanhecer') !== estado.dia || estado.relogio.minutos >= 360;
+      if (mudouDia) estado.dia += 1;
+      estado.worldEvents.definir('noite:amanhecer', -1);
+      if (mudouDia) estado.eventos.emit('DAY_STARTED', { dia: estado.dia });
+      this.atualizarVisuaisRurais();
       estado.relogio.definir(CONFIG_TEMPO.horaAoAcordar);
       // dormir na propria cama cura por inteiro. E a unica cura gratuita do
       // jogo, e por isso ela custa um dia.
@@ -990,9 +1215,14 @@ export class FarmScene extends Phaser.Scene {
     });
   }
 
-  private salvarJogo(): boolean {
+  salvarJogo(): boolean {
+    const miniatura = obterMiniatura();
+    if (miniatura) estado.worldEvents.definir('save:miniatura', miniatura);
     return salvar({
       dia: estado.dia,
+      progressao: estado.progressao.serializar(),
+      clima: estado.clima.serializar(),
+      rural: estado.rural.serializar(),
       minutos: estado.relogio.minutos,
       mapa: estado.mapa,
       x: Math.round(this.player.x),
@@ -1062,6 +1292,7 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
 
+    som.tocar('pegar');
     estado.itensColetados.add(alvo.id);
     this.visuaisDeItens.get(alvo.id)?.destroy();
     this.visuaisDeItens.delete(alvo.id);
@@ -1113,23 +1344,27 @@ export class FarmScene extends Phaser.Scene {
     };
     const lista = rotas[mapa.chave] ?? [];
 
+    const estacao = dataDoDia(estado.dia).estacao;
     for (const rota of lista) {
       // Em dois de cada tres dias, exatamente um dos quatro slots da janela
       // descansa; no terceiro aparecem os quatro. Sempre ficam 3-4 simultaneos.
       if (estado.dia % 3 !== 0 && (estado.dia + rota.seed) % 4 === 0) continue;
-      const corpo = this.add.container(rota.inicio.x * this.tamanhoTile, rota.inicio.y * this.tamanhoTile);
-      const cabeca = this.add.circle(0, -11, 7, rota.tipo === 'crianca' ? 0xf3d5a8 : 0xe7b98b)
-        .setDepth(1);
-      const tronco = this.add.rectangle(0, 2, rota.tipo === 'crianca' ? 10 : 14, rota.tipo === 'adulto' || rota.tipo === 'idoso' ? 18 : 16, rota.tipo === 'jovem' ? 0x5a8bd6 : rota.tipo === 'crianca' ? 0xeb7b51 : 0x7e8f5f)
-        .setOrigin(0.5, 0.5)
-        .setDepth(1);
-      const pernas = this.add.rectangle(0, 18, 12, 12, rota.tipo === 'crianca' ? 0x5e4254 : 0x433a3a)
-        .setOrigin(0.5, 0.5)
-        .setDepth(1);
-      corpo.add([cabeca, tronco, pernas]);
+      // ESTACAO: no inverno ninguem fica na rua a noite e a tarde sai mais cedo;
+      // no verao o contrario. Roupa e horario mudam pela mesma regra.
+      const deslocamento = deslocamentoDaEstacao(rota.janela.inicio, estacao);
+      if (deslocamento === null) continue;
+      const semente = rota.id.split('').reduce((n, c) => n + c.charCodeAt(0), 0);
+      const aparencia = aparenciaPorSemente(semente);
+      const traje = trajeDaEstacao(estacao, semente);
+      aparencia.acessorio = traje.acessorio;
+      aparencia.camisa = traje.camisa;
+      if (rota.tipo === 'idoso') aparencia.cabelo = 3;
+      const janela = { inicio: rota.janela.inicio + deslocamento, fim: rota.janela.fim + deslocamento };
+      const corpo = new PersonagemModular(this, rota.inicio.x * this.tamanhoTile, rota.inicio.y * this.tamanhoTile,
+        aparencia, this.tamanhoTile * (rota.tipo === 'crianca' ? 1.05 : 1.5));
       corpo.setDepth(rota.inicio.y * this.tamanhoTile);
       corpo.setVisible(false);
-      this.figurantesAmbientais.push({ ...rota, conta: corpo });
+      this.figurantesAmbientais.push({ ...rota, janela, conta: corpo });
     }
   }
 
@@ -1159,12 +1394,10 @@ export class FarmScene extends Phaser.Scene {
       const x = Phaser.Math.Linear(figurante.inicio.x, figurante.fim.x, passo) * this.tamanhoTile;
       const y = Phaser.Math.Linear(figurante.inicio.y, figurante.fim.y, passo) * this.tamanhoTile;
       figurante.conta.setPosition(x, y).setVisible(true).setDepth(y);
+      const dx = figurante.fim.x - figurante.inicio.x, dy = figurante.fim.y - figurante.inicio.y;
+      const direcao = Math.abs(dx) > Math.abs(dy) ? dx < 0 ? 'left' : 'right' : dy < 0 ? 'up' : 'down';
+      figurante.conta.pose(passo < 1 ? 'walk' : 'idle', direcao, this.time.now, estado.preferencias.valores.movimentoReduzido);
     }
-  }
-
-  private estahNoturno(minutos = estado.relogio.minutos): boolean {
-    const m = ((minutos % (24 * 60)) + 24 * 60) % (24 * 60);
-    return m >= 18 * 60 || m < 6 * 60;
   }
 
   private portaAbertaAgora(porta: Interagivel): boolean {
@@ -1193,7 +1426,7 @@ export class FarmScene extends Phaser.Scene {
       const horario = HORARIOS_PORTAS[destino];
       const texto = this.indicadoresPorta.get(porta.id) ?? this.add.text(porta.x, porta.y - 22, '', {
         fontFamily: UI.fonte,
-        fontSize: '10px',
+        fontSize: UI.tamanho,
         color: '#f7f1cc',
         backgroundColor: '#1a1712',
         padding: { x: 4, y: 2 },
@@ -1213,9 +1446,30 @@ export class FarmScene extends Phaser.Scene {
     }
   }
 
-  private criarLuzesNoturnas(): void {
+  private criarLuzesNoturnas(map: Phaser.Tilemaps.Tilemap): void {
     this.luzesNoturnas.forEach((luz) => luz.destroy());
     this.luzesNoturnas = [];
+
+    // A luz de dentro da biblioteca nao depende de poste: ela e a janela acesa
+    // no horario de funcionamento, e fica antes do desvio abaixo.
+    if (estado.mapa === 'biblioteca') {
+      this.luzBiblioteca = this.add.graphics();
+      this.luzBiblioteca.fillStyle(0xffe8a2, 0.18);
+      this.luzBiblioteca.fillRect(11.5 * this.tamanhoTile, 8 * this.tamanhoTile, 8 * this.tamanhoTile, 6 * this.tamanhoTile);
+      this.luzBiblioteca.setDepth(DEPTH_OVERLAY + 10);
+      this.luzBiblioteca.setVisible(false);
+    }
+
+    // POSTE DE VERDADE ACENDE. Antes a luz noturna saia de uma tabela de
+    // pontos a mao, escrita quando o mapa nao tinha poste nenhum: o halo caia
+    // perto do lugar certo por aproximacao. Com o remap do centro, cada peca de
+    // iluminacao sai do gerador marcada com `luz`, e a cena acende exatamente
+    // onde ela esta. Mapa sem peca marcada continua com a tabela.
+    const daLampada = this.luzesDosMoveis(map);
+    if (daLampada.length > 0) {
+      for (const ponto of daLampada) this.acenderLuzNoturna(ponto);
+      return;
+    }
 
     const pontos = {
       farm: [
@@ -1234,26 +1488,52 @@ export class FarmScene extends Phaser.Scene {
 
     const luzes = pontos[estado.mapa as keyof typeof pontos] ?? [];
     for (const ponto of luzes) {
-      const grafico = this.add.graphics();
-      grafico.fillStyle(0xffe3a3, 0.22);
-      grafico.fillCircle(ponto.x * this.tamanhoTile, ponto.y * this.tamanhoTile, ponto.r);
-      grafico.setDepth(DEPTH_OVERLAY + 2);
-      grafico.setVisible(false);
-      this.luzesNoturnas.push(grafico);
-    }
-
-    if (estado.mapa === 'biblioteca') {
-      this.luzBiblioteca = this.add.graphics();
-      this.luzBiblioteca.fillStyle(0xffe8a2, 0.18);
-      this.luzBiblioteca.fillRect(11.5 * this.tamanhoTile, 8 * this.tamanhoTile, 8 * this.tamanhoTile, 6 * this.tamanhoTile);
-      this.luzBiblioteca.setDepth(DEPTH_OVERLAY + 10);
-      this.luzBiblioteca.setVisible(false);
+      this.acenderLuzNoturna({
+        x: ponto.x * this.tamanhoTile,
+        y: ponto.y * this.tamanhoTile,
+        r: ponto.r,
+      });
     }
   }
 
+  /**
+   * Um halo quente, escondido de dia. Coordenada em PIXEL.
+   *
+   * A PROFUNDIDADE E O PONTO: o veu da noite do `AmbienteMundo` fica em 850000,
+   * e o halo ficava embaixo dele — a luz do poste era escurecida junto com o
+   * resto e praticamente desaparecia. Acima do veu, o poste passa a abrir uma
+   * poca de luz de verdade no calcamento.
+   */
+  private acenderLuzNoturna(ponto: { x: number; y: number; r: number }): void {
+    const grafico = this.add.image(ponto.x, ponto.y, texturaRadial(this))
+      .setDisplaySize(ponto.r * 2, ponto.r * 2).setTint(0xffd59b).setBlendMode(Phaser.BlendModes.ADD);
+    grafico.setDepth(DEPTH_LUZ_NOTURNA);
+    grafico.setVisible(false);
+    this.luzesNoturnas.push(grafico);
+  }
+
+  /**
+   * Pontos de luz vindos da camada `moveis`: poste, balizador e luminaria
+   * marcados com `luz` pelo gerador. O halo sobe pra altura da lampada e o raio
+   * acompanha o tamanho da peca — poste de braco ilumina mais que balizador.
+   */
+  private luzesDosMoveis(map: Phaser.Tilemaps.Tilemap): { x: number; y: number; r: number }[] {
+    return (map.getObjectLayer('moveis')?.objects ?? []).flatMap((obj) => {
+      const props = lerProps(obj);
+      if (props.luz !== true) return [];
+      const alturaTiles = Number(props.alturaTiles) || 2;
+      return [{
+        x: obj.x ?? 0,
+        y: (obj.y ?? 0) - alturaTiles * this.tamanhoTile * 0.75,
+        r: this.tamanhoTile * (0.9 + alturaTiles * 0.32),
+      }];
+    });
+  }
+
   private atualizarLuzesNoturnas(): void {
-    const ativa = this.estahNoturno();
-    for (const luz of this.luzesNoturnas) luz.setVisible(ativa);
+    // APAGAO: a rua inteira perde a luz publica; o que sobra e vela e lanterna.
+    const apagao = apagaoAtivo(estado.dia, estado.relogio.minutos);
+    for (const luz of this.luzesNoturnas) luz.setVisible(!apagao).setAlpha(apagao ? 0 : intensidadeNoturna(estado.relogio.minutos));
     if (this.luzBiblioteca) {
       const minutos = estado.relogio.minutos;
       this.luzBiblioteca.setVisible(minutos >= 9 * 60 && minutos < 19 * 60);
@@ -1274,23 +1554,92 @@ export class FarmScene extends Phaser.Scene {
         y: estadoNpc.y * this.tamanhoTile,
         props: { npcId: def.id },
       };
-      const textura = def.sprite ? `npc-${def.id}-sprites` : 'player-idle-sprites';
-      const sprite = this.physics.add.sprite(alvo.x, alvo.y, textura, 'down-0');
-      this.configurarNpc(sprite);
-      sprite.setImmovable(true);
-      if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
-      sprite.anims.play(`${def.sprite ? `npc-${def.id}-` : ''}idle-down`);
       this.interagiveis.push(alvo);
-      sprite.setVisible(false);
-      this.npcs.push({
+      const npc: NpcVisual = {
         estado: estadoNpc,
-        sprite,
+        sprite: null,
         interagivel: alvo,
         animacao: def.sprite ? `npc-${def.id}-` : '',
         visivelAplicado: false,
-      });
+      };
+      this.npcs.push(npc);
+      this.montarSpriteDeNpc(npc);
     }
     this.sincronizarNpcs(true);
+  }
+
+  /**
+   * Monta o sprite de um NPC, se a folha dele ja estiver em textura.
+   *
+   * Idempotente, e sem efeito nenhum quando a folha falta: devolve false e quem
+   * chamou decide se pede. O colisor com o jogador entra aqui porque o da
+   * montagem da cena so conhece quem existia naquele instante.
+   */
+  private montarSpriteDeNpc(npc: NpcVisual): boolean {
+    if (npc.sprite) return true;
+    const def = buscarNpc(npc.estado.id);
+    if (!def || !prepararNpc(this, def)) return false;
+
+    const textura = def.sprite ? `npc-${def.id}-sprites` : 'player-idle-sprites';
+    const sprite = this.physics.add.sprite(
+      npc.interagivel.x,
+      npc.interagivel.y,
+      textura,
+      'down-0',
+    );
+    this.configurarNpc(sprite);
+    sprite.setImmovable(true);
+    if ('tint' in def && def.tint !== undefined) sprite.setTint(def.tint);
+    sprite.anims.play(`${npc.animacao}idle-down`);
+    sprite.setVisible(false);
+    npc.sprite = sprite;
+    this.physics.add.collider(this.player, sprite);
+    return true;
+  }
+
+  /**
+   * Pede a folha de um NPC que precisa aparecer e ainda nao tem sprite.
+   *
+   * Nao ha listener de COMPLETE aqui de proposito: a cena ja escuta esse evento
+   * pra reiniciar depois de buscar tilemap e atlas de movel, e uma folha de NPC
+   * chegando no meio disso dispararia o restart. Em vez disso `sincronizarNpcs`
+   * tenta montar de novo a cada quadro — quando a textura chega, ela monta.
+   */
+  private garantirSpriteDeNpc(npc: NpcVisual): void {
+    if (this.montarSpriteDeNpc(npc)) return;
+    const def = buscarNpc(npc.estado.id);
+    if (!def || this.folhasDeNpcPedidas.has(def.id)) return;
+    this.folhasDeNpcPedidas.add(def.id);
+    if (enfileirarFolhasNpc(this, def) > 0) this.load.start();
+  }
+
+  /**
+   * As folhas de quem esta em cena AGORA, antes de a cena montar.
+   *
+   * Mesmo formato de `garantirTilemap` e `garantirAtlasDeMovel`: corta o
+   * `create` no mesmo lugar, dispara a carga e reinicia quando ela termina.
+   *
+   * O conjunto e pequeno porque quem esta dentro de casa nao conta — no mapa
+   * mais povoado sao dezessete dos trinta e tres. O minimapa entra na mesma
+   * conta: ele mostra retrato de quem esta no mapa EXTERNO, mesmo com o jogador
+   * dentro de um interior, e por isso `posicaoNpcNoMapaAberto` tambem pesa.
+   */
+  private garantirFolhasDeNpc(): boolean {
+    let pedidos = 0;
+    estado.rotinasNpc.atualizar(estado.dia, estado.relogio.minutos, 0);
+    for (const estadoNpc of estado.rotinasNpc.todos) {
+      const emCena = this.posicaoNpcNoMapa(estadoNpc) !== null
+        || this.posicaoNpcNoMapaAberto(estadoNpc.id) !== null;
+      if (!emCena) continue;
+      const def = buscarNpc(estadoNpc.id);
+      if (!def) continue;
+      this.folhasDeNpcPedidas.add(def.id);
+      pedidos += enfileirarFolhasNpc(this, def);
+    }
+    if (pedidos === 0) return true;
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => this.scene.restart(this.entradaAtual));
+    this.load.start();
+    return false;
   }
 
   /**
@@ -1305,35 +1654,44 @@ export class FarmScene extends Phaser.Scene {
    * esmaecimento de saida: sem ele, cada quadro reiniciaria o tween.
    */
   private aplicarVisibilidadeDeNpc(npc: NpcVisual, visivel: boolean, instantaneo = false): void {
-    if (npc.visivelAplicado === visivel) return;
+    if (npc.visivelAplicado === visivel || !npc.sprite) return;
+    const boneco = npc.sprite;
     npc.visivelAplicado = visivel;
-    this.tweens.killTweensOf(npc.sprite);
+    this.tweens.killTweensOf(boneco);
     // Na montagem da cena nao ha o que esmaecer: a camera inteira ja entra com
     // fade. Fazer isso aqui tambem deixaria o NPC em alpha 0 se o primeiro
     // quadro demorasse.
-    if (instantaneo) {
-      npc.sprite.setVisible(visivel).setAlpha(1);
+    // MOVIMENTO REDUZIDO reusa o caminho instantaneo, que ja existia pra
+    // montagem de cena. Um NPC surgindo e desaparecendo em fade a cada troca de
+    // rotina e movimento nao pedido, e o mesmo `setVisible` resolve.
+    if (instantaneo || estado.preferencias.valores.movimentoReduzido) {
+      boneco.setVisible(visivel).setAlpha(1);
       return;
     }
     if (visivel) {
-      npc.sprite.setVisible(true).setAlpha(0);
-      this.tweens.add({ targets: npc.sprite, alpha: 1, duration: DURACAO_FADE_NPC });
+      boneco.setVisible(true).setAlpha(0);
+      this.tweens.add({ targets: boneco, alpha: 1, duration: DURACAO_FADE_NPC });
       return;
     }
     this.tweens.add({
-      targets: npc.sprite,
+      targets: boneco,
       alpha: 0,
       duration: DURACAO_FADE_NPC,
       // pode ter voltado a ser visivel no meio do caminho
-      onComplete: () => { if (!npc.visivelAplicado) npc.sprite.setVisible(false); },
+      onComplete: () => { if (!npc.visivelAplicado) boneco.setVisible(false); },
     });
   }
 
   private sincronizarNpcs(instantaneo = false): void {
     for (const npc of this.npcs) {
-      const { sprite, interagivel } = npc;
       const posicao = this.posicaoNpcNoMapa(npc.estado);
       const visivel = posicao !== null;
+      // Quem precisa aparecer e nao tem sprite: pede a folha agora. Enquanto ela
+      // nao chega o NPC simplesmente nao esta em cena, e o `continue` o mantem
+      // fora tambem do alvo de conversa — nao existe interlocutor invisivel.
+      if (visivel && !npc.sprite) this.garantirSpriteDeNpc(npc);
+      const { sprite, interagivel } = npc;
+      if (!sprite) continue;
       this.aplicarVisibilidadeDeNpc(npc, visivel, instantaneo);
       sprite.setActive(visivel);
       if (sprite.body) sprite.body.enable = visivel;
@@ -1354,37 +1712,47 @@ export class FarmScene extends Phaser.Scene {
     const ativo = estado.encontrosNpc.ativo;
     const fala = ativo?.definicao.falas[ativo.indiceFala];
     const visual = fala ? this.npcs.find((n) => n.interagivel.props.npcId === fala.npcId) : null;
+    // Sem sprite o NPC nao esta em cena (a folha dele ainda vem vindo), e balao
+    // de fala precisa de alguem embaixo dele pra sair da boca de quem fala.
+    const boneco = visual?.sprite ?? null;
     const perto = Boolean(
-      visual?.sprite.visible &&
+      boneco?.visible &&
       jogadorOuveEncontro(
-        Phaser.Math.Distance.Between(this.player.x, this.player.y, visual.sprite.x, visual.sprite.y) / this.tamanhoTile,
+        Phaser.Math.Distance.Between(this.player.x, this.player.y, boneco.x, boneco.y) / this.tamanhoTile,
       ),
     );
-    if (!fala || !visual || !perto) {
+    if (!fala || !boneco || !perto) {
       this.balaoEncontro?.destroy();
       this.balaoEncontro = null;
       return;
     }
     if (!this.balaoEncontro) {
-      this.balaoEncontro = this.add.text(visual.sprite.x, visual.sprite.y - this.tamanhoTile * 1.8, '', {
-        fontFamily:UI.fonte, fontSize:'10px', color:'#18202c', backgroundColor:'#fff8dc',
-        padding:{x:6,y:4}, wordWrap:{width:180}, align:'center',
-      }).setOrigin(0.5,1).setDepth(DEPTH_OVERLAY + 20);
+      this.balaoEncontro = this.add
+        .text(boneco.x, boneco.y - this.tamanhoTile * 1.8, '', {
+          fontFamily: UI.fonte,
+          fontSize: UI.tamanho,
+          color: BALAO.texto,
+          backgroundColor: BALAO.fundo,
+          padding: { x: 6, y: 4 },
+          wordWrap: { width: 180 },
+          align: 'center',
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(DEPTH_OVERLAY + 20);
     }
     this.balaoEncontro.setText(fala.texto).setPosition(
-      visual.sprite.x,
-      visual.sprite.y - this.tamanhoTile * 1.8,
+      boneco.x,
+      boneco.y - this.tamanhoTile * 1.8,
     );
   }
 
   private posicaoNpcNoMapa(npc: EstadoNpc): { x: number; y: number } | null {
-    // AO AR LIVRE: aparece so no proprio mapa externo. Cada NPC declara o seu
-    // (`DefinicaoNpc.mapa`) — antes disto havia um mapa unico de NPC, e os 24
-    // moradores dos Mapas 2/3 ficavam de fora do motor por causa disso.
+    // AO AR LIVRE: o mapa da atividade determina a presenca, inclusive emprego
+    // em outro bairro. DefinicaoNpc.mapa continua sendo a residencia canonica.
     const def = NPCS[npc.id];
     if (!def) return null;
     if (npc.dentro === null) {
-      return npc.visivel && estado.mapa === def.mapa ? { x: npc.x, y: npc.y } : null;
+      return npc.visivel && estado.mapa === npc.mapaAtual ? { x: npc.x, y: npc.y } : null;
     }
     // DENTRO de construcao: aparece so pra quem esta no mesmo interior, venha o
     // NPC do mapa que vier (o Rafael mora no Bairro e atende na academia).
@@ -1474,7 +1842,7 @@ export class FarmScene extends Phaser.Scene {
           0xd9b56d,
         ).setStrokeStyle(2, 0x563b20).setDepth(projeto.posto.y * t);
         const texto = this.add.text(placa.x, placa.y, 'OBRA', {
-          fontFamily: UI.fonte, fontSize: '8px', color: '#37210f', align: 'center',
+          fontFamily: UI.fonte, fontSize: UI.tamanhoPlaca, color: '#37210f', align: 'center',
         }).setOrigin(0.5).setDepth(placa.depth + 1);
         this.visuaisDeObra.push(placa, texto);
       }
@@ -1513,18 +1881,82 @@ export class FarmScene extends Phaser.Scene {
     if (!projeto) return;
     if (!estado.cidade.construido(id)) {
       this.ui.confirmar(
-        `Construir ${projeto.nome} por ${formatarDinheiro(projeto.custo)}?`,
+        `Construir ${projeto.nome} por ${formatarDinheiro(projeto.custo)}`
+          + ` + ${this.textoMateriais(projeto.materiais)}?`,
         () => this.construirProjetoCidade(projeto),
       );
       return;
     }
-    this.abrirAtribuicaoDeFuncionario(projeto);
+    this.ui.abrirMenu(projeto.nome, [
+      { rotulo: 'Usar servico (seg-sex, 08h-17h)', aoEscolher: () => this.usarServicoCidade(projeto) },
+      { rotulo: 'Escolher responsavel', aoEscolher: () => this.abrirAtribuicaoDeFuncionario(projeto) },
+    ]);
   }
 
+  private usarServicoCidade(projeto: ProjetoCidade): void {
+    if (!estado.cidade.funcionario(projeto.id)) { this.ui.avisoRapido('Escolha um responsavel para abrir o servico.'); return; }
+    if (!TURNO_CIDADE.dias.includes(estado.dia % 7) || estado.relogio.minutos < TURNO_CIDADE.inicio || estado.relogio.minutos >= TURNO_CIDADE.fim) {
+      this.ui.avisoRapido(`Atendimento de segunda a sexta, ${HORARIO_EMPREGO}.`); return;
+    }
+    if (projeto.id === 'hospital') {
+      if (estado.vida.cheio) { this.ui.avisoRapido('Sua saude esta em dia.'); return; }
+      this.ui.confirmar('Atendimento e recuperacao completa: R$ 15,00?', () => {
+        // A cena sai ANTES da cura: o texto fala do corpo como ele chegou.
+        const atendente = estado.cidade.funcionario(projeto.id);
+        const def = atendente ? buscarNpc(atendente) : null;
+        const cena = cenaDaConsulta(estado, atendente ?? null, def?.nome ?? 'Atendimento');
+        const r = estado.carteira.gastar(1500, { cabe: () => !estado.vida.cheio, entregar: () => estado.vida.restaurarTudo() });
+        if (r.ok) {
+          registrarConsulta(estado);
+          this.ui.iniciarDialogo(cena, () => this.salvarJogo());
+        } else this.ui.avisoRapido('Saldo insuficiente ou atendimento desnecessário.');
+        this.salvarJogo();
+      });
+    } else if (projeto.id === 'ponto_onibus') {
+      this.ui.abrirMenu('Linha municipal - R$ 5,00 / 30 min', ['farm', 'rural'].filter(id => Object.hasOwn(MAPAS, id)).map(id => ({
+        rotulo: id === 'rural' ? 'Zona rural' : 'Centro', aoEscolher: () => {
+          const destino = buscarMapa(id); if (!destino) return;
+          if (!estado.carteira.gastar(500).ok) { this.ui.avisoRapido('Saldo insuficiente.'); return; }
+          estado.dia += estado.relogio.avancarMinutos(30);
+          this.salvarJogo();
+          // O trecho vira cena curta e pulavel; quem pula chega no mesmo ponto.
+          this.scene.launch('ViagemScene', { destino: id, aoChegar: () => {
+            this.scene.restart({ mapa: id, x: (destino.spawnTile.x + .5) * this.tamanhoTile, y: (destino.spawnTile.y + .5) * this.tamanhoTile, salvar: true });
+          } });
+        },
+      })));
+    } else {
+      this.ui.abrirLoja({ id: `servico_${projeto.id}`, mapa: projeto.mapa, tile: projeto.posto, nome: projeto.nome, rotulo: 'Comprar', categorias: ['normal'],
+        itemIds: projeto.id === 'padaria' ? ['pao_frances', 'pao_de_forma', 'pao_caseiro', 'fatia_bolo'] : ['cafe', 'leite', 'fatia_bolo', 'pao_frances'], npcDono: estado.cidade.funcionario(projeto.id) ?? undefined });
+    }
+  }
+
+  /**
+   * Obra publica: dinheiro E material, na mesma transacao da carteira.
+   *
+   * Mesmo formato da compra de comodo (`comprarExpansao`): a falta de
+   * material e avisada ANTES, e dentro da transacao `cabe()` confere de novo,
+   * porque entre o aviso e o gasto o jogador pode ter largado uma tabua.
+   * Se o saldo nao der, nada e consumido.
+   */
   private construirProjetoCidade(projeto: ProjetoCidade): void {
+    const faltas = this.materiaisFaltando(projeto.materiais);
+    if (faltas.length > 0) {
+      this.ui.iniciarDialogo(falasDe('Prefeitura', [
+        `Falta material para a obra: ${faltas.join(', ')}. Nada foi consumido.`,
+        'A madeireira e a pedreira da zona rural vendem; os pontos de coleta sao de graca.',
+      ]));
+      return;
+    }
     const r = estado.carteira.gastar(projeto.custo, {
-      cabe: () => !estado.cidade.construido(projeto.id),
-      entregar: () => { estado.cidade.construir(projeto.id); },
+      cabe: () => !estado.cidade.construido(projeto.id)
+        && this.materiaisFaltando(projeto.materiais).length === 0,
+      entregar: () => {
+        this.consumirMateriais(projeto.materiais);
+        estado.cidade.construir(projeto.id);
+        // o jornal da semana precisa saber QUANDO a obra ficou pronta
+        estado.worldEvents.definir(`jornal:obra:${projeto.id}`, estado.dia);
+      },
     });
     if (!r.ok) {
       this.ui.iniciarDialogo(falasDe('Prefeitura', [
@@ -1572,7 +2004,7 @@ export class FarmScene extends Phaser.Scene {
       // A rotina de cada NPC e montada UMA vez por dia, na virada. Trocar agora
       // reiniciaria o dia dele na frente do jogador — ver `atividadesComEmprego`
       // em src/game/cidade.ts.
-      'O turno comeca amanha, nos dias uteis, das 08:00 as 17:00.',
+      `O turno comeca amanha, nos dias uteis, das ${HORARIO_EMPREGO}.`,
     ], morador.id));
   }
 
@@ -1608,6 +2040,12 @@ export class FarmScene extends Phaser.Scene {
       const altura = sprite.displayHeight * MOVEL_CORPO.altura;
       const pegada = this.retEmTiles(x, y, largura, altura);
       if (props.chao !== true) this.pegadasDeMovel.push(pegada);
+      // BANCO DE PRACA: o unico movel que vira ponto de interacao. Sentar nao e
+      // tarefa nem bonus — e deixar o tempo passar num lugar da cidade.
+      if (textura === 'moveis_parque' && quadro === 'movel_0_7') {
+        this.interagiveis.push({ id: `banco:${obj.name || this.interagiveis.length}`, tipo: 'banco', rotulo: 'Sentar',
+          x, y: y + this.tamanhoTile * .4, props: {} });
+      }
       if (props.colide === true) {
         this.corpoNaBase(x, y, largura, altura);
         this.corposDeMovel.push(pegada);
@@ -1634,6 +2072,61 @@ export class FarmScene extends Phaser.Scene {
    * player. A colisao fica so na BASE (tronco da arvore, pe da pedra), entao da
    * pra andar atras delas. A camada e opcional — mapas de interior nao a tem.
    */
+  private criarAtividadesRurais(): void {
+    estado.rural.avancar(estado.dia, estado.clima);
+    if (estado.mapa !== 'rural') return;
+    for (const n of NOS_RURAIS) {
+      const x = (n.x + .5) * this.tamanhoTile, y = (n.y + .5) * this.tamanhoTile;
+      if (n.tipo === 'canteiro') {
+        this.add.rectangle(x, y, 14, 12, 0x765138).setStrokeStyle(1, 0x513622).setDepth(y - 1);
+        const sulcos = this.add.graphics().setDepth(y);
+        sulcos.lineStyle(1, 0x4a3121); for (let dy = -4; dy <= 4; dy += 4) sulcos.lineBetween(x - 5, y + dy, x + 5, y + dy);
+      } else {
+        const frame = ITENS[n.tipo]?.frame;
+        if (frame) this.add.image(x, y, 'itens', frame).setDisplaySize(14, 14).setDepth(y);
+      }
+      this.interagiveis.push({ id: n.id, tipo: 'atividade_rural', rotulo: n.tipo === 'canteiro' ? 'Canteiro' : 'Coletar materiais', x, y, props: {} });
+    }
+    this.atualizarVisuaisRurais();
+  }
+
+  private atualizarVisuaisRurais(): void {
+    if (estado.mapa !== 'rural') return;
+    this.children.getByName('cultivos-visuais')?.destroy();
+    const camada = this.add.container(0, 0).setName('cultivos-visuais');
+    for (const n of NOS_RURAIS.filter(n => n.tipo === 'canteiro')) {
+      const p = estado.rural.plantio(n.id); if (!p) continue;
+      const x = (n.x + .5) * this.tamanhoTile, y = (n.y + .5) * this.tamanhoTile, def = CULTIVOS.find(c => c.id === p.cultivo)!;
+      const pronto = p.crescido >= def.dias;
+      const g = this.add.graphics(); camada.add(g);
+      if (p.regadoDia === estado.dia) { g.fillStyle(0x32291f, .55); g.fillRect(x - 6, y - 5, 12, 10); }
+      g.lineStyle(2, p.seco ? 0xbaa06c : 0x599542);
+      for (const dx of [-3, 3]) { g.lineBetween(x + dx, y + 3, x + dx, y - 1 - p.crescido); g.lineBetween(x + dx, y, x + dx - 2, y - 2); }
+      if (pronto && !p.seco && ITENS[p.cultivo]?.frame) camada.add(this.add.image(x, y - 3, 'itens', ITENS[p.cultivo].frame).setDisplaySize(10, 10));
+    }
+    camada.setDepth(64.75 * this.tamanhoTile);
+  }
+
+  private abrirAtividadeRural(id: string): void {
+    estado.rural.avancar(estado.dia, estado.clima);
+    const n = NOS_RURAIS.find(n => n.id === id); if (!n) return;
+    const agir = (acao: () => string) => { this.ui.avisoRapido(acao()); this.atualizarVisuaisRurais(); this.salvarJogo(); };
+    if (n.tipo !== 'canteiro') { agir(() => estado.rural.coletar(id, estado.dia, estado.inventario)); return; }
+    const p = estado.rural.plantio(id);
+    const def = CULTIVOS.find(c => c.id === p?.cultivo);
+    const opcoes = p ? [
+      { rotulo: p.seco ? 'Limpar cultivo seco' : p.regadoDia === estado.dia ? 'Regado hoje' : 'Regar canteiro', aoEscolher: () => agir(() => estado.rural.regar(id, estado.dia)) },
+      { rotulo: 'Colher', aoEscolher: () => agir(() => estado.rural.colher(id, estado.inventario)) },
+    ] : CULTIVOS.map(c => ({ rotulo: `${c.nome}: sementes ${formatarDinheiro(c.custo)} / ${c.dias} dias`, aoEscolher: () => agir(() => estado.rural.plantar(id, c.id, estado.dia, estado.carteira)) }));
+    opcoes.push(...CULTIVOS.map(c => ({ rotulo: `Vender ${c.nome} (${estado.inventario.contar(c.id)}) por ${formatarDinheiro(Math.floor((ITENS[c.id]?.preco ?? 0) * .6))}/un`, aoEscolher: () => agir(() => {
+      const qtd = estado.inventario.contar(c.id), valor = Math.floor((ITENS[c.id]?.preco ?? 0) * .6) * qtd;
+      if (!qtd || !valor) return 'Nenhum produto para vender.';
+      if (!estado.carteira.ganhar(valor).ok) return 'Nao foi possivel receber o pagamento.';
+      estado.inventario.remover(c.id, qtd); return `Venda concluida: ${formatarDinheiro(valor)}.`;
+    }) })));
+    this.ui.abrirMenu(p ? `${def?.nome}: ${p.seco ? 'seco' : `${p.crescido}/${def?.dias} dias`}` : 'Canteiro e venda rural', opcoes);
+  }
+
   private criarFlora(map: Phaser.Tilemaps.Tilemap): void {
     const camada = map.getObjectLayer('flora');
     if (!camada) return;
@@ -1655,6 +2148,7 @@ export class FarmScene extends Phaser.Scene {
       const x = obj.x ?? 0;
       const y = obj.y ?? 0;
       const sprite = this.add.image(x, y, receita.textura, receita.quadro).setOrigin(0.5, 1);
+      if (classe === 'arvore' || classe === 'flor') this.ambiente.vegetacao(sprite);
       // escala vem da altura real do frame: a arte pode mudar de resolucao
       sprite.setScale((receita.alturaTiles * this.tamanhoTile) / sprite.height);
       // profundidade = y: quem esta mais "pra frente" na tela desenha por cima
@@ -1705,6 +2199,31 @@ export class FarmScene extends Phaser.Scene {
    */
   private zoomDeJogo(): number {
     return CONFIG.largura / (TILES_VISIVEIS_X * this.tamanhoTile);
+  }
+
+  abrirMapaCelular(): void { if (!this.mapaAberto) this.alternarMapa(); }
+
+  fotografar(): void {
+    if (!this.pronto || this.ui.bloqueado || this.transicionando) return;
+    if (!estado.worldEvents.ativa('fotografia:liberada') && !estado.worldEvents.ativa('campanha:cena:leticia')) return;
+    const flags = estado.worldEvents.serializar().flags;
+    if (Object.keys(flags).filter(k => k.startsWith('foto:')).length >= 20) return;
+    const mapa = estado.mapa, dia = estado.dia;
+    this.player.setVelocity(0, 0); this.scene.pause(); this.scene.pause('UIScene'); this.scene.setVisible(false, 'UIScene');
+    this.game.renderer.snapshot(imagem => {
+      try {
+        if (!(imagem instanceof HTMLImageElement)) return;
+        const canvas = document.createElement('canvas'); canvas.width = 240; canvas.height = 135;
+        const ctx = canvas.getContext('2d')!; ctx.drawImage(imagem, 0, 0, 240, 135);
+        // Só na região profunda e raramente: uma sombra deslocada, sem figuras familiares.
+        if (mapa.startsWith('represa') && estado.arquivo.tem(100) && (dia + Object.keys(flags).filter(k => k.startsWith('foto:')).length) % 13 === 0) {
+          ctx.fillStyle = 'rgba(14,22,30,.11)'; ctx.fillRect(160, 20, 5, 78);
+        }
+        const id = `${dia}-${Math.floor(estado.relogio.minutos)}-${Object.keys(flags).filter(k => k.startsWith('foto:')).length}`;
+        estado.worldEvents.definir(`foto:${id}`, JSON.stringify({ id, dia, mapa, imagem: canvas.toDataURL('image/jpeg', .65) }));
+        this.salvarJogo(); this.ui.avisoRapido('Fotografia guardada no celular.');
+      } finally { this.scene.resume(); this.scene.resume('UIScene'); this.scene.setVisible(true, 'UIScene'); }
+    });
   }
 
   private alternarMapa(): void {
@@ -1802,7 +2321,7 @@ export class FarmScene extends Phaser.Scene {
             x + (zona.x + zona.width / 2) * escala,
             y + (zona.y + zona.height / 2) * escala,
             zona.name.startsWith('casa_') ? zona.name.slice(5) : zona.name,
-            { fontFamily: UI.fonte, fontSize: '8px', color: UI.texto, align: 'center' },
+            { fontFamily: UI.fonte, fontSize: UI.tamanhoPlaca, color: UI.texto, align: 'center' },
           )
           .setOrigin(0.5)
           .setScrollFactor(0),
@@ -1826,7 +2345,7 @@ export class FarmScene extends Phaser.Scene {
         'vermelho: voce   retrato: NPC',
         {
           fontFamily: UI.fonte,
-          fontSize: '8px',
+          fontSize: UI.tamanhoPlaca,
           color: UI.textoFraco,
         },
       ).setScrollFactor(0),
@@ -1839,21 +2358,15 @@ export class FarmScene extends Phaser.Scene {
     // marcador; `atualizarMarcadoresMapa` mostra apenas quem esta neste mapa.
     const idsNpc = estado.rotinasNpc.todos.map((npc) => npc.id);
     this.marcadoresNpc = idsNpc.map((npcId) => {
-      const perfil = buscarNpc(npcId);
-      const chaveTextura = perfil?.spriteParado
-        ? `npc-${npcId}-parado`
-        : perfil?.sprite
-          ? `npc-${npcId}-sprites`
-          : 'player-idle-sprites';
       const fundoRetrato = this.add.circle(0, 0, 7, 0xfff4d0, 0.96)
         .setStrokeStyle(1, 0x3a2b08)
         .setScrollFactor(0);
-      const retrato = this.add.image(0, 5, chaveTextura, 'down-0')
+      const retrato = this.add.image(0, 5, this.texturaDeRetrato(npcId), 'down-0')
         .setDisplaySize(10, 13)
         .setScrollFactor(0);
       const marcador = this.add.container(0, 0, [fundoRetrato, retrato]).setScrollFactor(0);
       filhos.push(marcador);
-      return { npcId, marcador };
+      return { npcId, marcador, retrato };
     });
 
     this.overlayMapa = this.add
@@ -1872,18 +2385,47 @@ export class FarmScene extends Phaser.Scene {
       this.marcadorPlayer.setVisible(true);
     } else this.marcadorPlayer.setVisible(false);
 
-    this.marcadoresNpc.forEach(({ npcId, marcador }) => {
+    this.marcadoresNpc.forEach(({ npcId, marcador, retrato }) => {
       const posicao = this.posicaoNpcNoMapaAberto(npcId);
       marcador.setVisible(posicao !== null);
-      if (posicao) marcador.setPosition(...this.paraCoordenadaDoMapa(posicao.x, posicao.y));
+      if (!posicao) return;
+      // A folha pode ter chegado depois do desenho do mapa — quem esta em cena
+      // tem sprite, e o retrato do minimapa usa a MESMA textura.
+      const chave = this.texturaDeRetrato(npcId);
+      if (retrato.texture.key !== chave) {
+        retrato.setTexture(chave, 'down-0').setDisplaySize(10, 13);
+      }
+      marcador.setPosition(...this.paraCoordenadaDoMapa(posicao.x, posicao.y));
     });
+  }
+
+  /**
+   * A textura do retrato de minimapa de um NPC.
+   *
+   * As folhas nao vem mais no boot, entao o retrato de quem nao esta neste mapa
+   * pode nao ter textura nenhuma. O recuo e a folha do jogador: o marcador so
+   * fica VISIVEL pra quem esta no mapa externo atual, e esse ja teve a folha
+   * pedida por `garantirFolhasDeNpc` — mas entre o pedido e a chegada existem
+   * alguns quadros, e um `add.image` com chave inexistente desenha o quadrado
+   * verde de textura faltando.
+   */
+  private texturaDeRetrato(npcId: string): string {
+    const perfil = buscarNpc(npcId);
+    const candidatas = [
+      perfil?.spriteParado ? `npc-${npcId}-parado` : null,
+      perfil?.sprite ? `npc-${npcId}-sprites` : null,
+    ].filter((chave): chave is string => chave !== null);
+    return (
+      candidatas.find((chave) => this.textures.exists(chave) && this.textures.get(chave).has('down-0'))
+      ?? 'player-idle-sprites'
+    );
   }
 
   /** Posicao externa de qualquer NPC, mesmo se o jogador estiver num interior. */
   private posicaoNpcNoMapaAberto(npcId: string): { x: number; y: number } | null {
     const npc = estado.rotinasNpc.porId(npcId);
     const def = NPCS[npcId];
-    if (!npc || !def || !npc.visivel || def.mapa !== this.mapaExternoAtual) return null;
+    if (!npc || !def || !npc.visivel || npc.mapaAtual !== this.mapaExternoAtual) return null;
     return { x: npc.x * this.tamanhoTile, y: npc.y * this.tamanhoTile };
   }
 
@@ -1943,7 +2485,7 @@ export class FarmScene extends Phaser.Scene {
       rotulos.push(
         this.add.text(zona.x + 3, zona.y + 3, marca, {
           fontFamily: UI.fonte,
-          fontSize: '10px',
+          fontSize: UI.tamanho,
           color: zona.construida ? UI.destaque : UI.texto,
         }),
       );
@@ -1959,17 +2501,15 @@ export class FarmScene extends Phaser.Scene {
     // depth = y coloca o personagem na mesma ordenacao da flora: quem esta
     // mais pra baixo na tela desenha por cima. O player se reajusta no update.
     sprite.setOrigin(0.5, 1).setScale(escala).setDepth(sprite.y);
-    sprite.body
-      ?.setSize(CORPO_LARGURA, CORPO_ALTURA)
-      .setOffset(CORPO_OFFSET_X, CORPO_OFFSET_Y);
+    corpoNosPes(sprite, this.tamanhoTile);
+    sombraDeContato(this, sprite, this.tamanhoTile);
   }
 
   private configurarNpc(sprite: Phaser.Physics.Arcade.Sprite): void {
     const escala = (ALTURA_PERSONAGEM_TILES * this.tamanhoTile) / sprite.height;
     sprite.setOrigin(0.5, 1).setScale(escala).setDepth(sprite.y);
-    sprite.body
-      ?.setSize(sprite.width * 0.34, sprite.height * 0.16)
-      .setOffset(sprite.width * 0.33, sprite.height * 0.8);
+    corpoNosPes(sprite, this.tamanhoTile);
+    sombraDeContato(this, sprite, this.tamanhoTile);
   }
 
   /**
@@ -1985,8 +2525,22 @@ export class FarmScene extends Phaser.Scene {
     // basta ABORDAR pra o NPC entrar na aba Relacionamento do Navegador: uma
     // conversa que rendeu 0 ponto ainda foi uma conversa
     estado.relacoes.registrarInteracao(def.id);
+    registrarConvivencia(estado, def.id);
+    const cena = cenaNoContexto(estado, def.id);
+    if (cena) { this.iniciarCenaCampanha(cena.id); return; }
     const condicional = estado.worldEvents.consumirFala(def.id);
-    const abertura = condicional ? [condicional.texto, ...def.dialogoAtual] : def.dialogoAtual;
+    const clima = reacaoAoEvento(estado, def.id);
+    const ferido = falaDeQuemViu(estado, def.id);
+    const padrao = ferido ? null : comentarioDoPadrao(estado, def.id);
+    const bicho = falaSobreCompanhia(estado, def.id);
+    const roupa = comentarioDaPeca(estado, def.id);
+    // Aniversario dele, esquecimento do dia anterior e felicitacao pelo meu.
+    const dele = falaDeAniversario(estado, def.id);
+    const convite = dele ? conviteDeAniversario(estado, def.id) : null;
+    const esquecido = comentarioDeEsquecimento(estado, def.id);
+    const meu = felicitacaoDeHoje(estado, def.id);
+    const abertura = [...(clima ? [clima] : []), ...(ferido ? [ferido] : []), ...(dele ? [dele] : []), ...(convite ? [convite] : []), ...(esquecido ? [esquecido] : []), ...(meu ? [meu] : []),
+      ...(padrao ? [padrao] : []), ...(bicho ? [bicho] : []), ...(roupa ? [roupa] : []), ...(condicional ? [condicional.texto] : []), ...def.dialogoAtual];
     this.ui.iniciarDialogo(falasDe(def.nome, abertura, def.id), () =>
       this.abrirMenuDeConversa(def),
     );
@@ -1998,6 +2552,86 @@ export class FarmScene extends Phaser.Scene {
       rotulo: tema.rotulo,
       aoEscolher: () => this.conversarSobre(def, tema),
     }));
+    const vinculo = vinculoDisponivel(estado, def.id);
+    const evento = eventoNoLugar(estado);
+    if (evento && dialogoDoEvento(estado).some(f => f.npcId === def.id) && !estado.worldEvents.ativa(`social:evento:${evento.id}:${estado.dia}`)) opcoes.unshift({ rotulo: `Ficar: ${evento.nome}`, aoEscolher: () => this.ui.iniciarDialogo(dialogoDoEvento(estado), () => { concluirEvento(estado); this.salvarJogo(); }) });
+    if (vinculo) opcoes.unshift({ rotulo: vinculo.cena.titulo, aoEscolher: () => this.ui.iniciarDialogo(falasDe(def.nome, [...vinculo.cena.falas], def.id), () => {
+      concluirVinculo(estado, def.id, vinculo.indice); this.salvarJogo();
+    }) });
+    // CONVIVENCIA: caminhar, acompanhar, comer junto. Nenhuma delas e missao,
+    // nenhuma paga, e todas podem ser recusadas sem consequencia.
+    const caminhada = caminhadaAtual(estado);
+    if (caminhada?.npc === def.id) {
+      opcoes.unshift({ rotulo: 'Encerrar a caminhada', aoEscolher: () => {
+        const texto = encerrarCaminhada(estado);
+        this.salvarJogo();
+        if (texto) this.ui.iniciarDialogo(falasDe(def.nome, [texto], def.id));
+      } });
+    } else if (!caminhada && podeCaminhar(def.id) && estado.relacoes.getScore(def.id) >= 3) {
+      opcoes.unshift({ rotulo: 'Caminhar um pouco', aoEscolher: () => {
+        iniciarCaminhada(estado, def.id);
+        this.salvarJogo();
+        this.ui.iniciarDialogo(falasDe(def.nome, ['Vamos. Sem destino, então você escolhe a rua.'], def.id));
+      } });
+    }
+    if (!caminhada && !acompanhamentoAtual(estado) && estado.relacoes.getScore(def.id) >= 2) {
+      opcoes.push({ rotulo: 'Posso te acompanhar?', aoEscolher: () => {
+        iniciarAcompanhamento(estado, def.id);
+        this.salvarJogo();
+        this.ui.iniciarDialogo(falasDe(def.nome, ['Pode. Eu ia por aqui de qualquer jeito.'], def.id));
+      } });
+    }
+    if (apagaoAtivo(estado.dia, estado.relogio.minutos) && ((def.id === 'alice' && estado.mapa === 'bar') || (def.id === 'wendel' && estado.mapa === 'farmacia'))) {
+      opcoes.unshift({ rotulo: 'Ajudar com o gerador', aoEscolher: () => {
+        const ajuda = ajudarComGerador(estado, estado.mapa === 'bar' ? 'bar' : 'farmacia');
+        if (!ajuda) { this.ui.avisoRapido('O gerador já está rodando.'); return; }
+        estado.relacoes.ganharRelacao(ajuda.npc, ajuda.pontos);
+        this.salvarJogo();
+        this.ui.iniciarDialogo(falasDe('Você', [ajuda.texto]));
+      } });
+    }
+    if (estado.mapa === 'bar' && def.id === 'alice') {
+      opcoes.push({ rotulo: 'Comer alguma coisa', aoEscolher: () => {
+        const refeicao = comer(estado, 'bar');
+        this.salvarJogo();
+        if (refeicao) this.ui.iniciarDialogo(falasDe('Você', [refeicao.texto]));
+      } });
+    }
+    if (podeConvidar(estado, estado.relacoes.getScore(def.id)) && !estado.worldEvents.ativa(`refeicao:convite:${def.id}:${estado.dia}`)) {
+      const pratos = pratosAprendidos(estado);
+      opcoes.push({ rotulo: pratos.length ? 'Convidar para comer em casa' : 'Convidar para comer', aoEscolher: () => {
+        estado.worldEvents.definir(`refeicao:convite:${def.id}:${estado.dia}`, true);
+        const escolhas = [
+          ...pratos.map(p => ({ rotulo: `Fazer: ${p.nome}`, aoEscolher: () => this.servirRefeicao(def, 'cozinhar', p.id) })),
+          { rotulo: 'Só sentar e comer junto', aoEscolher: () => this.servirRefeicao(def, 'jantar') },
+        ];
+        this.ui.abrirMenu('O que servir?', escolhas, undefined, def.id);
+      } });
+    }
+    const dataDele = aniversarioDe(def.id);
+    if (dataDele && ehAniversario(dataDele, estado.dia) && !estado.worldEvents.ativa(`aniversario:lembrei:${def.id}:${dataDoDia(estado.dia).ano}`)) {
+      opcoes.unshift({ rotulo: 'Desejar feliz aniversário', aoEscolher: () => {
+        lembrarDoAniversario(estado, def.id, false);
+        estado.relacoes.ganharRelacao(def.id, 0.5);
+        this.salvarJogo();
+        this.ui.iniciarDialogo(falasDe(def.nome, ['Obrigado. Você lembrou sem eu avisar, e isso já é o presente.'], def.id));
+      } });
+    }
+    if (estado.relacoes.getScore(def.id) >= 4 && !sabeDoMeuAniversario(estado, def.id)) {
+      opcoes.push({ rotulo: 'Contar quando é meu aniversário', aoEscolher: () => {
+        contarMeuAniversario(estado, def.id);
+        this.salvarJogo();
+        this.ui.iniciarDialogo([
+          { nome: 'Você', texto: `É ${dataLegivel(ANIVERSARIO_PROTAGONISTA)}. Não é uma data importante; eu só nunca disse a ninguém daqui.` },
+          { nome: def.nome, npcId: def.id, texto: 'Anotei. Não prometo nada, mas anotei.' },
+        ]);
+      } });
+    }
+    opcoes.push({ rotulo: 'Nossa relação', aoEscolher: () => this.ui.iniciarDialogo(naturezaDaRelacao(estado, def.id).split('\n').map(texto => ({ nome: def.nome, texto, npcId: def.id }))) });
+    if (estado.relacoes.getScore(def.id) >= 5 && !estado.worldEvents.ativa(`social:confidencia:${def.id}`)) opcoes.push({ rotulo: 'Contar um pouco sobre mim', aoEscolher: () => this.ui.iniciarDialogo([
+      { nome: 'Você', texto: estado.arquivo.tem(188) ? 'Eu perdi pessoas da minha família. Ainda não sei como falar disso sem tentar explicar tudo.' : 'Antes de vir, eu não conseguia mais separar quem eu era do que precisava entregar.' },
+      { nome: def.nome, npcId: def.id, texto: 'Obrigado por me contar. Você pode parar por aqui hoje, se quiser.' },
+    ], () => { estado.worldEvents.definir(`social:confidencia:${def.id}`, true); this.salvarJogo(); }) });
     const morador = buscarMorador(def.id);
     if (morador) {
       opcoes.push({ rotulo: 'Perguntar sobre o dia', aoEscolher: () => this.conversarComMorador(morador) });
@@ -2159,6 +2793,7 @@ export class FarmScene extends Phaser.Scene {
     const tier = calcularTierPresente(def.id, itemId);
     const nomeItem = ITENS[itemId]?.nome ?? itemId;
     const falas = [reacaoPresente(def.id, tier)];
+    if (lembrarDoAniversario(estado, def.id, true)) falas.push('Você trouxe isso hoje. Eu não tinha dito que era hoje, e você trouxe.');
 
     if (estado.relacoes.podePresentear(def.id, estado.dia)) {
       estado.relacoes.registrarPresente(def.id, estado.dia);
@@ -2210,6 +2845,8 @@ export class FarmScene extends Phaser.Scene {
         const npc = estado.rotinasNpc.porId(String(alvo.props.npcId));
         if (!npc || !this.posicaoNpcNoMapa(npc)) continue;
       }
+      // bicho fora do horario/clima dele nao esta desenhado, e nao interage
+      if (alvo.tipo === 'bicho' && alvo.props.presente !== true) continue;
       const dx = alvo.x - px;
       const dy = alvo.y - py;
       const dist = Math.hypot(dx, dy);
@@ -2236,6 +2873,269 @@ export class FarmScene extends Phaser.Scene {
    * do destino de uma entrega em andamento, que vira "Entregar" — o jogador
    * precisa ver ali, na porta, que aquele e o lugar certo.
    */
+  /**
+   * APARENCIA DO PROTAGONISTA sobre a folha autoral: curativo, acento do
+   * conjunto de roupa, peca recebida de morador e crescimento de cabelo/barba.
+   * Sao marcas pequenas em Graphics — a folha nao muda, a hitbox nao muda, e a
+   * arte ilustrada definitiva (paper doll) entra sem desfazer nada disto.
+   */
+  private desenharAparencia(): void {
+    const g = this.curativo;
+    if (!g) return;
+    g.clear();
+    g.setDepth(this.player.y + .1);
+    const e = this.tamanhoTile / 32;
+    const x = this.player.x, y = this.player.y, lado = this.direcao === 'left' ? -1 : 1;
+    const frente = this.direcao !== 'up';
+    // FERIMENTO: as marcas saem de `cuidado.ts`, em unidades do sprite de 48px.
+    const nivel = nivelDeFerimento(estado.vida.fracao);
+    for (const marca of marcasDeFerimento(nivel)) {
+      if (marca.parte === 'testa' && !frente) continue;
+      const espelho = this.direcao === 'left' ? -1 : 1;
+      g.fillStyle(marca.cor, .95).fillRect(x + marca.x * espelho * e, y + marca.y * e, marca.w * e, marca.h * e);
+    }
+    // Mancar e so o corpo denunciando: nao tira velocidade nem trava acao.
+    this.player.setAngle(mancando(nivel) && this.player.body?.velocity.lengthSq() ? (Math.floor(this.time.now / 180) % 2 ? 2.2 : -1.2) : 0);
+    const conjunto = conjuntoAtual(estado);
+    if (conjunto.id !== 'casual') {
+      g.fillStyle(conjunto.cor, .8).fillRect(x - 6 * e, y - 34 * e, 12 * e, 3 * e);
+      g.fillStyle(conjunto.detalhe, .75).fillRect(x + (lado > 0 ? 2 : -5) * e, y - 31 * e, 3 * e, 8 * e);
+    }
+    const peca = pecaAtual(estado);
+    if (peca) {
+      g.fillStyle(peca.cor, .9);
+      if (peca.id === 'bone' && frente) g.fillRect(x - 6 * e, y - 45 * e, 12 * e, 2 * e).fillRect(x + (lado > 0 ? 5 : -8) * e, y - 44 * e, 3 * e, 1.5 * e);
+      else if (peca.id === 'cachecol') g.fillRect(x - 6 * e, y - 36 * e, 12 * e, 2.5 * e).fillRect(x + lado * 3 * e, y - 34 * e, 2 * e, 5 * e);
+      else if (peca.id === 'luva') g.fillRect(x + 6 * e, y - 24 * e, 2.5 * e, 3 * e).fillRect(x - 8 * e, y - 24 * e, 2.5 * e, 3 * e);
+      else g.fillRect(x - 5 * e, y - 26 * e, 10 * e, 6 * e);
+    }
+    const { cabelo, barba } = crescimento(estado);
+    if (cabelo > 0) g.fillStyle(0x2b2622, .5).fillRect(x - 7 * e, y - (40 + cabelo) * e, 14 * e, (1.5 + cabelo) * e);
+    if (barba > 0 && frente) g.fillStyle(0x30281f, .3 + barba * .13).fillEllipse(x + lado * e, y - 38 * e, 8 * e, (2 + barba * 1.5) * e);
+  }
+
+  /**
+   * BICHO: fauna de rua (observar e reconhecer), pretendente a companhia
+   * (aproximar por tres dias e dar um nome) e o proprio animal de companhia.
+   */
+  private interagirComBicho(alvo: Interagivel): void {
+    const clima = estado.clima.paraDia(estado.dia);
+    if (typeof alvo.props.pretendente === 'string') {
+      const pretendente = PRETENDENTES.find(p => p.id === alvo.props.pretendente);
+      if (!pretendente) return;
+      const passo = aproximar(estado, pretendente.id);
+      if (!passo) return;
+      this.ui.iniciarDialogo(falasDe('Você', [pretendente.apresentacao, passo.texto]), () => {
+        this.salvarJogo();
+        if (!passo.adotavel) return;
+        this.ui.abrirMenu('Ele está esperando alguma coisa. Talvez um nome.', [
+          ...pretendente.nomes.map(nome => ({ rotulo: nome, aoEscolher: () => {
+            if (!adotar(estado, pretendente.id, nome)) return;
+            this.salvarJogo();
+            this.ui.iniciarDialogo(falasDe('Você', [nome + ' vem atrás de mim sem pressa. Ele já sabe o caminho de casa melhor do que eu.']));
+          } })),
+          { rotulo: 'Hoje não', aoEscolher: () => {} },
+        ]);
+      });
+      return;
+    }
+    if (alvo.props.companhia === true) {
+      const bicho = companhia(estado);
+      if (!bicho) return;
+      const dentro = estado.mapa === 'oficina';
+      this.ui.iniciarDialogo(falasDe('Você', [textoDaCompanhia(estado, clima, dentro)]), () => this.salvarJogo());
+      return;
+    }
+    const texto = this.bichos?.textoDe(String(alvo.props.animal));
+    if (texto) this.ui.iniciarDialogo(falasDe('Você', texto.split('\n\n')), () => this.salvarJogo());
+  }
+
+  /**
+   * BANCO. Sentar acelera o relogio e traz observacoes do lugar; de vez em
+   * quando alguem senta junto. Sai com [E] ou com qualquer tecla de movimento.
+   */
+  private sentarNoBanco(alvo: Interagivel): void {
+    const lugar = lugarDoPonto(estado.mapa, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile);
+    this.ui.iniciarDialogo(falasDe('Você', [textoAoSentar(estado, lugar)]), () => {
+      this.player.setPosition(alvo.x, alvo.y);
+      this.player.setVelocity(0, 0);
+      this.sentado = { lugar, desde: estado.dia * 1440 + estado.relogio.minutos, proxima: 10, indice: estado.dia, companhia: false };
+      this.ui.mostrarPrompt('levantar');
+    });
+  }
+
+  private levantarDoBanco(): void {
+    if (!this.sentado) return;
+    const minutos = estado.dia * 1440 + estado.relogio.minutos - this.sentado.desde;
+    registrarBanco(estado, this.sentado.lugar, minutos);
+    this.sentado = null;
+    this.ui.mostrarPrompt(null);
+    this.salvarJogo();
+  }
+
+  /** Enquanto sentado o jogador nao anda; tudo o que acontece e a cidade. */
+  private atualizarBanco(): boolean {
+    if (!this.sentado || this.ui.bloqueado || this.transicionando) return false;
+    const mexeu = [this.cursors.left, this.cursors.right, this.cursors.up, this.cursors.down].some(t => t.isDown)
+      || (['esquerda', 'direita', 'cima', 'baixo'] as const).some(d => controles.pressionada(d));
+    if (mexeu || controles.apertou('interagir')) { this.levantarDoBanco(); return false; }
+    const passou = estado.dia * 1440 + estado.relogio.minutos - this.sentado.desde;
+    if (passou >= this.sentado.proxima) {
+      this.sentado.proxima = passou + 15;
+      this.sentado.indice += 1;
+      const presentes = this.npcs
+        .filter(n => this.posicaoNpcNoMapa(n.estado) !== null)
+        .map(n => n.estado.id);
+      const quem = !this.sentado.companhia && passou >= 25
+        ? quemSenta(estado, presentes, id => estado.relacoes.getScore(id))
+        : null;
+      if (quem) {
+        this.sentado.companhia = true;
+        const def = buscarNpc(quem);
+        this.ui.iniciarDialogo(falasDe(def?.nome ?? quem, [falaDeQuemSenta(quem, this.sentado.lugar)], quem),
+          () => this.ui.mostrarPrompt('levantar'));
+      } else {
+        this.ui.avisoRapido(observacaoDoBanco(this.sentado.lugar, this.sentado.indice));
+      }
+    }
+    this.player.setVelocity(0, 0);
+    this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
+    this.mao.atualizar(16, this.player, this.direcao);
+    return true;
+  }
+
+  /**
+   * CAMINHADA e ACOMPANHAMENTO. Na caminhada a rotina do morador fica pausada e
+   * ele anda atras do jogador, comentando cada lugar novo. No acompanhamento e o
+   * contrario: a rotina segue, e o trecho acaba quando ele chega aonde ia.
+   */
+  private atualizarConvivio(delta: number): void {
+    const caminhada = caminhadaAtual(estado);
+    if (caminhada) {
+      const npc = estado.rotinasNpc.porId(caminhada.npc);
+      if (npc) {
+        estado.rotinasNpc.pausarParaEncontro([caminhada.npc], 400);
+        npc.mapaAtual = estado.mapa;
+        npc.dentro = null;
+        npc.visivel = true;
+        const alvoX = this.player.x / this.tamanhoTile, alvoY = this.player.y / this.tamanhoTile;
+        const dx = alvoX - npc.x, dy = alvoY - npc.y, distancia = Math.hypot(dx, dy);
+        const passo = (CONFIG.movimento.andar / this.tamanhoTile) * (Math.min(60, delta) / 1000);
+        if (distancia > 1.3) {
+          const avanco = Math.min(distancia - 1.1, passo);
+          npc.x += (dx / distancia) * avanco;
+          npc.y += (dy / distancia) * avanco;
+          npc.movendo = true;
+          npc.direcao = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+        } else {
+          npc.movendo = false;
+        }
+      }
+      if (!this.ui.bloqueado) {
+        const fala = registrarLugar(estado, lugarDoPonto(estado.mapa, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile));
+        if (fala) {
+          const def = buscarNpc(caminhada.npc);
+          this.ui.iniciarDialogo(falasDe(def?.nome ?? caminhada.npc, [fala], caminhada.npc));
+        }
+      }
+      return;
+    }
+    const acompanhado = acompanhamentoAtual(estado);
+    if (!acompanhado) { this.acompanhandoMs = 0; return; }
+    const npc = estado.rotinasNpc.porId(acompanhado);
+    if (!npc) { encerrarAcompanhamento(estado, false); return; }
+    if (npc.movendo) { this.acompanhandoMs += delta; return; }
+    // Parou depois de ter andado um trecho: chegou. Longe demais, a gente se perdeu.
+    if (this.acompanhandoMs < 4000) return;
+    this.acompanhandoMs = 0;
+    const perto = this.posicaoNpcNoMapa(npc) !== null
+      && Math.hypot(npc.x - this.player.x / this.tamanhoTile, npc.y - this.player.y / this.tamanhoTile) < 6;
+    const texto = encerrarAcompanhamento(estado, perto);
+    if (texto && !this.ui.bloqueado) {
+      const def = buscarNpc(acompanhado);
+      this.ui.iniciarDialogo(falasDe(def?.nome ?? acompanhado, [texto], acompanhado), () => this.salvarJogo());
+    }
+  }
+
+  /** Refeicao com alguem: meio ponto de relacao e uma entrada no caderno. */
+  private servirRefeicao(def: PerfilNpc, tipo: 'jantar' | 'cozinhar', prato?: string): void {
+    const refeicao = comer(estado, tipo, def.nome, prato);
+    if (!refeicao) return;
+    if (refeicao.relacao) estado.relacoes.ganharRelacao(def.id, refeicao.relacao.pontos);
+    registrarConvivencia(estado, def.id);
+    this.salvarJogo();
+    this.ui.iniciarDialogo([
+      { nome: 'Você', texto: refeicao.texto },
+      { nome: def.nome, npcId: def.id, texto: 'Obrigado pela comida e pela cadeira. As duas coisas contam.' },
+    ]);
+  }
+
+  /** Recolher e so guardar: quem lê e cataloga sao Clara e Ilda. */
+  private recolherDocumento(alvo: Interagivel): void {
+    const doc = coletarDocumento(estado, String(alvo.props.documento));
+    if (!doc) return;
+    this.interagiveis = this.interagiveis.filter(i => i !== alvo);
+    this.alvo = null;
+    this.ui.mostrarPrompt(null);
+    this.ui.iniciarDialogo(falasDe('Você', [doc.texto, 'Guardei para levar à biblioteca. Clara ou Ilda sabem o que fazer com isso.']),
+      () => this.salvarJogo());
+  }
+
+  /**
+   * MUDANCAS DA CIDADE e ESTACAO POR DENTRO, desenhadas por cima do tilemap:
+   * pintura, banco, grafite, arvore, placa e ponto ocupado aparecem com o ano ou
+   * com a obra financiada; cobertor e ventilador aparecem com a estacao.
+   */
+  private desenharMudancasDaCidade(): void {
+    const g = this.add.graphics();
+    const ano = dataDoDia(estado.dia).ano;
+    const obras = (Object.keys(PROJETOS_CIDADE) as (keyof typeof PROJETOS_CIDADE)[]).filter(id => estado.cidade.construido(id));
+    for (const m of mudancasVisiveis(estado.mapa, ano, obras)) {
+      const x = m.tile.x * this.tamanhoTile, y = m.tile.y * this.tamanhoTile;
+      const w = m.largura * this.tamanhoTile, h = m.altura * this.tamanhoTile;
+      g.fillStyle(m.cor, m.tipo === 'grafite' ? .75 : .9).fillRect(x, y, w, h);
+      if (m.tipo === 'arvore') g.fillStyle(0x3d2f24, .9).fillRect(x + w / 2 - 2, y + h, 4, this.tamanhoTile * .5);
+      if (m.tipo === 'banco') g.fillStyle(0x4a3a28, .9).fillRect(x, y + h, w, 3);
+      g.setDepth(y + h);
+    }
+    const estacao = dataDoDia(estado.dia).estacao;
+    for (const marca of marcasDaEstacao(estado.mapa, estacao)) {
+      const sazonal = this.add.graphics().setDepth(marca.y + marca.altura);
+      sazonal.fillStyle(marca.cor, marca.id === 'janela_aberta' ? .5 : .85)
+        .fillRect(marca.x, marca.y, marca.largura, marca.altura);
+      if (marca.id === 'ventilador') sazonal.lineStyle(1, 0x8d949a).strokeCircle(marca.x + marca.largura / 2, marca.y + marca.altura / 2, marca.largura / 2);
+    }
+  }
+
+  /** Um aviso por evento raro, e o texto do apagao quando ele comeca. */
+  private anunciarClimaExtremo(): void {
+    const evento = avisarEvento(estado);
+    if (evento) this.ui.avisoRapido(`${evento.nome}: ${evento.aviso}`);
+    if (apagaoAtivo(estado.dia, estado.relogio.minutos) && !estado.worldEvents.ativa(`clima:apagao:${estado.dia}:${estado.mapa}`)) {
+      estado.worldEvents.definir(`clima:apagao:${estado.dia}:${estado.mapa}`, true);
+      const falas = [textoDoApagao(estado.mapa)];
+      if (represaIluminada(estado.dia, estado.relogio.minutos, estado.mapa)) falas.push(TEXTO_REPRESA_ACESA);
+      this.time.delayedCall(600, () => { if (!this.ui.bloqueado && this.pronto) this.ui.iniciarDialogo(falasDe('Você', falas)); });
+    }
+  }
+
+  /** A sala de memoria nasce no meio da partida; os pontos precisam acompanhar. */
+  reconstruirPontos(): void {
+    this.interagiveis = this.interagiveis.filter(i => !i.id.startsWith('biblioteca:'));
+    this.interagiveis.push(...(this.biblioteca?.montar() ?? []));
+  }
+
+  /** Uma visita por ano, em casa, no aniversario do protagonista. */
+  private visitaDeHoje(): void {
+    const visita = visitaDeAniversario(estado);
+    if (!visita) return;
+    const def = buscarNpc(visita.npc);
+    this.time.delayedCall(700, () => {
+      if (this.ui.bloqueado || !this.pronto) return;
+      this.ui.iniciarDialogo(falasDe(def?.nome ?? visita.npc, [...visita.falas], visita.npc), () => this.salvarJogo());
+    });
+  }
+
   private rotuloDe(alvo: Interagivel): string {
     return this.ehPortaDeEntrega(alvo) ? 'Entregar' : alvo.rotulo;
   }
@@ -2832,6 +3732,7 @@ export class FarmScene extends Phaser.Scene {
       return;
     }
     this.mao.piscarFogonete();
+    som.tocar('tiro');
     this.represa.lancarProjetil(r.tiro, this.mao.pontaDoCano(this.player, this.direcao));
   }
 
@@ -2840,6 +3741,7 @@ export class FarmScene extends Phaser.Scene {
     if (!arma) return;
     const r = estado.armas.recarregar(arma.id, estado.inventario);
     if (r.ok) {
+      som.tocar('recarregar');
       this.ui.avisoRapido(`Recarregou ${r.carregou} cartucho(s).`, UI.sucesso);
       return;
     }
@@ -2858,6 +3760,8 @@ export class FarmScene extends Phaser.Scene {
       this.ui.avisoRapido(r.aviso ?? 'Nao da pra equipar isso.', UI.alerta);
       return;
     }
+    // a lanterna tem estalo proprio; o resto usa o som generico de equipar
+    som.tocar(id === 'lanterna_manutencao' ? 'lanterna' : 'guardar');
     this.ui.avisoRapido(`Equipou ${ITENS[id]?.nome ?? id}.`, UI.sucesso);
   }
 
@@ -2924,6 +3828,73 @@ export class FarmScene extends Phaser.Scene {
    * Os andares 1 a 5 e todo o resto do mundo NAO passam por aqui: eles vem no
    * `preload` do BootScene como sempre, e `sobDemanda` e falso neles.
    */
+  /**
+   * Os atlas de movel que ESTE mapa precisa, carregados aqui e nao no boot.
+   *
+   * Eram todos os catorze, sempre: 35,79 MB baixados antes de o menu aparecer,
+   * incluindo a folha de banheiro e a de hospital pra quem estava na rua. O
+   * mapa inicial (`bairro`) nao usa nenhum deles, e o mapa que usa mais — uma
+   * residencia — usa seis, 15,64 MB.
+   *
+   * A lista sai da propria camada `moveis` do tilemap, que o gerador ja escreve
+   * com `atlas` em cada objeto: nao ha segunda lista pra manter em sincronia, e
+   * um layout novo no gerador ja traz o atlas dele junto.
+   *
+   * Na casa do protagonista entra tambem o catalogo de mobilia COMPRAVEL, que
+   * nao esta na camada: as pecas que o jogador ainda nao comprou aparecem na
+   * pre-visualizacao da loja, e a peca que ele ja comprou esta em `estado.casa`,
+   * nao no tilemap.
+   */
+  private atlasDeMovelNecessarios(def: DefinicaoMapa): string[] {
+    const nomes = new Set<string>();
+    // o tilemap cru do cache, nao o objeto Phaser: aqui ainda nao ha tilemap
+    // montado, e montar um so pra ler uma camada custaria o mapa inteiro
+    const dados = this.cache.tilemap.get(def.tilemapKey)?.data as
+      | { layers?: { name: string; objects?: { properties?: { name: string; value: unknown }[] }[] }[] }
+      | undefined;
+    const camada = dados?.layers?.find((l) => l.name === 'moveis');
+    for (const obj of camada?.objects ?? []) {
+      const atlas = obj.properties?.find((p) => p.name === 'atlas')?.value;
+      if (typeof atlas === 'string' && atlas) nomes.add(atlas);
+    }
+    if (def.chave === MAPA_DA_CASA) {
+      const medidas = this.cache.json.get('mobilia') as Record<string, { atlas?: string }> | undefined;
+      for (const medida of Object.values(medidas ?? {})) {
+        if (medida.atlas) nomes.add(medida.atlas);
+      }
+    }
+    return [...nomes];
+  }
+
+  /**
+   * Garante os atlas de movel do mapa. Devolve `false` quando cortou o `create`
+   * pra esperar a carga — a cena reinicia sozinha ao fim dela.
+   *
+   * Sem aviso na tela, ao contrario de `garantirTilemap`: o atlas de movel so
+   * falta na PRIMEIRA vez que se entra num tipo de interior, o arquivo esta no
+   * mesmo servidor do tilemap que acabou de chegar, e uma tarja "carregando" que
+   * pisca por dois quadros e mais ruido que informacao. Se a carga falhar, o
+   * proprio `criarMoveis` avisa no console e segue sem a peca, que e o mesmo que
+   * ele ja fazia pra frame inexistente.
+   */
+  private garantirAtlasDeMovel(def: DefinicaoMapa): boolean {
+    const faltando = this.atlasDeMovelNecessarios(def).filter(
+      (nome) => !this.textures.exists(nome),
+    );
+    if (faltando.length === 0) return true;
+    for (const nome of faltando) {
+      this.load.atlas(
+        nome,
+        `assets/sprites/${nome}.png`,
+        `assets/sprites/${nome}.atlas.json`,
+      );
+    }
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => this.scene.restart(this.entradaAtual));
+    this.load.start();
+    return false;
+  }
+
+
   private garantirTilemap(def: DefinicaoMapa): boolean {
     if (!def.sobDemanda || this.cache.tilemap.has(def.tilemapKey)) {
       this.descarregarAndaresDistantes(def.chave);
@@ -2940,8 +3911,22 @@ export class FarmScene extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setScrollFactor(0)
       .setDepth(DEPTH_OVERLAY);
-    this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo);
+    this.load.tilemapTiledJSON(def.tilemapKey, def.arquivo, { responseType: 'text', timeout: 15000 });
     this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      if (!this.cache.tilemap.has(def.tilemapKey)) {
+        this.avisoDeCarga?.setText('Nao foi possivel carregar o andar.\nEnter: tentar novamente\nEsc: voltar para casa');
+        const tentar = () => { limpar(); this.scene.restart(this.entradaAtual); };
+        const voltar = () => { limpar(); estado.mapa = MAPA_DA_CASA; this.scene.restart({ mapa: MAPA_DA_CASA }); };
+        const limpar = () => {
+          this.input.keyboard?.off('keydown-ENTER', tentar);
+          this.input.keyboard?.off('keydown-ESC', voltar);
+        };
+        this.input.keyboard?.once('keydown-ENTER', tentar);
+        this.input.keyboard?.once('keydown-ESC', voltar);
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, limpar);
+        this.avisoDeCarga?.setInteractive().once('pointerdown', tentar);
+        return;
+      }
       this.avisoDeCarga?.destroy();
       this.avisoDeCarga = null;
       this.scene.restart(this.entradaAtual);
@@ -2981,6 +3966,7 @@ export class FarmScene extends Phaser.Scene {
    * do atalho de manutencao da leva anterior, com dez paradas em vez de uma.
    */
   private abrirElevador(alvo: Interagivel): void {
+    som.tocar('elevador');
     const aqui = Number(alvo.props.andar) || andarDoMapaDef(estado.mapa)?.andar || 1;
     // Chegar na cabine ATIVA a parada deste andar.
     if (!estado.worldEvents.ativa(flagDeCheckpoint(aqui))) {
@@ -3048,7 +4034,9 @@ export class FarmScene extends Phaser.Scene {
     if (!ficha) return;
     if (estado.arquivo.coletar(andar)) {
       this.ui.avisoRapido(
-        `Ficha ${String(andar).padStart(3, '0')} arquivada (${estado.arquivo.quantas}/50).`,
+        andar === 50
+          ? 'Ficha 050 arquivada. Seção de psicoterapia disponível nos Arquivos [J].'
+          : `Ficha ${String(andar).padStart(3, '0')} arquivada (${estado.arquivo.quantasFichas}/50).`,
         UI.sucesso,
       );
     }
@@ -3463,6 +4451,13 @@ export class FarmScene extends Phaser.Scene {
    * fachada mas nao tem interior — ver `AVISOS_DE_PREDIO`.
    */
   private examinarPlaca(alvo: Interagivel): void {
+    if (estado.mapa === 'represa_f50' && Number(alvo.props.ficha) === 50 && viuCena(estado, 'andar50')) {
+      this.ui.abrirMenu('Além do arquivo', [
+        { rotulo: 'Descer a escada', aoEscolher: () => this.entrarProfundezas() },
+        { rotulo: 'Reler a última folha', aoEscolher: () => this.ui.iniciarDialogo(falasDe('Última folha', AVISOS_DE_PREDIO[String(alvo.props.aviso ?? '')] ?? [])) },
+      ]);
+      return;
+    }
     // FICHA MEDICA: o objeto tem a prop `ficha` com o numero do andar. Ler
     // arquiva; o texto sai igual ao de qualquer placa, logo abaixo.
     const andarDaFicha = Number(alvo.props.ficha);
@@ -3473,8 +4468,14 @@ export class FarmScene extends Phaser.Scene {
     }
     if (alvo.props.ambientacao === 'quadro') {
       const avisos = avisosDaSemana(estado.dia);
+      // O ENCONTRO DE HOJE vem primeiro, quando existe: e o unico recado do
+      // quadro que muda de um dia pro outro, e e onde o jogador descobre que
+      // hoje a noite tem gente no bar (ver src/game/rotinaSocial.ts).
+      const encontro = encontroDoDia(estado.dia);
+      const doDia = encontro ? AVISOS_DE_ENCONTRO[encontro.aviso] : undefined;
       this.ui.iniciarDialogo([
         { nome: 'Quadro de avisos', texto: `Avisos da semana ${Math.floor(estado.dia / 7) + 1}:` },
+        ...(doDia ? [{ nome: encontro!.nome, texto: doDia }] : []),
         ...avisos.map((texto, i) => ({ nome: `Aviso ${i + 1}`, texto })),
         { nome: 'Quadro de avisos', texto: 'Estes recados ainda sao apenas informativos; o app Trabalho nao os aceita.' },
       ]);
@@ -3539,17 +4540,14 @@ export class FarmScene extends Phaser.Scene {
     const t = this.tamanhoTile;
     const pontos: Interagivel[] = [];
     if (estado.mapa === 'farm') {
-      const x = 38.5 * t;
-      const y = 55.5 * t;
-      const placa = this.add.rectangle(x, y - t * 0.35, t * 1.15, t * 0.72, 0x6f4a2d)
-        .setStrokeStyle(2, 0xd4b07a)
-        .setDepth(y);
-      const pe = this.add.rectangle(x, y + t * 0.22, t * 0.14, t * 0.55, 0x49301f).setDepth(y - 1);
-      placa.setName('quadro_avisos_visual');
-      pe.setName('quadro_avisos_pe');
+      // QUADRO DE AVISOS. Era um retangulo desenhado a mao no meio do gramado do
+      // parque — dois rects e uma perna, sem arte. Com o remap do centro ele
+      // passou a ser o quiosque de verdade da praca noroeste (peca [7,0] da folha
+      // do parque, posta pelo gerador), e aqui fica so o ponto de leitura, na
+      // calcada em frente a ele.
       pontos.push({
         id: 'quadro_avisos_praca', tipo: 'placa', rotulo: 'Ler avisos',
-        x, y, props: { ambientacao: 'quadro' },
+        x: 51.5 * t, y: 43.5 * t, props: { ambientacao: 'quadro' },
       });
     }
     for (const segredo of segredosDoMapa(estado.mapa)) {
@@ -3646,7 +4644,19 @@ export class FarmScene extends Phaser.Scene {
 /** O que a cena precisa saber pra montar um sprite da camada `flora`. */
 interface NpcVisual {
   estado: EstadoNpc;
-  sprite: Phaser.Physics.Arcade.Sprite;
+  /**
+   * null enquanto a folha do NPC nao chegou.
+   *
+   * As folhas nao vem mais no boot (eram 14,99 MB antes do menu): a cena pede
+   * as de quem esta neste mapa e reinicia quando elas chegam. Quem aparece
+   * DEPOIS disso — o morador que entra andando de fora da tela no meio do dia —
+   * cai em `garantirSpriteDeNpc`, que busca a folha e monta o sprite sem
+   * reiniciar a cena.
+   *
+   * Nao criar o sprite e deliberado: um sprite com textura ausente vira um
+   * quadrado verde parado no meio da rua, e isso e pior que a ausencia.
+   */
+  sprite: Phaser.Physics.Arcade.Sprite | null;
   interagivel: Interagivel;
   animacao: string;
   /**
@@ -3660,6 +4670,8 @@ interface NpcVisual {
 interface MarcadorNpcMapa {
   npcId: string;
   marcador: Phaser.GameObjects.Container;
+  /** o retrato dentro do marcador, guardado pra trocar de textura quando a folha chega */
+  retrato: Phaser.GameObjects.Image;
 }
 
 interface ReceitaFlora {

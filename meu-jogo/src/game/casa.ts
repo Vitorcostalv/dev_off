@@ -43,31 +43,39 @@ export interface RequisitoMaterial {
  * Os tres comodos de expansao da planta `oficina` (ver `PLANTAS_PROPRIAS` em
  * tools/gerar-assets.mjs). A ordem e a da lista da loja.
  *
- * PRECOS — AJUSTAVEIS. A referencia e o que o jogador ganha hoje: uma vaga do
- * app Trabalho paga entre R$ 40 e R$ 320, e o item mais caro da DevStore custa
- * cerca de R$ 1.500. Entao o deposito e uma meta de curto prazo (umas 5 vagas
- * boas), o estudio de medio e a garagem de longo. Mexer aqui nao pede mexer em
- * mais nada.
+ * PRECOS — AJUSTAVEIS, e a regua e o SIMULADOR: `npm run verificar-equilibrio`
+ * mede um ano de quadro de trabalho e diz quantos dias de jogo cada preco custa.
+ *
+ * A referencia e um dia de quadro cheio, R$ 736,65 (cinco vagas, media de 112
+ * dias simulados). O deposito e uma meta de curto prazo — as "5 vagas boas" que
+ * este comentario sempre prometeu e o preco nao cobrava: a R$ 800 ele custava
+ * duas vagas e meia, e agora custa as cinco. O estudio e de medio prazo e a
+ * garagem de longo.
+ *
+ * O que a medicao mostrou: a casa INTEIRA (tres expansoes e vinte e dois moveis)
+ * custava R$ 8.115, ou onze dias de trabalho — dez por cento de um ano de jogo.
+ * Todo o conteudo de casa acabava na segunda semana, e comprar deixava de ser
+ * decisao porque nao havia o que escolher entre. Agora custa uma estacao.
  */
 export const EXPANSOES: readonly DefinicaoExpansao[] = [
   {
     id: 'deposito',
     nome: 'Deposito',
-    preco: 80_000,
+    preco: 160_000,
     materiais: [{ itemId: 'madeira', quantidade: 20 }, { itemId: 'pedra', quantidade: 12 }],
     descricao: 'Um comodo pequeno atras da sala, pra guardar o que nao cabe na oficina.',
   },
   {
     id: 'estudio',
     nome: 'Estudio',
-    preco: 160_000,
+    preco: 400_000,
     materiais: [{ itemId: 'madeira', quantidade: 35 }, { itemId: 'concreto', quantidade: 15 }],
     descricao: 'Sala extra ligada a oficina, com piso de madeira.',
   },
   {
     id: 'garagem',
     nome: 'Garagem',
-    preco: 280_000,
+    preco: 900_000,
     materiais: [{ itemId: 'pedra', quantidade: 50 }, { itemId: 'concreto', quantidade: 30 }],
     descricao: 'O maior dos tres, no fundo da faixa leste. Piso de concreto.',
   },
@@ -104,29 +112,37 @@ export interface DefinicaoMovelLoja {
  */
 export const CATALOGO_MOBILIA: readonly DefinicaoMovelLoja[] = [
   // --- decoracao leve (nao bloqueia passagem) ---
-  { id: 'vaso_flores', nome: 'Vaso de flores', preco: 3_000, movel: 'vaso_flores' },
-  { id: 'poster_galaxia', nome: 'Poster', preco: 3_500, movel: 'poster_galaxia' },
-  { id: 'quadro_paisagem', nome: 'Quadro de paisagem', preco: 4_000, movel: 'quadro_paisagem' },
-  { id: 'planta_alta', nome: 'Planta alta', preco: 4_500, movel: 'planta_alta' },
-  { id: 'relogio_parede', nome: 'Relogio de parede', preco: 5_000, movel: 'relogio_parede' },
-  { id: 'planta_grande', nome: 'Planta grande', preco: 5_500, movel: 'planta_grande' },
-  { id: 'tapete_cinza', nome: 'Tapete cinza', preco: 6_000, movel: 'tapete_cinza' },
-  { id: 'tapete_creme', nome: 'Tapete creme', preco: 6_000, movel: 'tapete_creme' },
-  { id: 'lampada_tripe', nome: 'Lampada de tripe', preco: 7_000, movel: 'lampada_tripe' },
-  { id: 'violao', nome: 'Violao', preco: 9_000, movel: 'violao' },
+  //
+  // Continua barata: enfeite e compra de impulso, e o vaso a R$ 45 e a primeira
+  // coisa que o jogador compra por vontade propria em vez de por necessidade.
+  { id: 'vaso_flores', nome: 'Vaso de flores', preco: 4_500, movel: 'vaso_flores' },
+  { id: 'poster_galaxia', nome: 'Poster', preco: 5_000, movel: 'poster_galaxia' },
+  { id: 'quadro_paisagem', nome: 'Quadro de paisagem', preco: 6_000, movel: 'quadro_paisagem' },
+  { id: 'planta_alta', nome: 'Planta alta', preco: 7_000, movel: 'planta_alta' },
+  { id: 'relogio_parede', nome: 'Relogio de parede', preco: 7_500, movel: 'relogio_parede' },
+  { id: 'planta_grande', nome: 'Planta grande', preco: 8_000, movel: 'planta_grande' },
+  { id: 'tapete_cinza', nome: 'Tapete cinza', preco: 9_000, movel: 'tapete_cinza' },
+  { id: 'tapete_creme', nome: 'Tapete creme', preco: 9_000, movel: 'tapete_creme' },
+  { id: 'lampada_tripe', nome: 'Lampada de tripe', preco: 10_500, movel: 'lampada_tripe' },
+  { id: 'violao', nome: 'Violao', preco: 13_500, movel: 'violao' },
   // --- moveis (bloqueiam passagem) ---
-  { id: 'criado_mudo', nome: 'Criado-mudo', preco: 9_000, movel: 'criado_mudo' },
-  { id: 'caixa_ferramenta', nome: 'Caixa de ferramenta', preco: 12_000, movel: 'caixa_ferramenta' },
-  { id: 'mesa_centro_madeira', nome: 'Mesa de centro', preco: 15_000, movel: 'mesa_centro_madeira' },
-  { id: 'poltrona_creme', nome: 'Poltrona', preco: 18_000, movel: 'poltrona_creme' },
-  { id: 'comoda_quarto', nome: 'Comoda', preco: 19_000, movel: 'comoda_quarto' },
-  { id: 'escrivaninha', nome: 'Escrivaninha', preco: 20_000, movel: 'escrivaninha' },
-  { id: 'estante_caixas', nome: 'Estante de caixas', preco: 20_000, movel: 'estante_caixas' },
-  { id: 'armario_pecas', nome: 'Armario de pecas', preco: 21_000, movel: 'armario_pecas' },
-  { id: 'estante_livros_v2', nome: 'Estante de livros', preco: 22_000, movel: 'estante_livros_v2' },
-  { id: 'prateleira_pecas', nome: 'Prateleira de pecas', preco: 24_000, movel: 'prateleira_pecas' },
-  { id: 'bancada_trabalho', nome: 'Bancada de trabalho', preco: 26_000, movel: 'bancada_trabalho' },
-  { id: 'sofa_creme', nome: 'Sofa', preco: 32_000, movel: 'sofa_creme' },
+  //
+  // Estes subiram TRES vezes, e a decoracao so uma vez e meia. E de proposito: a
+  // escada era estreita demais pra escolher dentro dela. Com a decoracao entre
+  // R$ 45 e R$ 135 e o movel entre R$ 270 e R$ 960, o sofa passou a custar mais
+  // de um dia de trabalho — e comprar o sofa passou a ser em vez de outra coisa.
+  { id: 'criado_mudo', nome: 'Criado-mudo', preco: 27_000, movel: 'criado_mudo' },
+  { id: 'caixa_ferramenta', nome: 'Caixa de ferramenta', preco: 36_000, movel: 'caixa_ferramenta' },
+  { id: 'mesa_centro_madeira', nome: 'Mesa de centro', preco: 45_000, movel: 'mesa_centro_madeira' },
+  { id: 'poltrona_creme', nome: 'Poltrona', preco: 54_000, movel: 'poltrona_creme' },
+  { id: 'comoda_quarto', nome: 'Comoda', preco: 57_000, movel: 'comoda_quarto' },
+  { id: 'escrivaninha', nome: 'Escrivaninha', preco: 60_000, movel: 'escrivaninha' },
+  { id: 'estante_caixas', nome: 'Estante de caixas', preco: 60_000, movel: 'estante_caixas' },
+  { id: 'armario_pecas', nome: 'Armario de pecas', preco: 63_000, movel: 'armario_pecas' },
+  { id: 'estante_livros_v2', nome: 'Estante de livros', preco: 66_000, movel: 'estante_livros_v2' },
+  { id: 'prateleira_pecas', nome: 'Prateleira de pecas', preco: 72_000, movel: 'prateleira_pecas' },
+  { id: 'bancada_trabalho', nome: 'Bancada de trabalho', preco: 78_000, movel: 'bancada_trabalho' },
+  { id: 'sofa_creme', nome: 'Sofa', preco: 96_000, movel: 'sofa_creme' },
 ];
 
 export function buscarMovelDeLoja(id: unknown): DefinicaoMovelLoja | null {
@@ -134,15 +150,28 @@ export function buscarMovelDeLoja(id: unknown): DefinicaoMovelLoja | null {
 }
 
 /**
- * Toda peca exige material. A quantidade acompanha o preco e evita duplicar
- * uma coluna longa no catalogo; itens leves usam madeira, os mais pesados
- * acrescentam pedra ou concreto.
+ * Toda peca exige material. A quantidade sai do PRECO em vez de uma coluna
+ * propria no catalogo — e o que evita duplicar vinte e duas linhas de tabela.
+ *
+ * MAS O PRECO NAO E ESCALA DE MATERIAL, e a escala mudou junto: quando o preco
+ * do movel subiu tres vezes, esta funcao passou a pedir tres vezes mais madeira
+ * sem ninguem ter decidido isso, e os dois limiares (R$ 90 pra pedra, R$ 200 pra
+ * concreto) cairam AMBOS abaixo do movel mais barato — as tres faixas de
+ * material viraram uma. Os limiares abaixo estao na escala nova, e
+ * `verificar-equilibrio` confere que as tres faixas continuam povoadas.
+ *
+ *   decoracao      (R$ 45 a R$ 135):  madeira
+ *   movel leve     (R$ 270 a R$ 570): madeira + pedra
+ *   movel pesado   (R$ 600 a R$ 960): madeira + concreto
  */
+const PRECO_COM_PEDRA = 20_000;
+const PRECO_COM_CONCRETO = 60_000;
+
 export function requisitosDoMovel(movel: DefinicaoMovelLoja): RequisitoMaterial[] {
-  const madeira = Math.max(1, Math.ceil(movel.preco / 10_000));
-  const extras: RequisitoMaterial[] = movel.preco >= 20_000
-    ? [{ itemId: 'concreto', quantidade: Math.max(1, Math.floor(movel.preco / 20_000)) }]
-    : movel.preco >= 9_000
+  const madeira = Math.max(1, Math.ceil(movel.preco / 20_000));
+  const extras: RequisitoMaterial[] = movel.preco >= PRECO_COM_CONCRETO
+    ? [{ itemId: 'concreto', quantidade: Math.max(1, Math.floor(movel.preco / 30_000)) }]
+    : movel.preco >= PRECO_COM_PEDRA
       ? [{ itemId: 'pedra', quantidade: 1 }]
       : [];
   return [{ itemId: 'madeira', quantidade: madeira }, ...extras];

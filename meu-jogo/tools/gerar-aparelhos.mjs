@@ -17,7 +17,14 @@ import { agruparEmLinhas, blobs, lerPng } from './imagem.mjs';
 import { APARELHOS, frameDaPeca, frameDoAparelho } from '../src/game/aparelhos.ts';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
+/** SAIDA: o atlas que o jogo carrega. */
 const SPRITES = join(RAIZ, 'public', 'assets', 'sprites');
+/**
+ * ENTRADA: as tres folhas de "desmontado", que so esta ferramenta le.
+ * Ficam em `arte/` e nao em `public/` porque o Vite copia `public/` inteiro pro
+ * build — as tres somam 7 MB que iriam pro deploy sem ninguem baixar.
+ */
+const ARTE = join(RAIZ, 'arte');
 
 /**
  * As tres folhas. `linhas` e a contagem que a arte TEM: se ela for reexportada
@@ -37,7 +44,7 @@ const FOLHAS = {
 
 function carregarFolha(chave) {
   const def = FOLHAS[chave];
-  const img = lerPng(join(SPRITES, def.arquivo));
+  const img = lerPng(join(ARTE, def.arquivo));
   const achados = blobs(img, def.areaMinima, 40, true);
   const linhas = agruparEmLinhas(achados, def.tolerancia);
   if (linhas.length !== def.linhas) {

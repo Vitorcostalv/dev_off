@@ -1,5 +1,51 @@
 # Meu Jogo
 
+Veja o [checklist consolidado de pendências](docs/PENDENCIAS.md) para acompanhar
+o que falta em narrativa, sistemas, personagens, cenários e direção visual.
+
+### Direção visual em transição
+
+A estrutura continua **2D top-down**. A primeira base da [direção visual ilustrada](docs/direcao-visual.md)
+inclui figurantes modulares em camadas, hitbox fixa nos pés, sombras de contato,
+halos suaves, matiz regional e poças após chuva. Protagonista, moradores principais
+e tilesets mantêm sua arte atual enquanto os novos conjuntos são produzidos.
+`npm run verificar-visual` e `npm run test:visual-browser` validam essa base.
+
+### Tela inicial e lembranças
+
+A tela inicial muda com as amizades e a exploração clínica. **Carregar** reúne
+o autosave, quatro lembranças manuais e o backup anterior. Durante o jogo, use
+**Pausa → Guardar momento** para salvar em um dos quatro espaços. Cada momento
+mostra estação, horário, local, último marco narrativo, tempo jogado e miniatura.
+O autosave também ocorre a cada minuto de jogo ativo, quando não há diálogo aberto.
+No navegador, **Sair** mantém o jogo pausado para você fechar a aba.
+
+O texto mais recente do autor foi organizado em [oito etapas](docs/expansao-vida-e-memoria.md).
+Esta entrega implementa a etapa 1; o documento identifica as próximas etapas como pendentes.
+Validação: `npm run verificar-partidas` e `npm run test:partidas-browser`
+(Vite em `http://127.0.0.1:5190`, ou variável `GAME_URL`).
+
+### Campanha narrativa e registros 51–200
+
+Ao entrar no jogo, o prólogo inicia a campanha de 25 cenas, com encontros na cidade,
+recaída, cuidado dos moradores, retorno à represa, desfecho e epílogo.
+**Pausa → Sua história** mostra o próximo encontro e permite retomar uma cena interrompida.
+Depois da cena da ficha 50, examine novamente o documento para descer a escada:
+são 150 salas compactas exploráveis, com registros, vestígios e progresso salvo.
+Os primeiros 50 andares continuam nos mapas Tiled; a expansão usa uma cena própria.
+**Arquivos [J] → Psicoterapia** permite reler os registros; durante a campanha,
+novas leituras ficam limitadas à profundidade alcançada. Saves antigos são preservados.
+Detalhes, gatilhos e adaptações estão no [roteiro consolidado](docs/narrativa-consolidada.md).
+
+`npm run verificar-campanha` verifica a ordem das cenas e os caminhos das 150 salas.
+`npm run test:campanha-browser` percorre a campanha no Chrome com Vite em
+`http://127.0.0.1:5190` (ou `GAME_URL`), incluindo retomada de cena e exploração após reload.
+
+`npm run importar-psicoterapia` recompõe o catálogo a partir da fonte autoral;
+`npm run verificar-psicoterapia` confere os textos, a sequência e a persistência.
+`npm run test:psicoterapia-browser` testa a leitura no Chrome com Vite em
+`http://127.0.0.1:5189` (ou `GAME_URL`).
+
 Phaser 3 + TypeScript + Vite. Top-down, pixel art, tilemaps feitos no Tiled.
 
 ## Rodar
@@ -12,29 +58,91 @@ Abre em http://localhost:5173. `npm run build` gera o `dist/`.
 `npm run gerar-assets` remonta o tileset, os atlas de flora e os tilemaps a
 partir da arte em `public/assets/sprites/`. `npm run gerar-itens` monta o atlas
 de icone de item e `npm run gerar-aparelhos` o dos aparelhos do minigame de
-conserto.
+conserto. `npm run gerar-audio` sintetiza os 46 WAV de
+`public/assets/audio/` — efeitos, ambientes e trilhas; nenhum binario de som
+entra no repositorio sem a receita que o gerou.
 
 ## Controles
 
-| Tecla | Acao |
+As doze acoes de jogo passam pelo `src/game/InputRouter.ts` e sao
+**remapeaveis** em Opcoes > Teclas e controle (menu de pausa ou tela de
+titulo). A escolha fica em `localStorage["meu-jogo:controls"]`; teclas
+duplicadas, invalidas ou reservadas sao recusadas com aviso, e "Restaurar
+teclas padrao" volta a tabela abaixo.
+
+| Padrao | Acao |
 | --- | --- |
-| Setas / WASD | mover |
-| Shift + movimento | correr |
-| E ou clique | interagir, avancar dialogo, confirmar |
-| Setas ou A/D | escolher Sim/Nao na confirmacao |
-| Esc | cancelar confirmacao |
+| W / S / A / D | mover (as setas movem sempre, mesmo remapeado) |
+| Shift | correr |
+| E | interagir, avancar dialogo, confirmar |
 | Tab | abrir/fechar inventario (e trocar de secao na DevStore) |
 | M | abrir/fechar o mapa do lugar onde voce esta |
-| E no computador da oficina | ligar o PC (desktop com 7 apps); Esc desliga |
-| E na bancada da oficina | abrir o catalogo de mobilia |
-| Ponteiro + clique | posicionar a peca de mobilia escolhida; Esc desiste |
-| F1 | debug das colisoes |
-| F6 | mostrar/esconder as zonas reservadas (debug) |
-| F7 | avancar uma hora para testar rotinas (debug) |
-| F2 / F3 | adicionar Cabo USB / Bateria no inventario (debug) |
-| F4 | apagar o save (debug) |
 | Espaco | golpear com a chave inglesa (so faz algo dentro da represa) |
-| F9 | salvar na hora (debug) |
+| R | recarregar a arma equipada |
+| U | usar o item selecionado |
+| F | equipar/desequipar o item selecionado |
+
+Teclas fixas, que nao entram no remapeamento porque as telas dependem delas:
+
+| Tecla | Acao |
+| --- | --- |
+| Setas | navegar menus, listas e quantidade na loja |
+| Enter | confirmar dialogo e menu |
+| Esc | cancelar, fechar painel, desistir de posicionar mobilia |
+| PageUp / PageDown | rolar listas longas (trabalhos, loja, mapas) |
+| C | trocar a prateleira/secao da loja |
+| J | abrir os ARQUIVOS (fichas recolhidas na represa) |
+| X | descartar a pilha selecionada |
+| O | organizar o inventario |
+| Ponteiro + clique | interagir, mirar arma e posicionar mobilia |
+
+Controle (gamepad) e detectado sozinho e funciona no mundo, nos menus, no
+inventario e no DevOS:
+
+| Botao | Acao |
+| --- | --- |
+| Analogico esquerdo / direcional | mover e navegar |
+| A | interagir e confirmar |
+| B | voltar/cancelar |
+| X | golpear |
+| Y | inventario |
+| LB / RB | correr / recarregar |
+| LT / RT | usar item / atirar |
+| Analogico direito | mirar a arma |
+| Clique no analogico esquerdo | equipar/desequipar |
+| Start | pausa |
+| Select | mapa |
+
+### Som
+
+Cinco volumes independentes em Opcoes > Som e volume: geral, musica, ambiente,
+efeitos e interface. Cada linha mostra porcentagem e barra em texto; setas
+laterais (ou o direcional do controle) ajustam de 10 em 10. Os valores ficam em
+`localStorage["meu-jogo:settings"]`, fora do save do jogo.
+
+Ambiente e trilha vem do lugar: centro, bairro, rural, interior e represa tem
+ambiente proprio, chuva e vento trocam o ambiente do mapa aberto, a noite muda o
+ambiente e silencia a musica da cidade, o bar tem trilha propria e a represa
+ignora clima e hora — do andar 26 em diante o drone fica mais grave. Passo muda
+com a superficie do mapa. Detalhes em [docs/audio.md](docs/audio.md).
+
+### Modo de desenvolvimento
+
+As teclas abaixo existem **somente em build de desenvolvimento**
+(`import.meta.env.DEV`). O bundle de producao nao registra nenhuma delas, nao
+expoe `window.game`/`window.estado` e nao mostra a pagina de
+desenvolvimento no menu — `npm run test:producao` confere isso no `dist/`.
+
+| Tecla | Acao |
+| --- | --- |
+| F10 | painel de desenvolvimento (mapas, itens, hora, dia, clima, vida, dinheiro, exportar save, FPS) |
+| F1 | debug das colisoes |
+| F6 | mostrar/esconder as zonas reservadas |
+| F7 | avancar uma hora para testar rotinas |
+| F2 / F3 | adicionar Cabo USB / kit de exploracao no inventario |
+| F9 | salvar na hora |
+| F4 | apagar o save com confirmacao e backup |
+| F8 | escolher e restaurar backup com confirmacao |
 
 ## Estrutura
 
@@ -58,7 +166,7 @@ src/
     vida.ts            HP do jogador (30/30) e a janela de invulnerabilidade
     inimigos.ts        catalogo dos 7 monstros e a IA — sem uma linha de Phaser
     sucata.ts          salvado da represa: itens, tabelas de sorteio e revenda
-    represa.ts         setores, escuridao, tensao, os 7 enigmas e a derrota
+    represa.ts         setores base, escuridao, tensao e derrota; andares/enigmas expandem para 50
     avisos.ts          textos de exame; e aqui que as RESPOSTAS dos enigmas moram
     save.ts            localStorage
     tipos.ts           tipos compartilhados
@@ -79,7 +187,7 @@ src/
       jogos/           biblioteca + jogo da memoria + snake
       calculadora.ts   quatro operacoes, sem dependencia do jogo
       lixeira.ts       historico de descarte
-      navegador.ts     FACHADA — o cabecalho diz onde a logica entra
+      navegador.ts     blog por dia/minuto e relacionamentos reais
       conquistas.ts    FACHADA — idem
 tools/
   png.mjs              encoder PNG minimo + hash deterministico
@@ -92,8 +200,8 @@ public/assets/
   tilemaps/            4 externos (farm, bairro, rural, represa) + um por
                        interior (casa_2..casa_6, casa_b1..b7, casa_c1/c2,
                        casa_rural_1/2, mercado, academia, bar, farmacia,
-                       oficina, escola, biblioteca) + os 5 setores da represa
-                       (represa_0..represa_4) — todos gerados
+                       oficina, escola, biblioteca) + os 5 setores base da represa
+                       (represa_0..represa_4) + 45 andares adicionais — todos gerados
   tilesets/terrain.png tileset 32x32 montado pelo script (nao edite a mao)
   sprites/             folhas de runtime, folhas de movel geradas, spritesheets
                        do player e os atlas
@@ -1073,3 +1181,108 @@ numero que a conferencia de interior usa, e nao ha medida de arte duplicada.
   visao fica travado em 15 tiles de largura. Com tile 16 dava zoom 2; com 32 da
   zoom 1 — a tela mostra a mesma coisa, com o dobro de pixel por tile.
 - Em dev, `window.game` e `window.estado` estao expostos pro console.
+
+## Overhaul em andamento
+
+Save atual: v7, com migracao automatica de v6, normalizacao por sistema e ate tres backups locais. Versoes futuras nao sao sobrescritas. Todos os atalhos de depuracao (F1–F10, painel de desenvolvimento incluso) estao desativados no build de producao. O mapa pausa o relogio.
+
+Auditoria, lacunas e roteiro: [docs/overhaul.md](docs/overhaul.md). A remasterizacao completa ainda nao foi entregue.
+
+Etapas com documento proprio: [controles e modo de desenvolvimento](docs/controles-dev.md),
+[audio](docs/audio.md), [remap do centro](docs/centro.md),
+[remap do bairro](docs/bairro.md),
+[remap da zona rural](docs/zona-rural.md),
+[remap da estrada da represa](docs/estrada-represa.md),
+[interiores urbanos](docs/interiores.md),
+[distorcao da represa](docs/represa-distorcao.md),
+[clima, estacao e encontros](docs/social.md),
+[interfaces e DevOS](docs/interface.md),
+[casa, economia e combate](docs/equilibrio.md),
+[performance e acessibilidade](docs/desempenho.md) e
+[validacao final](docs/validacao-final.md). O centro (Mapa 1)
+tem calcada nas duas margens de toda via, travessia calcada, caminho de acesso
+por lote, quatro pracas de esquina, vielas de terra batida, sete patios com
+funcao e 71 pecas de mobiliario urbano — 25 delas acendem a noite, cada halo no
+poste onde ele esta. Os interiores publicos (biblioteca, escola, mercado,
+academia) e a casa do protagonista ganharam mobilia: a densidade media dos 23
+interiores subiu de 7,0 pra 7,8 pecas por 100 tiles, e `npm run
+verificar-interiores` guarda o piso. Os cinquenta andares da usina ganharam
+distorcao por capitulo: 1 e 2 industriais, 3 com repeticao encostada de peca
+identica, 4 com mobilia de escritorio onde ela nao tem o que fazer e 5 com
+escritorio e casa sobrepostos — nenhuma ficha, enigma, parada de elevador ou
+regra de inimigo mudou. Os QUATRO mapas externos estao remapeados. O bairro ganhou calcada em toda via
+(anel que segue a curva da rua, nao retangulo como no centro), treze acessos
+ligando porta a rua, dois largos na rua da estacao, patio na escola e na
+biblioteca, e 38 pecas de mobiliario — e a rua do condominio fechado passou a
+entrar pelo portao e virar rua interna, que e o que tira as casas do Lucas e do
+Tulio de cima do mato. A zona rural nao ganhou calcada de proposito (estrada de
+terra na roca nao tem meio-fio) e ganhou o que faltava: serventia de cada uma
+das tres portas ate a estrada, terreiro nas duas moradias, patio na madeireira,
+eira nas fazendas e 22 pecas de mobiliario de roca. A estrada da represa ganhou
+tres recuos e 16 pecas, com UMA lampada no mapa inteiro, no portao da usina.
+Cada mapa tem conferencia propria: verificar-bairro (153 conferencias),
+verificar-zona-rural (79) e verificar-estrada-represa (52). A rotina dos 33 moradores passou a consultar o calendario: verao
+empurra a atividade ao ar livre do meio do dia pra depois das 16h, inverno tira
+a que comeca depois das 17h, chuva e temporal recolhem quem esta na rua pro
+abrigo de casa (dezessete pessoas na rua do bairro viram tres) e tres encontros
+juntam gente no calendario — sabado no bar, domingo na praca e a feira no dia 14
+de cada estacao, anunciada no quadro da praca. Turno de trabalho, posto de
+emprego e trabalho de roca nao se mexem. A interface saiu de setenta e quatro
+tamanhos de fonte crus em dez valores pra uma escala de oito degraus com nome, e
+as cinco molduras de painel copiadas viraram uma: nenhuma tela escreve tamanho,
+familia de fonte ou cor de moldura. As seis janelas passaram a ter UM dono de
+foco (`game/foco.ts`), o que corrigiu dois bugs de teclado — escolher assunto
+com um NPC pedia dois apertos de E, e o ESC com uma pergunta aberta cancelava o
+menu de tras em vez da pergunta. A economia passou a ser MEDIDA antes de ser
+mexida: `npm run verificar-equilibrio` simula o quadro de vagas dos 112 dias do
+ano, as onze tabelas de salvado e o catalogo da casa, e diz quantos dias de jogo
+custa cada compra. Ele achou dois problemas — a casa inteira custava onze dias de
+trabalho, e dez andares do fundo da represa pagavam treze (mais que a casa
+inteira, porque `nivel_4` dava 36% de chance de peca "rara"). A casa passou a
+custar uma estacao, a chance de raro virou uma escada declarada, e a peca de
+reposicao no conserto deu uso as cinco pecas comuns de sucata: um dia de descida
+no raso passou de R$ 158 pra R$ 736 — um dia de trabalho — quando a sucata e
+guardada em vez de vendida. O boot passou a ser MEDIDO na rede em vez de no
+disco: baixava 127,89 MB em 210 arquivos antes de o menu aparecer, e agora baixa
+36,18 MB em 169 — o tempo ate jogavel caiu de 6.290 pra 2.364 ms e o `dist/` de
+266 pra 93 MB. Os tres achados: o sprite de personagem tinha 6,7x mais pixel do
+que a tela mostra (o jogo desenha em 48px e o quadro tinha 320), as catorze
+folhas de movel carregavam sempre todas, e as treze faixas longas de audio
+carregavam no boot. Das quatro opcoes de acessibilidade, duas eram decorativas:
+`altoContraste` valia por UM retangulo da tela de menu e agora vale pra toda
+moldura do jogo, e `movimentoReduzido` so desligava particulas e agora tambem
+para a seta [Enter], o unico elemento que piscava pra sempre. Por fim, a
+validacao final: `npm run verificar-canon` trava o canon narrativo em 397
+conferencias — os 33 NPCs, as onze casas com quem mora em cada uma, as 6 missoes
+pessoais, os 5 segredos, os 5 capitulos com as bordas de andar, as 50 fichas
+fechando a cronologia em 200 dias e a escada de revelacao do paciente (o cadastro
+4471-C aparece exatamente nos dezenove primeiros andares). E
+`npm run test:progressao-browser` joga os sistemas juntos numa partida, visita os
+cinquenta andares em sequencia e prova que um save v6 nao so abre como continua
+jogavel: mercado com 32 moveis, loja tomando o foco, dia virando e os 33
+moradores voltando com rotina.
+
+`npm run folha-contato <atlas>` monta a folha de contato de um atlas de movel
+em `docs/folhas/`, com o endereco `[linha, indice]` marcado em cada peca — e
+como se escolhe peca pra autorar interior.
+
+`npm run verificar-overhaul` verifica regressao de cidade, emprego, mapa runtime, blog e listas. `npm run test:browser` requer Google Chrome instalado e o servidor Vite em http://127.0.0.1:5186 (ou GAME_URL); verifica os 77 mapas, sete apps, rolagem, trabalhador e save/reload.
+
+`npm run verificar-tudo` roda os vinte validadores de dominio em sequencia e
+grava a evidencia agregada em `docs/evidence/<rotulo>-tests.json`. As suites de
+navegador (`test:browser`, `test:save-browser`, `test:cotidiano-browser`,
+`test:rural-browser`, `test:servicos-browser`, `test:controles-browser`,
+`test:dev-browser`, `test:audio-browser`, `test:centro-browser`,
+`test:interiores-browser`, `test:represa-browser`, `test:social-browser`,
+`test:interface-browser`, `test:equilibrio-browser`,
+`test:desempenho-browser`, `test:progressao-browser`) precisam do Chrome e do
+servidor de desenvolvimento
+em http://127.0.0.1:5186 — ou em outro endereco, por `GAME_URL`. Rode uma por
+vez, porque compartilham o mesmo `localStorage`, e rode contra um servidor
+RECEM-SUBIDO: depois de muitas edicoes o HMR do Vite passa a servir duas
+instancias do mesmo modulo, e a suite mede a que o jogo nao usa.
+`npm run test:producao` e a unica que roda contra o build:
+exige `npm run build` e `npx vite preview --port 5187 --strictPort --host 127.0.0.1`
+(ou PRODUCTION_URL), e confere que o `dist/` nao carrega termos nem atalhos de
+desenvolvimento, nao expoe globais de depuracao, ignora F1-F10 sem tocar no
+save e ainda assim remapeia teclas pela tela de opcoes.

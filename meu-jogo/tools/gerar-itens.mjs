@@ -15,7 +15,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Img } from './png.mjs';
-import { agruparEmLinhas, blobs, lerPng } from './imagem.mjs';
+import { agruparEmLinhas, blobs, lerPng, reduzirPara } from './imagem.mjs';
 import { CATALOGO_ITENS } from '../src/game/itens.ts';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -181,43 +181,140 @@ function peca(chave, [linha, indice]) {
 const FOLGA = 2; // px entre celulas, pra escala nao puxar do vizinho
 const LARGURA_MAXIMA = 2048; // teto confortavel de textura
 
+/**
+ * Lado maximo que uma peca leva pra folha, em px, por categoria de item.
+ *
+ * A arte de origem vai de 40 a 200 px de lado, e a tela nunca pede tudo isso: o
+ * jogo roda em 480x270 logicos com `Scale.FIT`, entao icone desenhado a N px
+ * amostra N px de textura, e ponto. Pixel acima disso e download que ninguem ve.
+ *
+ * O teto nao e um so porque as telas grandes filtram por CATEGORIA — e filtram
+ * no codigo, com o filtro escrito e comentado, nao por acaso:
+ *
+ * - `eletronico` — a DevStore (`categoria === 'eletronico'`, devstore.ts) mostra
+ *   o produto aberto num quadro de 88, com o icone a **72**. 96 da um terco de
+ *   folga;
+ * - `normal` — o jogo da memoria (`categoria === 'normal'`, jogos/memoria.ts)
+ *   tira o lado da carta da area da janela: com a janela ocupando a tela
+ *   inteira, o pior caso e `min((480-24)/4, (270-26-16)/3) - 14`, ou **62**. 64
+ *   cobre o pior caso;
+ * - o resto (`utilidade`, `remedio`, `sucata`) so aparece no inventario (**16**,
+ *   que e `INV.slot - 6`), na linha da loja (**17**) e no chao (**14**). 32 e o
+ *   dobro do maior.
+ *
+ * Categoria nova sem teto aqui PARA a geracao de proposito: o padrao errado
+ * seria cair no menor e entregar icone borrado numa tela que ninguem conferiu.
+ *
+ * O jogo nao tem numero pra acertar junto com estes: toda chamada passa por
+ * `ajustarIcone`, que tira a escala de `frame.width`. E quem garante que o teto
+ * nao ficou baixo demais e a suite de navegador, que mede icone desenhado contra
+ * frame de origem e cobra que nenhum seja AMPLIADO.
+ *
+ * A qualidade sobe, nao cai: `reduzirPara` reamostra com filtro de caixa
+ * ponderado por alfa, enquanto quem estava reduzindo 200 pra 72 era o canvas com
+ * `pixelArt: true`, isto e, vizinho mais proximo jogando fora pixel por
+ * arredondamento.
+ */
+const LADO_MAXIMO = {
+  eletronico: 96,
+  normal: 64,
+  utilidade: 32,
+  remedio: 32,
+  sucata: 32,
+  material: 32,
+};
+
+/** O teto da categoria do item, ou um erro alto se a categoria for nova. */
+function tetoDe(item) {
+  const teto = LADO_MAXIMO[item.categoria];
+  if (!teto) {
+    throw new Error(
+      `item "${item.id}": categoria "${item.categoria}" nao tem teto de lado em LADO_MAXIMO.` +
+        ` Veja em que telas um item dessa categoria aparece e escreva o teto la.`,
+    );
+  }
+  return teto;
+}
+
+/** A peca recortada pros PROPRIOS pixels, sobre fundo transparente. */
+function recortar(chaveDaFolha, b) {
+  const origem = folhas[chaveDaFolha].img;
+  if (!b.pixels) throw new Error(`peca [${b.x},${b.y}] veio sem lista de pixels`);
+  const im = new Img(b.w, b.h);
+  for (const i of b.pixels) {
+    const px = i % origem.w;
+    const py = (i - px) / origem.w;
+    const o = i * 4;
+    im.set(px - b.x, py - b.y, [
+      origem.px[o],
+      origem.px[o + 1],
+      origem.px[o + 2],
+      origem.px[o + 3],
+    ]);
+  }
+  return im;
+}
+
+/**
+ * A celula final de um item: recortada e, se passar de `LADO_MAXIMO`, reduzida
+ * mantendo a proporcao.
+ *
+ * O recorte vem ANTES da reducao de proposito. Duas pecas vizinhas na folha de
+ * origem tem caixas que se sobrepoem de verdade (a bandeja de morango encosta
+ * no tomate), entao reduzir direto da folha puxaria lasca da vizinha pra dentro
+ * da media de cada pixel do icone.
+ */
+function celula(item) {
+  const b = peca(item.folha, item.peca);
+  const inteira = recortar(item.folha, b);
+  const teto = tetoDe(item);
+  const maior = Math.max(inteira.w, inteira.h);
+  if (maior <= teto) return inteira;
+
+  const escala = teto / maior;
+  const w = Math.max(1, Math.round(inteira.w * escala));
+  const h = Math.max(1, Math.round(inteira.h * escala));
+  const cores = reduzirPara(inteira, { x: 0, y: 0, w: inteira.w, h: inteira.h }, w, h);
+  const menor = new Img(w, h);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) menor.set(i, j, cores[j * w + i]);
+  return menor;
+}
+
 function empacotar(itens) {
   const celulas = itens
-    .map((item) => ({ item, b: peca(item.folha, item.peca) }))
-    .sort((a, b) => b.b.h - a.b.h || b.b.w - a.b.w);
+    .map((item) => ({ item, img: celula(item) }))
+    .sort((a, b) => b.img.h - a.img.h || b.img.w - a.img.w);
 
   let x = FOLGA;
   let y = FOLGA;
   let alturaPrateleira = 0;
   let largura = 0;
   for (const c of celulas) {
-    if (x + c.b.w + FOLGA > LARGURA_MAXIMA) {
+    if (x + c.img.w + FOLGA > LARGURA_MAXIMA) {
       x = FOLGA;
       y += alturaPrateleira + FOLGA;
       alturaPrateleira = 0;
     }
     c.x = x;
     c.y = y;
-    x += c.b.w + FOLGA;
-    alturaPrateleira = Math.max(alturaPrateleira, c.b.h);
+    x += c.img.w + FOLGA;
+    alturaPrateleira = Math.max(alturaPrateleira, c.img.h);
     largura = Math.max(largura, x);
   }
   const altura = y + alturaPrateleira + FOLGA;
 
   const im = new Img(largura, altura);
   for (const c of celulas) {
-    const origem = folhas[c.item.folha].img;
-    if (!c.b.pixels) throw new Error(`peca ${c.item.id} veio sem lista de pixels`);
-    for (const i of c.b.pixels) {
-      const px = i % origem.w;
-      const py = (i - px) / origem.w;
-      const o = i * 4;
-      im.set(c.x + (px - c.b.x), c.y + (py - c.b.y), [
-        origem.px[o],
-        origem.px[o + 1],
-        origem.px[o + 2],
-        origem.px[o + 3],
-      ]);
+    for (let j = 0; j < c.img.h; j++) {
+      for (let i = 0; i < c.img.w; i++) {
+        const o = (j * c.img.w + i) * 4;
+        im.set(c.x + i, c.y + j, [
+          c.img.px[o],
+          c.img.px[o + 1],
+          c.img.px[o + 2],
+          c.img.px[o + 3],
+        ]);
+      }
     }
   }
   return { im, celulas };
@@ -236,11 +333,11 @@ const { im, celulas } = empacotar(ITENS_COM_ARTE);
 const frames = {};
 for (const c of celulas) {
   frames[c.item.frame] = {
-    frame: { x: c.x, y: c.y, w: c.b.w, h: c.b.h },
+    frame: { x: c.x, y: c.y, w: c.img.w, h: c.img.h },
     rotated: false,
     trimmed: false,
-    spriteSourceSize: { x: 0, y: 0, w: c.b.w, h: c.b.h },
-    sourceSize: { w: c.b.w, h: c.b.h },
+    spriteSourceSize: { x: 0, y: 0, w: c.img.w, h: c.img.h },
+    sourceSize: { w: c.img.w, h: c.img.h },
   };
 }
 

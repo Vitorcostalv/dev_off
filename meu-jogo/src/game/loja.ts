@@ -265,6 +265,7 @@ export function comprar(
   const r = estado.carteira.gastar(total, entrega);
   if (r.ok) {
     ultimaCompra = { id: def.id, quantidade: qtd, quando: t };
+    estado.eventos.emit('SHOP_PURCHASE', { id: def.id, total, loja: ponto?.id ?? 'devstore', eletronico: def.categoria === 'eletronico' });
     return { ok: true, total };
   }
 

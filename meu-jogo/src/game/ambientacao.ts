@@ -27,6 +27,24 @@ export const AVISOS_DA_CIDADE: readonly string[] = [
   'Reuniao de moradores na praca, sexta-feira as 19:30.',
 ];
 
+/**
+ * O que o quadro anuncia do ENCONTRO do dia. Um por encontro, e e o unico aviso
+ * do quadro que muda de dia pra dia — os outros quatro sao estaveis na semana.
+ *
+ * O texto vive aqui, e nao em `rotinaSocial.ts`, porque aquele modulo decide
+ * ROTINA e nao deve carregar copy de interface; a chave (`Encontro.aviso`) e a
+ * unica coisa que atravessa os dois.
+ */
+export const AVISOS_DE_ENCONTRO: Record<string, string> = {
+  encontro_bar: 'HOJE: noite no bar. Vitor abre o salao depois das 19:00.',
+  encontro_praca: 'HOJE: manha na praca. Cafe, conversa e quem aparecer.',
+  feira_da_estacao: 'HOJE: feira da estacao na praca, das 16:00 as 19:00.',
+  noite_rio: 'HOJE: encontro na margem sul do rio, no bairro, das 19h às 21h.',
+  festival_estacao: 'HOJE: Festival da Estação na praça, das 18h às 21h.',
+  jantar_comunitario: 'HOJE: jantar comunitário no bar, das 19h às 22h. Pode vir sem trazer nada.',
+  memorial_usina: 'HOJE: memorial da antiga usina na praça do quadro, das 16h às 18h. Fotografias e relatos.',
+};
+
 /** Quatro avisos estaveis durante a semana inteira (dia 0..6, 7..13 etc.). */
 export function avisosDaSemana(dia: number): string[] {
   const semana = Math.floor(Math.max(0, dia) / 7);

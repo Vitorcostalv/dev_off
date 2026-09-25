@@ -9,6 +9,8 @@ const DISTANCIA_CHEGADA = 0.02;
 
 export interface EstadoNpc {
   readonly id: string;
+  /** Mapa externo da atividade atual; residência permanece em DefinicaoNpc. */
+  mapaAtual: string;
   x: number;
   y: number;
   dentro: string | null;
@@ -95,6 +97,7 @@ export class SistemaRotinasNpc {
   private criarRuntime(def: DefinicaoNpc): RuntimeNpc {
     const estado: EstadoNpc = {
       id: def.id,
+      mapaAtual: def.mapa,
       x: def.posicaoInicial.x,
       y: def.posicaoInicial.y,
       dentro: def.dentroInicial,
@@ -140,6 +143,7 @@ export class SistemaRotinasNpc {
     const { def, estado } = runtime;
     runtime.rotina = this.rotinaDoDia(def, dia);
     estado.x = def.posicaoInicial.x;
+    estado.mapaAtual = def.mapa;
     estado.y = def.posicaoInicial.y;
     estado.dentro = def.dentroInicial;
     estado.visivel = def.dentroInicial === null;
@@ -304,6 +308,7 @@ export class SistemaRotinasNpc {
         return true;
       }
       case 'assumir_lugar':
+        runtime.estado.mapaAtual = acao.mapa ?? runtime.def.mapa;
         // Troca instantanea de lugar: sem rota, sem passo. Ver o comentario do
         // tipo em npcs.ts — e o que os NPCs sem folha de caminhada usam, e
         // tambem quem trabalha num posto fixo dentro de um predio.

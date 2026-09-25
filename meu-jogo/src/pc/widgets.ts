@@ -20,6 +20,23 @@ export const PC = {
   sucesso: UI.sucesso,
   /** cinza dos apps ainda sem funcao */
   bloqueado: 0x2a3240,
+  /**
+   * Fundo de area de CONTEUDO dentro de um app: visor da calculadora, lista de
+   * arquivos, corpo da pagina do navegador, foto do produto na loja. Mais escuro
+   * que `painel` de proposito — e o que separa "onde o app desenha o dado" de
+   * "onde o app desenha os proprios controles".
+   */
+  cova: 0x0d1119,
+  /** cartao ou linha selecionada de uma lista */
+  selecionado: 0x2f3c52,
+  /** letra POR CIMA de um fundo de destaque, que e claro */
+  sobreDestaque: '#0e1420',
+  /** risco do papel de parede do desktop */
+  parede: 0x1a2130,
+  /** icone do desktop em foco */
+  focado: 0x2a3550,
+  /** glifo sobre o ladrilho colorido de um icone: branco em qualquer cor de app */
+  glifo: '#ffffff',
 } as const;
 
 export interface Retangulo {
@@ -101,7 +118,7 @@ export function botao(
   const destacar = (ativo: boolean): void => {
     fundo.setFillStyle(ativo ? PC.bordaViva : PC.painelClaro);
     fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
-    rotulo.setColor(ativo ? '#0e1420' : PC.textoFraco);
+    rotulo.setColor(ativo ? PC.sobreDestaque : PC.textoFraco);
   };
   destacar(false);
 

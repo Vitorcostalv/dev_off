@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { controles } from '../game/InputRouter';
+import { som } from './Som';
 import { nomeDoDia } from '../game/calendario';
 import { CONFIG, UI } from '../game/config';
 import { estado } from '../game/estado';
@@ -49,6 +51,7 @@ export class ComputadorScene extends Phaser.Scene {
    * que o previsto, e o jogador perde as primeiras teclas ao voltar.
    */
   private pronto = false;
+  private aceitarPadApos = 0;
 
   constructor() {
     super({ key: 'ComputadorScene', active: false });
@@ -59,6 +62,8 @@ export class ComputadorScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.aceitarPadApos = this.time.now + 180;
+    som.tocar('pc_ligar');
     this.apps = criarApps();
     this.janela = new JanelaApp(this);
     this.cursor = 0;
@@ -79,6 +84,10 @@ export class ComputadorScene extends Phaser.Scene {
   }
 
   update(): void {
+    for (const [acao, key] of [['cima', 'ArrowUp'], ['baixo', 'ArrowDown'], ['esquerda', 'ArrowLeft'], ['direita', 'ArrowRight'], ['interagir', 'Enter']] as const) {
+      if (this.time.now >= this.aceitarPadApos && controles.apertouPad(acao)) this.aoTeclar(new KeyboardEvent('keydown', { key }));
+    }
+    if (this.time.now >= this.aceitarPadApos && (controles.padVoltar || controles.padPausa)) this.aoTeclar(new KeyboardEvent('keydown', { key: 'Escape' }));
     if (this.janela.aberta) {
       this.janela.atualizar();
       return;
@@ -109,6 +118,7 @@ export class ComputadorScene extends Phaser.Scene {
       ArrowDown: ICONES.colunas, s: ICONES.colunas, S: ICONES.colunas,
     };
     if (passo[evento.key] !== undefined) {
+      som.tocar('pc_tecla');
       this.mover(passo[evento.key]);
       return;
     }
@@ -129,6 +139,7 @@ export class ComputadorScene extends Phaser.Scene {
   private abrirApp(indice: number): void {
     const app = this.apps[indice];
     if (!app) return;
+    som.tocar('pc_app');
     this.cursor = indice;
     this.desktop.setVisible(false);
     this.janela.abrir(app, () => this.voltarAoDesktop());
@@ -156,7 +167,7 @@ export class ComputadorScene extends Phaser.Scene {
     g.fillStyle(PC.fundo, 1);
     g.fillRect(0, 0, CONFIG.largura, CONFIG.altura);
     // faixas diagonais discretas: papel de parede sem custo de asset
-    g.lineStyle(1, 0x1a2130, 1);
+    g.lineStyle(1, PC.parede, 1);
     for (let x = -CONFIG.altura; x < CONFIG.largura; x += 14) {
       g.lineBetween(x, CONFIG.altura, x + CONFIG.altura, 0);
     }
@@ -168,14 +179,14 @@ export class ComputadorScene extends Phaser.Scene {
     this.relogio = this.add
       .text(CONFIG.largura - 7, 4, '', {
         fontFamily: UI.fonte,
-        fontSize: '9px',
+        fontSize: UI.tamanhoMiudo,
         color: PC.textoFraco,
       })
       .setOrigin(1, 0);
     this.saldo = this.add
       .text(CONFIG.largura - 126, 4, '', {
         fontFamily: UI.fonte,
-        fontSize: '9px',
+        fontSize: UI.tamanhoMiudo,
         color: PC.destaque,
       })
       .setOrigin(1, 0);
@@ -202,21 +213,21 @@ export class ComputadorScene extends Phaser.Scene {
       const glifo = this.add
         .text(x + ICONES.largura / 2, y + 27, app.glifo, {
           fontFamily: UI.fonte,
-          fontSize: '20px',
-          color: '#ffffff',
+          fontSize: UI.tamanhoGrande,
+          color: PC.glifo,
         })
         .setOrigin(0.5, 0.5);
       const nome = this.add
         .text(x + ICONES.largura / 2, y + 52, app.titulo, {
           fontFamily: UI.fonte,
-          fontSize: '10px',
+          fontSize: UI.tamanho,
           color: PC.texto,
         })
         .setOrigin(0.5, 0);
       const resumo = this.add
         .text(x + ICONES.largura / 2, y + 65, encurtar(app.resumo, 17), {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.textoFraco,
         })
         .setOrigin(0.5, 0);
@@ -232,7 +243,7 @@ export class ComputadorScene extends Phaser.Scene {
     this.dica = this.add
       .text(CONFIG.largura / 2, CONFIG.altura - 14, '', {
         fontFamily: UI.fonte,
-        fontSize: '9px',
+        fontSize: UI.tamanhoMiudo,
         color: PC.textoFraco,
       })
       .setOrigin(0.5, 0);
@@ -257,7 +268,7 @@ export class ComputadorScene extends Phaser.Scene {
   private desenharDesktop(): void {
     this.celulas.forEach((celula, i) => {
       const ativo = i === this.cursor;
-      celula.fundo.setFillStyle(ativo ? 0x2a3550 : PC.painel);
+      celula.fundo.setFillStyle(ativo ? PC.focado : PC.painel);
       celula.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
       celula.ladrilho.setStrokeStyle(1, ativo ? PC.bordaViva : PC.borda);
     });

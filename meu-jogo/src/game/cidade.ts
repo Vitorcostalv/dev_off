@@ -1,3 +1,4 @@
+import type { RequisitoMaterial } from './casa.ts';
 import type { AtividadeMorador, Morador } from './moradores.ts';
 
 export type IdProjetoCidade = 'cafeteria' | 'hospital' | 'padaria' | 'ponto_onibus';
@@ -9,6 +10,21 @@ export interface ProjetoCidade {
   mapa: 'bairro';
   quadro: string;
   custo: number;
+  /**
+   * O que a obra CONSOME do inventario, alem do dinheiro.
+   *
+   * Ate aqui a cidade se construia so com saldo, e era a ultima ponte aberta
+   * do roteiro: os dois pontos de madeira e os dois de pedra da zona rural
+   * rendiam material que so a casa do protagonista usava. Uma obra publica
+   * agora pede o mesmo tipo de coisa que um comodo pede, na escala de
+   * EXPANSOES (o deposito sai por 20 de madeira e 12 de pedra).
+   *
+   * Isso NAO e uma tranca: madeira e concreto estao a venda na madeireira, e
+   * pedra e concreto na pedreira. E um segundo preco, pagavel em trabalho ou
+   * em dinheiro — e o que finalmente faz valer a pena caminhar ate os pontos
+   * de coleta em vez de so comprar.
+   */
+  materiais: readonly RequisitoMaterial[];
   candidatos: readonly string[];
   posto: { x: number; y: number };
   pegada: { w: number; h: number };
@@ -23,21 +39,25 @@ export const PROJETOS_CIDADE: Record<IdProjetoCidade, ProjetoCidade> = {
   cafeteria: {
     id: 'cafeteria', nome: 'Cafeteria da Estacao', lote: 'terreno_baldio', mapa: 'bairro',
     quadro: 'projeto_cafeteria', custo: 8_000, candidatos: ['lucia', 'samanta', 'tulio'],
+    materiais: [{ itemId: 'madeira', quantidade: 24 }, { itemId: 'pedra', quantidade: 10 }],
     posto: { x: 113, y: 66 }, pegada: { w: 7, h: 4 }, atividade: 'turno na cafeteria',
   },
   hospital: {
     id: 'hospital', nome: 'Posto de Saude', lote: 'casa_c3', mapa: 'bairro',
     quadro: 'projeto_hospital', custo: 15_000, candidatos: ['rafael', 'priscila', 'ilda'],
+    materiais: [{ itemId: 'madeira', quantidade: 20 }, { itemId: 'pedra', quantidade: 18 }, { itemId: 'concreto', quantidade: 20 }],
     posto: { x: 99, y: 39 }, pegada: { w: 6, h: 4 }, atividade: 'atendimento no posto de saude',
   },
   padaria: {
     id: 'padaria', nome: 'Padaria do Bairro', lote: 'casa_b8', mapa: 'bairro',
     quadro: 'projeto_padaria', custo: 9_000, candidatos: ['davi', 'neide', 'joao'],
+    materiais: [{ itemId: 'madeira', quantidade: 26 }, { itemId: 'pedra', quantidade: 12 }],
     posto: { x: 128, y: 69 }, pegada: { w: 6, h: 4 }, atividade: 'turno na padaria',
   },
   ponto_onibus: {
     id: 'ponto_onibus', nome: 'Ponto de Onibus', lote: 'casa_c4', mapa: 'bairro',
     quadro: 'projeto_ponto_onibus', custo: 4_000, candidatos: ['julia', 'matheus', 'tulio'],
+    materiais: [{ itemId: 'madeira', quantidade: 8 }, { itemId: 'concreto', quantidade: 6 }],
     posto: { x: 111, y: 39 }, pegada: { w: 5, h: 2 }, atividade: 'operacao da linha de onibus',
   },
 };
@@ -45,6 +65,20 @@ export const PROJETOS_CIDADE: Record<IdProjetoCidade, ProjetoCidade> = {
 export interface DadosCidade {
   construidos: IdProjetoCidade[];
   funcionarios: [IdProjetoCidade, string][];
+}
+
+/** Única fonte dos horários anunciados e simulados dos empregos urbanos. */
+export const TURNO_CIDADE = { inicio: 8 * 60, fim: 17 * 60, dias: [0, 1, 2, 3, 4] as readonly number[] };
+export const HORARIO_EMPREGO = `${String(TURNO_CIDADE.inicio / 60).padStart(2, '0')}:00 as ${String(TURNO_CIDADE.fim / 60).padStart(2, '0')}:00`;
+
+export function turnoDoFuncionario(cidade: SistemaCidade, npcId: string, dia: number): AtividadeMorador | null {
+  const projeto = cidade.projetoDoFuncionario(npcId);
+  if (!projeto || !TURNO_CIDADE.dias.includes(dia % 7)) return null;
+  return {
+    inicio: TURNO_CIDADE.inicio, fim: TURNO_CIDADE.fim,
+    lugar: { construcao: null, mapa: projeto.mapa, ponto: { x: projeto.posto.x + 0.5, y: projeto.posto.y + 0.5 } },
+    atividade: projeto.atividade,
+  };
 }
 
 export class SistemaCidade {
@@ -91,10 +125,10 @@ export class SistemaCidade {
     this.funcionarios.clear();
     if (!bruto || typeof bruto !== 'object') return;
     const dados = bruto as Partial<DadosCidade>;
-    for (const id of dados.construidos ?? []) {
-      if (typeof id === 'string' && id in PROJETOS_CIDADE) this.construidos.add(id as IdProjetoCidade);
+    for (const id of Array.isArray(dados.construidos) ? dados.construidos : []) {
+      if (typeof id === 'string' && Object.hasOwn(PROJETOS_CIDADE, id)) this.construidos.add(id as IdProjetoCidade);
     }
-    for (const entrada of dados.funcionarios ?? []) {
+    for (const entrada of Array.isArray(dados.funcionarios) ? dados.funcionarios : []) {
       if (!Array.isArray(entrada) || entrada.length !== 2) continue;
       const [id, npcId] = entrada;
       if (typeof id === 'string' && typeof npcId === 'string') this.atribuir(id as IdProjetoCidade, npcId);
@@ -120,19 +154,8 @@ export function atividadeComEmprego(
   minutos: number,
   atividadePadrao: AtividadeMorador | null,
 ): AtividadeMorador | null {
-  const projeto = cidade.projetoDoFuncionario(morador.id);
-  const diaUtil = dia % 7 < 5;
-  if (!projeto || !diaUtil || minutos < 8 * 60 || minutos >= 17 * 60) return atividadePadrao;
-  return {
-    inicio: 8 * 60,
-    fim: 17 * 60,
-    lugar: {
-      construcao: null,
-      mapa: projeto.mapa,
-      ponto: { x: projeto.posto.x + 0.5, y: projeto.posto.y + 0.5 },
-    },
-    atividade: projeto.atividade,
-  };
+  const turno = turnoDoFuncionario(cidade, morador.id, dia);
+  return turno && minutos >= turno.inicio && minutos < turno.fim ? turno : atividadePadrao;
 }
 
 /**
@@ -149,15 +172,14 @@ export function atividadesComEmprego(
   morador: Morador,
   dia: number,
 ): AtividadeMorador[] | null {
-  const projeto = cidade.projetoDoFuncionario(morador.id);
-  if (!projeto || dia % 7 >= 5) return null;
-  const lugar = { construcao: null, mapa: projeto.mapa, ponto: { x: projeto.posto.x + 0.5, y: projeto.posto.y + 0.5 } };
+  const turno = turnoDoFuncionario(cidade, morador.id, dia);
+  if (!turno) return null;
   const uteis = morador.atividades.filter((faixa) => !faixa.fimDeSemana);
-  // A faixa substituida e a que estiver valendo as 12:00 — o compromisso do
-  // meio do dia. As pontas (manha e noite em casa) ficam como estao.
-  const alvo = uteis.find((faixa) => faixa.inicio <= 12 * 60 && faixa.fim > 12 * 60);
-  if (!alvo) return null;
-  return uteis.map((faixa) => (faixa === alvo
-    ? { ...faixa, lugar, atividade: projeto.atividade }
-    : faixa));
+  const foraDoTurno = uteis.flatMap((faixa) => {
+    const partes: AtividadeMorador[] = [];
+    if (faixa.inicio < turno.inicio) partes.push({ ...faixa, fim: Math.min(faixa.fim, turno.inicio) });
+    if (faixa.fim > turno.fim) partes.push({ ...faixa, inicio: Math.max(faixa.inicio, turno.fim) });
+    return partes;
+  });
+  return [...foraDoTurno, turno].sort((a, b) => a.inicio - b.inicio);
 }

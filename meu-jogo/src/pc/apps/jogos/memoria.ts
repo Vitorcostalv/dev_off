@@ -3,6 +3,7 @@ import { CATALOGO_ITENS } from '../../../game/itens.ts';
 import { PC, ajustarIcone, texto } from '../../widgets.ts';
 import type { Retangulo } from '../../widgets.ts';
 import type { Vista } from '../../vista.ts';
+import { UI } from '../../../game/config';
 
 /**
  * Jogo da Memoria — seis pares de icones, virados pra baixo.
@@ -89,7 +90,7 @@ export class JogoDaMemoria implements Vista {
       return { fundo, icone, par: carta.par, virada: false, casada: false };
     });
 
-    this.placar = texto(cena, area.x, area.y, '', { fontSize: '10px' });
+    this.placar = texto(cena, area.x, area.y, '', { fontSize: UI.tamanho });
     raiz.add(this.placar);
     this.desenhar();
   }
@@ -165,7 +166,7 @@ export class JogoDaMemoria implements Vista {
       const mostrando = c.virada || c.casada;
       c.icone.setVisible(mostrando);
       c.icone.setAlpha(c.casada ? 0.55 : 1);
-      c.fundo.setFillStyle(c.casada ? 0x25452c : mostrando ? 0x2f3c52 : PC.painelClaro);
+      c.fundo.setFillStyle(c.casada ? 0x25452c : mostrando ? PC.selecionado : PC.painelClaro);
       const ativo = i === this.cursor && this.fim === null;
       c.fundo.setStrokeStyle(1, ativo ? PC.bordaViva : c.casada ? 0x8ac47a : PC.borda);
     });

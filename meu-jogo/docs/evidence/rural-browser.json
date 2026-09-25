@@ -1,0 +1,54 @@
+{
+  "nodes": [
+    {
+      "id": "canteiro_1",
+      "x": 1296,
+      "y": 2064,
+      "blocked": false
+    },
+    {
+      "id": "canteiro_2",
+      "x": 1360,
+      "y": 2064,
+      "blocked": false
+    },
+    {
+      "id": "canteiro_3",
+      "x": 1424,
+      "y": 2064,
+      "blocked": false
+    },
+    {
+      "id": "madeira_1",
+      "x": 3696,
+      "y": 1360,
+      "blocked": false
+    },
+    {
+      "id": "madeira_2",
+      "x": 3824,
+      "y": 1360,
+      "blocked": false
+    },
+    {
+      "id": "pedra_1",
+      "x": 3632,
+      "y": 3024,
+      "blocked": false
+    },
+    {
+      "id": "pedra_2",
+      "x": 3792,
+      "y": 3024,
+      "blocked": false
+    }
+  ],
+  "errors": [],
+  "checks": [
+    "seven rural nodes",
+    "tile collision clear",
+    "growth through day events",
+    "save reload harvest",
+    "remap: 22 pecas de mobiliario, 2 luzes a noite e 0 de dia"
+  ]
+}

@@ -1,0 +1,71 @@
+import { chromium } from 'playwright-core';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
+page.setDefaultTimeout(90000);
+const erros = []; page.on('pageerror', e => erros.push(e.message));
+const menuPronto = () => page.waitForFunction(() => window.game?.scene.isActive('MenuScene') && window.game.scene.getScene('MenuScene').raiz);
+const escolher = async nome => page.evaluate(nome => { const m = window.game.scene.getScene('MenuScene'); const o = m.opcoes.find(o => o.texto === nome); if (!o) throw Error(nome); o.executar(); }, nome);
+try {
+  await page.goto(process.env.GAME_URL ?? 'http://127.0.0.1:5190'); await menuPronto();
+  assert.equal(await page.evaluate(() => window.game.scene.getScene('MenuScene').opcoes.length), 6);
+  fs.mkdirSync('docs/evidence', { recursive: true });
+  await page.screenshot({ path: 'docs/evidence/inicio-casa-escura.png' });
+  await page.evaluate(() => window.estado.worldEvents.definir('prologo:explorado', true));
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => window.game.scene.isActive('CampanhaScene'));
+  await page.waitForTimeout(6000);
+  await page.evaluate(async () => {
+    const c = window.game.scene.getScene('CampanhaScene'); c.sair(false);
+    const { CENAS_CAMPANHA } = await import('/src/game/campanha.ts');
+    for (const cena of CENAS_CAMPANHA) window.estado.worldEvents.definir(`campanha:cena:${cena.id}`, true);
+    window.estado.worldEvents.definir('campanha:ativa', '');
+    window.estado.dia = 65;
+    window.game.scene.getScene('FarmScene').salvarJogo();
+  });
+  await page.waitForFunction(() => window.game.scene.isActive('FarmScene'));
+  const automatico = await page.evaluate(() => {
+    window.estado.dia = 66;
+    for (let i = 0; i < 62; i++) window.game.events.emit('poststep', 0, 1000);
+    const dia = JSON.parse(localStorage.getItem('meu-jogo:save')).dia;
+    window.estado.dia = 65;
+    return dia;
+  });
+  assert.equal(automatico, 66);
+  await page.waitForTimeout(5500);
+  await page.keyboard.press('Escape'); await menuPronto();
+  const tempoPausa = await page.evaluate(() => {
+    const antes = window.estado.worldEvents.obter('sessao:segundos');
+    for (let i = 0; i < 5; i++) window.game.events.emit('poststep', 0, 1000);
+    return [antes, window.estado.worldEvents.obter('sessao:segundos')];
+  });
+  assert.equal(tempoPausa[0], tempoPausa[1]);
+  await escolher('Guardar momento'); await escolher('Lembrança 1');
+  const slot = await page.evaluate(() => JSON.parse(localStorage.getItem('meu-jogo:partida:1')));
+  assert.equal(slot.dia, 65); assert(slot.worldEvents.flags['sessao:segundos'] > 5); assert(slot.worldEvents.flags['save:miniatura'].startsWith('data:image/jpeg'));
+  await page.waitForTimeout(200); await page.screenshot({ path: 'docs/evidence/partidas-momentos.png' });
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => { window.estado.dia = 88; });
+  await escolher('Carregar momento'); await escolher('Lembrança 1');
+  await escolher('Confirmar'); await page.waitForEvent('load'); await menuPronto();
+  assert.equal(await page.evaluate(() => window.estado.dia), 65);
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('meu-jogo:save:backups'))[0].bruto.includes('"dia":88')), true);
+  await page.evaluate(() => {
+    window.estado.relacoes.ganharRelacao('leticia', 6); window.estado.relacoes.ganharRelacao('edu', 6);
+    const m = window.game.scene.getScene('MenuScene'); m.abrir('titulo');
+  });
+  await page.screenshot({ path: 'docs/evidence/inicio-amizades.png' });
+  await page.evaluate(() => { window.estado.arquivo.coletar(50); for (let i = 51; i <= 159; i++) window.estado.arquivo.concluirRegistro(i); window.game.scene.getScene('MenuScene').abrir('titulo'); });
+  await page.screenshot({ path: 'docs/evidence/inicio-profundezas.png' });
+  await escolher('Créditos'); await page.keyboard.press('Escape');
+  await escolher('Sair'); assert.equal(await page.evaluate(() => window.game.scene.isPaused('FarmScene')), true);
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('meu-jogo:save')); s.versao = 999; localStorage.setItem('meu-jogo:save', JSON.stringify(s)); });
+  await page.reload(); await menuPronto(); await escolher('Carregar');
+  assert.equal(await page.evaluate(() => window.game.scene.getScene('MenuScene').partidas[0].estado), 'incompativel');
+  await escolher('Autosave');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('meu-jogo:save')).versao), 999);
+  assert.deepEqual(erros, []);
+  console.log('Chrome: tela dinâmica, novo jogo, quatro espaços, miniatura, tempo, save/load real, backup, créditos, saída e incompatibilidade passaram.');
+} finally { await browser.close(); }

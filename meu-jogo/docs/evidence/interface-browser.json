@@ -1,0 +1,13 @@
+{
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "menu de assunto com retrato: UM aperto de E escolhe o tema (era zero)",
+    "ESC com pergunta sobre menu fecha a pergunta e o menu continua com o teclado",
+    "o segundo ESC fecha o menu e devolve o jogo — uma janela por aperto",
+    "abrir a loja fecha o inventario — e ele sai da tela junto, nao so da pilha",
+    "nem menu nem loja abrem por cima de uma pergunta — a pergunta e a ultima palavra",
+    "pilha vazia = jogo andando; qualquer janela aberta = jogo parado",
+    "a borda das duas janelas e UI.borda no pixel: #6b5f4c na loja e #6b5f4c no inventario"
+  ]
+}

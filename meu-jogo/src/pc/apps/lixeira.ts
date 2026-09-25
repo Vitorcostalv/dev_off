@@ -29,6 +29,7 @@ export class Lixeira implements AppDoPc {
   readonly resumo = 'Itens excluidos';
 
   private topo = 0;
+  private confirmando = false;
   private linhas: {
     fundo: Phaser.GameObjects.Rectangle;
     nome: Phaser.GameObjects.Text;
@@ -54,7 +55,7 @@ export class Lixeira implements AppDoPc {
     this.contagem = ctx.cena.add
       .text(area.x + area.w, area.y + 1, '', {
         fontFamily: UI.fonte,
-        fontSize: '9px',
+        fontSize: UI.tamanhoMiudo,
         color: PC.textoFraco,
       })
       .setOrigin(1, 0);
@@ -62,16 +63,16 @@ export class Lixeira implements AppDoPc {
 
     // --- moldura da lista, com cabecalho de tabela ---
     const lista = { x: area.x, y: area.y + 18, w: area.w, h: LINHA.visiveis * LINHA.altura + 17 };
-    caixa(g, lista, 0x0d1119, PC.borda);
+    caixa(g, lista, PC.cova, PC.borda);
     g.lineStyle(1, PC.borda, 0.7);
     g.lineBetween(lista.x, lista.y + 15, lista.x + lista.w, lista.y + 15);
 
     objetos.push(
-      texto(ctx.cena, lista.x + 8, lista.y + 3, 'Item', { fontSize: '9px', color: PC.textoFraco }),
+      texto(ctx.cena, lista.x + 8, lista.y + 3, 'Item', { fontSize: UI.tamanhoMiudo, color: PC.textoFraco }),
       ctx.cena.add
         .text(lista.x + lista.w - 8, lista.y + 3, 'Descartado em', {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.textoFraco,
         })
         .setOrigin(1, 0),
@@ -84,11 +85,11 @@ export class Lixeira implements AppDoPc {
       const fundo = ctx.cena.add
         .rectangle(lista.x + lista.w / 2, y + LINHA.altura / 2, lista.w - 4, LINHA.altura - 1, PC.painelClaro)
         .setVisible(false);
-      const nome = texto(ctx.cena, lista.x + 8, y + 4, '', { fontSize: '10px' });
+      const nome = texto(ctx.cena, lista.x + 8, y + 4, '', { fontSize: UI.tamanho });
       const quando = ctx.cena.add
         .text(lista.x + lista.w - 8, y + 4, '', {
           fontFamily: UI.fonte,
-          fontSize: '9px',
+          fontSize: UI.tamanhoMiudo,
           color: PC.textoFraco,
         })
         .setOrigin(1, 0);
@@ -99,14 +100,14 @@ export class Lixeira implements AppDoPc {
     this.vazio = ctx.cena.add
       .text(lista.x + lista.w / 2, lista.y + lista.h / 2, '', {
         fontFamily: UI.fonte,
-        fontSize: '11px',
+        fontSize: UI.tamanhoTitulo,
         color: PC.textoFraco,
         align: 'center',
       })
       .setOrigin(0.5, 0.5);
     objetos.push(this.vazio);
 
-    this.rodape = texto(ctx.cena, area.x, area.y + area.h - 11, '', { fontSize: '9px' });
+    this.rodape = texto(ctx.cena, area.x, area.y + area.h - 11, '', { fontSize: UI.tamanhoMiudo });
     objetos.push(this.rodape);
 
     this.desenhar();
@@ -114,6 +115,13 @@ export class Lixeira implements AppDoPc {
   }
 
   aoTeclar(evento: KeyboardEvent): boolean {
+    if (evento.key === 'Escape' && this.confirmando) { this.confirmando = false; this.desenhar(); return true; }
+    if (evento.key.toLowerCase() === 'e' && !evento.repeat && !estado.lixeira.vazia) {
+      if (!this.confirmando) { this.confirmando = true; this.rodape.setText('[E] confirmar limpeza do historico   [Esc] cancelar'); return true; }
+      const quantidade = estado.lixeira.lista.length;
+      estado.lixeira.restaurar([]); this.confirmando = false; this.topo = 0;
+      estado.eventos.emit('TRASH_EMPTIED', { quantidade }); this.desenhar(); return true;
+    }
     const passo: Record<string, number> = {
       ArrowUp: -1, w: -1, W: -1,
       ArrowDown: 1, s: 1, S: 1,
@@ -159,11 +167,13 @@ export class Lixeira implements AppDoPc {
     });
 
     this.rodape.setColor(PC.textoFraco);
+    this.rodape.setInteractive({ useHandCursor: true });
+    if (this.rodape.listenerCount('pointerdown') === 0) this.rodape.on('pointerdown', () => this.aoTeclar({ key: 'e', repeat: false } as KeyboardEvent));
     this.rodape.setText(
       total === 0
         ? 'Sem recuperacao: a lixeira e so historico.'
         : `${this.topo + 1}-${Math.min(total, this.topo + LINHA.visiveis)} de ${total}` +
-          `   [W/S] rolar   sem recuperacao: e so historico   [Esc] sair`,
+          `   [W/S] rolar   [E/clique] limpar historico   [Esc] sair`,
     );
   }
 }

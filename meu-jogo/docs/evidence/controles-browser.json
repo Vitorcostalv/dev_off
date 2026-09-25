@@ -1,0 +1,12 @@
+{
+  "errors": [],
+  "checks": [
+    "remap UI persistence",
+    "old binding inactive",
+    "new binding movement",
+    "keyup stops motion",
+    "pad at index one",
+    "pad pause and inventory",
+    "DevOS open and close with pad"
+  ]
+}

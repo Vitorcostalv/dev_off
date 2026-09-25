@@ -1,0 +1,125 @@
+# Performance e acessibilidade: medir o que o navegador baixa
+
+## Implemented
+A base de desempenho de [docs/overhaul.md](overhaul.md) registrava *"public soma 268.978.461 bytes (tamanho distribuído, não tráfego de boot)"* e dizia, com razão, que o tráfego ainda precisava de medição própria. Esta etapa é ela — e a medição achou coisas que contar bytes no disco não mostra.
+
+**O boot baixava 127,89 MB em 210 arquivos, tudo antes de o menu aparecer.** Agora baixa **19,86 MB em 105**. Num link de 8 Mbps, o build de produção termina o boot em **21,2 s** contra os 36,6 s de antes desta última leva — e contra bem mais que isso antes de toda a etapa.
+
+**O deploy carregava 266 MB, dos quais 211 MB o jogo nunca pede.** Agora são **93 MB**.
+
+## O que a medição achou
+
+Cinco coisas, e nenhuma delas aparece olhando o tamanho de `public/`.
+
+**Os sprites de personagem tinham 6,7 vezes mais pixel do que a tela mostra.** O jogo desenha personagem a `ALTURA_PERSONAGEM_TILES` (1,5) vezes o tile de 32px — quarenta e oito pixels de altura. O quadro da folha de runtime tinha 320. Os 33 NPCs mais os 7 monstros somavam 66,9 MB baixados antes do menu para mostrar bonecos de 48px.
+
+A correção foi **uma constante**: `FRAME` em `tools/folha-personagem.mjs`, de 256×320 para 128×160. O jogo não tem número para acertar junto — a escala sai de `sprite.height` em runtime. NPCs de 54,85 para 14,99 MB, monstros de 12,07 para 3,16. E a qualidade não caiu: `reduzirPara` reamostra com filtro de caixa ponderado por alfa, enquanto quem estava reduzindo 320 para 48 era o canvas com `pixelArt: true`, isto é, vizinho mais próximo jogando fora 85% dos pixels por arredondamento. A 128×160 o personagem ainda tem 3,3 vezes a altura que ocupa na tela.
+
+O sprite do **jogador** não passou por isso e continua em 1254×1254 (4,23 MB). Ele não usa este pipeline, e `maos_jogador.json` e `equipamento.ancoras.json` têm coordenada em pixel casada com a folha: mexer no tamanho quebraria a âncora de toda mão e todo equipamento.
+
+**As catorze folhas de móvel eram carregadas sempre, todas.** 35,79 MB — a folha de banheiro e a de hospital baixadas antes do menu, para um jogador que começa na rua do bairro, mapa que não usa nenhuma delas. O mapa que usa mais, uma residência, usa seis (15,64 MB).
+
+Agora quem carrega é a cena de mundo, ao entrar no mapa, lendo a camada `moveis` do próprio tilemap — que o gerador já escreve com `atlas` em cada objeto, então não há segunda lista para manter em sincronia. Na casa do protagonista entra também o catálogo de mobília comprável, que não está na camada: as peças que o jogador ainda não comprou aparecem na pré-visualização da loja, e as que ele comprou estão em `estado.casa`.
+
+**E o áudio carregava os 46 WAV, 7,52 MB.** Sete deles são ambiente (3,11) e trilha (4,04): treze arquivos longos que entram com fade de 900 ms. Efeito e som de interface juntos são 0,37 MB, e são os únicos que precisam estar prontos no instante em que o jogador aperta uma tecla — um passo que sai meio segundo depois do passo é um bug. Ambiente e trilha entram na primeira vez que o lugar pede.
+
+**E os 209 ícones de item eram desenhados no tamanho da arte de origem.** `itens.png` tinha 3,64 MB de peças de 40 a 200 px de lado, e a tela nunca pede tudo isso: o jogo roda em 480×270 lógicos com `Scale.FIT`, então ícone desenhado a N px amostra N px de textura e pronto.
+
+O teto não é um só, porque as duas telas que mostram ícone grande filtram por **categoria**, e filtram no código, com o filtro escrito e comentado — não por acaso. A DevStore mostra `eletronico` num ícone de 72 px; o jogo da memória mostra `normal` numa carta que se dimensiona pela janela; e `utilidade`, `remedio`, `sucata` e `material` só aparecem no inventário (16 px), na linha da loja (17) e no chão (14). Daí os tetos de `LADO_MAXIMO` em `gerar-itens.mjs`: **96, 64 e 32**. Categoria nova sem teto declarado para a geração, porque o padrão errado seria cair no menor e entregar ícone borrado numa tela que ninguém conferiu.
+
+A folha caiu de **3,64 para 1,89 MB**, e a redução voltou a ser feita com filtro de caixa ponderado por alfa em vez de vizinho mais próximo do canvas.
+
+O recorte vem antes da redução de propósito: duas peças vizinhas na folha de origem têm caixas que se sobrepõem de verdade (a bandeja de morango encosta no tomate), então reduzir direto da folha puxaria lasca da vizinha para dentro da média de cada pixel do ícone.
+
+## Architecture
+`garantirAtlasDeMovel` segue o mesmo formato de `garantirTilemap`, que já existia para os 45 andares sob demanda da represa: corta o `create` no mesmo lugar, dispara a carga e reinicia a cena quando ela termina. Sem tarja de "carregando", ao contrário do tilemap — o atlas só falta na primeira vez que se entra num tipo de interior, o arquivo está no mesmo servidor do tilemap que acabou de chegar, e uma tarja que pisca por dois quadros é mais ruído que informação.
+
+O áudio ganhou **cena própria só para carregar**. Sem ela o som usaria o loader da cena de mundo — e a FarmScene escuta `COMPLETE` nesse mesmo loader para reiniciar depois de buscar tilemap e atlas: uma faixa de ambiente chegando no meio disso dispararia o `restart` dela.
+
+E o `arte/` deixou de ser convenção só no comentário. `gerar-assets.mjs` já dizia *"fica fora de public/ pra não inflar o build"*, mas 70 folhas de origem continuavam em `public/assets/sprites`, mais as pastas `Monstros` (19 MB) e `Armas` (3,4 MB). O Vite copia `public/` inteiro, então tudo aquilo ia para o `dist/` e ninguém baixava. Foram para `arte/`: folha de NPC, de monstro, de arma, as três de "desmontado" do minigame de conserto, a de estruturas de parque, e as quinze que nem o gerador lê (carro, gatos, cachorros, poses antigas do jogador) — essas **movidas, não apagadas**.
+
+## As folhas de NPC saem do boot
+A etapa anterior deixou isto escrito como o maior ganho que restava, e o mais arriscado: **os 33 moradores carregavam 14,99 MB de sprite antes do menu**, e num mapa qualquer aparecem no máximo dezessete. O risco também estava escrito — *"um NPC que entra andando de fora da tela com o sprite ausente fica invisível, sem erro nenhum"*.
+
+O recorte e as animações moravam na `BootScene`, que era quem tinha as folhas. Agora moram em `src/scenes/spritesNpc.ts`, e quem pede é a cena de mundo, em duas camadas:
+
+**Na montagem do mapa**, `garantirFolhasDeNpc` pede as folhas de quem está em cena naquele instante e reinicia a cena quando elas chegam — o mesmo formato de `garantirTilemap` e `garantirAtlasDeMovel`, cortando o `create` no mesmo lugar. O minimapa entra nessa conta junto: ele mostra retrato de quem está no mapa **externo**, mesmo com o jogador dentro de um interior.
+
+**No meio do dia**, `garantirSpriteDeNpc`. Este é o caso que preocupava: o morador que sai de casa às 9h e entra andando, com a cena já montada. O sprite dele não existe — e não é criado com textura ausente de propósito, porque um sprite sem textura é um **quadrado verde parado no meio da rua**, que é pior que a ausência. A folha é pedida, e `sincronizarNpcs` tenta montar de novo a cada quadro até a textura chegar.
+
+Não há `once(COMPLETE)` nessa segunda camada, e a razão é a mesma que deu cena própria ao áudio na etapa anterior: a cena de mundo já escuta esse evento para reiniciar depois de buscar tilemap e atlas, e uma folha de NPC chegando no meio disso dispararia o restart dela. Tentar de novo a cada quadro não precisa de evento nenhum.
+
+### O que isso mede
+O boot caiu de **34,42 MB em 169 arquivos para 19,86 MB em 105**, e a categoria de sprite de personagem de 17,81 para 3,58 MB — dos quais 3,16 são os monstros da represa, que continuam no boot. Ou seja: de NPC, o boot baixa hoje **0,42 MB**. O motivo é bonito e não foi planejado: o jogo começa de manhã cedo, e de manhã cedo todo mundo ainda está dentro de casa.
+
+O tempo até jogável **não** serve para medir isto em localhost — em loopback quinze megabytes a menos quase não custam tempo, e três medições seguidas deram 2.643, 2.903 e 3.456 ms, ruído que engole o efeito. Então a medida foi feita onde o byte custa: o build de produção, servido pelo `vite preview`, com a conexão estrangulada a 8 Mbps por CDP, do `goto` até a rede ficar ociosa. Mediana de três rodadas:
+
+| | 8 Mbps, build de produção |
+| --- | --- |
+| sem o corte | 36.594 ms |
+| com o corte | 21.185 ms |
+
+### A trava
+A conferência que fecha isso não olha console nem erro, porque o modo de falhar não produz nenhum dos dois. Ela roda **um dia inteiro no bairro** — o mapa mais povoado, vinte dos trinta e três — hora a hora das 6h às 22h, **sem reiniciar a cena entre as horas**, que é exatamente o caso do morador que sai de casa no meio do dia. A cada hora ela pergunta ao próprio jogo quem deveria estar em cena e cobra que cada um desses tenha sprite com textura de verdade.
+
+Medido: pico de **12 moradores em cena** ao mesmo tempo, e espera máxima de **135 ms** pela folha de quem saiu de casa — com o servidor em localhost e amostragem de 100 ms, então o número real é menor que isso.
+
+## Acessibilidade
+Aqui a medição foi mais simples e o resultado mais direto: das quatro opções de acessibilidade, **duas eram decorativas**.
+
+`altoContraste` existia nas preferências desde a etapa das opções e valia por **um retângulo**: o fundo do painel da tela de menu. HUD, caixa de fala, inventário, loja e computador ignoravam. `movimentoReduzido` valia por **uma coisa**: desligar as partículas de clima.
+
+O trabalho de tokens do item anterior é o que tornou o conserto barato. Toda moldura do jogo passa por `moldura` em `scenes/widgets.ts`, então contraste alto virou uma decisão num lugar: o painel fica **opaco** e a borda passa de `UI.borda` (marrom fosco) para `UI.bordaViva` (amarelo). É exatamente o que os comentários do código pediam — a caixa de fala tinha escrito que *"o que atrapalhava a leitura era o cenário claro vazando por trás das letras"*, e a resposta na época foi subir a opacidade de 88% para 97%.
+
+Medido no pixel, com a caixa de fala aberta sobre o centro ao meio-dia (o cenário mais claro do jogo): o painel sai de `#1e1b16` — doze de distância de `UI.fundo`, que é o cenário vazando — para `#1a1712`, distância zero.
+
+`movimentoReduzido` ganhou dois usos reais. A seta `[Enter]` da caixa de fala piscava **para sempre** (`repeat: -1`): é o único elemento perpetuamente animado da interface, e fica onde o jogador passa mais tempo lendo. Com a opção ligada ela para no meio do caminho da piscada, visível e parada em alpha 0,6 — parar de piscar não pode ser sumir. E o fade de entrada e saída de NPC passou a usar o caminho instantâneo que já existia para montagem de cena.
+
+O que ficou de fora e por quê: os dois tweens da represa (clarão do tiro, inimigo caindo) **continuam** com movimento reduzido ligado. São retorno de combate, não enfeite — tirar o clarão do disparo esconde do jogador se a arma disparou.
+
+## Save Compatibility
+Nada mudou de save e nada novo é persistido. As preferências de acessibilidade já eram salvas.
+
+Um save antigo abre igual: os sprites são menores em bytes, não em tiles, e o atlas de móvel que falta chega quando o mapa pede. Um save gravado dentro de qualquer interior carrega o atlas dele na abertura, o que custa uma reinicialização de cena que o jogador não vê — a mesma que a represa já fazia.
+
+## Bugs Fixed
+**Duas ferramentas passaram a ler de `arte/` porque liam de `public/` por acidente de história**: `gerar-aparelhos` (as três folhas de "desmontado", 7 MB) e a folha de estruturas de parque em `gerar-assets`, que estava marcada `runtime: true` — flag que só diz *de onde ler*, e o jogo nunca carregou essa folha; ela é reempacotada em `moveis_parque.png`.
+
+**A conferência de áudio cobrava "os 46 no cache" como se fosse requisito.** Não era: ela codificava "tudo no boot". Passou a cobrar o que importa — efeito e interface prontos, e das treze faixas longas só a do lugar.
+
+**E duas armadilhas de teste que valem registro**, porque as duas passariam por bug de produto:
+
+A suíte de desempenho esperava 400 ms fixos depois de entrar num mapa. A cena reinicia **duas** vezes num interior (uma para pedir os atlas, outra com eles em cache) e a casa do protagonista puxa 15,6 MB: com 400 ms o teste media a cena velha e dava a casa como **vazia** — exatamente o sintoma que ele existe para pegar. Agora espera o mapa certo pronto **e** o carregador ocioso.
+
+E o servidor de desenvolvimento acumulava estado de HMR. Depois de dezenas de edições em `Som.ts`, `import('/src/scenes/Som.ts')` de dentro do navegador devolvia uma instância **diferente** da que o jogo usa, e a suíte de áudio media um tocador que nunca tocou nada — falhando de um jeito que parecia bug de produto e não era. As catorze suítes de navegador passaram a aceitar `GAME_URL`, e rodar contra um servidor recém-subido é a única forma de não medir estado velho.
+
+## Tests
+`npm run test:desempenho-browser`: **onze conferências**, todas medidas na rede ou no pixel.
+
+O peso do boot por categoria; que nenhum atlas de móvel entra nele; que o áudio do boot cabe em 2 MB; que o total cabe num teto de **40 MB** — não é meta, é o valor de hoje com dez por cento de folga, e existe para ninguém devolver ao boot uma leva de 35 MB sem notar. Depois, que o atlas sob demanda **chega**: o mercado com 32 móveis e um atlas, a casa com 40 móveis e sete, a rua sem pedir atlas de interior nenhum — carga sob demanda que não carrega é sala vazia em silêncio, porque `criarMoveis` avisa no console e segue. E que **nenhum ícone de item é ampliado na tela**: a varredura abre o inventário, o card da DevStore e o jogo da memória e compara, em cada imagem do atlas `itens`, o tamanho desenhado contra o frame de origem. Essa é a trava do corte acima, e ela existe porque o risco do corte não é ficar grande demais — é ficar **pequeno** demais, e teto baixo não levanta erro nenhum, só borra um ícone numa tela que ninguém abriu. O pior caso medido hoje é 0,77 (o card da DevStore, 72 px desenhados sobre arte de 93). Por fim, as duas de acessibilidade, com o contraste medido em pixel e a seta conferida contra a lista de tweens da cena.
+
+Regressão: 19 validadores de domínio, as **catorze** suítes de navegador e o build de produção. Todos os geradores foram rodados novamente depois da mudança de pasta (`gerar-assets`, `processar-sprites-npc`, `processar-sprites-monstro`, `gerar-itens`, `gerar-aparelhos`, `gerar-equipamento`, `gerar-audio`, `andares-represa`), porque mover arquivo de entrada quebra pipeline em silêncio.
+
+## Performance
+Os números, lado a lado:
+
+| | antes | depois |
+| --- | --- | --- |
+| boot até o menu | 127,89 MB / 210 arquivos | 19,86 MB / 105 |
+| tempo até jogável | 6.290 ms | 2.364 ms |
+| deploy (`dist/`) | 266 MB | 93 MB |
+| sprites de NPC e monstro | 66,92 MB | 3,58 MB (0,42 de NPC) |
+| atlas de móvel no boot | 35,79 MB | 0 |
+| áudio no boot | 7,52 MB (46) | 0,37 MB (33) |
+| ícones de item (`itens.png`) | 3,64 MB | 1,89 MB |
+| bundle JS | 1.655 kB (gzip 468) | 1.657 kB (gzip 468) |
+
+O bundle não mudou: nada aqui é código a mais de qualquer monta.
+
+## Known Remaining Work
+- **os 32 tilemaps do boot (4,05 MB)** carregam todos, e o jogador está em um deles. O padrão `sobDemanda` que os 45 andares da represa usam serve igual para os interiores urbanos;
+- **o morador que sai de casa no meio do dia aparece com atraso.** A folha dele é pedida no quadro em que ele entra em cena, e em localhost isso custou no máximo 135 ms — numa conexão real, os 450 kB de uma folha podem levar perto de um segundo, e o vizinho surge na porta de casa com esse atraso. Um pré-carregamento em segundo plano resolveria, e precisaria de cena própria de loader, como a que o áudio ganhou;
+- **os WAV são sem compressão.** 7,52 MB para 46 faixas; qualquer formato comprimido cortaria isso por cinco, mas o gerador escreve WAV byte a byte e não há encoder no projeto;
+- **o alto contraste mexe na moldura, não no texto.** Cor de letra é aplicada na criação de cada `Text`, e trocá-la ao vivo pede uma paleta mutável no lugar do `UI` congelado;
+- **o DevOS não segue o alto contraste**: ele tem paleta própria (`PC`), e a opção não chega lá;
+- **as quinze folhas que ninguém lê** (carro, gatos, cachorros, caminhonete, poses antigas do jogador, `Itens_represa.png`) foram movidas para `arte/`, não apagadas. São 21,55 MB esperando uma decisão de quem desenhou.

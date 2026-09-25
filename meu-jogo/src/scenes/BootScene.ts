@@ -1,12 +1,11 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { MAPAS, buscarMapa } from '../game/mapas';
-import { FOLHAS_DE_MOVEL } from '../game/moveis';
 import type { SpriteNpc } from '../game/npcs';
-import { NPCS } from '../game/npcs';
-import { MORADORES } from '../game/moradores';
 import { carregar } from '../game/save';
 import { CATALOGO_INIMIGOS } from '../game/inimigos';
+import { Som, som } from './Som';
+import { recortarFolhaNpc } from './spritesNpc';
 
 const PLAYER_FRAME = { largura: 200, altura: 320 };
 const PLAYER_RECORTE = {
@@ -73,19 +72,21 @@ export class BootScene extends Phaser.Scene {
     // pedras soltas: frames `pedra_<i>`, do pedrisco ao matacao
     this.load.atlas('pedras', 'assets/sprites/pedras.png', 'assets/sprites/pedras.atlas.json');
 
-    // Moveis de interior: frames `movel_<linha>_<indice>`. O PNG e a folha
-    // LIMPA gerada por tools/gerar-assets.mjs, nao a arte crua: nela cada peca
-    // tem so os proprios pixels, senao o frame de uma peca diagonal (tapete)
-    // leva lasca da vizinha. As duas folhas de mobilia se misturam peca por
-    // peca no catalogo de mobilia, entao o atlas de cada uma e carregado a
-    // parte. A lista mora em game/moveis.ts porque o gerador le a MESMA.
-    for (const folha of FOLHAS_DE_MOVEL) {
-      this.load.atlas(
-        `moveis_${folha}`,
-        `assets/sprites/moveis_${folha}.png`,
-        `assets/sprites/moveis_${folha}.atlas.json`,
-      );
-    }
+    // MOVEIS DE INTERIOR NAO ENTRAM AQUI.
+    //
+    // As catorze folhas de `FOLHAS_DE_MOVEL` somam 35,79 MB, e carregar todas
+    // no boot significava baixar a folha de banheiro e a de hospital antes de o
+    // menu aparecer, pra um jogador que comeca na rua do bairro — mapa que nao
+    // usa nenhuma delas. O mapa que usa mais, uma residencia, usa seis.
+    //
+    // Quem carrega e a cena de mundo, ao entrar no mapa, lendo a camada
+    // `moveis` do proprio tilemap (ver `garantirAtlasDeMovel` na FarmScene). O
+    // atlas fica em cache depois da primeira visita, entao a segunda entrada na
+    // padaria e imediata.
+    //
+    // O PNG de cada folha e a versao LIMPA gerada por tools/gerar-assets.mjs, e
+    // nao a arte crua: nela cada peca tem so os proprios pixels, senao o frame
+    // de uma peca diagonal (tapete) leva lasca da vizinha.
 
     // Icone de item: um frame `item_<id>` por entrada do CATALOGO_ITENS. O par
     // PNG+atlas sai de tools/gerar-itens.mjs, que le o MESMO catalogo — entao
@@ -121,10 +122,10 @@ export class BootScene extends Phaser.Scene {
     this.load.json('equipamento-ancoras', 'assets/sprites/equipamento.ancoras.json');
     this.load.image('player-walk-sprites', 'assets/sprites/Player_andando.png');
     this.load.image('player-run-sprites', 'assets/sprites/Player_correndo.png');
-    for (const npc of [...Object.values(NPCS), ...Object.values(MORADORES)]) {
-      if (npc.sprite) this.load.image(`npc-${npc.id}-sprites`, npc.sprite.arquivo);
-      if (npc.spriteParado) this.load.image(`npc-${npc.id}-parado`, npc.spriteParado.arquivo);
-    }
+    // As 66 folhas dos 33 moradores NAO entram aqui. Eram 14,99 MB baixados
+    // antes do menu pra um mapa que usa nove deles; quem pede agora e a cena de
+    // mundo, pelas folhas de quem esta NAQUELE mapa (ver `garantirFolhasDeNpc`
+    // e `garantirSpriteDeNpc` na FarmScene).
 
     // Monstros eletronicos da represa. As folhas saem de
     // tools/processar-sprites-monstro.mjs no MESMO formato 4x4 das de NPC — e
@@ -134,15 +135,21 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`monstro-${id}-sprites`, `assets/sprites/${id}_andando_runtime.png`);
       this.load.image(`monstro-${id}-parado`, `assets/sprites/${id}_parado_runtime.png`);
     }
+
+    // Efeitos, ambientes e trilhas. Sao WAV gerados por tools/gerar-audio.mjs;
+    // arquivo que falha no decode vira aviso no console e silencio naquele id,
+    // sem impedir o boot (ver Som.existe).
+    Som.precarregar(this);
   }
 
   create(): void {
+    estado.preferencias.carregar();
+    som.aplicar(estado.preferencias.valores);
     this.criarFramesPlayer('idle');
     this.criarFramesPlayer('walk');
     this.criarFramesPlayer('run');
     this.criarFramesDeSegurar();
     this.criarAnimacoes();
-    this.criarSpritesNpcs();
     this.criarSpritesMonstros();
     const inicio = this.aplicarSave();
 
@@ -184,6 +191,9 @@ export class BootScene extends Phaser.Scene {
     estado.equipamento.restaurar(save.equipamento);
     estado.armas.restaurar(save.armas);
     estado.arquivo.restaurar(save.arquivo);
+    estado.progressao.restaurar(save.progressao);
+    estado.clima.restaurar(save.clima);
+    estado.rural.restaurar(save.rural);
     // O item pode ter saido do inventario por outro caminho (venda, descarte)
     // entre gravar e carregar; sem esta linha o save traria uma arma equipada
     // que nao esta mais na mochila.
@@ -272,59 +282,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   /**
-   * Registra os recortes de uma folha de NPC e devolve os frames por direcao.
-   * Os nomes de recorte (`down-0`...) sao por TEXTURA, e caminhada e parado sao
-   * texturas diferentes, entao as duas folhas podem usar os mesmos nomes.
-   */
-  private recortarFolhaNpc(
-    chaveTextura: string,
-    folha: SpriteNpc,
-  ): Record<string, Phaser.Types.Animations.AnimationFrame[]> {
-    const textura = this.textures.get(chaveTextura);
-    const fonte = textura.source[0];
-    const porDirecao: Record<string, Phaser.Types.Animations.AnimationFrame[]> = {};
-    for (const [direcao, faixa] of Object.entries(folha.frames)) {
-      porDirecao[direcao] = faixa.colunas.map((coluna, indice) => {
-        const x0 = Math.floor((coluna * fonte.width) / folha.colunas);
-        const x1 = Math.floor(((coluna + 1) * fonte.width) / folha.colunas);
-        const y0 = Math.floor((faixa.linha * fonte.height) / folha.linhas);
-        const y1 = Math.floor(((faixa.linha + 1) * fonte.height) / folha.linhas);
-        const nome = `${direcao}-${indice}`;
-        textura.add(nome, 0, x0, y0, x1 - x0, y1 - y0);
-        return { key: chaveTextura, frame: nome };
-      });
-    }
-    return porDirecao;
-  }
-
-  /** Recortes e animacoes sao inteiramente descritos pela entrada do NPC. */
-  private criarSpritesNpcs(): void {
-    for (const npc of [...Object.values(NPCS), ...Object.values(MORADORES)]) {
-      if (!npc.sprite) continue;
-      const andando = this.recortarFolhaNpc(`npc-${npc.id}-sprites`, npc.sprite);
-      // Sem folha de parado, o idle cai no 1o frame da caminhada — que e uma
-      // pose de passo, e le como se o NPC estivesse andando no lugar.
-      const parado = npc.spriteParado
-        ? this.recortarFolhaNpc(`npc-${npc.id}-parado`, npc.spriteParado)
-        : null;
-
-      for (const [direcao, frames] of Object.entries(andando)) {
-        this.anims.create({
-          key: `npc-${npc.id}-walk-${direcao}`,
-          frames,
-          frameRate: 8,
-          repeat: -1,
-        });
-        this.anims.create({
-          key: `npc-${npc.id}-idle-${direcao}`,
-          frames: [(parado?.[direcao] ?? frames)[0]],
-          frameRate: 1,
-        });
-      }
-    }
-  }
-
-  /**
    * Recortes e animacoes dos monstros. Identico ao dos NPCs, com o prefixo
    * `monstro-` em vez de `npc-`: as duas folhas ja saem do mesmo processador,
    * na mesma grade 4x4 e na mesma ordem de direcao.
@@ -342,8 +299,8 @@ export class BootScene extends Phaser.Scene {
       },
     };
     for (const id of Object.keys(CATALOGO_INIMIGOS)) {
-      const andando = this.recortarFolhaNpc(`monstro-${id}-sprites`, folha);
-      const parado = this.recortarFolhaNpc(`monstro-${id}-parado`, folha);
+      const andando = recortarFolhaNpc(this, `monstro-${id}-sprites`, folha);
+      const parado = recortarFolhaNpc(this, `monstro-${id}-parado`, folha);
       for (const [direcao, quadros] of Object.entries(andando)) {
         this.anims.create({
           key: `monstro-${id}-walk-${direcao}`,

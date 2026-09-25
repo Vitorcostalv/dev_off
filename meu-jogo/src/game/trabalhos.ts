@@ -278,7 +278,12 @@ export function etapasDeCodigo(recompensa: number, idVaga: string, dia: number):
  * restantes — senao um dia poderia sair so com entrega, e o jogador que quer
  * jogar o minigame de conserto ficaria esperando o dia virar.
  */
-export function quadroDoDia(dia: number): Vaga[] {
+/**
+ * `extras` vem da REPUTACAO da oficina (ver game/oficina.ts): quem e procurado
+ * recebe ate duas vagas a mais no mesmo quadro. Zero por padrao, e o quadro
+ * continua identico ao de antes pra quem ainda nao trabalhou na cidade.
+ */
+export function quadroDoDia(dia: number, extras = 0): Vaga[] {
   const escolhidas: ModeloDeVaga[] = [];
   const usados = new Set<string>();
 
@@ -293,7 +298,8 @@ export function quadroDoDia(dia: number): Vaga[] {
 
   const tipos: TipoTrabalho[] = ['entrega', 'codigo', 'conserto'];
   tipos.forEach((tipo, i) => sortearDe(MODELOS.filter((m) => m.tipo === tipo), i));
-  for (let i = escolhidas.length; i < VAGAS_POR_DIA; i++) sortearDe(MODELOS, 10 + i);
+  const total = VAGAS_POR_DIA + Math.max(0, Math.min(2, Math.trunc(extras)));
+  for (let i = escolhidas.length; i < total; i++) sortearDe(MODELOS, 10 + i);
 
   // ordena por tipo e depois por recompensa, pra a lista nao dancar entre dias
   const ordem: Record<TipoTrabalho, number> = { entrega: 0, codigo: 1, conserto: 2 };
@@ -649,6 +655,62 @@ export function pecasDoConserto(vaga: Vaga, dia: number): number[] {
   return escolhidas;
 }
 
+// ------------------------------------------------- peca de reposicao --
+/**
+ * A PECA DE REPOSICAO do conserto: a ponte que faltava entre a sucata da usina
+ * e o trabalho da cidade.
+ *
+ * O simulador de equilibrio mediu o problema: as cinco pecas COMUNS de sucata
+ * (ferro-velho, parafusos, cabo velho, fio de cobre, conector danificado) valem
+ * de R$ 1,60 a R$ 5,60 na revenda, e nao servem pra mais nada. Uma descida nos
+ * dez primeiros andares — que sortea justamente essas — rendia R$ 158, cinco
+ * vezes menos que um dia de quadro. O raso da usina era pedagio de historia, nao
+ * um lugar onde se ganha algo.
+ *
+ * Agora um conserto COMPLETO aceita uma dessas pecas como reposicao: ela sai do
+ * inventario e o pagamento vem com `BONUS_DE_REPOSICAO` a mais. E o unico lugar
+ * do jogo onde uma peca comum vale mais guardada que vendida — vinte por cento
+ * de uma vaga de conserto e muito mais que os R$ 3,36 do sucateiro.
+ *
+ * O bonus NAO E OBRIGATORIO, e isso e a regra: quem nunca desceu na usina
+ * trabalha igual, recebe o pagamento cheio do conserto e nao ve mensagem de
+ * falta. Um requisito aqui travaria o app Trabalho atras da represa.
+ *
+ * So no conserto COMPLETO: a peca que sobrou de um conserto pela metade nao
+ * consertou nada, e consumir o material de quem errou seria cobrar duas vezes.
+ */
+export const PECAS_DE_REPOSICAO: readonly string[] = [
+  'ferro_velho',
+  'parafusos',
+  'cabo_velho',
+  'fio_de_cobre',
+  'conector_danificado',
+];
+
+/** Quanto o pagamento sobe com a peca de reposicao. */
+export const BONUS_DE_REPOSICAO = 0.2;
+
+/**
+ * A peca de reposicao a consumir e o bonus que ela rende, ou `null` quando o
+ * conserto nao esta completo ou o jogador nao tem nenhuma das pecas.
+ *
+ * Recebe uma FUNCAO de contagem em vez do inventario: e o que deixa a conferencia
+ * offline rodar as combinacoes sem montar um inventario de verdade, e o que
+ * impede este modulo de importar `inventario.ts`.
+ */
+export function reposicaoDoConserto(
+  vaga: Vaga,
+  acertos: number,
+  total: number,
+  contar: (itemId: string) => number,
+): { itemId: string; bonus: number } | null {
+  if (total <= 0 || acertos < total) return null;
+  const itemId = PECAS_DE_REPOSICAO.find((id) => contar(id) > 0);
+  if (!itemId) return null;
+  const bonus = Math.round(pagamentoDeConserto(vaga, acertos, total) * BONUS_DE_REPOSICAO);
+  return bonus > 0 ? { itemId, bonus } : null;
+}
+
 /** Tempo total, em ms, do quebra-cabeca de uma vaga. */
 export function tempoDoConserto(vaga: Vaga): number {
   return CONSERTO_POR_DIFICULDADE[vaga.dificuldade].segundos * 1000;
@@ -679,6 +741,7 @@ export interface EntregaAtiva {
  * entregar em cada porta, e isso e complexidade sem graca nenhuma.
  */
 export class SistemaTrabalhos {
+  aoConcluir?: (id: string) => void;
   entrega: EntregaAtiva | null = null;
 
   /**
@@ -708,7 +771,9 @@ export class SistemaTrabalhos {
   }
 
   marcarConcluida(dia: number, idVaga: string): void {
+    if (this.concluida(dia, idVaga)) return;
     this.feitos.add(this.chave(dia, idVaga));
+    this.aoConcluir?.(idVaga);
   }
 
   serializar(): { entrega: EntregaAtiva | null; feitos: string[] } {

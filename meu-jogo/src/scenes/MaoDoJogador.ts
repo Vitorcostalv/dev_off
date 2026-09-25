@@ -203,7 +203,7 @@ export class MaoDoJogador {
    * MUNDO (ela segue o cursor no mundo, nao na tela) mas com espessura fixa em
    * px: dividir pelo zoom da camera e o que impede o risco de virar um bloco.
    */
-  atualizarMira(ponteiro: Phaser.Input.Pointer, ativa: boolean): void {
+  atualizarMira(ponteiro: Pick<Phaser.Input.Pointer, 'worldX' | 'worldY'>, ativa: boolean): void {
     const g = this.mira;
     if (!g) return;
     if (!ativa) {

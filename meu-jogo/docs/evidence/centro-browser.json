@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "79 pecas do atlas do parque na cena, 25 halos vindos dos postes",
+    "poste apaga de dia, acende de noite e a poca de luz fica sobre o veu",
+    "quadro de avisos no quiosque da praca abre e traz texto",
+    "placa do cruzamento diz onde o jogador esta",
+    "caminhada de 13.2 tiles pelo acesso do mercado, parando na porta"
+  ]
+}

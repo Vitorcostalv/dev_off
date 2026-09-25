@@ -79,6 +79,14 @@ export class Navegador implements AppDoPc {
   private total = 0;
   private visiveis = 1;
 
+  private ultimoMinuto = -1;
+  atualizar(): void {
+    const agora = estado.dia * 1440 + Math.floor(estado.relogio.minutos);
+    if (agora === this.ultimoMinuto) return;
+    this.ultimoMinuto = agora;
+    if (this.abaAtiva === 'blog') this.redesenhar();
+  }
+
   montar(ctx: ContextoApp): Phaser.GameObjects.GameObject[] {
     this.cena = ctx.cena;
     this.area = ctx.area;
@@ -116,7 +124,7 @@ export class Navegador implements AppDoPc {
       w: this.area.w,
       h: this.area.h - ALTURA_ABA - 14,
     };
-    caixa(g, this.corpo, 0x0d1119, PC.borda);
+    caixa(g, this.corpo, PC.cova, PC.borda);
 
     this.conteudo = ctx.cena.add.container(0, 0);
     objetos.push(this.conteudo);
@@ -169,7 +177,7 @@ export class Navegador implements AppDoPc {
       const ativa = ABAS[i].id === this.abaAtiva;
       visual.fundo.setFillStyle(ativa ? PC.bordaViva : PC.painelClaro);
       visual.fundo.setStrokeStyle(1, ativa ? PC.bordaViva : PC.borda);
-      visual.rotulo.setColor(ativa ? '#0e1420' : PC.textoFraco);
+      visual.rotulo.setColor(ativa ? PC.sobreDestaque : PC.textoFraco);
     });
 
     this.conteudo.removeAll(true);
@@ -180,7 +188,7 @@ export class Navegador implements AppDoPc {
   // ---------------------------------------------------------------- blog --
 
   private desenharBlog(): void {
-    const posts = feedAte(estado.dia);
+    const posts = feedAte(estado.dia, estado.relogio.minutos);
     this.total = posts.length;
     this.visiveis = Math.max(1, Math.floor((this.corpo.h - 12) / LINHA_POST));
     this.topo = Math.min(this.topo, Math.max(0, this.total - this.visiveis));

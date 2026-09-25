@@ -6,7 +6,7 @@
  "tileheight": 32,
  "infinite": false,
  "nextlayerid": 5,
- "nextobjectid": 4185,
+ "nextobjectid": 4128,
  "orientation": "orthogonal",
  "renderorder": "right-down",
  "tiledversion": "1.11.0",
@@ -709,7 +709,7 @@
      "type": "porta",
      "height": 32,
      "width": 32,
-     "id": 4184,
+     "id": 4127,
      "name": "porta_saida",
      "rotation": 0,
      "visible": true,
@@ -756,7 +756,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4166,
+     "id": 4095,
      "name": "movel_mercado_0",
      "rotation": 0,
      "visible": true,
@@ -796,7 +796,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4167,
+     "id": 4096,
      "name": "movel_mercado_1",
      "rotation": 0,
      "visible": true,
@@ -836,7 +836,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4168,
+     "id": 4097,
      "name": "movel_mercado_2",
      "rotation": 0,
      "visible": true,
@@ -876,7 +876,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4169,
+     "id": 4098,
      "name": "movel_mercado_3",
      "rotation": 0,
      "visible": true,
@@ -916,7 +916,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4170,
+     "id": 4099,
      "name": "movel_mercado_4",
      "rotation": 0,
      "visible": true,
@@ -956,7 +956,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4171,
+     "id": 4100,
      "name": "movel_mercado_5",
      "rotation": 0,
      "visible": true,
@@ -996,7 +996,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4172,
+     "id": 4101,
      "name": "movel_mercado_6",
      "rotation": 0,
      "visible": true,
@@ -1036,7 +1036,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4173,
+     "id": 4102,
      "name": "movel_mercado_7",
      "rotation": 0,
      "visible": true,
@@ -1076,7 +1076,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4174,
+     "id": 4103,
      "name": "movel_mercado_8",
      "rotation": 0,
      "visible": true,
@@ -1116,7 +1116,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4175,
+     "id": 4104,
      "name": "movel_mercado_9",
      "rotation": 0,
      "visible": true,
@@ -1156,7 +1156,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4176,
+     "id": 4105,
      "name": "movel_mercado_10",
      "rotation": 0,
      "visible": true,
@@ -1196,7 +1196,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4177,
+     "id": 4106,
      "name": "movel_mercado_11",
      "rotation": 0,
      "visible": true,
@@ -1236,7 +1236,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4178,
+     "id": 4107,
      "name": "movel_mercado_12",
      "rotation": 0,
      "visible": true,
@@ -1276,7 +1276,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4179,
+     "id": 4108,
      "name": "movel_mercado_13",
      "rotation": 0,
      "visible": true,
@@ -1316,7 +1316,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4180,
+     "id": 4109,
      "name": "movel_mercado_14",
      "rotation": 0,
      "visible": true,
@@ -1356,7 +1356,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4181,
+     "id": 4110,
      "name": "movel_mercado_15",
      "rotation": 0,
      "visible": true,
@@ -1396,7 +1396,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4182,
+     "id": 4111,
      "name": "movel_mercado_16",
      "rotation": 0,
      "visible": true,
@@ -1436,7 +1436,7 @@
      "height": 0,
      "width": 0,
      "point": true,
-     "id": 4183,
+     "id": 4112,
      "name": "movel_mercado_17",
      "rotation": 0,
      "visible": true,
@@ -1462,6 +1462,566 @@
        "name": "colide",
        "type": "bool",
        "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4113,
+     "name": "movel_mercado_18",
+     "rotation": 0,
+     "visible": true,
+     "x": 401,
+     "y": 448,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_1_5"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.459
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4114,
+     "name": "movel_mercado_19",
+     "rotation": 0,
+     "visible": true,
+     "x": 623,
+     "y": 448,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_1_2"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.976
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4115,
+     "name": "movel_mercado_20",
+     "rotation": 0,
+     "visible": true,
+     "x": 466,
+     "y": 384,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_10"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.014
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4116,
+     "name": "movel_mercado_21",
+     "rotation": 0,
+     "visible": true,
+     "x": 155,
+     "y": 448,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_1"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.662
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4117,
+     "name": "movel_mercado_22",
+     "rotation": 0,
+     "visible": true,
+     "x": 210,
+     "y": 448,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_0_6"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.556
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4118,
+     "name": "movel_mercado_23",
+     "rotation": 0,
+     "visible": true,
+     "x": 610,
+     "y": 320,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_9"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 2.841
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4119,
+     "name": "movel_mercado_24",
+     "rotation": 0,
+     "visible": true,
+     "x": 595,
+     "y": 384,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_2"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.995
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4120,
+     "name": "movel_mercado_25",
+     "rotation": 0,
+     "visible": true,
+     "x": 64,
+     "y": 160,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_7"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.053
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4121,
+     "name": "movel_mercado_26",
+     "rotation": 0,
+     "visible": true,
+     "x": 49,
+     "y": 416,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_0"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.43
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4122,
+     "name": "movel_mercado_27",
+     "rotation": 0,
+     "visible": true,
+     "x": 114,
+     "y": 416,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_4_3"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.918
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4123,
+     "name": "movel_mercado_28",
+     "rotation": 0,
+     "visible": true,
+     "x": 271,
+     "y": 416,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_5"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.411
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4124,
+     "name": "movel_mercado_29",
+     "rotation": 0,
+     "visible": true,
+     "x": 648,
+     "y": 224,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_8"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 0.821
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": false
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4125,
+     "name": "movel_mercado_30",
+     "rotation": 0,
+     "visible": true,
+     "x": 651,
+     "y": 160,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_2"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.014
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
+      },
+      {
+       "name": "chao",
+       "type": "bool",
+       "value": false
+      }
+     ]
+    },
+    {
+     "class": "movel",
+     "type": "movel",
+     "height": 0,
+     "width": 0,
+     "point": true,
+     "id": 4126,
+     "name": "movel_mercado_31",
+     "rotation": 0,
+     "visible": true,
+     "x": 655,
+     "y": 448,
+     "properties": [
+      {
+       "name": "atlas",
+       "type": "string",
+       "value": "moveis_mercado"
+      },
+      {
+       "name": "frame",
+       "type": "string",
+       "value": "movel_5_1"
+      },
+      {
+       "name": "alturaTiles",
+       "type": "float",
+       "value": 1.227
+      },
+      {
+       "name": "colide",
+       "type": "bool",
+       "value": true
       },
       {
        "name": "chao",

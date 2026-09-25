@@ -34,3 +34,11 @@ export const DIA_DA_SEMANA = {
 export function nomeDoDia(dia: number): string {
   return DIAS_DA_SEMANA[diaDaSemana(dia)];
 }
+
+export const ESTACOES = ['Primavera', 'Verao', 'Outono', 'Inverno'] as const;
+export const DIAS_POR_ESTACAO = 28;
+export function dataDoDia(dia: number, duracao = DIAS_POR_ESTACAO) {
+  if (!Number.isSafeInteger(dia) || dia < 0 || !Number.isSafeInteger(duracao) || duracao < 1) throw new Error('Calendario invalido');
+  const estacao = Math.floor(dia / duracao) % 4;
+  return { diaAbsoluto: dia, diaSemana: diaDaSemana(dia), diaEstacao: dia % duracao + 1, estacao, nomeEstacao: ESTACOES[estacao], ano: Math.floor(dia / (duracao * 4)) + 1 };
+}

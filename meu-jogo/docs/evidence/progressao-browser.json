@@ -1,0 +1,12 @@
+{
+  "errors": [],
+  "warnings": [],
+  "checks": [
+    "um dia com tudo junto: conserto pagou R$ 102,00 (vaga de R$ 85,00 + peca de reposicao), o catalogo de mobilia abriu com 22 pecas pela pilha de foco, o vaso custou R$ 45,00 e pede 1 madeira, a conversa com o Edu ficou registrada e o PC devolveu o foco",
+    "salvar e recarregar preserva saldo (R$ 3057,00), dia (0) e relacao, na versao 7 de save",
+    "os 50 andares abrem em sequencia, cada um com a sua ficha, e os cinco capitulos saem na ordem; 50 deles desenharam movel com atlas buscado sob demanda",
+    "save v6 abre migrado pra v7 com tudo no lugar: R$ 138,20, dia 14, 2 cabos, 3 sucatas, 3 fichas e a relacao com o Edu",
+    "save v6 JOGAVEL: mercado com 32 moveis (atlas sob demanda), loja tomando o foco, dia virando pra 15 e os 33 moradores com rotina (15 na rua)"
+  ],
+  "andares": 50
+}
