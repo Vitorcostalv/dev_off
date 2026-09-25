@@ -28,7 +28,9 @@ export type TipoInteragivel =
   /** bicho de rua ou animal de companhia; a presenca muda com hora e clima */
   | 'bicho'
   /** banco de praca: sentar e deixar o tempo passar, sem tarefa */
-  | 'banco';
+  | 'banco'
+  /** documento historico solto no mundo, para o arquivo da biblioteca */
+  | 'documento';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
 export type TipoZona =

@@ -9,6 +9,7 @@ import { CampanhaScene } from './scenes/CampanhaScene';
 import { ProfundezasScene } from './scenes/ProfundezasScene';
 import { PrologoScene } from './scenes/PrologoScene';
 import { NoiteScene } from './scenes/NoiteScene';
+import { ViagemScene } from './scenes/ViagemScene';
 import './style.css';
 import { controles } from './game/InputRouter';
 import { som } from './scenes/Som';
@@ -38,7 +39,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, FarmScene, UIScene, ComputadorScene, MenuScene, CampanhaScene, ProfundezasScene, PrologoScene, NoiteScene],
+  scene: [BootScene, FarmScene, UIScene, ComputadorScene, MenuScene, CampanhaScene, ProfundezasScene, PrologoScene, NoiteScene, ViagemScene],
 };
 
 const game = new Phaser.Game(config);
@@ -49,7 +50,7 @@ game.events.on(Phaser.Core.Events.POST_STEP, (_tempo: number, delta: number) => 
   controles.fimQuadro();
   som.atualizar(delta);
   const jogando = !document.hidden && !game.scene.isActive('MenuScene') &&
-    ['FarmScene', 'CampanhaScene', 'ProfundezasScene', 'ComputadorScene', 'PrologoScene', 'NoiteScene'].some(s => game.scene.isActive(s));
+    ['FarmScene', 'CampanhaScene', 'ProfundezasScene', 'ComputadorScene', 'PrologoScene', 'NoiteScene', 'ViagemScene'].some(s => game.scene.isActive(s));
   if (jogando) {
     const passo = Math.min(Math.max(delta, 0), 1000);
     estado.worldEvents.definir('sessao:segundos', (Number(estado.worldEvents.obter('sessao:segundos')) || 0) + passo / 1000);

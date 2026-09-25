@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { estado } from '../game/estado';
 import { escreverDiario } from '../game/diarioPessoal';
-import { lembrancasDaCasa, memoriasDisponiveis, programaRadio, textoEspelho } from '../game/memoriasPessoais';
+import { lembrancasDaCasa, memoriasDisponiveis, textoEspelho } from '../game/memoriasPessoais';
+import { programaRadio } from '../game/radio';
 import type { Interagivel } from '../game/tipos';
 import type { FarmScene } from './FarmScene';
 import type { UIScene } from './UIScene';
@@ -10,6 +11,7 @@ import { alimentar, companhia, lugarDoDescanso } from '../game/companhia';
 import { comentarioDaRoupa, CONJUNTOS, conjuntoAtual, conjuntosDisponiveis, crescimento, cuidar, pecaAtual, pecasDisponiveis, textoDoCrescimento, usarPeca, vestir } from '../game/guardaRoupa';
 import { dataDoDia } from '../game/calendario';
 import { comer, historiaDoPrato, pratosAprendidos, refeicaoDeHoje } from '../game/refeicoes';
+import { nivelDeFerimento, textoDoFerimento } from '../game/cuidado';
 
 const PONTOS = [
   ['cafe', 'Preparar café', 189, 431], ['banho', 'Tomar banho', 150, 624],
@@ -45,7 +47,7 @@ export class VidaDomestica {
     if (id === 'armario') this.armario();
     if (id === 'tigela') this.cuidarDoBicho();
     if (id === 'cozinha') this.cozinha();
-    if (id === 'radio') this.contar(programaRadio(estado.relogio.minutos, estado.dia), id);
+    if (id === 'radio') this.contar(programaRadio(estado.relogio.minutos, estado.dia, estado.clima.paraDia(estado.dia)), id);
     if (id === 'janela') this.contar(estado.relogio.minutos >= 1080 ? 'Uma janela acende do outro lado. Outra apaga. Não sou a única pessoa acordada.' : 'A cortina encosta no meu braço. Alguém passa com uma sacola. A rua continua sem precisar de mim.', id);
     if (id === 'correio') {
       const f = estado.worldEvents;
@@ -69,7 +71,14 @@ export class VidaDomestica {
   /** O espelho continua sendo texto; cabelo e barba entram como escolha. */
   private espelho(): void {
     const { cabelo, barba } = crescimento(estado);
-    this.ui.iniciarDialogo([{ nome: 'Você', texto: textoEspelho(estado) }, { nome: 'Você', texto: textoDoCrescimento(estado) }], () => {
+    // O espelho mostra o corpo tambem: curativo aparece aqui antes de aparecer
+    // na fala de qualquer morador.
+    const ferimento = nivelDeFerimento(estado.vida.fracao);
+    this.ui.iniciarDialogo([
+      { nome: 'Você', texto: textoEspelho(estado) },
+      ...(ferimento > 0 ? [{ nome: 'Você', texto: textoDoFerimento(ferimento) }] : []),
+      { nome: 'Você', texto: textoDoCrescimento(estado) },
+    ], () => {
       const opcoes: { rotulo: string; aoEscolher: () => void }[] = [];
       if (cabelo > 0) opcoes.push({ rotulo: 'Cortar o cabelo', aoEscolher: () => this.contar(cuidar(estado, 'cabelo')) });
       if (barba > 0) opcoes.push({ rotulo: 'Fazer a barba', aoEscolher: () => this.contar(cuidar(estado, 'barba')) });

@@ -15,6 +15,7 @@ import {
   CLIENTES, cargaEscolhida, declararDiaLivre, definirCarga, desfazerDiaLivre, diasSeguidosTrabalhando,
   ehDiaLivre, reputacao, rotuloDeReputacao, servicosHoje, visitasDoCliente,
 } from '../game/oficina';
+import { edicaoDaSemana, marcarEdicaoLida } from '../game/jornal';
 import { mensagensDisponiveis, responderMensagem, conversaCelular, fotosPessoais } from '../game/celular';
 import { feedAte } from '../game/blog';
 import { naturezaDaRelacao } from '../game/vidaSocial';
@@ -29,7 +30,7 @@ import { UI } from '../game/config';
 import { CLIMAS } from '../game/clima';
 import type { FarmScene } from './FarmScene';
 
-type Pagina = 'celular' | 'mensagens' | 'contatos' | 'blog' | 'fotos' | 'album' | 'oficina' | 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'pessoal' | 'entradaPessoal' | 'historia' | 'estatisticas' | 'controles' | 'carregar' | 'salvar' | 'creditos' | 'confirmar' | 'sair' | 'dev' | 'dev_mapas' | 'dev_itens';
+type Pagina = 'celular' | 'mensagens' | 'contatos' | 'blog' | 'fotos' | 'album' | 'oficina' | 'jornal' | 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'pessoal' | 'entradaPessoal' | 'historia' | 'estatisticas' | 'controles' | 'carregar' | 'salvar' | 'creditos' | 'confirmar' | 'sair' | 'dev' | 'dev_mapas' | 'dev_itens';
 /** `ajustar` existe nas linhas de escala (volume): setas laterais mexem no valor. */
 interface Opcao { texto: string; executar: () => void; ajustar?: (delta: number) => void; }
 /** Volumes ajustaveis, na ordem em que aparecem na tela. */
@@ -105,7 +106,7 @@ export class MenuScene extends Phaser.Scene {
     if (this.pagina === 'titulo') return;
     som.tocar('ui_cancelar');
     if (this.pagina === 'entradaPessoal') { this.abrir('pessoal'); return; }
-    if (['mensagens', 'contatos', 'blog', 'fotos', 'album', 'oficina'].includes(this.pagina)) { this.abrir('celular'); return; }
+    if (['mensagens', 'contatos', 'blog', 'fotos', 'album', 'oficina', 'jornal'].includes(this.pagina)) { this.abrir('celular'); return; }
     if (this.pagina === 'pausa') this.fechar(); else this.abrir(this.veioDoTitulo ? 'titulo' : 'pausa');
   }
   private abrir(pagina: Pagina): void {
@@ -148,7 +149,7 @@ export class MenuScene extends Phaser.Scene {
       this.opcoes = [ir('Mensagens', 'mensagens'), ir('Blog da cidade', 'blog'), ir('Calendário', 'calendario'), ir('Contatos', 'contatos'), ir('Fotografias', 'fotos'), ir('Álbum antigo', 'album'),
         { texto: 'Trabalhos', executar: () => { this.fechar(); (this.scene.get('UIScene') as import('./UIScene').UIScene).abrirComputador(); } },
         { texto: 'Mapa', executar: () => { this.fechar(); (this.scene.get('FarmScene') as FarmScene).abrirMapaCelular(); } }];
-      this.opcoes.splice(6, 0, ir('Oficina', 'oficina'));
+      this.opcoes.splice(6, 0, ir('Oficina', 'oficina'), ir('Jornal da semana', 'jornal'));
     } else if (pagina === 'mensagens') {
       this.titulo = 'Mensagens';
       this.opcoes = mensagensDisponiveis(estado).map(m => ({ texto: m.npc, executar: () => {
@@ -170,6 +171,18 @@ export class MenuScene extends Phaser.Scene {
     } else if (pagina === 'blog') {
       this.titulo = 'Blog da cidade';
       this.opcoes = feedAte(estado.dia, estado.relogio.minutos).map(p => ({ texto: `${p.npcId} · dia ${p.dia + 1}`, executar: () => { this.mensagem = p.texto; this.opcoes = []; this.desenhar(); } }));
+    } else if (pagina === 'jornal') {
+      // A mesma edição que a biblioteca imprime; ler pelo celular também conta.
+      const edicao = edicaoDaSemana(estado);
+      this.titulo = `Jornal · nº ${edicao.numero}`;
+      this.mensagem = edicao.manchete;
+      marcarEdicaoLida(estado, edicao.numero);
+      this.opcoes = edicao.secoes.map(secao => ({ texto: secao.titulo, executar: () => {
+        this.titulo = `${secao.titulo} · nº ${edicao.numero}`;
+        this.mensagem = secao.texto;
+        this.opcoes = [];
+        this.desenhar();
+      } }));
     } else if (pagina === 'oficina') {
       // Reputação, carga combinada e dia livre. Nada aqui é obrigatório: é o
       // lugar de decidir quanto trabalho o dia vai ter, e de não decidir nada.

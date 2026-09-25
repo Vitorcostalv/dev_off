@@ -1,6 +1,8 @@
 import { HORARIO_EMPREGO, TURNO_CIDADE } from '../game/cidade';
 import { VidaDomestica } from './VidaDomestica';
 import { BichosDoMundo } from './BichosDoMundo';
+import { Biblioteca } from './Biblioteca';
+import { coletarDocumento, documentoDisponivel, documentosDoMapa, temDocumento } from '../game/memoriaDaCidade';
 import { adotar, aproximar, companhia, falaSobreCompanhia, PRETENDENTES, textoDaCompanhia } from '../game/companhia';
 import { comentarioDaPeca, conjuntoAtual, crescimento, pecaAtual } from '../game/guardaRoupa';
 import {
@@ -10,6 +12,10 @@ import {
 } from '../game/convivencia';
 import type { Lugar } from '../game/convivencia';
 import { comer, podeConvidar, pratosAprendidos } from '../game/refeicoes';
+import {
+  cenaDaConsulta, falaDeQuemViu, mancando, marcasDeFerimento, nivelDeFerimento,
+  registrarConsulta, registrarFerimentoNaRepresa,
+} from '../game/cuidado';
 import { aniversarioDe, comentarioDeEsquecimento, contarMeuAniversario, conviteDeAniversario, dataLegivel, ehAniversario, falaDeAniversario, felicitacaoDeHoje, lembrarDoAniversario, sabeDoMeuAniversario, visitaDeAniversario, ANIVERSARIO_PROTAGONISTA } from '../game/aniversarios';
 import { eventoNoLugar, dialogoDoEvento, concluirEvento } from '../game/eventosDeConvivencia';
 import { CULTIVOS, NOS_RURAIS, RECEITAS, fabricar } from '../game/atividadesRurais';
@@ -461,6 +467,7 @@ export class FarmScene extends Phaser.Scene {
   private pronto = false;
   private vidaDomestica?: VidaDomestica;
   private bichos?: BichosDoMundo;
+  private biblioteca?: Biblioteca;
   /** Sentado num banco: o tempo corre mais rapido ate o jogador levantar. */
   private sentado: { lugar: Lugar; desde: number; proxima: number; indice: number; companhia: boolean } | null = null;
   /** Ha quantos ms o morador acompanhado esta em movimento. */
@@ -805,6 +812,15 @@ export class FarmScene extends Phaser.Scene {
     this.interagiveis.push(...this.vidaDomestica.montar());
     this.bichos = new BichosDoMundo(this, this.tamanhoTile);
     this.interagiveis.push(...this.bichos.montar(estado.mapa));
+    this.biblioteca = new Biblioteca(this, this.ui);
+    this.interagiveis.push(...this.biblioteca.montar());
+    // DOCUMENTOS HISTORICOS: some do mapa quando recolhidos, e voltam ao quadro
+    // de interacao so num save que ainda nao os tem.
+    for (const doc of documentosDoMapa(estado.mapa)) {
+      if (temDocumento(estado, doc.id) || !documentoDisponivel(estado, doc)) continue;
+      this.interagiveis.push({ id: `documento:${doc.id}`, tipo: 'documento', rotulo: 'Recolher',
+        x: (doc.tile.x + .5) * this.tamanhoTile, y: (doc.tile.y + .5) * this.tamanhoTile, props: { documento: doc.id } });
+    }
     if (estado.mapa === MAPA_DA_CASA) this.visitaDeHoje();
     if (this.entradaAtual?.salvar) this.salvarJogo();
     if (!estado.tituloVisto) {
@@ -832,7 +848,7 @@ export class FarmScene extends Phaser.Scene {
       estado.dia += estado.relogio.avancar(delta * estado.preferencias.valores.tempo * (this.sentado ? 6 : 1));
       if (estado.dia !== diaAntes) { estado.eventos.emit('DAY_STARTED', { dia: estado.dia }); this.atualizarVisuaisRurais(); }
       if (estado.relogio.minutos !== minutoAntes) estado.eventos.emit('TIME_CHANGED', { dia: estado.dia, minuto: estado.relogio.minutos });
-      if (estado.relogio.minutos !== minutoAntes) observarVida(estado, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile);
+      if (estado.relogio.minutos !== minutoAntes) { observarVida(estado, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile); registrarFerimentoNaRepresa(estado); }
       estado.vida.atualizar(delta);
       // a tensao da represa conta MINUTO DE JOGO, entao ela so avanca quando o
       // relogio vira — nao a cada quadro
@@ -949,8 +965,13 @@ export class FarmScene extends Phaser.Scene {
   interagir(): void {
     if (this.posicionando || !this.alvo) return;
     switch (this.alvo.tipo) {
-      case 'domestico':
-        this.vidaDomestica?.interagir(String(this.alvo.props.acao));
+      case 'domestico': {
+        const acao = String(this.alvo.props.acao);
+        if (!this.biblioteca?.interagir(acao)) this.vidaDomestica?.interagir(acao);
+        break;
+      }
+      case 'documento':
+        this.recolherDocumento(this.alvo);
         break;
       case 'bicho':
         this.interagirComBicho(this.alvo);
@@ -1860,11 +1881,14 @@ export class FarmScene extends Phaser.Scene {
     if (projeto.id === 'hospital') {
       if (estado.vida.cheio) { this.ui.avisoRapido('Sua saude esta em dia.'); return; }
       this.ui.confirmar('Atendimento e recuperacao completa: R$ 15,00?', () => {
+        // A cena sai ANTES da cura: o texto fala do corpo como ele chegou.
+        const atendente = estado.cidade.funcionario(projeto.id);
+        const def = atendente ? buscarNpc(atendente) : null;
+        const cena = cenaDaConsulta(estado, atendente ?? null, def?.nome ?? 'Atendimento');
         const r = estado.carteira.gastar(1500, { cabe: () => !estado.vida.cheio, entregar: () => estado.vida.restaurarTudo() });
         if (r.ok) {
-          const primeira = !estado.worldEvents.ativa('cuidado:consulta');
-          estado.worldEvents.definir('cuidado:consulta', true);
-          this.ui.iniciarDialogo([{ nome: 'Você', texto: primeira ? 'A cadeira e a luz branca me fazem prender a respiração antes que alguém diga qualquer coisa.' : 'Reconheço a cadeira. Dessa vez consigo apoiar as costas.' }, { nome: 'Atendimento', texto: 'Vou explicar antes de tocar. Se precisar de uma pausa, você pode pedir.' }, { nome: 'Você', texto: 'Eu peço um minuto. Ninguém discute.' }]);
+          registrarConsulta(estado);
+          this.ui.iniciarDialogo(cena, () => this.salvarJogo());
         } else this.ui.avisoRapido('Saldo insuficiente ou atendimento desnecessário.');
         this.salvarJogo();
       });
@@ -1875,7 +1899,10 @@ export class FarmScene extends Phaser.Scene {
           if (!estado.carteira.gastar(500).ok) { this.ui.avisoRapido('Saldo insuficiente.'); return; }
           estado.dia += estado.relogio.avancarMinutos(30);
           this.salvarJogo();
-          this.scene.restart({ mapa: id, x: (destino.spawnTile.x + .5) * this.tamanhoTile, y: (destino.spawnTile.y + .5) * this.tamanhoTile, salvar: true });
+          // O trecho vira cena curta e pulavel; quem pula chega no mesmo ponto.
+          this.scene.launch('ViagemScene', { destino: id, aoChegar: () => {
+            this.scene.restart({ mapa: id, x: (destino.spawnTile.x + .5) * this.tamanhoTile, y: (destino.spawnTile.y + .5) * this.tamanhoTile, salvar: true });
+          } });
         },
       })));
     } else {
@@ -1907,6 +1934,8 @@ export class FarmScene extends Phaser.Scene {
       entregar: () => {
         this.consumirMateriais(projeto.materiais);
         estado.cidade.construir(projeto.id);
+        // o jornal da semana precisa saber QUANDO a obra ficou pronta
+        estado.worldEvents.definir(`jornal:obra:${projeto.id}`, estado.dia);
       },
     });
     if (!r.ok) {
@@ -2480,7 +2509,8 @@ export class FarmScene extends Phaser.Scene {
     const cena = cenaNoContexto(estado, def.id);
     if (cena) { this.iniciarCenaCampanha(cena.id); return; }
     const condicional = estado.worldEvents.consumirFala(def.id);
-    const padrao = comentarioDoPadrao(estado, def.id);
+    const ferido = falaDeQuemViu(estado, def.id);
+    const padrao = ferido ? null : comentarioDoPadrao(estado, def.id);
     const bicho = falaSobreCompanhia(estado, def.id);
     const roupa = comentarioDaPeca(estado, def.id);
     // Aniversario dele, esquecimento do dia anterior e felicitacao pelo meu.
@@ -2488,7 +2518,7 @@ export class FarmScene extends Phaser.Scene {
     const convite = dele ? conviteDeAniversario(estado, def.id) : null;
     const esquecido = comentarioDeEsquecimento(estado, def.id);
     const meu = felicitacaoDeHoje(estado, def.id);
-    const abertura = [...(dele ? [dele] : []), ...(convite ? [convite] : []), ...(esquecido ? [esquecido] : []), ...(meu ? [meu] : []),
+    const abertura = [...(ferido ? [ferido] : []), ...(dele ? [dele] : []), ...(convite ? [convite] : []), ...(esquecido ? [esquecido] : []), ...(meu ? [meu] : []),
       ...(padrao ? [padrao] : []), ...(bicho ? [bicho] : []), ...(roupa ? [roupa] : []), ...(condicional ? [condicional.texto] : []), ...def.dialogoAtual];
     this.ui.iniciarDialogo(falasDe(def.nome, abertura, def.id), () =>
       this.abrirMenuDeConversa(def),
@@ -2827,7 +2857,15 @@ export class FarmScene extends Phaser.Scene {
     const e = this.tamanhoTile / 32;
     const x = this.player.x, y = this.player.y, lado = this.direcao === 'left' ? -1 : 1;
     const frente = this.direcao !== 'up';
-    if (estado.vida.fracao < .75) g.fillStyle(0xd6d1b9).fillRect(x + (this.direcao === 'left' ? -6 : 4) * e, y - 15 * e, 3 * e, 6 * e);
+    // FERIMENTO: as marcas saem de `cuidado.ts`, em unidades do sprite de 48px.
+    const nivel = nivelDeFerimento(estado.vida.fracao);
+    for (const marca of marcasDeFerimento(nivel)) {
+      if (marca.parte === 'testa' && !frente) continue;
+      const espelho = this.direcao === 'left' ? -1 : 1;
+      g.fillStyle(marca.cor, .95).fillRect(x + marca.x * espelho * e, y + marca.y * e, marca.w * e, marca.h * e);
+    }
+    // Mancar e so o corpo denunciando: nao tira velocidade nem trava acao.
+    this.player.setAngle(mancando(nivel) && this.player.body?.velocity.lengthSq() ? (Math.floor(this.time.now / 180) % 2 ? 2.2 : -1.2) : 0);
     const conjunto = conjuntoAtual(estado);
     if (conjunto.id !== 'casual') {
       g.fillStyle(conjunto.cor, .8).fillRect(x - 6 * e, y - 34 * e, 12 * e, 3 * e);
@@ -3000,6 +3038,23 @@ export class FarmScene extends Phaser.Scene {
       { nome: 'Você', texto: refeicao.texto },
       { nome: def.nome, npcId: def.id, texto: 'Obrigado pela comida e pela cadeira. As duas coisas contam.' },
     ]);
+  }
+
+  /** Recolher e so guardar: quem lê e cataloga sao Clara e Ilda. */
+  private recolherDocumento(alvo: Interagivel): void {
+    const doc = coletarDocumento(estado, String(alvo.props.documento));
+    if (!doc) return;
+    this.interagiveis = this.interagiveis.filter(i => i !== alvo);
+    this.alvo = null;
+    this.ui.mostrarPrompt(null);
+    this.ui.iniciarDialogo(falasDe('Você', [doc.texto, 'Guardei para levar à biblioteca. Clara ou Ilda sabem o que fazer com isso.']),
+      () => this.salvarJogo());
+  }
+
+  /** A sala de memoria nasce no meio da partida; os pontos precisam acompanhar. */
+  reconstruirPontos(): void {
+    this.interagiveis = this.interagiveis.filter(i => !i.id.startsWith('biblioteca:'));
+    this.interagiveis.push(...(this.biblioteca?.montar() ?? []));
   }
 
   /** Uma visita por ano, em casa, no aniversario do protagonista. */

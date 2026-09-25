@@ -23,12 +23,9 @@ export function lembrancasDaCasa(c: Pick<ContextoCampanha, 'worldEvents'>): Lemb
     { id: 'wendel', nome: 'Peça de Wendel', cor: 0xb29c75, texto: 'Uma peça do rádio que consertamos juntos. Ele disse que a caixa de parafusos já estava cheia.', visivel: f.ativa('casa:presenteWendel') },
   ].filter(m => m.visivel);
 }
-export function programaRadio(minuto: number, dia: number): string {
-  if (minuto < 360) return 'Madrugada: uma gravação antiga, com chiado entre as músicas. Ninguém pede que eu responda.';
-  if (minuto < 720) return `Bom dia, Rio Claro. ${dia % 9 === 0 ? 'A estrada da represa amanheceu com neblina. Motoristas, reduzam a velocidade.' : 'A feira abre no horário de sempre. Dona Ilda recebe fotografias antigas na biblioteca.'}`;
-  if (minuto < 1080) return 'Tarde musical. Uma canção termina; o locutor demora um pouco para voltar. Ouço a chaleira na casa ao lado.';
-  return 'Recados da noite: “Para quem chegou há pouco: a luz da varanda pode ficar acesa. Tem lugar aqui.” Depois, música.';
-}
+// A grade do rádio virou modulo proprio (game/radio.ts); este reexporte existe
+// para quem ja importava daqui.
+export { programaRadio } from './radio.ts';
 export function textoEspelho(c: Pick<ContextoCampanha, 'worldEvents' | 'arquivo'>): string {
   if (c.worldEvents.ativa('campanha:cena:epilogo')) return 'Ainda sou eu. Hoje isso não parece uma cobrança.';
   if (c.arquivo.tem(159)) return 'Há dias em que reconheço meu rosto antes de tentar explicar o que ele carrega.';

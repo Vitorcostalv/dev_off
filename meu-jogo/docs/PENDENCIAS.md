@@ -1,6 +1,6 @@
 # Pendências consolidadas do jogo
 
-Atualizado em **25/09/2026**. As entregas estão descritas em [vida pessoal e convivência](vida-pessoal-convivencia.md), [vida na cidade](vida-na-cidade.md) e [oficina e convivência](oficina-e-convivencia.md). Os itens listados continuam pendentes; o arquivo só deve ser removido quando todos forem atendidos.
+Atualizado em **25/09/2026**. As entregas estão descritas em [vida pessoal e convivência](vida-pessoal-convivencia.md), [vida na cidade](vida-na-cidade.md), [oficina e convivência](oficina-e-convivencia.md) e [cultura e memória](cultura-e-memoria.md). Os itens listados continuam pendentes; o arquivo só deve ser removido quando todos forem atendidos.
 
 Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e direção visual. Toda linha aqui é trabalho restante: o que é entregue e verificado sai do arquivo e passa a constar em "O que já existe" e no documento da etapa. **Parcial** significa que já existe uma base, mas a proposta completa ainda não está entregue. A numeração dos blocos segue a proposta original, então há lacunas onde um bloco inteiro foi concluído. Sistemas antigos semelhantes devem ser reaproveitados, sem serem confundidos com a implementação das novas propostas.
 
@@ -34,6 +34,9 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 - Oficina com inspeção antes de abrir o aparelho (seis falhas, doze sintomas, quatro hipóteses), preço combinado com o cliente, seis clientes recorrentes cujo aparelho e história evoluem, reputação em quatro eixos que amplia o quadro de vagas, carga de contratos por dia, aviso de excesso sem punição e dia livre declarável.
 - Bancos de praça em que se senta e o tempo corre mais rápido, com observações do lugar e moradores que sentam junto; caminhadas com Edu e Letícia comentando cada lugar atravessado; acompanhar um morador até onde ele já ia.
 - Refeições sozinho, no bar, com alguém e cozinhando, e quatro receitas ensinadas por Davi, Neide, Alice e Jaqueline.
+- Três níveis de ferimento com marcas desenhadas no corpo e passo torto, moradores que comentam a volta da represa e consulta no posto como cena, com quatro aberturas e fala de quem atende.
+- Rádio com quatro faixas por horário e referência ocasional à represa; jornal semanal em seis seções, com manchete reagindo às obras financiadas; catorze livros legíveis em sete assuntos.
+- Doze documentos históricos espalhados pelos mapas, arquivo catalogado por Clara e Ilda e sala de memória na biblioteca, aberta com oito documentos; viagem de ônibus em cena curta e pulável, com janela, chuva e companhia ocasional.
 
 ## 1. Prólogo, casa e diário pessoal
 
@@ -44,24 +47,6 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 - [ ] **Parcial — fotografia:** captura e álbum de até 20 imagens do mundo principal prontos; ampliar captura para a cena das profundezas e para a fauna nova quando implementada.
 - [ ] Criar álbum de fotografias antigas desbloqueado pela história.
 - [ ] **Parcial — fotografias no ambiente:** a mesma captura já aparece em molduras na casa e na tela inicial; ampliar para o mural e a seleção de fotos de eventos.
-
-## 5. Noites, sonhos e cuidado
-
-- [ ] Representar ferimentos com curativos e alterações visuais/animações, além do HP.
-- [ ] Fazer moradores perceberem a volta da represa com ferimentos.
-- [ ] Transformar algumas consultas no posto de saúde em cenas, incluindo desconforto inicial com o consultório.
-
-## 6. Animais, cultura e memória da cidade
-
-- [ ] Criar programação de rádio por horário: notícias de manhã, música à tarde, mensagens à noite e música antiga de madrugada.
-- [ ] Incluir referências ocasionais à represa na programação.
-- [ ] Criar jornal semanal sobre obras, eventos, clima, moradores, história e rumores.
-- [ ] Fazer manchetes reagirem aos projetos financiados pelo jogador.
-- [ ] Tornar os livros da biblioteca conteúdo legível: história local, represa, ferrovia, eletrônica, agricultura, romances e jornais antigos.
-- [ ] Criar arquivo histórico construído com Clara e Ilda a partir de documentos coletados.
-- [ ] Criar museu como projeto tardio, com peças da usina, ferrovia, fotografias, relatos e objetos.
-- [ ] Ampliar exploração e memória da ferrovia com trilhos antigos, fotos e possíveis túneis, sem impor uma conspiração.
-- [ ] **Parcial — ônibus:** acrescentar viagem curta e pulável, com janela, paisagem, chuva e presença ocasional de NPC.
 
 ## 7. Clima, passagem dos anos e mudanças urbanas
 
