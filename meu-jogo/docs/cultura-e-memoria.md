@@ -44,3 +44,13 @@ A linha municipal deixou de ser teletransporte: agora há um trecho de quinze se
 ## O que esta etapa não entrega
 
 Continuam no checklist: prólogo de 10–15 minutos, álbum e mural de fotografias, clima extremo e mudanças urbanas ao longo dos anos, represa ambiental (200 andares, atos, gravações, vigilância, conquistas), arte modular ilustrada, tilesets, iluminação, rotinas/câmera e interfaces.
+
+## Adendo de 25/09/2026 — clima extremo e a cidade ao longo dos anos
+
+Fecha também o bloco 7 do checklist.
+
+- **Seis eventos raros** (`src/game/climaExtremo.ts`): temporal, neblina densa, primeira geada, onda de calor, chuva prolongada e cheia do Rio Claro. Acontecem a cada dezessete dias, só na estação que os permite, alternando dentro dela — nada é sorteado e nada vai para o save além do que o jogador fez. A chuva prolongada ocupa três dias; os outros, um. Cada evento tem aviso, texto, efeito sobre os serviços e falas próprias de quatro moradores, uma por dia cada.
+- **Apagão**: no temporal, entre 19h e 23h, a luz pública do bairro cai — os postes apagam, a noite escurece, o bar acende vela, a farmácia atende com lanterna. Ajudar com o gerador é opcional, vale uma vez por apagão, rende um ponto de relação e nenhum dinheiro. Do bairro se vê **a represa acesa**, e o protagonista não conclui nada a respeito.
+- **A cidade ao longo dos anos** (`src/game/mudancasUrbanas.ts`): doze marcas — pintura de fachada, bancos novos, grafite, árvores plantadas, placa trocada e pontos ocupados — aparecem conforme o ano ou a obra que o jogador financiou, desenhadas por cima do tilemap existente. A janela de casa resume o que mudou.
+- **Estações por dentro e por fora**: interiores ganham janela fechada e cobertor no inverno, janela aberta e ventilador no verão; os figurantes mudam de roupa (gorro, camisa) e de horário — no inverno ninguém fica na rua à noite, no verão o meio do dia sai do sol.
+- Validação: `npm run verificar-clima-extremo` (eventos por estação, duração, apagão por horário, gerador uma vez, reações uma por dia, mudanças por ano e por obra, interiores e trajes por estação), `npm run verificar-tudo -- bloco7` (35/35) e as suítes de navegador de pendências e cultura, que seguem passando com a cena nova.

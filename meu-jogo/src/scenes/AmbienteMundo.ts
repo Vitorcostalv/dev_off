@@ -3,6 +3,7 @@ import { intensidadeNoturna } from '../game/clima';
 import type { Clima } from '../game/clima';
 import type { Settings } from '../game/settings';
 import { estado } from '../game/estado';
+import { apagaoAtivo, eventoAtivo } from '../game/climaExtremo';
 /** Efeitos limitados à viewport; a vegetação é atualizada só na virada da estação. */
 export class AmbienteMundo {
   private luz: Phaser.GameObjects.Rectangle;
@@ -30,7 +31,11 @@ export class AmbienteMundo {
       this.estacao = estacao; const tint = [0xffffff, 0xffedba, 0xe5ba86, 0xb8cdd1][estacao];
       this.plantas.forEach(p => p.setTint(tint));
     }
-    this.luz.setAlpha(this.externo ? intensidadeNoturna(minuto) * 0.28 + (['Chuva', 'Temporal', 'Nublado'].includes(clima) ? 0.08 : 0) : 0);
+    // Apagão: sem luz pública, a noite do bairro fica bem mais escura.
+    const apagao = apagaoAtivo(estado.dia, minuto);
+    this.luz.setAlpha(this.externo
+      ? intensidadeNoturna(minuto) * (apagao ? 0.52 : 0.28) + (['Chuva', 'Temporal', 'Nublado'].includes(clima) ? 0.08 : 0)
+      : apagao ? 0.3 : 0);
     this.efeitos.clear();
     this.regiao.setAlpha(opcoes.altoContraste ? 0 : estado.worldEvents.ativa('campanha:cena:epilogo') ? .025 : .045);
     this.pocos.clear();
@@ -65,8 +70,11 @@ export class AmbienteMundo {
       this.efeitos.fillStyle(0xd3ae75, 0.6);
       for (let i = 0; i < 8; i++) this.efeitos.fillRect((i * 113 + this.tempo * 24) % 480, (i * 71 + Math.sin(this.tempo + i) * 5) % 270, 2, 1);
     } else if (clima === 'Neblina') {
-      this.efeitos.fillStyle(0xc4d2d4, 0.06);
-      for (let i = 0; i < 4; i++) this.efeitos.fillEllipse((i * 157 + this.tempo * 5) % 600 - 60, 40 + i * 60, 280, 55);
+      // Neblina DENSA é o mesmo efeito com mais camadas e mais opacidade: a
+      // cidade some a poucos metros, sem esconder o que o jogador precisa ver.
+      const densa = eventoAtivo(estado.dia)?.id === 'neblina_densa';
+      this.efeitos.fillStyle(0xc4d2d4, densa ? 0.13 : 0.06);
+      for (let i = 0; i < (densa ? 8 : 4); i++) this.efeitos.fillEllipse((i * 157 + this.tempo * 5) % 600 - 60, 30 + i * 34, 300, 60);
     }
   }
 }

@@ -37,6 +37,8 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 - Três níveis de ferimento com marcas desenhadas no corpo e passo torto, moradores que comentam a volta da represa e consulta no posto como cena, com quatro aberturas e fala de quem atende.
 - Rádio com quatro faixas por horário e referência ocasional à represa; jornal semanal em seis seções, com manchete reagindo às obras financiadas; catorze livros legíveis em sete assuntos.
 - Doze documentos históricos espalhados pelos mapas, arquivo catalogado por Clara e Ilda e sala de memória na biblioteca, aberta com oito documentos; viagem de ônibus em cena curta e pulável, com janela, chuva e companhia ocasional.
+- Seis eventos raros de clima (temporal, neblina densa, geada, onda de calor, chuva prolongada e cheia), determinísticos e com reação de moradores e serviços; apagão noturno no temporal, com vela no bar, emergência na farmácia, gerador opcional e a represa acesa ao fundo.
+- Cidade mudando com os anos e com as obras financiadas (pintura, banco, grafite, árvore, placa, ponto ocupado), interiores com cobertor no inverno e ventilador no verão, e figurantes com roupa e horário conforme a estação.
 
 ## 1. Prólogo, casa e diário pessoal
 
@@ -47,17 +49,6 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 - [ ] **Parcial — fotografia:** captura e álbum de até 20 imagens do mundo principal prontos; ampliar captura para a cena das profundezas e para a fauna nova quando implementada.
 - [ ] Criar álbum de fotografias antigas desbloqueado pela história.
 - [ ] **Parcial — fotografias no ambiente:** a mesma captura já aparece em molduras na casa e na tela inicial; ampliar para o mural e a seleção de fotos de eventos.
-
-## 7. Clima, passagem dos anos e mudanças urbanas
-
-- [ ] Criar eventos raros: temporal intenso, neblina densa, primeira geada, onda de calor, chuva prolongada e cheia do Rio Claro.
-- [ ] Fazer moradores e serviços reagirem a esses eventos.
-- [ ] Criar apagão durante temporal, com velas, bar funcionando, emergência na farmácia e possibilidade de ajudar com gerador.
-- [ ] Contrastar o apagão da cidade com a represa iluminada à distância.
-- [ ] Ampliar transformações urbanas: pintura, bancos, grafite, árvores, comércio, placas e uso dos lotes.
-- [ ] Fazer a cidade dos anos seguintes diferir visualmente do começo.
-- [ ] Fazer interiores acompanharem a estação: cobertores/janelas fechadas no inverno e ventiladores/janelas abertas no verão.
-- [ ] Fazer roupas e comportamento dos moradores acompanharem as estações.
 
 ## 8. Represa, revelações e conquistas
 

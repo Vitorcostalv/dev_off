@@ -3,6 +3,11 @@ import { VidaDomestica } from './VidaDomestica';
 import { BichosDoMundo } from './BichosDoMundo';
 import { Biblioteca } from './Biblioteca';
 import { coletarDocumento, documentoDisponivel, documentosDoMapa, temDocumento } from '../game/memoriaDaCidade';
+import {
+  ajudarComGerador, apagaoAtivo, avisarEvento, climaDoEvento, reacaoAoEvento,
+  represaIluminada, textoDoApagao, TEXTO_REPRESA_ACESA,
+} from '../game/climaExtremo';
+import { marcasDaEstacao, mudancasVisiveis, trajeDaEstacao, deslocamentoDaEstacao } from '../game/mudancasUrbanas';
 import { adotar, aproximar, companhia, falaSobreCompanhia, PRETENDENTES, textoDaCompanhia } from '../game/companhia';
 import { comentarioDaPeca, conjuntoAtual, crescimento, pecaAtual } from '../game/guardaRoupa';
 import {
@@ -814,6 +819,8 @@ export class FarmScene extends Phaser.Scene {
     this.interagiveis.push(...this.bichos.montar(estado.mapa));
     this.biblioteca = new Biblioteca(this, this.ui);
     this.interagiveis.push(...this.biblioteca.montar());
+    this.desenharMudancasDaCidade();
+    this.anunciarClimaExtremo();
     // DOCUMENTOS HISTORICOS: some do mapa quando recolhidos, e voltam ao quadro
     // de interacao so num save que ainda nao os tem.
     for (const doc of documentosDoMapa(estado.mapa)) {
@@ -846,7 +853,7 @@ export class FarmScene extends Phaser.Scene {
       const diaAntes = estado.dia;
       const minutoAntes = estado.relogio.minutos;
       estado.dia += estado.relogio.avancar(delta * estado.preferencias.valores.tempo * (this.sentado ? 6 : 1));
-      if (estado.dia !== diaAntes) { estado.eventos.emit('DAY_STARTED', { dia: estado.dia }); this.atualizarVisuaisRurais(); }
+      if (estado.dia !== diaAntes) { estado.eventos.emit('DAY_STARTED', { dia: estado.dia }); this.atualizarVisuaisRurais(); this.anunciarClimaExtremo(); }
       if (estado.relogio.minutos !== minutoAntes) estado.eventos.emit('TIME_CHANGED', { dia: estado.dia, minuto: estado.relogio.minutos });
       if (estado.relogio.minutos !== minutoAntes) { observarVida(estado, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile); registrarFerimentoNaRepresa(estado); }
       estado.vida.atualizar(delta);
@@ -868,10 +875,11 @@ export class FarmScene extends Phaser.Scene {
     this.atualizarBalaoEncontro();
 
     this.atualizarFigurantesAmbientais();
-    this.bichos?.atualizar(delta, estado.mapa, estado.relogio.minutos, estado.clima.paraDia(estado.dia), dataDoDia(estado.dia).estacao, this.player, this.ui.bloqueado || this.mapaAberto);
+    const climaAgora = climaDoEvento(estado.dia, estado.clima.paraDia(estado.dia));
+    this.bichos?.atualizar(delta, estado.mapa, estado.relogio.minutos, climaAgora, dataDoDia(estado.dia).estacao, this.player, this.ui.bloqueado || this.mapaAberto);
     this.atualizarPortasEIluminacao();
     this.atualizarLuzesNoturnas();
-    this.ambiente.atualizar(this.ui.bloqueado || this.mapaAberto ? 0 : delta, estado.relogio.minutos, dataDoDia(estado.dia).estacao, estado.clima.paraDia(estado.dia), estado.preferencias.valores);
+    this.ambiente.atualizar(this.ui.bloqueado || this.mapaAberto ? 0 : delta, estado.relogio.minutos, dataDoDia(estado.dia).estacao, climaAgora, estado.preferencias.valores);
 
     this.atualizarTrilhaSonora(delta);
 
@@ -1336,17 +1344,27 @@ export class FarmScene extends Phaser.Scene {
     };
     const lista = rotas[mapa.chave] ?? [];
 
+    const estacao = dataDoDia(estado.dia).estacao;
     for (const rota of lista) {
       // Em dois de cada tres dias, exatamente um dos quatro slots da janela
       // descansa; no terceiro aparecem os quatro. Sempre ficam 3-4 simultaneos.
       if (estado.dia % 3 !== 0 && (estado.dia + rota.seed) % 4 === 0) continue;
-      const aparencia = aparenciaPorSemente(rota.id.split('').reduce((n, c) => n + c.charCodeAt(0), 0));
+      // ESTACAO: no inverno ninguem fica na rua a noite e a tarde sai mais cedo;
+      // no verao o contrario. Roupa e horario mudam pela mesma regra.
+      const deslocamento = deslocamentoDaEstacao(rota.janela.inicio, estacao);
+      if (deslocamento === null) continue;
+      const semente = rota.id.split('').reduce((n, c) => n + c.charCodeAt(0), 0);
+      const aparencia = aparenciaPorSemente(semente);
+      const traje = trajeDaEstacao(estacao, semente);
+      aparencia.acessorio = traje.acessorio;
+      aparencia.camisa = traje.camisa;
       if (rota.tipo === 'idoso') aparencia.cabelo = 3;
+      const janela = { inicio: rota.janela.inicio + deslocamento, fim: rota.janela.fim + deslocamento };
       const corpo = new PersonagemModular(this, rota.inicio.x * this.tamanhoTile, rota.inicio.y * this.tamanhoTile,
         aparencia, this.tamanhoTile * (rota.tipo === 'crianca' ? 1.05 : 1.5));
       corpo.setDepth(rota.inicio.y * this.tamanhoTile);
       corpo.setVisible(false);
-      this.figurantesAmbientais.push({ ...rota, conta: corpo });
+      this.figurantesAmbientais.push({ ...rota, janela, conta: corpo });
     }
   }
 
@@ -1513,7 +1531,9 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private atualizarLuzesNoturnas(): void {
-    for (const luz of this.luzesNoturnas) luz.setVisible(true).setAlpha(intensidadeNoturna(estado.relogio.minutos));
+    // APAGAO: a rua inteira perde a luz publica; o que sobra e vela e lanterna.
+    const apagao = apagaoAtivo(estado.dia, estado.relogio.minutos);
+    for (const luz of this.luzesNoturnas) luz.setVisible(!apagao).setAlpha(apagao ? 0 : intensidadeNoturna(estado.relogio.minutos));
     if (this.luzBiblioteca) {
       const minutos = estado.relogio.minutos;
       this.luzBiblioteca.setVisible(minutos >= 9 * 60 && minutos < 19 * 60);
@@ -2509,6 +2529,7 @@ export class FarmScene extends Phaser.Scene {
     const cena = cenaNoContexto(estado, def.id);
     if (cena) { this.iniciarCenaCampanha(cena.id); return; }
     const condicional = estado.worldEvents.consumirFala(def.id);
+    const clima = reacaoAoEvento(estado, def.id);
     const ferido = falaDeQuemViu(estado, def.id);
     const padrao = ferido ? null : comentarioDoPadrao(estado, def.id);
     const bicho = falaSobreCompanhia(estado, def.id);
@@ -2518,7 +2539,7 @@ export class FarmScene extends Phaser.Scene {
     const convite = dele ? conviteDeAniversario(estado, def.id) : null;
     const esquecido = comentarioDeEsquecimento(estado, def.id);
     const meu = felicitacaoDeHoje(estado, def.id);
-    const abertura = [...(ferido ? [ferido] : []), ...(dele ? [dele] : []), ...(convite ? [convite] : []), ...(esquecido ? [esquecido] : []), ...(meu ? [meu] : []),
+    const abertura = [...(clima ? [clima] : []), ...(ferido ? [ferido] : []), ...(dele ? [dele] : []), ...(convite ? [convite] : []), ...(esquecido ? [esquecido] : []), ...(meu ? [meu] : []),
       ...(padrao ? [padrao] : []), ...(bicho ? [bicho] : []), ...(roupa ? [roupa] : []), ...(condicional ? [condicional.texto] : []), ...def.dialogoAtual];
     this.ui.iniciarDialogo(falasDe(def.nome, abertura, def.id), () =>
       this.abrirMenuDeConversa(def),
@@ -2558,6 +2579,15 @@ export class FarmScene extends Phaser.Scene {
         iniciarAcompanhamento(estado, def.id);
         this.salvarJogo();
         this.ui.iniciarDialogo(falasDe(def.nome, ['Pode. Eu ia por aqui de qualquer jeito.'], def.id));
+      } });
+    }
+    if (apagaoAtivo(estado.dia, estado.relogio.minutos) && ((def.id === 'alice' && estado.mapa === 'bar') || (def.id === 'wendel' && estado.mapa === 'farmacia'))) {
+      opcoes.unshift({ rotulo: 'Ajudar com o gerador', aoEscolher: () => {
+        const ajuda = ajudarComGerador(estado, estado.mapa === 'bar' ? 'bar' : 'farmacia');
+        if (!ajuda) { this.ui.avisoRapido('O gerador já está rodando.'); return; }
+        estado.relacoes.ganharRelacao(ajuda.npc, ajuda.pontos);
+        this.salvarJogo();
+        this.ui.iniciarDialogo(falasDe('Você', [ajuda.texto]));
       } });
     }
     if (estado.mapa === 'bar' && def.id === 'alice') {
@@ -3049,6 +3079,44 @@ export class FarmScene extends Phaser.Scene {
     this.ui.mostrarPrompt(null);
     this.ui.iniciarDialogo(falasDe('Você', [doc.texto, 'Guardei para levar à biblioteca. Clara ou Ilda sabem o que fazer com isso.']),
       () => this.salvarJogo());
+  }
+
+  /**
+   * MUDANCAS DA CIDADE e ESTACAO POR DENTRO, desenhadas por cima do tilemap:
+   * pintura, banco, grafite, arvore, placa e ponto ocupado aparecem com o ano ou
+   * com a obra financiada; cobertor e ventilador aparecem com a estacao.
+   */
+  private desenharMudancasDaCidade(): void {
+    const g = this.add.graphics();
+    const ano = dataDoDia(estado.dia).ano;
+    const obras = (Object.keys(PROJETOS_CIDADE) as (keyof typeof PROJETOS_CIDADE)[]).filter(id => estado.cidade.construido(id));
+    for (const m of mudancasVisiveis(estado.mapa, ano, obras)) {
+      const x = m.tile.x * this.tamanhoTile, y = m.tile.y * this.tamanhoTile;
+      const w = m.largura * this.tamanhoTile, h = m.altura * this.tamanhoTile;
+      g.fillStyle(m.cor, m.tipo === 'grafite' ? .75 : .9).fillRect(x, y, w, h);
+      if (m.tipo === 'arvore') g.fillStyle(0x3d2f24, .9).fillRect(x + w / 2 - 2, y + h, 4, this.tamanhoTile * .5);
+      if (m.tipo === 'banco') g.fillStyle(0x4a3a28, .9).fillRect(x, y + h, w, 3);
+      g.setDepth(y + h);
+    }
+    const estacao = dataDoDia(estado.dia).estacao;
+    for (const marca of marcasDaEstacao(estado.mapa, estacao)) {
+      const sazonal = this.add.graphics().setDepth(marca.y + marca.altura);
+      sazonal.fillStyle(marca.cor, marca.id === 'janela_aberta' ? .5 : .85)
+        .fillRect(marca.x, marca.y, marca.largura, marca.altura);
+      if (marca.id === 'ventilador') sazonal.lineStyle(1, 0x8d949a).strokeCircle(marca.x + marca.largura / 2, marca.y + marca.altura / 2, marca.largura / 2);
+    }
+  }
+
+  /** Um aviso por evento raro, e o texto do apagao quando ele comeca. */
+  private anunciarClimaExtremo(): void {
+    const evento = avisarEvento(estado);
+    if (evento) this.ui.avisoRapido(`${evento.nome}: ${evento.aviso}`);
+    if (apagaoAtivo(estado.dia, estado.relogio.minutos) && !estado.worldEvents.ativa(`clima:apagao:${estado.dia}:${estado.mapa}`)) {
+      estado.worldEvents.definir(`clima:apagao:${estado.dia}:${estado.mapa}`, true);
+      const falas = [textoDoApagao(estado.mapa)];
+      if (represaIluminada(estado.dia, estado.relogio.minutos, estado.mapa)) falas.push(TEXTO_REPRESA_ACESA);
+      this.time.delayedCall(600, () => { if (!this.ui.bloqueado && this.pronto) this.ui.iniciarDialogo(falasDe('Você', falas)); });
+    }
   }
 
   /** A sala de memoria nasce no meio da partida; os pontos precisam acompanhar. */

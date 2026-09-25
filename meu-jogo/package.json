@@ -11,6 +11,7 @@
     "verificar-convivencia": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-convivencia.mjs",
     "verificar-cuidado": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-cuidado.mjs",
     "verificar-cultura": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-cultura.mjs",
+    "verificar-clima-extremo": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/verificar-clima-extremo.mjs",
     "test:cultura-browser": "node tools/browser-cultura.mjs",
     "test:cuidado-browser": "node tools/browser-cuidado.mjs",
     "test:vida-na-cidade-browser": "node tools/browser-vida-na-cidade.mjs",

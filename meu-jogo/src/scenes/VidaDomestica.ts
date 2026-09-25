@@ -12,6 +12,8 @@ import { comentarioDaRoupa, CONJUNTOS, conjuntoAtual, conjuntosDisponiveis, cres
 import { dataDoDia } from '../game/calendario';
 import { comer, historiaDoPrato, pratosAprendidos, refeicaoDeHoje } from '../game/refeicoes';
 import { nivelDeFerimento, textoDoFerimento } from '../game/cuidado';
+import { resumoDaCidade, textoDaEstacaoDentro } from '../game/mudancasUrbanas';
+import { PROJETOS_CIDADE } from '../game/cidade';
 
 const PONTOS = [
   ['cafe', 'Preparar café', 189, 431], ['banho', 'Tomar banho', 150, 624],
@@ -48,7 +50,16 @@ export class VidaDomestica {
     if (id === 'tigela') this.cuidarDoBicho();
     if (id === 'cozinha') this.cozinha();
     if (id === 'radio') this.contar(programaRadio(estado.relogio.minutos, estado.dia, estado.clima.paraDia(estado.dia)), id);
-    if (id === 'janela') this.contar(estado.relogio.minutos >= 1080 ? 'Uma janela acende do outro lado. Outra apaga. Não sou a única pessoa acordada.' : 'A cortina encosta no meu braço. Alguém passa com uma sacola. A rua continua sem precisar de mim.', id);
+    if (id === 'janela') {
+      // A janela é de onde se percebe a cidade mudando de ano para ano.
+      const ano = dataDoDia(estado.dia).ano;
+      const obras = (Object.keys(PROJETOS_CIDADE) as (keyof typeof PROJETOS_CIDADE)[]).filter(p => estado.cidade.construido(p));
+      const daEstacao = textoDaEstacaoDentro(dataDoDia(estado.dia).estacao);
+      const base = estado.relogio.minutos >= 1080
+        ? 'Uma janela acende do outro lado. Outra apaga. Não sou a única pessoa acordada.'
+        : 'A cortina encosta no meu braço. Alguém passa com uma sacola. A rua continua sem precisar de mim.';
+      this.contar([base, daEstacao, ano >= 2 ? resumoDaCidade(ano, obras) : null].filter(Boolean).join(' '), id);
+    }
     if (id === 'correio') {
       const f = estado.worldEvents;
       if (f.ativa('campanha:cena:oficina') && !f.ativa('casa:presenteLuke')) {
