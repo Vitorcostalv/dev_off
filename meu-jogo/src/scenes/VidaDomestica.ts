@@ -9,13 +9,14 @@ import { fotografiaEmMoldura, desenharObjetoLembranca } from './FotografiaMemori
 import { alimentar, companhia, lugarDoDescanso } from '../game/companhia';
 import { comentarioDaRoupa, CONJUNTOS, conjuntoAtual, conjuntosDisponiveis, crescimento, cuidar, pecaAtual, pecasDisponiveis, textoDoCrescimento, usarPeca, vestir } from '../game/guardaRoupa';
 import { dataDoDia } from '../game/calendario';
+import { comer, historiaDoPrato, pratosAprendidos, refeicaoDeHoje } from '../game/refeicoes';
 
 const PONTOS = [
   ['cafe', 'Preparar café', 189, 431], ['banho', 'Tomar banho', 150, 624],
   ['espelho', 'Olhar o espelho', 280, 624], ['radio', 'Ouvir rádio', 606, 480],
   ['janela', 'Olhar pela janela', 300, 111], ['correio', 'Ver correspondência', 428, 627],
   ['lembrancas', 'Ver lembranças', 301, 269], ['bau', 'Abrir baú', 80, 263],
-  ['armario', 'Abrir o armário', 333, 269],
+  ['armario', 'Abrir o armário', 333, 269], ['cozinha', 'Cozinhar', 157, 431],
 ] as const;
 /** A tigela só existe quando há um bicho em casa. */
 const PONTO_TIGELA = ['tigela', 'Cuidar do bicho', 221, 431] as const;
@@ -43,6 +44,7 @@ export class VidaDomestica {
     if (id === 'espelho') this.espelho();
     if (id === 'armario') this.armario();
     if (id === 'tigela') this.cuidarDoBicho();
+    if (id === 'cozinha') this.cozinha();
     if (id === 'radio') this.contar(programaRadio(estado.relogio.minutos, estado.dia), id);
     if (id === 'janela') this.contar(estado.relogio.minutos >= 1080 ? 'Uma janela acende do outro lado. Outra apaga. Não sou a única pessoa acordada.' : 'A cortina encosta no meu braço. Alguém passa com uma sacola. A rua continua sem precisar de mim.', id);
     if (id === 'correio') {
@@ -93,6 +95,24 @@ export class VidaDomestica {
     if (aviso) opcoes.push({ rotulo: 'Pensar no tempo de hoje', aoEscolher: () => this.contar(aviso) });
     const guardados = conjuntosDisponiveis(estado).length;
     this.ui.abrirMenu(`Armário — ${guardados} de ${CONJUNTOS.length} conjuntos`, opcoes);
+  }
+
+  /** Comer sozinho, cozinhar o que um morador ensinou, reler a receita. */
+  private cozinha(): void {
+    const pratos = pratosAprendidos(estado);
+    const jaComeu = refeicaoDeHoje(estado) !== null;
+    const opcoes = [
+      { rotulo: jaComeu ? 'Comer de novo' : 'Comer alguma coisa', aoEscolher: () => {
+        const refeicao = comer(estado, 'sozinho');
+        if (refeicao) this.contar(refeicao.texto);
+      } },
+      ...pratos.map(p => ({ rotulo: `Fazer: ${p.nome}`, aoEscolher: () => {
+        const refeicao = comer(estado, 'cozinhar', undefined, p.id);
+        if (refeicao) this.contar(refeicao.texto);
+      } })),
+      ...pratos.map(p => ({ rotulo: `Receita: ${p.nome}`, aoEscolher: () => this.contar(historiaDoPrato(estado, p.id) ?? '') })),
+    ];
+    this.ui.abrirMenu(pratos.length ? `Cozinha — ${pratos.length} receita(s)` : 'Cozinha', opcoes);
   }
 
   private cuidarDoBicho(): void {

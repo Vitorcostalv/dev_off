@@ -1,6 +1,6 @@
 # Pendências consolidadas do jogo
 
-Atualizado em **22/09/2026**. As entregas estão descritas em [vida pessoal e convivência](vida-pessoal-convivencia.md) e em [vida na cidade](vida-na-cidade.md). Os itens listados continuam pendentes; o arquivo só deve ser removido quando todos forem atendidos.
+Atualizado em **25/09/2026**. As entregas estão descritas em [vida pessoal e convivência](vida-pessoal-convivencia.md), [vida na cidade](vida-na-cidade.md) e [oficina e convivência](oficina-e-convivencia.md). Os itens listados continuam pendentes; o arquivo só deve ser removido quando todos forem atendidos.
 
 Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e direção visual. Toda linha aqui é trabalho restante: o que é entregue e verificado sai do arquivo e passa a constar em "O que já existe" e no documento da etapa. **Parcial** significa que já existe uma base, mas a proposta completa ainda não está entregue. A numeração dos blocos segue a proposta original, então há lacunas onde um bloco inteiro foi concluído. Sistemas antigos semelhantes devem ser reaproveitados, sem serem confundidos com a implementação das novas propostas.
 
@@ -31,6 +31,9 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 - Animal de companhia adotável em três dias, com sono em lugares diferentes, espera na porta, recolhimento na chuva e presença na oficina; fauna de rua determinística por hora, clima e estação, com bichos que ganham nome depois de encontros repetidos.
 - Guarda-roupa com cinco conjuntos, quatro peças recebidas de moradores, comentário do protagonista quando a roupa não combina com o dia, e cabelo/barba em três estágios com cuidado no espelho.
 - Dezesseis moradores com cenas de vínculo (cinco nos oito dos retratos, três nos demais) e aniversários dos 33 moradores mais o do protagonista, com presente, esquecimento, convite, visita em casa e lembrança progressiva.
+- Oficina com inspeção antes de abrir o aparelho (seis falhas, doze sintomas, quatro hipóteses), preço combinado com o cliente, seis clientes recorrentes cujo aparelho e história evoluem, reputação em quatro eixos que amplia o quadro de vagas, carga de contratos por dia, aviso de excesso sem punição e dia livre declarável.
+- Bancos de praça em que se senta e o tempo corre mais rápido, com observações do lugar e moradores que sentam junto; caminhadas com Edu e Letícia comentando cada lugar atravessado; acompanhar um morador até onde ele já ia.
+- Refeições sozinho, no bar, com alguém e cozinhando, e quatro receitas ensinadas por Davi, Neide, Alice e Jaqueline.
 
 ## 1. Prólogo, casa e diário pessoal
 
@@ -41,19 +44,6 @@ Este arquivo reúne as pendências das propostas de narrativa, vida na cidade e 
 - [ ] **Parcial — fotografia:** captura e álbum de até 20 imagens do mundo principal prontos; ampliar captura para a cena das profundezas e para a fauna nova quando implementada.
 - [ ] Criar álbum de fotografias antigas desbloqueado pela história.
 - [ ] **Parcial — fotografias no ambiente:** a mesma captura já aparece em molduras na casa e na tela inicial; ampliar para o mural e a seleção de fotos de eventos.
-
-## 4. Trabalho, refeições e descanso
-
-- [ ] **Parcial — oficina:** ampliar o minigame de conserto para inspeção e 4–5 tipos de diagnóstico, envolvendo capacitor, cabo, fusível, bateria, solda e placa.
-- [ ] Criar clientes recorrentes, com evolução dos equipamentos e pequenas histórias pessoais.
-- [ ] Criar reputação por confiabilidade, velocidade, qualidade e preço, influenciando os trabalhos recebidos.
-- [ ] Permitir escolher quantos contratos aceitar e registrar consequências narrativas de excesso de trabalho.
-- [ ] Criar dias livres sem tarefas, prazos ou bônus obrigatórios.
-- [ ] Permitir sentar em bancos enquanto o tempo passa e moradores circulam ou se aproximam.
-- [ ] Criar caminhadas com Edu e Letícia, com conversas ligadas aos lugares atravessados.
-- [ ] Permitir acompanhar um NPC até seu destino, sem transformar isso em missão.
-- [ ] Criar refeições sociais: comer sozinho, comer no bar, jantar com alguém e cozinhar para convidados.
-- [ ] Integrar receitas ensinadas pelos moradores: pão de Davi, conservas de Neide e pratos do bar de Alice, com histórias associadas.
 
 ## 5. Noites, sonhos e cuidado
 

@@ -46,7 +46,7 @@ try {
   await page.evaluate(() => { const ui = window.game.scene.getScene('UIScene'); ui.fecharDialogo(); const f = window.game.scene.getScene('FarmScene'); f.scene.restart({ mapa: 'oficina' }); });
   await page.waitForFunction(() => window.estado.mapa === 'oficina' && window.game.scene.getScene('FarmScene').pronto);
   const pontos = await page.evaluate(() => window.game.scene.getScene('FarmScene').interagiveis.filter(p => p.tipo === 'domestico').map(p => p.props.acao));
-  assert.equal(pontos.length, 9);
+  assert.equal(pontos.length, 10);
   for (const id of ['cafe', 'banho', 'espelho', 'radio', 'janela', 'correio', 'bau']) {
     await page.evaluate(id => { const f = window.game.scene.getScene('FarmScene'); f.alvo = f.interagiveis.find(p => p.props.acao === id); f.interagir(); }, id);
     assert(await page.evaluate(() => window.game.scene.getScene('UIScene').bloqueado), id);

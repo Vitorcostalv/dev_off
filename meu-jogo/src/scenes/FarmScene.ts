@@ -3,6 +3,13 @@ import { VidaDomestica } from './VidaDomestica';
 import { BichosDoMundo } from './BichosDoMundo';
 import { adotar, aproximar, companhia, falaSobreCompanhia, PRETENDENTES, textoDaCompanhia } from '../game/companhia';
 import { comentarioDaPeca, conjuntoAtual, crescimento, pecaAtual } from '../game/guardaRoupa';
+import {
+  acompanhamentoAtual, caminhadaAtual, encerrarAcompanhamento, encerrarCaminhada, falaDeQuemSenta,
+  iniciarAcompanhamento, iniciarCaminhada, lugarDoPonto, observacaoDoBanco, podeCaminhar, quemSenta,
+  registrarBanco, registrarLugar, textoAoSentar,
+} from '../game/convivencia';
+import type { Lugar } from '../game/convivencia';
+import { comer, podeConvidar, pratosAprendidos } from '../game/refeicoes';
 import { aniversarioDe, comentarioDeEsquecimento, contarMeuAniversario, conviteDeAniversario, dataLegivel, ehAniversario, falaDeAniversario, felicitacaoDeHoje, lembrarDoAniversario, sabeDoMeuAniversario, visitaDeAniversario, ANIVERSARIO_PROTAGONISTA } from '../game/aniversarios';
 import { eventoNoLugar, dialogoDoEvento, concluirEvento } from '../game/eventosDeConvivencia';
 import { CULTIVOS, NOS_RURAIS, RECEITAS, fabricar } from '../game/atividadesRurais';
@@ -454,6 +461,10 @@ export class FarmScene extends Phaser.Scene {
   private pronto = false;
   private vidaDomestica?: VidaDomestica;
   private bichos?: BichosDoMundo;
+  /** Sentado num banco: o tempo corre mais rapido ate o jogador levantar. */
+  private sentado: { lugar: Lugar; desde: number; proxima: number; indice: number; companhia: boolean } | null = null;
+  /** Ha quantos ms o morador acompanhado esta em movimento. */
+  private acompanhandoMs = 0;
   private curativo?: Phaser.GameObjects.Graphics;
 
   constructor() {
@@ -818,7 +829,7 @@ export class FarmScene extends Phaser.Scene {
     if (!this.ui.bloqueado && !this.transicionando && !this.mapaAberto) {
       const diaAntes = estado.dia;
       const minutoAntes = estado.relogio.minutos;
-      estado.dia += estado.relogio.avancar(delta * estado.preferencias.valores.tempo);
+      estado.dia += estado.relogio.avancar(delta * estado.preferencias.valores.tempo * (this.sentado ? 6 : 1));
       if (estado.dia !== diaAntes) { estado.eventos.emit('DAY_STARTED', { dia: estado.dia }); this.atualizarVisuaisRurais(); }
       if (estado.relogio.minutos !== minutoAntes) estado.eventos.emit('TIME_CHANGED', { dia: estado.dia, minuto: estado.relogio.minutos });
       if (estado.relogio.minutos !== minutoAntes) observarVida(estado, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile);
@@ -834,6 +845,7 @@ export class FarmScene extends Phaser.Scene {
       const iniciados = estado.encontrosNpc.atualizar(estado.dia, delta, estado.rotinasNpc.todos, false, id => estado.relacoes.getScore(id));
       if (iniciados.length > 0) estado.rotinasNpc.pausarParaEncontro(iniciados, (estado.encontrosNpc.ativo?.definicao.falas.length ?? 4) * 1450);
       this.sincronizarNpcs();
+      this.atualizarConvivio(delta);
     }
 
     estado.armas.atualizar(delta);
@@ -859,6 +871,7 @@ export class FarmScene extends Phaser.Scene {
     this.represa?.atualizar(delta, this.player, this.ui.bloqueado || this.transicionando);
 
     this.atualizarAlvo();
+    if (this.atualizarBanco()) return;
     if (this.atravessarBordaSeEncostou()) return;
 
     // com dialogo/menu aberto — ou com uma peca na mao — o player fica parado
@@ -941,6 +954,9 @@ export class FarmScene extends Phaser.Scene {
         break;
       case 'bicho':
         this.interagirComBicho(this.alvo);
+        break;
+      case 'banco':
+        this.sentarNoBanco(this.alvo);
         break;
       case 'placa':
         this.examinarPlaca(this.alvo);
@@ -1975,6 +1991,12 @@ export class FarmScene extends Phaser.Scene {
       const altura = sprite.displayHeight * MOVEL_CORPO.altura;
       const pegada = this.retEmTiles(x, y, largura, altura);
       if (props.chao !== true) this.pegadasDeMovel.push(pegada);
+      // BANCO DE PRACA: o unico movel que vira ponto de interacao. Sentar nao e
+      // tarefa nem bonus — e deixar o tempo passar num lugar da cidade.
+      if (textura === 'moveis_parque' && quadro === 'movel_0_7') {
+        this.interagiveis.push({ id: `banco:${obj.name || this.interagiveis.length}`, tipo: 'banco', rotulo: 'Sentar',
+          x, y: y + this.tamanhoTile * .4, props: {} });
+      }
       if (props.colide === true) {
         this.corpoNaBase(x, y, largura, altura);
         this.corposDeMovel.push(pegada);
@@ -2485,6 +2507,47 @@ export class FarmScene extends Phaser.Scene {
     if (vinculo) opcoes.unshift({ rotulo: vinculo.cena.titulo, aoEscolher: () => this.ui.iniciarDialogo(falasDe(def.nome, [...vinculo.cena.falas], def.id), () => {
       concluirVinculo(estado, def.id, vinculo.indice); this.salvarJogo();
     }) });
+    // CONVIVENCIA: caminhar, acompanhar, comer junto. Nenhuma delas e missao,
+    // nenhuma paga, e todas podem ser recusadas sem consequencia.
+    const caminhada = caminhadaAtual(estado);
+    if (caminhada?.npc === def.id) {
+      opcoes.unshift({ rotulo: 'Encerrar a caminhada', aoEscolher: () => {
+        const texto = encerrarCaminhada(estado);
+        this.salvarJogo();
+        if (texto) this.ui.iniciarDialogo(falasDe(def.nome, [texto], def.id));
+      } });
+    } else if (!caminhada && podeCaminhar(def.id) && estado.relacoes.getScore(def.id) >= 3) {
+      opcoes.unshift({ rotulo: 'Caminhar um pouco', aoEscolher: () => {
+        iniciarCaminhada(estado, def.id);
+        this.salvarJogo();
+        this.ui.iniciarDialogo(falasDe(def.nome, ['Vamos. Sem destino, então você escolhe a rua.'], def.id));
+      } });
+    }
+    if (!caminhada && !acompanhamentoAtual(estado) && estado.relacoes.getScore(def.id) >= 2) {
+      opcoes.push({ rotulo: 'Posso te acompanhar?', aoEscolher: () => {
+        iniciarAcompanhamento(estado, def.id);
+        this.salvarJogo();
+        this.ui.iniciarDialogo(falasDe(def.nome, ['Pode. Eu ia por aqui de qualquer jeito.'], def.id));
+      } });
+    }
+    if (estado.mapa === 'bar' && def.id === 'alice') {
+      opcoes.push({ rotulo: 'Comer alguma coisa', aoEscolher: () => {
+        const refeicao = comer(estado, 'bar');
+        this.salvarJogo();
+        if (refeicao) this.ui.iniciarDialogo(falasDe('Você', [refeicao.texto]));
+      } });
+    }
+    if (podeConvidar(estado, estado.relacoes.getScore(def.id)) && !estado.worldEvents.ativa(`refeicao:convite:${def.id}:${estado.dia}`)) {
+      const pratos = pratosAprendidos(estado);
+      opcoes.push({ rotulo: pratos.length ? 'Convidar para comer em casa' : 'Convidar para comer', aoEscolher: () => {
+        estado.worldEvents.definir(`refeicao:convite:${def.id}:${estado.dia}`, true);
+        const escolhas = [
+          ...pratos.map(p => ({ rotulo: `Fazer: ${p.nome}`, aoEscolher: () => this.servirRefeicao(def, 'cozinhar', p.id) })),
+          { rotulo: 'Só sentar e comer junto', aoEscolher: () => this.servirRefeicao(def, 'jantar') },
+        ];
+        this.ui.abrirMenu('O que servir?', escolhas, undefined, def.id);
+      } });
+    }
     const dataDele = aniversarioDe(def.id);
     if (dataDele && ehAniversario(dataDele, estado.dia) && !estado.worldEvents.ativa(`aniversario:lembrei:${def.id}:${dataDoDia(estado.dia).ano}`)) {
       opcoes.unshift({ rotulo: 'Desejar feliz aniversário', aoEscolher: () => {
@@ -2817,6 +2880,126 @@ export class FarmScene extends Phaser.Scene {
     }
     const texto = this.bichos?.textoDe(String(alvo.props.animal));
     if (texto) this.ui.iniciarDialogo(falasDe('Você', texto.split('\n\n')), () => this.salvarJogo());
+  }
+
+  /**
+   * BANCO. Sentar acelera o relogio e traz observacoes do lugar; de vez em
+   * quando alguem senta junto. Sai com [E] ou com qualquer tecla de movimento.
+   */
+  private sentarNoBanco(alvo: Interagivel): void {
+    const lugar = lugarDoPonto(estado.mapa, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile);
+    this.ui.iniciarDialogo(falasDe('Você', [textoAoSentar(estado, lugar)]), () => {
+      this.player.setPosition(alvo.x, alvo.y);
+      this.player.setVelocity(0, 0);
+      this.sentado = { lugar, desde: estado.dia * 1440 + estado.relogio.minutos, proxima: 10, indice: estado.dia, companhia: false };
+      this.ui.mostrarPrompt('levantar');
+    });
+  }
+
+  private levantarDoBanco(): void {
+    if (!this.sentado) return;
+    const minutos = estado.dia * 1440 + estado.relogio.minutos - this.sentado.desde;
+    registrarBanco(estado, this.sentado.lugar, minutos);
+    this.sentado = null;
+    this.ui.mostrarPrompt(null);
+    this.salvarJogo();
+  }
+
+  /** Enquanto sentado o jogador nao anda; tudo o que acontece e a cidade. */
+  private atualizarBanco(): boolean {
+    if (!this.sentado || this.ui.bloqueado || this.transicionando) return false;
+    const mexeu = [this.cursors.left, this.cursors.right, this.cursors.up, this.cursors.down].some(t => t.isDown)
+      || (['esquerda', 'direita', 'cima', 'baixo'] as const).some(d => controles.pressionada(d));
+    if (mexeu || controles.apertou('interagir')) { this.levantarDoBanco(); return false; }
+    const passou = estado.dia * 1440 + estado.relogio.minutos - this.sentado.desde;
+    if (passou >= this.sentado.proxima) {
+      this.sentado.proxima = passou + 15;
+      this.sentado.indice += 1;
+      const presentes = this.npcs
+        .filter(n => this.posicaoNpcNoMapa(n.estado) !== null)
+        .map(n => n.estado.id);
+      const quem = !this.sentado.companhia && passou >= 25
+        ? quemSenta(estado, presentes, id => estado.relacoes.getScore(id))
+        : null;
+      if (quem) {
+        this.sentado.companhia = true;
+        const def = buscarNpc(quem);
+        this.ui.iniciarDialogo(falasDe(def?.nome ?? quem, [falaDeQuemSenta(quem, this.sentado.lugar)], quem),
+          () => this.ui.mostrarPrompt('levantar'));
+      } else {
+        this.ui.avisoRapido(observacaoDoBanco(this.sentado.lugar, this.sentado.indice));
+      }
+    }
+    this.player.setVelocity(0, 0);
+    this.player.anims.play(this.mao.animacaoDoCorpo('idle', this.direcao), true);
+    this.mao.atualizar(16, this.player, this.direcao);
+    return true;
+  }
+
+  /**
+   * CAMINHADA e ACOMPANHAMENTO. Na caminhada a rotina do morador fica pausada e
+   * ele anda atras do jogador, comentando cada lugar novo. No acompanhamento e o
+   * contrario: a rotina segue, e o trecho acaba quando ele chega aonde ia.
+   */
+  private atualizarConvivio(delta: number): void {
+    const caminhada = caminhadaAtual(estado);
+    if (caminhada) {
+      const npc = estado.rotinasNpc.porId(caminhada.npc);
+      if (npc) {
+        estado.rotinasNpc.pausarParaEncontro([caminhada.npc], 400);
+        npc.mapaAtual = estado.mapa;
+        npc.dentro = null;
+        npc.visivel = true;
+        const alvoX = this.player.x / this.tamanhoTile, alvoY = this.player.y / this.tamanhoTile;
+        const dx = alvoX - npc.x, dy = alvoY - npc.y, distancia = Math.hypot(dx, dy);
+        const passo = (CONFIG.movimento.andar / this.tamanhoTile) * (Math.min(60, delta) / 1000);
+        if (distancia > 1.3) {
+          const avanco = Math.min(distancia - 1.1, passo);
+          npc.x += (dx / distancia) * avanco;
+          npc.y += (dy / distancia) * avanco;
+          npc.movendo = true;
+          npc.direcao = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+        } else {
+          npc.movendo = false;
+        }
+      }
+      if (!this.ui.bloqueado) {
+        const fala = registrarLugar(estado, lugarDoPonto(estado.mapa, this.player.x / this.tamanhoTile, this.player.y / this.tamanhoTile));
+        if (fala) {
+          const def = buscarNpc(caminhada.npc);
+          this.ui.iniciarDialogo(falasDe(def?.nome ?? caminhada.npc, [fala], caminhada.npc));
+        }
+      }
+      return;
+    }
+    const acompanhado = acompanhamentoAtual(estado);
+    if (!acompanhado) { this.acompanhandoMs = 0; return; }
+    const npc = estado.rotinasNpc.porId(acompanhado);
+    if (!npc) { encerrarAcompanhamento(estado, false); return; }
+    if (npc.movendo) { this.acompanhandoMs += delta; return; }
+    // Parou depois de ter andado um trecho: chegou. Longe demais, a gente se perdeu.
+    if (this.acompanhandoMs < 4000) return;
+    this.acompanhandoMs = 0;
+    const perto = this.posicaoNpcNoMapa(npc) !== null
+      && Math.hypot(npc.x - this.player.x / this.tamanhoTile, npc.y - this.player.y / this.tamanhoTile) < 6;
+    const texto = encerrarAcompanhamento(estado, perto);
+    if (texto && !this.ui.bloqueado) {
+      const def = buscarNpc(acompanhado);
+      this.ui.iniciarDialogo(falasDe(def?.nome ?? acompanhado, [texto], acompanhado), () => this.salvarJogo());
+    }
+  }
+
+  /** Refeicao com alguem: meio ponto de relacao e uma entrada no caderno. */
+  private servirRefeicao(def: PerfilNpc, tipo: 'jantar' | 'cozinhar', prato?: string): void {
+    const refeicao = comer(estado, tipo, def.nome, prato);
+    if (!refeicao) return;
+    if (refeicao.relacao) estado.relacoes.ganharRelacao(def.id, refeicao.relacao.pontos);
+    registrarConvivencia(estado, def.id);
+    this.salvarJogo();
+    this.ui.iniciarDialogo([
+      { nome: 'Você', texto: refeicao.texto },
+      { nome: def.nome, npcId: def.id, texto: 'Obrigado pela comida e pela cadeira. As duas coisas contam.' },
+    ]);
   }
 
   /** Uma visita por ano, em casa, no aniversario do protagonista. */

@@ -26,7 +26,9 @@ export type TipoInteragivel =
   /** cabine do elevador de servico da represa: abre o menu de paradas */
   | 'elevador'
   /** bicho de rua ou animal de companhia; a presenca muda com hora e clima */
-  | 'bicho';
+  | 'bicho'
+  /** banco de praca: sentar e deixar o tempo passar, sem tarefa */
+  | 'banco';
 
 /** Classes de objeto usadas na camada `zonas` dos tilemaps do Tiled. */
 export type TipoZona =

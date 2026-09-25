@@ -11,6 +11,10 @@ import { carregarMobiliaNarrativa } from './arteNarrativa';
 import { desenharTelaInicial } from './TelaInicial';
 import { lerDiario, sincronizarDiario } from '../game/diarioPessoal';
 import { ANIVERSARIO_PROTAGONISTA, aniversarioDe, aniversariantesDoDia, dataLegivel, ehAniversario, meuAniversarioHoje, quemSabeDoMeuAniversario } from '../game/aniversarios';
+import {
+  CLIENTES, cargaEscolhida, declararDiaLivre, definirCarga, desfazerDiaLivre, diasSeguidosTrabalhando,
+  ehDiaLivre, reputacao, rotuloDeReputacao, servicosHoje, visitasDoCliente,
+} from '../game/oficina';
 import { mensagensDisponiveis, responderMensagem, conversaCelular, fotosPessoais } from '../game/celular';
 import { feedAte } from '../game/blog';
 import { naturezaDaRelacao } from '../game/vidaSocial';
@@ -25,7 +29,7 @@ import { UI } from '../game/config';
 import { CLIMAS } from '../game/clima';
 import type { FarmScene } from './FarmScene';
 
-type Pagina = 'celular' | 'mensagens' | 'contatos' | 'blog' | 'fotos' | 'album' | 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'pessoal' | 'entradaPessoal' | 'historia' | 'estatisticas' | 'controles' | 'carregar' | 'salvar' | 'creditos' | 'confirmar' | 'sair' | 'dev' | 'dev_mapas' | 'dev_itens';
+type Pagina = 'celular' | 'mensagens' | 'contatos' | 'blog' | 'fotos' | 'album' | 'oficina' | 'titulo' | 'pausa' | 'opcoes' | 'som' | 'calendario' | 'diario' | 'pessoal' | 'entradaPessoal' | 'historia' | 'estatisticas' | 'controles' | 'carregar' | 'salvar' | 'creditos' | 'confirmar' | 'sair' | 'dev' | 'dev_mapas' | 'dev_itens';
 /** `ajustar` existe nas linhas de escala (volume): setas laterais mexem no valor. */
 interface Opcao { texto: string; executar: () => void; ajustar?: (delta: number) => void; }
 /** Volumes ajustaveis, na ordem em que aparecem na tela. */
@@ -101,7 +105,7 @@ export class MenuScene extends Phaser.Scene {
     if (this.pagina === 'titulo') return;
     som.tocar('ui_cancelar');
     if (this.pagina === 'entradaPessoal') { this.abrir('pessoal'); return; }
-    if (['mensagens', 'contatos', 'blog', 'fotos', 'album'].includes(this.pagina)) { this.abrir('celular'); return; }
+    if (['mensagens', 'contatos', 'blog', 'fotos', 'album', 'oficina'].includes(this.pagina)) { this.abrir('celular'); return; }
     if (this.pagina === 'pausa') this.fechar(); else this.abrir(this.veioDoTitulo ? 'titulo' : 'pausa');
   }
   private abrir(pagina: Pagina): void {
@@ -144,6 +148,7 @@ export class MenuScene extends Phaser.Scene {
       this.opcoes = [ir('Mensagens', 'mensagens'), ir('Blog da cidade', 'blog'), ir('Calendário', 'calendario'), ir('Contatos', 'contatos'), ir('Fotografias', 'fotos'), ir('Álbum antigo', 'album'),
         { texto: 'Trabalhos', executar: () => { this.fechar(); (this.scene.get('UIScene') as import('./UIScene').UIScene).abrirComputador(); } },
         { texto: 'Mapa', executar: () => { this.fechar(); (this.scene.get('FarmScene') as FarmScene).abrirMapaCelular(); } }];
+      this.opcoes.splice(6, 0, ir('Oficina', 'oficina'));
     } else if (pagina === 'mensagens') {
       this.titulo = 'Mensagens';
       this.opcoes = mensagensDisponiveis(estado).map(m => ({ texto: m.npc, executar: () => {
@@ -165,6 +170,40 @@ export class MenuScene extends Phaser.Scene {
     } else if (pagina === 'blog') {
       this.titulo = 'Blog da cidade';
       this.opcoes = feedAte(estado.dia, estado.relogio.minutos).map(p => ({ texto: `${p.npcId} · dia ${p.dia + 1}`, executar: () => { this.mensagem = p.texto; this.opcoes = []; this.desenhar(); } }));
+    } else if (pagina === 'oficina') {
+      // Reputação, carga combinada e dia livre. Nada aqui é obrigatório: é o
+      // lugar de decidir quanto trabalho o dia vai ter, e de não decidir nada.
+      const r = reputacao(estado);
+      const barra = (v: number) => `[${'#'.repeat(Math.round(v / 10))}${'.'.repeat(10 - Math.round(v / 10))}]`;
+      const seguidos = diasSeguidosTrabalhando(estado);
+      this.titulo = 'Oficina';
+      this.mensagem = [
+        rotuloDeReputacao(r),
+        `Confiabilidade ${barra(r.confiabilidade)}  Velocidade ${barra(r.velocidade)}`,
+        `Qualidade      ${barra(r.qualidade)}  Preco      ${barra(r.preco)}`,
+        `${r.servicos} serviços atendidos · hoje: ${servicosHoje(estado)}${seguidos >= 2 ? ` · ${seguidos} dias seguidos` : ''}`,
+      ].join('\n');
+      const recarregar = () => { const i = this.cursor; this.abrir('oficina'); this.cursor = i; this.desenhar(); };
+      this.opcoes = [
+        { texto: `Contratos por dia: ${cargaEscolhida(estado)}`,
+          executar: () => { definirCarga(estado, cargaEscolhida(estado) % 5 + 1); recarregar(); },
+          ajustar: (delta: number) => { definirCarga(estado, cargaEscolhida(estado) + delta); recarregar(); } },
+        { texto: ehDiaLivre(estado) ? 'Hoje é dia livre — voltar a aceitar serviço' : 'Declarar hoje como dia livre',
+          executar: () => {
+            if (ehDiaLivre(estado)) desfazerDiaLivre(estado);
+            else if (!declararDiaLivre(estado)) { this.mensagem = 'Hoje já teve serviço. O dia livre começa amanhã.'; this.desenhar(); return; }
+            (this.scene.get('FarmScene') as FarmScene).salvarJogo();
+            recarregar();
+          } },
+        { texto: 'Clientes', executar: () => {
+          const conhecidos = CLIENTES.filter(c => visitasDoCliente(estado, c.id) > 0);
+          this.titulo = 'Clientes da oficina';
+          this.mensagem = conhecidos.length
+            ? conhecidos.map(c => `${c.nome}: ${visitasDoCliente(estado, c.id)} visita(s)`).join('\n')
+            : 'Ninguém voltou ainda. Um serviço bem feito costuma trazer o mesmo aparelho de volta.';
+          this.opcoes = []; this.desenhar();
+        } },
+      ];
     } else if (pagina === 'album') {
       this.titulo = 'Álbum antigo';
       this.opcoes = memoriasDisponiveis(estado).filter(m => ['foto', 'cartao', 'pendrive'].includes(m.id)).map(m => ({ texto: m.nome, executar: () => { this.mensagem = m.texto; this.opcoes = []; this.desenhar(); } }));

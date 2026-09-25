@@ -74,7 +74,7 @@ export class QuebraCabecaConserto implements Vista {
   private indices: readonly number[];
   private msTotal: number;
   private mostrarRotulos: boolean;
-  private aoTerminar: (acertos: number, total: number) => void;
+  private aoTerminar: (acertos: number, total: number, restanteMs: number) => void;
 
   private cena!: Phaser.Scene;
   private fase: Fase = 'aguardando';
@@ -136,7 +136,7 @@ export class QuebraCabecaConserto implements Vista {
     indices: readonly number[],
     msTotal: number,
     mostrarRotulos: boolean,
-    aoTerminar: (acertos: number, total: number) => void,
+    aoTerminar: (acertos: number, total: number, restanteMs: number) => void,
   ) {
     this.aparelho = aparelho;
     this.indices = indices;
@@ -363,7 +363,8 @@ export class QuebraCabecaConserto implements Vista {
       `${motivo}  ${this.acertos}/${this.indices.length} pecas.`,
       completo ? PC.sucesso : PC.alerta,
     );
-    this.aoTerminar(this.acertos, this.indices.length);
+    // o tempo que SOBROU e o que a reputacao le como velocidade
+    this.aoTerminar(this.acertos, this.indices.length, Math.max(0, this.prazoFinal - this.cena.time.now));
   }
 
   private avisar(mensagem: string, cor: string): void {

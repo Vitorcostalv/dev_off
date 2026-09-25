@@ -23,6 +23,13 @@ import type { Retangulo } from '../../widgets.ts';
 import type { AppDoPc, ContextoApp } from '../../tipos.ts';
 import { QuizCodigo } from './quizCodigo.ts';
 import { QuebraCabecaConserto } from './quebraCabecaConserto.ts';
+import { InspecaoConserto } from './inspecao.ts';
+import type { ResultadoDaInspecao } from './inspecao.ts';
+import {
+  PRECOS, aparelhoDoCliente, clienteDaVaga, comentarioDeExcesso, ehDiaLivre,
+  registrarServico, registrarServicoDoDia, registrarVisita, reputacao, rotuloDeReputacao,
+  sintomaDaVaga, textoDoDiaLivre, vagasExtras, visitasDoCliente,
+} from '../../../game/oficina.ts';
 import type { Vista } from '../../vista.ts';
 import { ListaRolavel } from '../../listaRolavel.ts';
 import { ITENS } from '../../../game/inventario';
@@ -72,6 +79,8 @@ export class Trabalho implements AppDoPc {
   private status!: Phaser.GameObjects.Text;
 
   private minigame: Vista | null = null;
+  /** Inspecao da vaga aberta agora; missao pessoal nao passa por ela. */
+  private inspecao: (ResultadoDaInspecao & { cliente: ReturnType<typeof clienteDaVaga> }) | null = null;
   private vagas: Vaga[] = [];
   private cursor = 0;
   private lista = new ListaRolavel();
@@ -167,7 +176,11 @@ export class Trabalho implements AppDoPc {
 
   private abrirLista(): void {
     this.limparRaiz();
-    this.vagas = [...estado.missoesNpc.vagasDeConserto(), ...quadroDoDia(estado.dia)];
+    // Dia livre fecha o quadro do dia; as missoes pessoais continuam visiveis
+    // porque elas nao sao contrato de oficina.
+    this.vagas = ehDiaLivre(estado)
+      ? [...estado.missoesNpc.vagasDeConserto()]
+      : [...estado.missoesNpc.vagasDeConserto(), ...quadroDoDia(estado.dia, vagasExtras(estado))];
     this.cursor = Math.min(this.cursor, Math.max(0, this.vagas.length - 1));
 
     const cena = this.cena;
@@ -296,6 +309,12 @@ export class Trabalho implements AppDoPc {
         `Montar ${pecas} pecas em ${segundos}s.`,
         'Paga proporcional ao que encaixar.',
       );
+      if (!vaga.missaoNpcId) {
+        const cliente = clienteDaVaga(vaga.id, estado.dia);
+        const visitas = visitasDoCliente(estado, cliente.id);
+        linhas.push(visitas > 0 ? `Quem traz: ${cliente.nome} (${visitas + 1}ª vez)` : `Quem traz: ${cliente.nome}`,
+          'Inspecao antes de abrir: falha e preco.');
+      }
     }
     if (vaga.tipo === 'codigo') {
       const etapas = vaga.etapas ?? 1;
@@ -456,26 +475,48 @@ export class Trabalho implements AppDoPc {
     );
   }
 
+  /**
+   * CONSERTO em duas partes: a inspecao (cliente, sintoma, diagnostico e preco)
+   * e o quebra-cabeca de encaixe. Missao pessoal pula a inspecao — ali nao ha
+   * cliente nem preco a combinar.
+   */
   private abrirConserto(vaga: Vaga): void {
-    const aparelho = buscarAparelho(vaga.aparelho);
-    if (!aparelho) {
-      this.avisar('Aparelho nao encontrado no catalogo.', PC.alerta);
+    this.inspecao = null;
+    if (vaga.missaoNpcId) {
+      const aparelho = buscarAparelho(vaga.aparelho);
+      if (!aparelho) { this.avisar('Aparelho nao encontrado no catalogo.', PC.alerta); return; }
+      this.montarQuebraCabeca(vaga, aparelho);
       return;
     }
+    const cliente = clienteDaVaga(vaga.id, estado.dia);
+    const visitas = visitasDoCliente(estado, cliente.id);
+    const aparelho = buscarAparelho(aparelhoDoCliente(cliente, visitas)) ?? buscarAparelho(vaga.aparelho);
+    if (!aparelho) { this.avisar('Aparelho nao encontrado no catalogo.', PC.alerta); return; }
+    this.limparRaiz();
+    this.minigame = new InspecaoConserto(
+      cliente, visitas, sintomaDaVaga(vaga.id, estado.dia), vaga.id, estado.dia,
+      (r) => { this.inspecao = { ...r, cliente }; this.montarQuebraCabeca(vaga, aparelho); },
+    );
+    this.minigame.montar(this.cena, this.raiz, this.areaDaVista);
+    this.avisar(`${cliente.nome} na bancada. Ouca, diga qual e a falha e combine o preco.`);
+  }
+
+  private montarQuebraCabeca(vaga: Vaga, aparelho: NonNullable<ReturnType<typeof buscarAparelho>>): void {
     const pecas = pecasDoConserto(vaga, estado.dia);
     if (pecas.length === 0) {
       this.avisar('Esse aparelho esta sem pecas no catalogo. Avise o suporte.', PC.alerta);
       return;
     }
+    const total = tempoDoConserto(vaga);
     this.limparRaiz();
     this.minigame = new QuebraCabecaConserto(
       aparelho,
       pecas,
-      tempoDoConserto(vaga),
+      total,
       // na dificuldade alta o slot nao diz que peca aceita: reconhecer o
       // componente pela arte e parte do que a vaga esta pagando
       vaga.dificuldade !== 'dificil',
-      (acertos, total) => this.pagarConserto(vaga, acertos, total),
+      (acertos, pecasTotais, restante) => this.pagarConserto(vaga, acertos, pecasTotais, restante / total),
     );
     this.minigame.montar(this.cena, this.raiz, this.areaDaVista);
     this.avisar(`${vaga.titulo} — ${formatarDinheiro(vaga.recompensa)} pelo aparelho inteiro.`);
@@ -497,12 +538,17 @@ export class Trabalho implements AppDoPc {
     this.creditar(vaga, valor, total > 1 ? `${acertos}/${total} etapas` : 'Acertou');
   }
 
-  private pagarConserto(vaga: Vaga, acertos: number, total: number): void {
+  private pagarConserto(vaga: Vaga, acertos: number, total: number, fracaoTempo = 0): void {
     if (vaga.missaoNpcId && acertos < total) {
       this.avisar(`${acertos}/${total} pecas: missao pessoal exige o conserto completo. Pode tentar novamente.`, PC.alerta);
       return;
     }
-    const valor = pagamentoDeConserto(vaga, acertos, total);
+    const inspecao = this.inspecao;
+    // O diagnostico e o preco combinados ajustam o que a vaga paga; a base
+    // continua saindo de `pagamentoDeConserto`, que nao sabe da oficina.
+    const valor = inspecao
+      ? Math.round(pagamentoDeConserto(vaga, acertos, total) * inspecao.avaliacao.fator * PRECOS[inspecao.preco].fator)
+      : pagamentoDeConserto(vaga, acertos, total);
     if (valor <= 0) {
       this.avisar('Nenhuma peca encaixada. Nao paga nada — a vaga continua no quadro. [Esc] volta.', PC.alerta);
       return;
@@ -523,7 +569,29 @@ export class Trabalho implements AppDoPc {
     // credito recusado: a peca volta pra mochila
     if (!this.creditar(vaga, valor + extra, motivo) && gastou) {
       estado.inventario.adicionar(reposicao.itemId, 1);
+      return;
     }
+    if (!inspecao) return;
+    // SERVICO PRESTADO: reputacao, visita do cliente e carga do dia. Nada disso
+    // devolve dinheiro; e o que a cidade passa a saber sobre o seu trabalho.
+    registrarServico(estado, {
+      completo: acertos >= total,
+      fracaoTempo,
+      diagnostico: inspecao.avaliacao.certo,
+      preco: inspecao.preco,
+    });
+    const visitas = registrarVisita(estado, inspecao.cliente.id);
+    registrarServicoDoDia(estado);
+    const excesso = comentarioDeExcesso(estado);
+    const r = reputacao(estado);
+    this.avisar(
+      `${inspecao.avaliacao.texto} ${PRECOS[inspecao.preco].texto}` +
+        `
+${inspecao.cliente.nome}: ${visitas >= 2 ? 'cliente de casa' : 'volta outro dia'}. ${rotuloDeReputacao(r)}` +
+        (excesso ? `
+${excesso}` : ''),
+      excesso ? PC.alerta : PC.sucesso,
+    );
   }
 
   /**
@@ -579,6 +647,6 @@ export class Trabalho implements AppDoPc {
       );
       return;
     }
-    this.avisar('[W/S] escolher   [E] aceitar/comecar   [Esc] sair');
+    this.avisar(`${textoDoDiaLivre(estado)}   [W/S] escolher   [E] aceitar/comecar   [Esc] sair`);
   }
 }

@@ -84,7 +84,7 @@ try {
   // ------------------------------------------- tigela e sono dentro de casa --
   await irPara('oficina', 3, 9 * 60, 'Limpo');
   const pontos = await page.evaluate(() => window.game.scene.getScene('FarmScene').interagiveis.filter(p => p.tipo === 'domestico').map(p => p.props.acao));
-  assert.equal(pontos.length, 10, 'com bicho em casa a tigela entra');
+  assert.equal(pontos.length, 11, 'com bicho em casa a tigela entra');
   assert(pontos.includes('tigela'));
   await usar('tigela');
   await page.evaluate(() => window.game.scene.getScene('UIScene').menuOpcoes[0].aoEscolher());

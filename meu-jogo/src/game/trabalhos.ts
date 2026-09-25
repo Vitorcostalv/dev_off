@@ -278,7 +278,12 @@ export function etapasDeCodigo(recompensa: number, idVaga: string, dia: number):
  * restantes — senao um dia poderia sair so com entrega, e o jogador que quer
  * jogar o minigame de conserto ficaria esperando o dia virar.
  */
-export function quadroDoDia(dia: number): Vaga[] {
+/**
+ * `extras` vem da REPUTACAO da oficina (ver game/oficina.ts): quem e procurado
+ * recebe ate duas vagas a mais no mesmo quadro. Zero por padrao, e o quadro
+ * continua identico ao de antes pra quem ainda nao trabalhou na cidade.
+ */
+export function quadroDoDia(dia: number, extras = 0): Vaga[] {
   const escolhidas: ModeloDeVaga[] = [];
   const usados = new Set<string>();
 
@@ -293,7 +298,8 @@ export function quadroDoDia(dia: number): Vaga[] {
 
   const tipos: TipoTrabalho[] = ['entrega', 'codigo', 'conserto'];
   tipos.forEach((tipo, i) => sortearDe(MODELOS.filter((m) => m.tipo === tipo), i));
-  for (let i = escolhidas.length; i < VAGAS_POR_DIA; i++) sortearDe(MODELOS, 10 + i);
+  const total = VAGAS_POR_DIA + Math.max(0, Math.min(2, Math.trunc(extras)));
+  for (let i = escolhidas.length; i < total; i++) sortearDe(MODELOS, 10 + i);
 
   // ordena por tipo e depois por recompensa, pra a lista nao dancar entre dias
   const ordem: Record<TipoTrabalho, number> = { entrega: 0, codigo: 1, conserto: 2 };
